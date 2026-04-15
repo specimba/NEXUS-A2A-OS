@@ -10,9 +10,9 @@
 
 __version__ = "1.0.0"
 
-from .token_guard import TokenGuard
-from .counters import LocalCounter, NativeCounter, TokscaleCounter
-from .strategies import SemanticCache, ModelRouter, BudgetManager
+from .monitoring.token_guard import TokenGuard
+from .monitoring.counters import LocalCounter, NativeCounter, TokscaleCounter
+from .monitoring.strategies import SemanticCache, ModelRouter, BudgetManager
 
 __all__ = [
     "TokenGuard",
