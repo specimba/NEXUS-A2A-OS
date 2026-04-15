@@ -1,0 +1,174 @@
+================================================================================
+NEXUS OS — OPENCLAW/SWARM QUICK-START
+================================================================================
+Version: 3.0 | Token Budget: ~600 | Date: 2026-04-15
+
+================================================================================
+FIRST: READ CONTEXT
+================================================================================
+
+1. Documents/NEXUS_OS_CLEANUP/00_MASTER_INDEX.txt
+2. Documents/NEXUS/src/nexus_os/CANONICAL_STRUCTURE.txt
+3. Documents/NEXUS/worklog.md
+
+================================================================================
+CANONICAL PATHS
+================================================================================
+
+CANONICAL SOURCE (READ ONLY):
+  Documents/NEXUS/src/nexus_os/
+  ├── swarm/          ← OpenClaw spawner, foreman, worker
+  ├── engine/hermes.py ← Hermes router (3-layer)
+  ├── engine/hermes_experience.py ← Experience-based learning
+  └── vault/mem0_adapter.py ← Memory adapter
+
+YOUR WORKSPACE:
+  Documents/NEXUS/.openclaw/
+
+EXPERIMENTAL BRANCH:
+  openclaw/experimental
+
+================================================================================
+SWARM ARCHITECTURE
+================================================================================
+
+HERMES ROUTER (3-Layer):
+  Layer 1: Task Classification (code/ops/research/security)
+  Layer 2: Experience Scoring (historical performance)
+  Layer 3: Cost-Optimized Selection (cheapest that meets threshold)
+
+SWARM COMPONENTS:
+  Foreman      → Task coordinator, delegation
+  Workers      → Execute code/research/security
+  Hermes       → Route to best model
+  Mem0         → Memory layer
+  TokenGuard   → Budget monitoring
+
+================================================================================
+WORKFLOW
+================================================================================
+
+1. CHECKOUT branch:
+   cd Documents/NEXUS
+   git checkout openclaw/experimental
+
+2. READ canonical:
+   cat Documents/NEXUS/src/nexus_os/swarm/foreman.py
+   cat Documents/NEXUS/src/nexus_os/engine/hermes.py
+
+3. COPY to workspace:
+   cp -r Documents/NEXUS/src/nexus_os/swarm/ Documents/NEXUS/.openclaw/
+
+4. EDIT workspace copy:
+   vim Documents/NEXUS/.openclaw/swarm/foreman_experiment.py
+
+5. TEST:
+   cd Documents/NEXUS
+   pytest tests/ -v -k "hermes or foreman"
+
+6. COMMIT to branch:
+   git add .openclaw/
+   git commit -m "openclaw: Add foreman experiment"
+
+7. PR to main:
+   git push origin openclaw/experimental
+
+================================================================================
+MEMORY LANES (S-P-E-W)
+================================================================================
+
+S: MemPalace — Verbatim storage (96.6% recall)
+P: FAISS — Vector search, GPU-accelerated
+E: SuperLocalMemory — Math-based, zero cloud
+W: Mira — Decay-based, earn-or-fade
+
+Storage:
+  mem0.store(content, metadata)
+  mem0.search(query, limit=10)
+
+Hermes classify:
+  hermes.classify(task) → code|ops|research|security
+
+================================================================================
+PARALLEL WORKFLOW
+================================================================================
+
+1. Task arrives at Foreman
+2. Foreman queries Mem0 (S-P-E-W)
+3. Hermes classifies task (Layer 1)
+4. Hermes scores models (Layer 2)
+5. Hermes selects cheapest (Layer 3)
+6. Foreman delegates to Worker
+7. Worker executes
+8. Mem0 stores result
+9. TokenGuard tracks tokens
+10. Foreman synthesizes report
+
+================================================================================
+TOKENGUARD INTEGRATION
+================================================================================
+
+Hot Path (non-blocking):
+  guard.track('foreman-1', tokens_used)
+
+Warm Path:
+  model = guard.route(task_type='code', complexity='low')
+  result = guard.semantic_cache_get(query_hash)
+
+Cold Path (background):
+  trends = guard.analyze_trends('foreman-1', '24h')
+
+================================================================================
+OPENCLAW ROSTER (OSMAN)
+================================================================================
+
+osman-agent      → gemma3n:e4b (25.9 tok/s, clean)
+osman-coder     → qwen2.5-coder:7b (23.2 tok/s, clean)
+osman-speed     → frob/locooperator (62.4 tok/s, clean)
+osman-reasoning → uncensored:9b (6.9 tok/s, thinking)
+qwen3:4b-thinking → 72.6 tok/s (clean)
+
+Stability Test:
+  cd osman-workspace
+  .\model-stability-test-v4.ps1 -Quick
+
+================================================================================
+KEY FILES
+================================================================================
+
+Documents/NEXUS/src/nexus_os/
+  swarm/
+    openclaw_spawner.py  ← Spawn swarm agents
+    foreman.py           ← Task coordinator
+    worker.py            ← Worker agent
+  engine/
+    hermes.py            ← 3-layer router
+    hermes_experience.py ← Experience learning
+  vault/
+    mem0_adapter.py      ← Memory adapter
+  monitoring/
+    token_guard.py       ← Token monitoring
+
+================================================================================
+RULES
+================================================================================
+
+1. READ from src/nexus_os/
+2. WRITE to .openclaw/
+3. TEST with pytest
+4. COMMIT to openclaw/experimental
+5. PR to main
+6. SPECI = main branch owner
+7. Swarm triggers at todo_count > 3
+8. Hermes classifies before delegation
+
+================================================================================
+START NOW
+================================================================================
+
+cd Documents/NEXUS
+git checkout openclaw/experimental
+git status
+# Ready to swarm
+
+================================================================================
