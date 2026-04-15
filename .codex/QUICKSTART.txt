@@ -1,0 +1,151 @@
+================================================================================
+NEXUS OS — CODEX QUICK-START
+================================================================================
+Version: 3.0 | Token Budget: ~500 | Date: 2026-04-15
+
+================================================================================
+FIRST: READ CONTEXT
+================================================================================
+
+1. Documents/NEXUS_OS_CLEANUP/00_MASTER_INDEX.txt
+2. Documents/NEXUS/src/nexus_os/CANONICAL_STRUCTURE.txt
+3. Documents/NEXUS/worklog.md
+
+================================================================================
+CANONICAL PATHS
+================================================================================
+
+CANONICAL SOURCE (READ ONLY):
+  Documents/NEXUS/src/nexus_os/
+  ├── bridge/          ← JSON-RPC, SDK, secrets
+  ├── db/             ← Database manager
+  ├── engine/         ← Executor, forge, heartbeat, hermes
+  ├── governor/        ← Compliance, kaiju_auth
+  ├── monitoring/     ← TokenGuard
+  ├── observability/  ← Squeez, tracing
+  ├── team/           ← Coordinator
+  └── vault/          ← Manager, memory, poisoning, trust
+
+YOUR WORKSPACE:
+  Documents/NEXUS/.codex/
+
+EXPERIMENTAL BRANCH:
+  codex/experimental
+
+================================================================================
+WORKFLOW
+================================================================================
+
+1. CHECKOUT branch:
+   cd Documents/NEXUS
+   git checkout codex/experimental
+
+2. READ canonical:
+   cat Documents/NEXUS/src/nexus_os/bridge/server.py
+
+3. COPY to workspace:
+   cp Documents/NEXUS/src/nexus_os/bridge/server.py Documents/NEXUS/.codex/
+
+4. EDIT workspace copy:
+   vim Documents/NEXUS/.codex/server_experiment.py
+
+5. TEST:
+   cd Documents/NEXUS
+   pytest tests/monitoring/test_token_guard.py -v
+
+6. COMMIT to branch:
+   git add .codex/
+   git commit -m "codex: Add server experiment"
+
+7. PR to main:
+   git push origin codex/experimental
+   # Create PR for SPECI to review
+
+================================================================================
+MEMORY FIRST
+================================================================================
+
+Before code task:
+  1. Read worklog.md
+  2. Read src/nexus_os/*/CANONICAL.txt
+  3. Check tests/*/ for existing tests
+
+After code task:
+  1. Write tests for new code
+  2. Run pytest
+  3. Update worklog.md
+  4. Commit to branch
+
+================================================================================
+TOKENGUARD (Hot Path)
+================================================================================
+
+Track tokens:
+  from src.nexus_os.monitoring.token_guard import TokenGuard
+  guard = TokenGuard()
+  guard.track('codex-agent', tokens_used)
+
+Check budget:
+  if guard.check('codex-agent', 5000):
+      proceed
+
+================================================================================
+CODE PATTERNS
+================================================================================
+
+Bounded Change Pattern:
+  1. Read existing test
+  2. Copy test to .codex/
+  3. Modify copy
+  4. Run test
+  5. Verify green
+  6. Commit
+
+Code Style:
+  - PEP 8
+  - Type hints
+  - Docstrings
+  - Unit tests required
+
+Files to modify:
+  - .codex/*.py (experiments)
+  - tests/*.py (write tests first)
+
+================================================================================
+KEY FILES
+================================================================================
+
+Documents/NEXUS/
+  src/nexus_os/bridge/server.py   ← Main API
+  src/nexus_os/engine/hermes.py   ← Hermes router
+  src/nexus_os/governor/         ← Governor pillars
+  src/nexus_os/vault/            ← Memory system
+  tests/monitoring/test_token_guard.py ← TokenGuard tests
+
+Documents/NEXUS_OS_CLEANUP/
+  quickstarts/                    ← Reference templates
+  models/                        ← Model packs
+
+================================================================================
+RULES
+================================================================================
+
+1. READ from src/nexus_os/
+2. WRITE to .codex/
+3. TEST with pytest
+4. COMMIT to codex/experimental
+5. PR to main
+6. SPECI = main branch owner
+7. Update worklog.md
+8. Commit after every meaningful change
+
+================================================================================
+START NOW
+================================================================================
+
+cd Documents/NEXUS
+git checkout codex/experimental
+git status
+# Ready to code
+
+================================================================================
