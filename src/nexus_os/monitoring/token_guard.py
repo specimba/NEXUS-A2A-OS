@@ -509,6 +509,22 @@ class TokenGuard:
     
     # Private methods
     
+
+    def remaining(self, agent_id: str) -> int:
+        """Return tokens remaining for this agent's budget category.
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Remaining token budget (0 if no budget configured)
+        """
+        budget_key = self._get_budget_key(agent_id)
+        budget = self._budgets.get(budget_key)
+        if budget is None:
+            return 0
+        return max(0, budget.total - budget.used)
+
     def _get_budget_key(self, agent_id: str) -> str:
         """Map agent_id to budget category."""
         if 'skill' in agent_id.lower():

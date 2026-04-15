@@ -105,6 +105,8 @@ class BridgeServer:
 
     Can be used standalone (via handle_request()) or mounted on FastAPI/ASGI.
     All public methods take raw HTTP inputs and return (status_code, response_dict).
+    TokenGuard integration: tracks token usage and adds X-Nexus-Input-Tokens,
+    X-Nexus-Output-Tokens headers to FastAPI responses.
     """
 
     def __init__(
@@ -112,14 +114,60 @@ class BridgeServer:
         secret_store=None,
         governor=None,
         executor=None,
+        token_guard=None,
     ):
         from nexus_os.bridge.secrets import SecretStore
         from nexus_os.engine.executor import MockExecutor
+        from nexus_os.monitoring.token_guard import TokenGuard
 
         self.secret_store = secret_store or SecretStore()
-        self.governor = governor  # Optional — if None, skip authz
+        self.governor = governor
         self.executor = executor or MockExecutor()
+        self.token_guard = token_guard or TokenGuard()
         self._task_results: Dict[str, Any] = {}
+
+    # ── Token Guard Helpers ────────────────────────────────────
+
+    def _parse_input_tokens(self, headers, payload) -> int:
+        """Extract input token count. Header > payload > fallback(0)."""
+        hval = headers.get("x-nexus-input-tokens") or headers.get("x-nexus-tokens")
+        if hval:
+            try:
+                return int(hval)
+            except (TypeError, ValueError):
+                pass
+        if isinstance(payload, dict) and "tokens" in payload:
+            try:
+                return int(payload["tokens"])
+            except (TypeError, ValueError):
+                pass
+        return 0
+
+    def _track_tokens(self, agent_id, project_id, operation, input_tokens, output_tokens):
+        """Track tokens via TokenGuard. Non-blocking — never breaks requests."""
+        if input_tokens <= 0 and output_tokens <= 0:
+            return None
+        try:
+            if input_tokens > 0:
+                self.token_guard.track(agent_id, input_tokens,
+                                   operation=operation,
+                                   context={"project_id": project_id})
+            if output_tokens > 0:
+                self.token_guard.track(agent_id, output_tokens,
+                                       operation=f"{operation}_output",
+                                       context={"project_id": project_id})
+            return {
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens,
+                "budget_remaining": self.token_guard.remaining(agent_id),
+            }
+        except Exception:
+            # Non-blocking — log but never fail a request
+            import logging
+            logging.getLogger(__name__).warning("TokenGuard tracking failed")
+            return {"input": input_tokens, "output": output_tokens, "total": input_tokens + output_tokens}
+
 
     # ── Authentication ─────────────────────────────────────────
 
@@ -255,11 +303,11 @@ class BridgeServer:
                     data="Only POST is supported"
                 )
 
-            # Parse request
+            # Parse request — method read from JSON payload['method']
             req = self.parse_request(body, headers)
-            req.method = method  # override with actual path method
-            # Re-derive method from the path-based endpoint call
-            # The caller should pass the endpoint path; we store it as req.method
+
+            # Track tokens (before dispatch if input_tokens known)
+            input_tokens = self._parse_input_tokens(headers, req.payload)
 
             # Authenticate
             self._authenticate(req)
@@ -273,6 +321,15 @@ class BridgeServer:
             duration = (time.perf_counter() - start) * 1000
             if isinstance(result, dict) and "duration_ms" not in result:
                 result["duration_ms"] = round(duration, 2)
+
+
+            # Track token usage
+            response_json = json.dumps(result) if isinstance(result, dict) else "{}"
+            output_tokens = len(response_json) * 4 // 10  # rough: chars to ~token estimate
+            token_info = self._track_tokens(req.agent_id, req.project_id,
+                                            req.method, input_tokens, output_tokens)
+            if token_info:
+                result["token_usage"] = token_info
 
             return 200, jsonrpc_result(result, req.trace_id)
 
@@ -472,23 +529,50 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
     @app.post("/tasks/submit")
     async def submit_task(request: Request):
         body = await request.body()
-        headers = {k.lower(): v for k, v in request.headers.items()}
-        status_code, response = server.handle_submit(body, headers)
-        return JSONResponse(content=response, status_code=status_code)
+        req_headers = {k.lower(): v for k, v in request.headers.items()}
+        agent_id = req_headers.get("x-nexus-agent-id", "unknown")
+        input_tokens = len(body) // 4  # Rough estimate
+        status_code, response = server.handle_submit(body, req_headers)
+        output_tokens = len(str(response).encode()) // 4  # Rough estimate
+        server.token_guard.track(agent_id, input_tokens + output_tokens,
+                                  operation="task_delegation",
+                                  input_tokens=input_tokens,
+                                  output_tokens=output_tokens)
+        return JSONResponse(content=response, status_code=status_code,
+                           headers={"X-Nexus-Input-Tokens": str(input_tokens),
+                                   "X-Nexus-Output-Tokens": str(output_tokens)})
 
     @app.post("/tasks/status")
     async def query_status(request: Request):
         body = await request.body()
-        headers = {k.lower(): v for k, v in request.headers.items()}
-        status_code, response = server.handle_status(body, headers)
-        return JSONResponse(content=response, status_code=status_code)
+        req_headers = {k.lower(): v for k, v in request.headers.items()}
+        agent_id = req_headers.get("x-nexus-agent-id", "unknown")
+        input_tokens = len(body) // 4
+        status_code, response = server.handle_status(body, req_headers)
+        output_tokens = len(str(response).encode()) // 4
+        server.token_guard.track(agent_id, input_tokens + output_tokens,
+                                  operation="memory_query",
+                                  input_tokens=input_tokens,
+                                  output_tokens=output_tokens)
+        return JSONResponse(content=response, status_code=status_code,
+                           headers={"X-Nexus-Input-Tokens": str(input_tokens),
+                                   "X-Nexus-Output-Tokens": str(output_tokens)})
 
     @app.post("/vault/read")
     async def vault_read(request: Request):
         body = await request.body()
-        headers = {k.lower(): v for k, v in request.headers.items()}
-        status_code, response = server.handle_vault_read(body, headers)
-        return JSONResponse(content=response, status_code=status_code)
+        req_headers = {k.lower(): v for k, v in request.headers.items()}
+        agent_id = req_headers.get("x-nexus-agent-id", "unknown")
+        input_tokens = len(body) // 4
+        status_code, response = server.handle_vault_read(body, req_headers)
+        output_tokens = len(str(response).encode()) // 4
+        server.token_guard.track(agent_id, input_tokens + output_tokens,
+                                  operation="memory_query",
+                                  input_tokens=input_tokens,
+                                  output_tokens=output_tokens)
+        return JSONResponse(content=response, status_code=status_code,
+                           headers={"X-Nexus-Input-Tokens": str(input_tokens),
+                                   "X-Nexus-Output-Tokens": str(output_tokens)})
 
     @app.post("/vault/write")
     async def vault_write(request: Request):
