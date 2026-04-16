@@ -525,6 +525,9 @@ class TokenGuard:
             return 0
         return max(0, budget.total - budget.used)
 
+    def get_remaining_budget(self, agent_id: str) -> int:
+        """Alias for GMR v3.0 compatibility."""
+        return self.remaining(agent_id)
     def _get_budget_key(self, agent_id: str) -> str:
         """Map agent_id to budget category."""
         if 'skill' in agent_id.lower():

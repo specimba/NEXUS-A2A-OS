@@ -308,6 +308,14 @@ class BridgeServer:
             # Parse request â€” method read from JSON payload['method']
             req = self.parse_request(body, headers)
 
+            # Budget pre-check (P0: TokenGuard gate)
+            if not self.token_guard.check(req.agent_id, 1000):
+                return 429, jsonrpc_error(
+                    429, "Token budget exceeded",
+                    trace_id=req.trace_id,
+                    data={"remaining": self.token_guard.remaining(req.agent_id)},
+                )
+
             # Track tokens (before dispatch if input_tokens known)
             input_tokens = self._parse_input_tokens(headers, req.payload)
 
@@ -363,6 +371,15 @@ class BridgeServer:
         try:
             req = self.parse_request(body, headers)
             req.method = "tasks/submit"
+
+            # Budget pre-check (P0: TokenGuard gate)
+            if not self.token_guard.check(req.agent_id, 1000):
+                return 429, jsonrpc_error(
+                    429, "Token budget exceeded",
+                    trace_id=req.trace_id,
+                    data={"remaining": self.token_guard.remaining(req.agent_id)},
+                )
+
             self._authenticate(req)
             self._authorize(req)
 
@@ -542,7 +559,8 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
                                   output_tokens=output_tokens)
         return JSONResponse(content=response, status_code=status_code,
                            headers={"X-Nexus-Input-Tokens": str(input_tokens),
-                                   "X-Nexus-Output-Tokens": str(output_tokens)})
+                                   "X-Nexus-Output-Tokens": str(output_tokens),
+                                   "X-Token-Remaining": str(server.token_guard.remaining(agent_id))})
 
     @app.post("/tasks/status")
     async def query_status(request: Request):
@@ -558,7 +576,8 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
                                   output_tokens=output_tokens)
         return JSONResponse(content=response, status_code=status_code,
                            headers={"X-Nexus-Input-Tokens": str(input_tokens),
-                                   "X-Nexus-Output-Tokens": str(output_tokens)})
+                                   "X-Nexus-Output-Tokens": str(output_tokens),
+                                   "X-Token-Remaining": str(server.token_guard.remaining(agent_id))})
 
     @app.post("/vault/read")
     async def vault_read(request: Request):
@@ -574,7 +593,8 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
                                   output_tokens=output_tokens)
         return JSONResponse(content=response, status_code=status_code,
                            headers={"X-Nexus-Input-Tokens": str(input_tokens),
-                                   "X-Nexus-Output-Tokens": str(output_tokens)})
+                                   "X-Nexus-Output-Tokens": str(output_tokens),
+                                   "X-Token-Remaining": str(server.token_guard.remaining(agent_id))})
 
     @app.post("/vault/write")
     async def vault_write(request: Request):
@@ -590,7 +610,8 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
                                   output_tokens=output_tokens)
         return JSONResponse(content=response, status_code=status_code,
                            headers={"X-Nexus-Input-Tokens": str(input_tokens),
-                                   "X-Nexus-Output-Tokens": str(output_tokens)})
+                                   "X-Nexus-Output-Tokens": str(output_tokens),
+                                   "X-Token-Remaining": str(server.token_guard.remaining(agent_id))})
 
     @app.post("/")
     async def jsonrpc_router(request: Request):
@@ -599,14 +620,12 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
         agent_id = req_headers.get("x-nexus-agent-id", "unknown")
         input_tokens = len(body) // 4
         status_code, response = server.handle_request("POST", body, req_headers)
+        # handle_request() already tracks tokens via _track_tokens()
         output_tokens = len(str(response).encode()) // 4
-        server.token_guard.track(agent_id, input_tokens + output_tokens,
-                                  operation="model_inference",
-                                  input_tokens=input_tokens,
-                                  output_tokens=output_tokens)
         return JSONResponse(content=response, status_code=status_code,
                            headers={"X-Nexus-Input-Tokens": str(input_tokens),
-                                   "X-Nexus-Output-Tokens": str(output_tokens)})
+                                   "X-Nexus-Output-Tokens": str(output_tokens),
+                                   "X-Token-Remaining": str(server.token_guard.remaining(agent_id))})
 
     @app.get("/health")
     async def health():
