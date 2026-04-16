@@ -1,16 +1,16 @@
 # C5 INTEGRATION EVIDENCE
-**Generated**: 2026-04-16T04:44:07Z
+**Generated**: 2026-04-16T18:16:36Z
 **Gate Status**: [PASSED]
-**Execution Time**: 19.47s
+**Execution Time**: 26.57s
 **Branch**: `main`
 **Target Tag**: `m3-hardened`
 
 ## Test Summary
 | Metric | Value |
 |---|---|
-| **Passed** | 450 |
+| **Passed** | 582 |
 | **Failed** | 0 |
-| **Duration** | 19.47s |
+| **Duration** | 26.57s |
 
 ## Verified Surfaces (CODE_CONFIRMED)
 | Component | File | Verification Target |

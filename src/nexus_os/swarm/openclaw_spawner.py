@@ -1,6 +1,7 @@
 """
 Open Claw Swarm Spawner - Dynamic Agent Spawning Based on Task Volume
 Spawns Foreman + Workers when pending tasks > 3
+With TokenGuard Budget Gate Integration
 """
 
 import os
@@ -15,6 +16,7 @@ from pathlib import Path
 # Import swarm components
 from .foreman import Foreman
 from .worker import Worker
+from ..monitoring.token_guard import TokenGuard
 
 
 @dataclass
@@ -32,10 +34,20 @@ class OpenClawSpawner:
     Dynamic spawn based on task volume >3 pending
     15min heartbeat monitoring
     File-driven coordination via tasks/pending, tasks/done, tasks/failed
+    
+    With TokenGuard Budget Gate integration:
+    - Checks swarm budget before spawning workers
+    - Returns 429 when budget exceeded
+    - Tracks token usage per swarm session
     """
     
-    def __init__(self, config: Optional[SpawnConfig] = None):
+    def __init__(
+        self,
+        config: Optional[SpawnConfig] = None,
+        token_guard: Optional[TokenGuard] = None,
+    ):
         self.config = config or SpawnConfig()
+        self.token_guard = token_guard or TokenGuard()
         self.pending_dir = Path(self.config.tasks_dir) / "pending"
         self.done_dir = Path(self.config.tasks_dir) / "done"
         self.failed_dir = Path(self.config.tasks_dir) / "failed"
@@ -51,6 +63,52 @@ class OpenClawSpawner:
         self._workers: List[Worker] = []
         self._last_spawn_time: Optional[datetime] = None
         self._lock = threading.Lock()
+        
+        # Track spawns and budget
+        self._spawn_count = 0
+        self._total_tokens_used = 0
+    
+    # ── Budget Gate ─────────────────────────────────────────
+    
+    def check_budget(self, agent_id: str = "swarm") -> bool:
+        """
+        Check if swarm has budget to spawn workers.
+        
+        Args:
+            agent_id: Agent/category to check
+            
+        Returns:
+            True if budget available, False if exceeded
+        """
+        remaining = self.token_guard.remaining(agent_id)
+        MIN_BUDGET = 1000  # Minimum tokens needed to spawn
+        return remaining >= MIN_BUDGET
+    
+    def get_budget_status(self, agent_id: str = "swarm") -> Dict[str, Any]:
+        """
+        Get current budget status for swarm.
+        
+        Returns:
+            Dict with remaining, limit, pct_used
+        """
+        remaining = self.token_guard.remaining(agent_id)
+        # Get limit from budgets dict
+        budget_key = self.token_guard._get_budget_key(agent_id)
+        budget = self.token_guard._budgets.get(budget_key)
+        limit = budget.total if budget else 100000
+        pct = (remaining / limit * 100) if limit > 0 else 0
+        
+        return {
+            "remaining": remaining,
+            "limit": limit,
+            "pct_used": round(100 - pct, 2),
+            "can_spawn": remaining >= 1000,
+        }
+    
+    def track_usage(self, agent_id: str, tokens: int):
+        """Track token usage for swarm operations."""
+        self.token_guard.track(agent_id, tokens)
+        self._total_tokens_used += tokens
     
     def get_pending_count(self) -> int:
         """Count pending tasks in tasks/pending directory"""
@@ -84,6 +142,10 @@ class OpenClawSpawner:
         with self._lock:
             if len(self._workers) >= self.config.max_workers:
                 return False
+        
+        # Budget gate check - fail if no budget
+        if not self.check_budget("swarm"):
+            return False
         
         return True
     

@@ -40,8 +40,8 @@ def run_pytest_live() -> dict:
         elapsed = time.time() - start_time
         
         # Print dynamic header (overwrites previous line)
-        # Format: [⏱️ 00:12] ✅ Passed: 45 | ❌ Failed: 0
-        header = f"\r[⏱️ {int(elapsed)//60:02d}:{int(elapsed)%60:02d}] ✅ Passed: {passed_count} | ❌ Failed: {failed_count}"
+        # Format: [ 00:12] [OK] Passed: 45 | [X] Failed: 0
+        header = f"\r[ {int(elapsed)//60:02d}:{int(elapsed)%60:02d}] [OK] Passed: {passed_count} | [X] Failed: {failed_count}"
         sys.stdout.write(header)
         sys.stdout.flush()
         
@@ -98,20 +98,20 @@ def generate_evidence(pytest_out: dict) -> str:
     return evidence
 
 if __name__ == "__main__":
-    print("🔍 Running C5 Integration Gate v4.0 (Live Progress)...")
+    print("[C5] Running C5 Integration Gate v4.0 (Live Progress)...")
     
     pytest_res = run_pytest_live()
     
     # Print Final Summary
-    print(f"\n📊 FINAL RESULTS:")
-    print(f"   ✅ Passed: {pytest_res['passed']}")
-    print(f"   ❌ Failed: {pytest_res['failed']}")
-    print(f"   ⏱️  Total Duration: {pytest_res['elapsed_seconds']:.2f}s")
+    print(f"\n[STATS] FINAL RESULTS:")
+    print(f"   [OK] Passed: {pytest_res['passed']}")
+    print(f"   [X] Failed: {pytest_res['failed']}")
+    print(f"     Total Duration: {pytest_res['elapsed_seconds']:.2f}s")
     
     evidence_md = generate_evidence(pytest_res)
     Path("EVIDENCE.md").write_text(evidence_md, encoding="utf-8")
     
     final_status = "PASS" if pytest_res["returncode"] == 0 else "FAIL"
-    print(f"\n📄 EVIDENCE.md generated. Final Status: [{final_status}]")
+    print(f"\n[DOC] EVIDENCE.md generated. Final Status: [{final_status}]")
     
     sys.exit(pytest_res["returncode"])

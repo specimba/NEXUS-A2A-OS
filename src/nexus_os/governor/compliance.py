@@ -31,6 +31,8 @@ from enum import Enum
 from collections import defaultdict
 
 from nexus_os.db.manager import DatabaseManager
+from nexus_os.monitoring.token_guard import TokenGuard
+from nexus_os.governor.proof_chain import ProofChain as VAPProofChain
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +117,10 @@ class ComplianceEngine:
     - generate_badge(): Produce a compliance status summary
     """
 
-    def __init__(self, db: DatabaseManager):
+    def __init__(self, db: DatabaseManager = None, token_guard: TokenGuard = None, vap_chain: VAPProofChain = None):
         self.db = db
+        self.token_guard = token_guard or TokenGuard()
+        self.vap = vap_chain or VAPProofChain()
         self._rules: Dict[str, ComplianceRule] = {}
         self._check_history: List[ComplianceResult] = []
 
@@ -276,6 +280,48 @@ class ComplianceEngine:
             ComplianceResult with status, violations, and warnings.
         """
         result = ComplianceResult(trace_id=trace_id)
+
+        # ── P0: TokenGuard Hard Stop Check ──
+        if hasattr(self, 'token_guard'):
+            required_tokens = context.get('required_tokens', 1000)
+            if not self.token_guard.check(agent_id, required_tokens):
+                violation = ComplianceViolation(
+                    rule_id="TOKEN-BUDGET-001",
+                    rule_name="Token Budget Exceeded",
+                    level=ComplianceLevel.CRITICAL,
+                    message=f"Token budget exceeded for {agent_id}. Required: {required_tokens}, Remaining: {self.token_guard.remaining(agent_id)}",
+                    remediation="Request additional token budget or wait for budget reset.",
+                )
+                violation.source = RuleSource.INTERNAL
+                result.violations.append(violation)
+                result.status = ComplianceStatus.BLOCKED
+                result.rules_checked = 1
+
+                # Log VAP rejection
+                if hasattr(self, 'vap'):
+                    self.vap.record(
+                        agent_id=agent_id,
+                        action=action,
+                        details={"reason": "budget_exceeded", "required": required_tokens, "remaining": self.token_guard.remaining(agent_id)},
+                        level="WARNING"
+                    )
+
+                self._log_evaluation(result, agent_id, action, context)
+                self._check_history.append(result)
+                logger.warning(
+                    "Compliance: BLOCKED (budget) — agent=%s action=%s remaining=%d",
+                    agent_id, action, self.token_guard.remaining(agent_id)
+                )
+                return result
+
+        # Log VAP approval (only if budget check passed)
+        if hasattr(self, 'vap'):
+            self.vap.record(
+                agent_id=agent_id,
+                action=action,
+                details={"required_tokens": context.get('required_tokens', 1000)},
+                level="INFO"
+            )
         rules_checked = 0
 
         for rule in self._rules.values():
