@@ -264,3 +264,7 @@ class DatabaseManager:
                 adapter.close()
             except Exception:
                 logger.exception("Failed to close database adapter")
+
+    def close_all(self):
+        """Alias for close() - closes all connections."""
+        self.close()

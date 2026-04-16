@@ -1,0 +1,18 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NexusEvidencePacket",
+  "type": "object",
+  "required": ["packet_id", "session_id", "exported_at", "source_id", "source_type", "dossier_tier", "repo_inspection_available", "operator_review_required", "canonical_hash"],
+  "properties": {
+    "packet_id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string" },
+    "exported_at": { "type": "string", "format": "date-time" },
+    "source_id": { "type": "string" },
+    "source_type": { "type": "string", "enum": ["repo", "paper", "dataset"] },
+    "dossier_tier": { "type": "string", "enum": ["strong", "stub", "residual"] },
+    "repo_inspection_available": { "type": "boolean" },
+    "operator_review_required": { "type": "boolean" },
+    "canonical_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
