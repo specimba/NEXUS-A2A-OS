@@ -190,8 +190,8 @@ class TrustScoringGate:
         if result.score is not None:
             self.memory.update_trust(agent_id, inp.lane, result.Qeff, result.score, inp.hard_fail)
             self.memory.update_capability(agent_id, inp.lane, result.score)
-        if result.score < 0:
-            self.memory.record_failure_pattern(agent_id, result.reason_primary.value)
+        if result.score is not None and result.score < 0:
+             self.memory.record_failure_pattern(agent_id, result.reason_primary.value)
         if inp.hard_fail:
             self.memory.record_governance_event(agent_id, "hard_fail", result.reason_primary.value)
         if result.finding_state == FindingState.HELD:
