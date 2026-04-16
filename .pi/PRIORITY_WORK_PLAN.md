@@ -2,7 +2,7 @@
 
 **Version**: 3.0.0-beta  
 **Date**: 2026-04-16  
-**Author**: Pi Agent  
+**Author**: Pi Agent  ( GLM 5 )
 **Status**: PLANNING DOCUMENT
 
 ---
@@ -347,4 +347,4 @@ async def handle_request(self, request):
 
 **Document Status**: COMPLETE  
 **Next Update**: 2026-04-17  
-**Owner**: Pi Agent
+**Owner**: Pi Agent ( GLM 5 )

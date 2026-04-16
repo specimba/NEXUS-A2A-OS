@@ -2,7 +2,7 @@
 
 **Version**: 3.0.0-beta  
 **Date**: 2026-04-16  
-**Author**: Pi Agent (Research & Documentation)  
+**Author**: Pi Agent (GLM 5) (Research & Documentation)  
 **Status**: CANONICAL REFERENCE
 
 ---
@@ -696,4 +696,4 @@ TokenGuard, TokenBudget, AuditEntry
 
 **Document Status**: COMPLETE  
 **Next Review**: 2026-04-23  
-**Owner**: Pi Agent (Research & Documentation)
+**Owner**: Pi Agent (GLM 5) (Research & Documentation)
