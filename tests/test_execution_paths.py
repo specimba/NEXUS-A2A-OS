@@ -151,3 +151,49 @@ class TestAdaptiveCircuitBreaker:
         assert status["state"] == "closed"
         assert "failure_count" in status
         assert "available" in status
+class TestSpeculativeRouting:
+    """Test speculative routing proxy."""
+
+    def test_first_succeeds(self):
+        from nexus_os.execution_paths import SpeculativeRouter
+        sr = SpeculativeRouter(max_parallel=3, timeout_seconds=1.0)
+        candidates = [
+            ("fast", lambda: "success"),
+            ("slow", lambda: time.sleep(0.5) or "late"),
+        ]
+        name, result = sr.route(candidates)
+        assert name == "fast"
+        assert result == "success"
+        sr.shutdown()
+
+    def test_all_fail_returns_none(self):
+        from nexus_os.execution_paths import SpeculativeRouter
+        sr = SpeculativeRouter(max_parallel=2, timeout_seconds=1.0)
+        candidates = [
+            ("fail1", lambda: (_ for _ in ()).throw(RuntimeError("e1"))),
+            ("fail2", lambda: (_ for _ in ()).throw(RuntimeError("e2"))),
+        ]
+        name, result = sr.route(candidates)
+        assert name is None
+        assert result is None
+        sr.shutdown()
+
+    def test_convenience_function(self):
+        from nexus_os.execution_paths import speculative_route
+        name, result = speculative_route([
+            ("quick", lambda: "ok"),
+        ], timeout=1.0)
+        assert name == "quick"
+        assert result == "ok"
+
+    def test_timeout_protection(self):
+        from nexus_os.execution_paths import SpeculativeRouter
+        sr = SpeculativeRouter(max_parallel=2, timeout_seconds=0.2)
+        candidates = [
+            ("slow", lambda: time.sleep(1.0) or "too late"),
+            ("fast", lambda: "fast ok"),
+        ]
+        name, result = sr.route(candidates)
+        # Either hits timeout or fast succeeds
+        assert name in ("slow", "fast")
+        sr.shutdown()
