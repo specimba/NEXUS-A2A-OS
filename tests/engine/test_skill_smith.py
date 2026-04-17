@@ -41,7 +41,7 @@ class TestOutcomeRecording:
     def test_at_threshold_is_candidate(self):
         s, _ = _smith(); _fill(s, SkillSmith.MIN_OUTCOMES)
         skill = next(iter(s._skills.values()))
-        assert skill.status == SkillStatus.CANDIDATE   # Bug 2 fix: TESTING not CANDIDATE
+        assert skill.status == SkillStatus.TESTING   # Bug 2 fix: TESTING not CANDIDATE
 
     def test_above_threshold_is_testing(self):
         s, _ = _smith(); _fill(s, SkillSmith.MIN_OUTCOMES + 1)

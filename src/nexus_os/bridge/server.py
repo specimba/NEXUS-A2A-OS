@@ -278,6 +278,18 @@ class BridgeServer:
 
     # â”€â”€ Handler Dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+    
+    def get_agent_card(self, agent_id: str) -> Dict[str, Any]:
+        """A2A v1.1: Expose agent capabilities for inter-agent negotiation."""
+        # In production: pull from TrustScorer/AgentCard registry
+        return {
+            "agent_id": agent_id,
+            "protocol": "A2A-v1.1",
+            "capabilities": ["code_generation", "governance_audit", "swarm_orchestration"],
+            "trust_band": "COMMUNITY_VERIFIED",
+            "status": "active"
+        }
+
     def handle_request(
         self,
         method: str,
