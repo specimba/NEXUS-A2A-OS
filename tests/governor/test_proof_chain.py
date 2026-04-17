@@ -1,25 +1,24 @@
-﻿"""Tests for VAP Proof Chain integrity."""
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-from nexus_os.governor.proof_chain import ProofChain
+﻿"""tests/governor/test_proof_chain.py — VAP 4-layer tests"""
+import pytest
+from nexus_os.governor.proof_chain import VAPProofChain
 
 def test_vap_chain_creation():
-    chain = ProofChain()
-    assert chain.verify_chain() == True
-    assert len(chain._entries) == 0
+    chain = VAPProofChain()
+    assert hasattr(chain, "_entries")
+    assert len(chain.entries) == 0
 
 def test_vap_chain_record_and_verify():
-    chain = ProofChain()
-    r1 = chain.record("agent-1", "read", {"res": "doc-1"})
-    r2 = chain.record("agent-2", "write", {"res": "doc-1"})
-    
-    assert len(chain._entries) == 2
-    assert chain.verify_chain() == True
-    assert r2.l2_hash != r1.l2_hash
+    chain = VAPProofChain()
+    r1 = chain.record("test-agent", "test-action", "resource-1", {"key": "value"}, "success")
+    r2 = chain.record("test-agent", "test-action", "resource-2", {}, "success")
+    assert len(chain.entries) == 2
+    assert r1.signature is not None
+    assert r1.chain_hash != "0" * 64
+    assert chain.verify_chain() is True
 
 def test_vap_chain_summary():
-    chain = ProofChain()
-    chain.record("agent-1", "auth", {})
-    summary = chain.get_chain_summary()
-    assert summary["total_entries"] == 1
-    assert summary["chain_valid"] == True
+    chain = VAPProofChain()
+    chain.record("agent1", "action1", "res1", {}, "ok")
+    chain.record("agent2", "action2", "res2", {}, "ok")
+    assert len(chain.entries) == 2
+    assert chain.verify_chain() is True
