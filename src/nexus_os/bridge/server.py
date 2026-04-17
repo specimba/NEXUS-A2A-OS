@@ -1,6 +1,4 @@
-from nexus_os.gmr.scheduler import RefreshScheduler
-from nexus_os.gmr.telemetry import TelemetryIngest
-﻿"""
+"""
 bridge/server.py â€” Nexus OS A2A Bridge Server
 
 Production-hardened FastAPI endpoint for agent-to-agent communication.
@@ -34,11 +32,7 @@ logger = logging.getLogger(__name__)
 
 class BridgeError(Exception):
     """Base exception for Bridge errors."""
-    def __init__(self, code:
-        self.telemetry = TelemetryIngest()
-        self.gmr_scheduler = RefreshScheduler(self.telemetry, 300)
-        self.gmr_scheduler.start()
- int, message: str, http_status: int = 500):
+    def __init__(self, code: int, message: str, http_status: int = 500):
         self.code = code
         self.message = message
         self.http_status = http_status

@@ -1,4 +1,4 @@
-﻿"""governor/proof_chain.py — VAP 4-layer Proof Chain (L1+L2+L3+L4)"""
+"""governor/proof_chain.py — VAP 4-layer Proof Chain (L1+L2+L3+L4)"""
 from dataclasses import dataclass
 import hashlib
 import time
@@ -70,3 +70,7 @@ class VAPProofChain:
     def entries(self):
         """Alias for test compatibility."""
         return self._entries
+
+
+# Alias for backward compatibility
+ProofChain = VAPProofChain
