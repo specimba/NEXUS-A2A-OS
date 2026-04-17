@@ -259,3 +259,165 @@ def cold_path(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         return get_router().execute_cold(lambda: func(*args, **kwargs))
     return wrapper
+
+
+# ── Circuit Breaker with HALF_OPEN State ───────────────────────────────
+
+class CircuitState(Enum):
+    """Circuit Breaker States."""
+    CLOSED = "closed"     # Normal operation
+    HALF_OPEN = "half_open"  # Testing recovery
+    OPEN = "open"       # Blocking requests
+
+
+class AdaptiveCircuitBreaker:
+    """
+    Circuit breaker with HALF_OPEN state for GMR/execution paths.
+    
+    States:
+    - CLOSED: Normal operation, requests pass through
+    - HALF_OPEN: Testing recovery, limited requests allowed
+    - OPEN: Circuit tripped, fail fast
+    
+    Parameters:
+    - failure_threshold: failures before tripping to OPEN
+    - success_threshold: successes in HALF_OPEN to close
+    - half_open_max_calls: max calls allowed in HALF_OPEN
+    - timeout_seconds: time before auto-transition to HALF_OPEN
+    """
+    
+    def __init__(
+        self,
+        name: str = "default",
+        failure_threshold: int = 5,
+        success_threshold: int = 2,
+        half_open_max_calls: int = 3,
+        timeout_seconds: float = 30.0,
+    ):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.success_threshold = success_threshold
+        self.half_open_max_calls = half_open_max_calls
+        self.timeout_seconds = timeout_seconds
+        
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._success_count = 0
+        self._half_open_calls = 0
+        self._last_failure_time = 0.0
+        self._lock = threading.RLock()
+    
+    @property
+    def state(self) -> CircuitState:
+        """Get current circuit state."""
+        with self._lock:
+            return self._state
+    
+    def is_available(self) -> bool:
+        """Check if requests can pass through."""
+        with self._lock:
+            if self._state == CircuitState.CLOSED:
+                return True
+            if self._state == CircuitState.HALF_OPEN:
+                return self._half_open_calls < self.half_open_max_calls
+            return False  # OPEN
+    
+    def record_success(self) -> None:
+        """Record a successful call."""
+        with self._lock:
+            if self._state == CircuitState.HALF_OPEN:
+                self._success_count += 1
+                self._half_open_calls += 1
+                if self._success_count >= self.success_threshold:
+                    self._state = CircuitState.CLOSED
+                    self._failure_count = 0
+                    self._success_count = 0
+                    self._half_open_calls = 0
+                    logger.info(f"Circuit [{self.name}] CLOSED <- HALF_OPEN (recovered)")
+            elif self._state == CircuitState.CLOSED:
+                self._failure_count = 0  # Reset on success
+    
+    def record_failure(self) -> None:
+        """Record a failed call."""
+        with self._lock:
+            self._last_failure_time = time.time()
+            if self._state == CircuitState.HALF_OPEN:
+                self._state = CircuitState.OPEN
+                self._failure_count = 1
+                self._half_open_calls = 0
+                logger.warning(f"Circuit [{self.name}] OPEN <- HALF_OPEN (failure during test)")
+            elif self._state == CircuitState.CLOSED:
+                self._failure_count += 1
+                if self._failure_count >= self.failure_threshold:
+                    self._state = CircuitState.OPEN
+                    logger.warning(f"Circuit [{self.name}] OPEN <- CLOSED ({self._failure_count} failures)")
+    
+    def maybe_transition_to_half_open(self) -> bool:
+        """
+        Check timeout and transition OPEN -> HALF_OPEN.
+        Returns True if transition occurred.
+        """
+        with self._lock:
+            if self._state != CircuitState.OPEN:
+                return False
+            elapsed = time.time() - self._last_failure_time
+            if elapsed >= self.timeout_seconds:
+                self._state = CircuitState.HALF_OPEN
+                self._failure_count = 0
+                self._success_count = 0
+                self._half_open_calls = 0
+                logger.info(f"Circuit [{self.name}] HALF_OPEN <- OPEN (timeout: {elapsed:.1f}s)")
+                return True
+            return False
+    
+    def call(
+        self,
+        func: Callable[[], Any],
+        fallback: Any = None,
+    ) -> Any:
+        """
+        Execute func with circuit breaker protection.
+        
+        Returns fallback if circuit is OPEN and not transitioning.
+        """
+        with self._lock:
+            # Check auto-transition
+            self.maybe_transition_to_half_open()
+            
+            if not self.is_available():
+                return fallback
+        
+        try:
+            result = func()
+            self.record_success()
+            return result
+        except Exception as e:
+            self.record_failure()
+            logger.warning(f"Circuit [{self.name}] call failed: {e}")
+            return fallback
+    
+    def get_status(self) -> dict:
+        """Return circuit status for monitoring."""
+        with self._lock:
+            return {
+                "name": self.name,
+                "state": self._state.value,
+                "failure_count": self._failure_count,
+                "success_count": self._success_count,
+                "half_open_calls": self._half_open_calls,
+                "available": self.is_available(),
+            }
+
+
+# ── Module-level convenience ────────────────────────────────────────
+
+_circuit_breakers: Dict[str, AdaptiveCircuitBreaker] = {}
+_circuit_lock = threading.Lock()
+
+
+def get_circuit_breaker(name: str = "default") -> AdaptiveCircuitBreaker:
+    """Get or create a circuit breaker by name."""
+    with _circuit_lock:
+        if name not in _circuit_breakers:
+            _circuit_breakers[name] = AdaptiveCircuitBreaker(name=name)
+        return _circuit_breakers[name]
