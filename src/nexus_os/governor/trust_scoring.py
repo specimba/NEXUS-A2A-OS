@@ -69,11 +69,26 @@ class AgentCard:
     hold_state: bool = False
     evidence_count: int = 0
     capability_profile: dict = field(default_factory=dict)
+    capabilities: list = field(default_factory=list)  # A2A v1.1
     failure_patterns: dict = field(default_factory=dict)
     governance_flags: list = field(default_factory=list)
     last_verified_event: Optional[str] = None
     authority_band: str = "standard"
     finding_state: FindingState = FindingState.NONE
+
+    def get_agent_card(self) -> dict:
+        """A2A v1.1: Return structured agent card for capability negotiation."""
+        return {
+            "agent_id": self.agent_id,
+            "current_lane": self.current_lane.value if self.current_lane else None,
+            "trust_score": round(self.trust, 3),
+            "availability": self.availability,
+            "capabilities": self.capabilities or ["general_task_execution"],
+            "authority_band": self.authority_band,
+            "finding_state": self.finding_state.value,
+            "protocol": "A2A-v1.1",
+            "status": "active" if self.availability == "available" else "unavailable",
+        }
 
 def _determine_reasons(inp, score, Qeff):
     contributions = {

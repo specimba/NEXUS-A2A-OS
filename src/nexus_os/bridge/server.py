@@ -480,11 +480,26 @@ class BridgeServer:
             "tasks/status": self._exec_status,
             "vault/read": self._exec_vault_read,
             "vault/write": self._exec_vault_write,
+            "a2a/agent-card": self._exec_agent_card,  # A2A v1.1
         }
         handler = handlers.get(req.method)
         if handler is None:
             raise ParseError(f"Unknown method: {req.method}")
         return handler(req)
+
+    def _exec_agent_card(self, req: BridgeRequest) -> Dict[str, Any]:
+        """A2A v1.1: Return agent capabilities for inter-agent negotiation."""
+        from nexus_os.governor.trust_scoring import AgentCard
+        # Create a default card with common capabilities
+        card = AgentCard(agent_id=req.agent_id or "default")
+        card.capabilities = [
+            "code_generation",
+            "swarm_orchestration",
+            "governance_audit",
+            "memory_query",
+            "skill_discovery",
+        ]
+        return card.get_agent_card()
 
     def _exec_submit(self, req: BridgeRequest) -> Dict[str, Any]:
         task_id = f"task-{uuid.uuid4().hex[:12]}"
