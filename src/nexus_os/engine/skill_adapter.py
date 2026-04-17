@@ -71,6 +71,7 @@ class SkillDefinition:
     requires_api: bool                     # Whether it needs external API access
     execution_mode: str                    # "cli", "sdk", "api"
     pattern: str                           # Regex pattern for fast-path matching
+    risk_level: str = "medium"             # low | medium | high | critical
     sdk_module: Optional[str] = None       # Python module path if applicable
     sdk_class: Optional[str] = None        # Class name for SDK invocation
 

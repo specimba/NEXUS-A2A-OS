@@ -37,7 +37,7 @@ def db():
 @pytest.fixture
 def vault(db):
     """Create a VaultManager with a fresh database."""
-    return VaultManager(db)
+    return VaultManager(":memory:")
 
 
 class TestWriteMemory:

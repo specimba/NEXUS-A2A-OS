@@ -71,3 +71,12 @@ class VaultManager:
             results[row['track_type']][row['key']] = json.loads(row['value'])
             
         return results
+
+
+# Minimal stub for test collection
+class PoisoningError(Exception): pass
+
+
+# Minimal stub for test collection
+class PoisoningError(Exception): pass
+

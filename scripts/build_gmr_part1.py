@@ -1,116 +1,74 @@
-#!/usr/bin/env python3
-"""Phase 1: GMR Core Builder (Part 1)"""
-import os
+import os, importlib, sys
+sys.path.insert(0, 'src')
 
-GMR_DIR = os.path.join("src", "nexus_os", "gmr")
-os.makedirs(os.path.join(GMR_DIR, "outputs"), exist_ok=True)
+checks = [
+    ('Trust Scoring v2.1', 'nexus_os.governor.trust_scoring', ['compute_score','ScoringInput','TrustScoringGate','MemoryTracks','AgentCard','FindingState','Lane']),
+    ('TokenGuard', 'nexus_os.monitoring.token_guard', ['TokenGuard','track','check','remaining','get_remaining_budget']),
+    ('VAP Proof Chain', 'nexus_os.governor.proof_chain', ['VAPProofChain','verify']),
+    ('Bridge Server', 'nexus_os.bridge.server', ['BridgeServer','handle_request','token_guard']),
+    ('Vault Manager', 'nexus_os.vault.manager', ['VaultManager','store','retrieve','promote']),
+    ('Engine Executor', 'nexus_os.engine.executor', ['SyncCallbackExecutor','AsyncBridgeExecutor','KillSwitch','Task']),
+    ('Governor Base', 'nexus_os.governor.base', ['NexusGovernor']),
+    ('KAIJU Auth', 'nexus_os.governor.kaiju_auth', ['KAIJUAuth']),
+    ('Hermes Router', 'nexus_os.engine.hermes', ['HermesRouter']),
+    ('Swarm Foreman', 'nexus_os.swarm.foreman', ['Foreman']),
+    ('Team Coordinator', 'nexus_os.team.coordinator', ['TeamCoordinator']),
+]
 
-FILES = {}
+print('='*65)
+print(' NEXUS OS v3.0 — FULL TEAM STATUS CHECK')
+print('='*65)
 
-FILES["__init__.py"] = '''"""GMR — Genius Model Rotator v3.0"""
-from .telemetry import TelemetryIngest, ModelTelemetry
-from .domain_mapping import DOMAIN_MAPPING
+for name, module_path, attrs in checks:
+    try:
+        mod = importlib.import_module(module_path)
+        missing = [a for a in attrs if not hasattr(mod, a)]
+        if missing:
+            print(f'  WARNING  {name} — loaded, MISSING: {missing}')
+        else:
+            print(f'  OK  {name} — all {len(attrs)} attrs present')
+    except ImportError as e:
+        print(f'  FAIL  {name} — IMPORT ERROR: {e}')
+    except Exception as e:
+        print(f'  FAIL  {name} — ERROR: {e}')
 
-__version__ = "3.0.0"
-'''
+print()
+print('--- Integration Checks ---')
+try:
+    with open('src/nexus_os/bridge/server.py','r') as f: bs = f.read()
+    print(f'  {\"OK\" if \"token_guard.check\" in bs else \"MISSING\"}  Bridge budget gate')
+    print(f'  {\"OK\" if \"429\" in bs and \"budget\" in bs.lower() else \"MISSING\"}  Bridge 429 response')
+    print(f'  {\"OK\" if \"X-Token-Remaining\" in bs else \"MISSING\"}  Bridge X-Token-Remaining header')
+except: print('  FAIL  Bridge file check failed')
 
-FILES["domain_mapping.py"] = '''"""GMR Domain Configuration & Budgets"""
-DOMAIN_MAPPING = {
-    "code": {
-        "description": "Code generation, debugging, implementation",
-        "primary": [
-            {"model": "osman-coder", "provider": "ollama", "tier": 40, "latency_ms": 50, "cost_per_1m": 0, "status": "local"},
-            {"model": "Devstral 2 123B", "provider": "nvidia", "tier": 86, "latency_ms": 542, "cost_per_1m": 4.0, "status": "up"}
-        ],
-        "fallback_chain": ["osman-coder", "qwen2.5-coder:7b", "Codestral", "GPT OSS 20B"],
-        "requirement": {"max_latency_ms": 5000, "prefer_local": True, "min_tier": 40}
-    },
-    "reasoning": {
-        "description": "Deep analysis, planning, architecture decisions",
-        "primary": [
-            {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
-            {"model": "osman-reasoning", "provider": "ollama", "tier": 40, "latency_ms": 80, "cost_per_1m": 0, "status": "local"}
-        ],
-        "fallback_chain": ["osman-reasoning", "qwen3:8b", "Qwen3 80B Thinking", "Trinity Large Preview"],
-        "requirement": {"max_latency_ms": 10000, "prefer_local": True, "min_tier": 40}
-    },
-    "fast": {
-        "description": "Hot path, quick responses, low latency",
-        "primary": [
-            {"model": "osman-fast", "provider": "ollama", "tier": 40, "latency_ms": 20, "cost_per_1m": 0, "status": "local"},
-            {"model": "Step 3.5 Flash", "provider": "nvidia", "tier": 93, "latency_ms": 1794, "cost_per_1m": 3.0, "status": "up"}
-        ],
-        "fallback_chain": ["osman-fast", "locooperator", "Nemotron Nano 30B"],
-        "requirement": {"max_latency_ms": 100, "prefer_local": True, "min_tier": 40, "require_local": True}
-    }
-}
-'''
+try:
+    with open('src/nexus_os/monitoring/token_guard.py','r') as f: tg = f.read()
+    print(f'  {\"OK\" if \"get_remaining_budget\" in tg else \"MISSING\"}  TokenGuard GMR alias')
+except: print('  FAIL  TokenGuard file check failed')
 
-FILES["telemetry.py"] = '''"""GMR Live Telemetry Ingestion"""
-import requests
-import threading
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
-from dataclasses import dataclass
+try:
+    with open('src/nexus_os/governor/compliance.py','r') as f: gc = f.read()
+    print(f'  {\"OK\" if \"TOKEN-BUDGET\" in gc or 'token_guard' in gc else \"MISSING\"}  Governor hard-stop')
+except: print('  FAIL  Governor compliance check failed')
 
-@dataclass
-class ModelTelemetry:
-    name: str
-    provider: str
-    tier: int
-    latency_ms: int
-    uptime_pct: float
-    status: str
-    timestamp: str
-    
-    @property
-    def quality_score(self) -> float:
-        return min(self.tier, 100) * 0.7 + (self.uptime_pct * 100) * 0.3
-    
-    @property
-    def is_available(self) -> bool:
-        return self.status == "up" and self.uptime_pct >= 0.5
-    
-    @property
-    def is_local(self) -> bool:
-        return self.provider in {"ollama", "local"}
+gmr_path = os.path.join('src','nexus_os','gmr')
+if os.path.isdir(gmr_path):
+    files = os.listdir(gmr_path)
+    print(f'  OK  GMR package: {files}')
+else:
+    print(f'  MISSING  GMR package (next to build)')
 
-class TelemetryIngest:
-    def __init__(self, url: str = "http://localhost:7352/api/models"):
-        self.url = url
-        self.last_fetch: Optional[datetime] = None
-        self.cache: Dict[str, ModelTelemetry] = {}
-        self.lock = threading.Lock()
-    
-    def fetch(self) -> Dict[str, ModelTelemetry]:
-        with self.lock:
-            try:
-                response = requests.get(self.url, timeout=5)
-                data = response.json()
-                timestamp = datetime.now(timezone.utc).isoformat()
-                
-                for model_data in data.get("models", []):
-                    tel = ModelTelemetry(
-                        name=model_data["name"],
-                        provider=model_data.get("provider", "unknown"),
-                        tier=model_data.get("tier", 0),
-                        latency_ms=model_data.get("latency_ms", 9999),
-                        uptime_pct=model_data.get("uptime", 1.0),
-                        status=model_data.get("status", "unknown"),
-                        timestamp=timestamp
-                    )
-                    self.cache[tel.name] = tel
-                
-                self.last_fetch = datetime.now(timezone.utc)
-            except Exception as e:
-                print(f"[GMR] Telemetry fetch failed: {e}")
-            return self.cache
-'''
-
-for filename, content in FILES.items():
-    filepath = os.path.join(GMR_DIR, filename)
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
-    print(f"[✅] Created {filepath}")
-
-print("\\n[🚀] Phase 1 Part 1 Complete. Ready for GMR Rotator and Savings Tracker.")
+print()
+print('--- Test Inventory ---')
+test_dirs = ['tests/governor','tests/bridge','tests/monitoring','tests/engine','tests/vault','tests/integration']
+total = 0
+for td in test_dirs:
+    if os.path.isdir(td):
+        count = len([f for f in os.listdir(td) if f.startswith('test_') and f.endswith('.py')])
+        total += count
+        print(f'  {td}/ — {count} files')
+    else:
+        print(f'  {td}/ — MISSING')
+print(f'  Total test files: {total}')
+print('='*65)
+"

@@ -32,7 +32,7 @@ from collections import defaultdict
 
 from nexus_os.db.manager import DatabaseManager
 from nexus_os.monitoring.token_guard import TokenGuard
-from nexus_os.governor.proof_chain import ProofChain as VAPProofChain
+from nexus_os.governor.proof_chain import VAPProofChain as VAPProofChain
 
 logger = logging.getLogger(__name__)
 

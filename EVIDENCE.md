@@ -1,16 +1,16 @@
 # C5 INTEGRATION EVIDENCE
-**Generated**: 2026-04-16T18:16:36Z
-**Gate Status**: [PASSED]
-**Execution Time**: 26.57s
+**Generated**: 2026-04-16T22:32:18Z
+**Gate Status**: [FAILED]
+**Execution Time**: 1.39s
 **Branch**: `main`
 **Target Tag**: `m3-hardened`
 
 ## Test Summary
 | Metric | Value |
 |---|---|
-| **Passed** | 582 |
+| **Passed** | 0 |
 | **Failed** | 0 |
-| **Duration** | 26.57s |
+| **Duration** | 1.39s |
 
 ## Verified Surfaces (CODE_CONFIRMED)
 | Component | File | Verification Target |
@@ -21,4 +21,4 @@
 | VAP Audit Chain | `governor/proof_chain.py` | SHA-256 chain valid |
 
 ## Gate Decision
-[PASSED]
+[FAILED]

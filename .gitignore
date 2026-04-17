@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -33,3 +33,17 @@ wheels/
 .env
 .env.local
 .env.*
+
+# NEXUS OS Specific
+.pytest_cache/
+venv/
+*.db
+legacy/
+EVIDENCE.md
+worklog.md
+sandbox_p0_changes.patch
+test_skill_adapter.db
+
+# OS
+.DS_Store
+Thumbs.db
