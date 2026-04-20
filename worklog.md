@@ -99,3 +99,62 @@ Unresolved / Next Phase:
 5. Add real-time WebSocket updates for worker status and activity feed
 6. Add dark/light theme refinement (currently light theme needs more work)
 7. Add search/filter functionality to Vault and Research tabs
+
+---
+Task ID: cron-review-2
+Agent: auto-dev
+Task: QA Round 2 + Major Feature Upgrades (GMR API, StressLab Runner, Charts, Visual Polish)
+
+Work Log:
+- Performed QA via agent-browser across all 8 tabs — zero console errors, all tabs functional
+- Took screenshots at 1920x1080 for all tabs
+- No bugs found in this round — previous fixes held up well
+- Upgraded GMR tab with:
+  - API data integration via useApiData hook (15s auto-refresh)
+  - Gradient stat cards matching Overview/Tokens style
+  - Live health simulation (useMemo + pulse timer, no lint violations)
+  - Latency chart (NexusBarChart showing qwen/trinity/gemma over time)
+  - Animated ping indicators on active model cards
+  - Pool cards with per-model stats (health, latency, calls) and mini bar charts
+  - Switch toggles on model cards for active/inactive
+  - Refresh button on rotation log
+- Upgraded StressLab tab with:
+  - Interactive RunTestDialog using shadcn Dialog + Select components
+  - Model selection (5 models) + Mode selection (single/icl/agentic)
+  - Simulated test execution with progress bar and toast notification
+  - Gradient stat cards, domain breakdown bar chart
+  - 12 templates (expanded from 8) including ISC-009 through ISC-012
+  - Better arena comparison with gradient bars and commercial/heretic summary cards
+- Upgraded Governor tab with:
+  - Decision distribution pie chart (MiniPieChart with recharts PieChart)
+  - Impact distribution pie chart
+  - Scope distribution bar chart
+  - Lane trust thresholds visualization with min/current display
+  - Gradient stat cards matching other tabs
+- Upgraded Swarm tab with:
+  - Gradient stat cards with icon badges
+  - Throughput bar chart (NexusBarChart)
+- Fixed GMR tab lint error: replaced useState+useEffect sync with useMemo pattern
+
+Stage Summary:
+- 4 tabs significantly upgraded: GMR (API data, charts, live sim), StressLab (test runner dialog, charts), Governor (3 charts, thresholds), Swarm (chart, gradient cards)
+- 1 new interactive feature: StressLab test runner with model/mode selection and simulated execution
+- 2 new chart types used: PieChart (Governor), more BarChart instances
+- All tabs now use consistent gradient card styling for stat rows
+- All lint checks pass, zero console errors across all tabs
+
+Current Project Status:
+- All 8 tabs: functional, styled, with charts and interactive elements
+- 3 tabs wired to API data: GMR (useApiData), Overview (live feed sim), Tokens (mock + charts)
+- Interactive features: StressLab test runner, sidebar tab switching, theme toggle, collapsible sidebar
+- Consistent design language across all tabs: gradient cards, emerald accents, tabular-nums, shadow effects
+- No lint violations, no console errors, dev server clean
+
+Unresolved / Next Phase:
+1. Wire Vault, Research, and Swarm tabs to API data (useApiData hook ready)
+2. Add search/filter to Vault and Research tabs
+3. Add interactive actions to Governor (adjust trust thresholds) and Research (add paper to queue)
+4. Light theme needs proper styling pass (dark theme is primary)
+5. Add more StressLab templates (currently 12, target 84 from ISC-Bench)
+6. Consider WebSocket for real-time worker status updates
+7. Add export/download functionality (CSV, JSON) for decision logs and test results

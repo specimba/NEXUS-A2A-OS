@@ -3,7 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Bug, Activity, CheckCircle2, XCircle, Clock, Loader2, Users } from 'lucide-react'
+import { Bug, Activity, CheckCircle2, XCircle, Clock, Loader2, Users, Cpu } from 'lucide-react'
+import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 
 const workers = [
   { id: 'worker-1', status: 'busy', task: 'T-0848', domain: 'code', progress: 67, tokens: 12400, uptime: '2h 34m' },
@@ -37,35 +38,95 @@ export function SwarmTab() {
     <div className="space-y-6 p-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total Workers</p>
-            <p className="text-2xl font-bold">{workers.length}</p>
-            <p className="text-[10px] text-muted-foreground">Foreman pool</p>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Workers</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{workers.length}</p>
+                <p className="text-[10px] text-muted-foreground">Foreman pool</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
+                <Users className="h-5 w-5 text-blue-400" />
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <Card className="border-emerald-600/20 bg-emerald-600/5">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Busy</p>
-            <p className="text-2xl font-bold text-emerald-400">{busyCount}</p>
-            <p className="text-[10px] text-muted-foreground">executing tasks</p>
+        <Card className="relative overflow-hidden border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Busy</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{busyCount}</p>
+                <p className="text-[10px] text-muted-foreground">executing tasks</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
+                <Activity className="h-5 w-5 text-emerald-400" />
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Idle</p>
-            <p className="text-2xl font-bold">{idleCount}</p>
-            <p className="text-[10px] text-muted-foreground">ready for assignment</p>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-muted/30 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Idle</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{idleCount}</p>
+                <p className="text-[10px] text-muted-foreground">ready for assignment</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted">
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <Card className="border-red-600/20 bg-red-600/5">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Error</p>
-            <p className="text-2xl font-bold text-red-400">{errorCount}</p>
-            <p className="text-[10px] text-muted-foreground">needs attention</p>
+        <Card className="relative overflow-hidden border-red-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/8 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Error</p>
+                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{errorCount}</p>
+                <p className="text-[10px] text-muted-foreground">needs attention</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
+                <Bug className="h-5 w-5 text-red-400" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Throughput Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Cpu className="h-4 w-4" /> Swarm Throughput
+            </CardTitle>
+            <Badge variant="outline" className="text-[9px]">last 10 intervals</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <NexusBarChart
+            data={[
+              { name: '-50m', value: 8 },
+              { name: '-40m', value: 12 },
+              { name: '-30m', value: 6 },
+              { name: '-20m', value: 14 },
+              { name: '-10m', value: 9 },
+              { name: 'now', value: 11 },
+            ]}
+            dataKey="value"
+            nameKey="name"
+            color={COLORS.emerald}
+            height={80}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Worker Grid */}
