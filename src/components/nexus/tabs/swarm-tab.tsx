@@ -1,0 +1,201 @@
+'use client'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Bug, Activity, CheckCircle2, XCircle, Clock, Loader2, Users } from 'lucide-react'
+
+const workers = [
+  { id: 'worker-1', status: 'busy', task: 'T-0848', domain: 'code', progress: 67, tokens: 12400, uptime: '2h 34m' },
+  { id: 'worker-2', status: 'error', task: 'T-0846', domain: 'research', progress: 34, tokens: 8200, uptime: '1h 12m' },
+  { id: 'worker-3', status: 'busy', task: 'T-0849', domain: 'cyber', progress: 89, tokens: 18600, uptime: '3h 01m' },
+  { id: 'worker-4', status: 'idle', task: null, domain: null, progress: 0, tokens: 0, uptime: '0h 45m' },
+  { id: 'worker-5', status: 'idle', task: null, domain: null, progress: 0, tokens: 0, uptime: '0h 22m' },
+]
+
+const taskQueue = [
+  { id: 'T-0850', domain: 'ai_safety', priority: 'high', status: 'queued', submittedBy: 'coordinator' },
+  { id: 'T-0851', domain: 'compbio', priority: 'medium', status: 'queued', submittedBy: 'coordinator' },
+  { id: 'T-0852', domain: 'pharmacology', priority: 'low', status: 'queued', submittedBy: 'research-agent' },
+  { id: 'T-0853', domain: 'code', priority: 'high', status: 'queued', submittedBy: 'coordinator' },
+]
+
+const recentCompleted = [
+  { id: 'T-0847', worker: 'worker-3', result: 'success', duration: '14s', tokens: 3420 },
+  { id: 'T-0845', worker: 'worker-1', result: 'success', duration: '22s', tokens: 5100 },
+  { id: 'T-0844', worker: 'worker-3', result: 'failure', duration: '8s', tokens: 1280 },
+  { id: 'T-0843', worker: 'worker-4', result: 'success', duration: '3s', tokens: 640 },
+  { id: 'T-0842', worker: 'worker-1', result: 'success', duration: '18s', tokens: 4200 },
+]
+
+export function SwarmTab() {
+  const busyCount = workers.filter(w => w.status === 'busy').length
+  const idleCount = workers.filter(w => w.status === 'idle').length
+  const errorCount = workers.filter(w => w.status === 'error').length
+
+  return (
+    <div className="space-y-6 p-6">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Workers</p>
+            <p className="text-2xl font-bold">{workers.length}</p>
+            <p className="text-[10px] text-muted-foreground">Foreman pool</p>
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-600/20 bg-emerald-600/5">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Busy</p>
+            <p className="text-2xl font-bold text-emerald-400">{busyCount}</p>
+            <p className="text-[10px] text-muted-foreground">executing tasks</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Idle</p>
+            <p className="text-2xl font-bold">{idleCount}</p>
+            <p className="text-[10px] text-muted-foreground">ready for assignment</p>
+          </CardContent>
+        </Card>
+        <Card className="border-red-600/20 bg-red-600/5">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Error</p>
+            <p className="text-2xl font-bold text-red-400">{errorCount}</p>
+            <p className="text-[10px] text-muted-foreground">needs attention</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Worker Grid */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="h-4 w-4" /> Worker Status Grid
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {workers.map((w) => (
+                <div
+                  key={w.id}
+                  className={`rounded-md border p-3 ${
+                    w.status === 'busy'
+                      ? 'border-emerald-600/20 bg-emerald-600/5'
+                      : w.status === 'error'
+                      ? 'border-red-600/20 bg-red-600/5'
+                      : 'border-border bg-card'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{w.id}</span>
+                      <Badge
+                        className={`text-[9px] border-0 ${
+                          w.status === 'busy'
+                            ? 'bg-emerald-600/15 text-emerald-400'
+                            : w.status === 'error'
+                            ? 'bg-red-600/15 text-red-400'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {w.status === 'busy' && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                        {w.status}
+                      </Badge>
+                    </div>
+                    {w.domain && (
+                      <Badge variant="outline" className="text-[9px]">{w.domain}</Badge>
+                    )}
+                  </div>
+                  {w.task && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>Task: {w.task}</span>
+                        <span>{w.progress}%</span>
+                      </div>
+                      <Progress value={w.progress} className="mt-1 h-1" />
+                    </div>
+                  )}
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{w.tokens > 0 ? `${w.tokens.toLocaleString()} tokens` : 'No task'}</span>
+                    <span>↑ {w.uptime}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Task Queue */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Task Queue
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2">
+              {taskQueue.map((t) => (
+                <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2">
+                  <div>
+                    <span className="text-xs font-mono">{t.id}</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Badge variant="outline" className="text-[9px]">{t.domain}</Badge>
+                      <Badge className={`text-[9px] border-0 ${t.priority === 'high' ? 'bg-red-600/15 text-red-400' : t.priority === 'medium' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-muted text-muted-foreground'}`}>
+                        {t.priority}
+                      </Badge>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{t.submittedBy}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">{taskQueue.length} tasks queued</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Completed */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Recent Completed
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
+                  <th className="p-3 font-medium">Task</th>
+                  <th className="p-3 font-medium">Worker</th>
+                  <th className="p-3 font-medium">Result</th>
+                  <th className="p-3 font-medium">Duration</th>
+                  <th className="p-3 font-medium">Tokens</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentCompleted.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50">
+                    <td className="p-3 font-mono text-xs">{r.id}</td>
+                    <td className="p-3 text-xs">{r.worker}</td>
+                    <td className="p-3">
+                      {r.result === 'success' ? (
+                        <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />PASS</Badge>
+                      ) : (
+                        <Badge className="bg-red-600/15 text-red-400 border-0 text-[10px]"><XCircle className="mr-1 h-3 w-3" />FAIL</Badge>
+                      )}
+                    </td>
+                    <td className="p-3 text-xs">{r.duration}</td>
+                    <td className="p-3 text-xs">{r.tokens.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
