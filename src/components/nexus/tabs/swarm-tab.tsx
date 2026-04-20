@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -40,10 +40,14 @@ import {
   Timer,
   TrendingUp,
   BarChart3,
+  Wifi,
+  WifiOff,
+  Radio,
 } from 'lucide-react'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
+import { useSwarmWS, type WorkerUpdate, type TaskQueued, type TaskComplete } from '@/hooks/use-swarm-ws'
 
 // Worker status export data with meaningful column names
 const workerStatusColumnHeaders: Record<string, string> = {
@@ -417,11 +421,61 @@ function WorkerDetailDialog({
 export function SwarmTab() {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const ws = useSwarmWS()
 
-  const busyCount = workers.filter(w => w.status === 'busy').length
-  const idleCount = workers.filter(w => w.status === 'idle').length
-  const errorCount = workers.filter(w => w.status === 'error').length
-  const totalTokens = workers.reduce((s, w) => s + w.tokens, 0)
+  // Merge static base workers with live WebSocket updates
+  const liveWorkers = useMemo(() => {
+    return workers.map(base => {
+      const wsUpdate = ws.workers[base.id]
+      if (wsUpdate) {
+        return {
+          ...base,
+          status: wsUpdate.status,
+          task: wsUpdate.task,
+          progress: wsUpdate.progress,
+          tokens: wsUpdate.tokens,
+          domain: wsUpdate.domain ?? base.domain,
+        }
+      }
+      return base
+    })
+  }, [ws.workers])
+
+  // Merge static task queue with live WebSocket queue
+  const liveTaskQueue = useMemo(() => {
+    if (ws.taskQueue.length > 0) {
+      return ws.taskQueue.map(t => ({
+        id: t.taskId,
+        domain: t.domain,
+        priority: t.priority,
+        status: 'queued' as const,
+        submittedBy: t.submittedBy,
+      }))
+    }
+    return taskQueue
+  }, [ws.taskQueue])
+
+  // Merge recent completions with live data
+  const liveRecentCompleted = useMemo(() => {
+    if (ws.recentCompletions.length > 0) {
+      return ws.recentCompletions.map(c => ({
+        id: c.taskId,
+        worker: c.workerId,
+        result: c.result,
+        duration: c.duration,
+        tokens: c.tokens,
+      }))
+    }
+    return recentCompleted
+  }, [ws.recentCompletions])
+
+  const busyCount = liveWorkers.filter(w => w.status === 'busy').length
+  const idleCount = liveWorkers.filter(w => w.status === 'idle').length
+  const errorCount = liveWorkers.filter(w => w.status === 'error').length
+  const totalTokens = liveWorkers.reduce((s, w) => s + w.tokens, 0)
+
+  // Live metrics from WebSocket
+  const liveMetrics = ws.metrics ?? { throughput: 11.2, avgDuration: 12.4, successRate: 87.3, utilization: 60, totalTokens }
 
   const handleWorkerClick = (worker: Worker) => {
     setSelectedWorker(worker)
@@ -429,11 +483,19 @@ export function SwarmTab() {
   }
 
   const handleAssignTask = (taskId: string) => {
-    const idleWorker = workers.find(w => w.status === 'idle')
+    const idleWorker = liveWorkers.find(w => w.status === 'idle')
     if (idleWorker) {
-      toast.success(`Task ${taskId} assigned to ${idleWorker.id}`, {
-        description: 'Worker will begin processing shortly',
-      })
+      // Send via WebSocket
+      const sent = ws.assignTask(taskId, idleWorker.id)
+      if (sent) {
+        toast.success(`Task ${taskId} assigned to ${idleWorker.id}`, {
+          description: 'Worker will begin processing shortly via WebSocket',
+        })
+      } else {
+        toast.success(`Task ${taskId} assigned to ${idleWorker.id}`, {
+          description: 'Worker will begin processing shortly',
+        })
+      }
     } else {
       toast.error('No idle workers available', {
         description: 'All workers are busy or in error state',
@@ -443,7 +505,7 @@ export function SwarmTab() {
 
   return (
     <div className="space-y-6 p-6 grid-pattern">
-      {/* Swarm Health Indicator */}
+      {/* Swarm Health Indicator with WebSocket status */}
       <div className="relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -455,11 +517,30 @@ export function SwarmTab() {
               <p className="text-xs text-muted-foreground">{busyCount} busy · {idleCount} idle · {errorCount} error · {totalTokens.toLocaleString()} total tokens</p>
             </div>
           </div>
-          <Badge className={`border-0 text-[10px] gap-1 ${errorCount > 0 ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${errorCount > 0 ? 'bg-yellow-400' : 'bg-emerald-400'} animate-pulse`} />
-            {errorCount > 0 ? 'Attention Needed' : 'Healthy'}
-          </Badge>
+          <div className="flex items-center gap-3">
+            {/* WebSocket Connection Status */}
+            <Badge className={`border-0 text-[10px] gap-1 ${ws.connected ? 'bg-emerald-600/15 text-emerald-400' : 'bg-red-600/15 text-red-400'}`}>
+              {ws.connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {ws.connected ? 'LIVE' : 'Offline'}
+            </Badge>
+            <Badge className={`border-0 text-[10px] gap-1 ${errorCount > 0 ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${errorCount > 0 ? 'bg-yellow-400' : 'bg-emerald-400'} animate-pulse`} />
+              {errorCount > 0 ? 'Attention Needed' : 'Healthy'}
+            </Badge>
+          </div>
         </div>
+        {/* Live activity feed from WebSocket */}
+        {ws.activities.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+            <Radio className="h-3 w-3 text-emerald-400 animate-pulse shrink-0" />
+            <p className="text-[11px] text-muted-foreground truncate">
+              {ws.activities[0].message}
+            </p>
+            <span className="text-[10px] text-muted-foreground/60 shrink-0 ml-auto">
+              just now
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -470,7 +551,7 @@ export function SwarmTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Workers</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums">{workers.length}</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{liveWorkers.length}</p>
                 <p className="text-[10px] text-muted-foreground">Foreman pool</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
@@ -536,7 +617,7 @@ export function SwarmTab() {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tasks/hour</p>
-              <p className="text-lg font-bold text-emerald-400 tabular-nums">11.2</p>
+              <p className="text-lg font-bold text-emerald-400 tabular-nums">{liveMetrics.throughput.toFixed(1)}</p>
             </div>
           </div>
         </div>
@@ -548,7 +629,7 @@ export function SwarmTab() {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Duration</p>
-              <p className="text-lg font-bold text-blue-400 tabular-nums">12.4s</p>
+              <p className="text-lg font-bold text-blue-400 tabular-nums">{liveMetrics.avgDuration.toFixed(1)}s</p>
             </div>
           </div>
         </div>
@@ -560,7 +641,7 @@ export function SwarmTab() {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Success Rate</p>
-              <p className="text-lg font-bold text-orange-400 tabular-nums">87.3%</p>
+              <p className="text-lg font-bold text-orange-400 tabular-nums">{liveMetrics.successRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>
@@ -572,7 +653,7 @@ export function SwarmTab() {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Utilization</p>
-              <p className="text-lg font-bold text-purple-400 tabular-nums">60%</p>
+              <p className="text-lg font-bold text-purple-400 tabular-nums">{liveMetrics.utilization}%</p>
             </div>
           </div>
         </div>
@@ -585,16 +666,16 @@ export function SwarmTab() {
             <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
             Swarm Load
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{workers.length} workers occupied</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{liveWorkers.length} workers occupied</span>
         </div>
         <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
-            style={{ width: `${((busyCount + errorCount) / workers.length) * 100}%` }}
+            style={{ width: `${((busyCount + errorCount) / liveWorkers.length) * 100}%` }}
           />
         </div>
         <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{((busyCount + errorCount) / workers.length * 100).toFixed(0)}% capacity utilized</span>
+          <span>{((busyCount + errorCount) / liveWorkers.length * 100).toFixed(0)}% capacity utilized</span>
           <span>{idleCount} workers available</span>
         </div>
       </div>
@@ -635,12 +716,12 @@ export function SwarmTab() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" /> Worker Status Grid
               </CardTitle>
-              <ExportButton data={workers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
+              <ExportButton data={liveWorkers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="grid gap-3 sm:grid-cols-2">
-              {workers.map((w) => {
+              {liveWorkers.map((w) => {
                 const sparkline = workerSparklines[w.id] || []
                 return (
                   <div
@@ -741,7 +822,7 @@ export function SwarmTab() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-2">
-              {taskQueue.map((t) => (
+              {liveTaskQueue.map((t) => (
                 <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2">
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-mono">{t.id}</span>
@@ -764,7 +845,7 @@ export function SwarmTab() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">{taskQueue.length} tasks queued</p>
+            <p className="mt-3 text-[11px] text-muted-foreground">{liveTaskQueue.length} tasks queued</p>
           </CardContent>
         </Card>
       </div>
@@ -776,7 +857,7 @@ export function SwarmTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <Activity className="h-4 w-4" /> Recent Completed
             </CardTitle>
-            <ExportButton data={recentCompleted} filename="swarm-task-history" label="Export Tasks" columnHeaders={taskHistoryColumnHeaders} />
+            <ExportButton data={liveRecentCompleted} filename="swarm-task-history" label="Export Tasks" columnHeaders={taskHistoryColumnHeaders} />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -792,7 +873,7 @@ export function SwarmTab() {
                 </tr>
               </thead>
               <tbody>
-                {recentCompleted.map((r) => (
+                {liveRecentCompleted.map((r) => (
                   <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50">
                     <td className="p-3 font-mono text-xs">{r.id}</td>
                     <td className="p-3 text-xs">{r.worker}</td>

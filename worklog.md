@@ -1002,3 +1002,88 @@ Unresolved / Next Phase:
 5. Add responsive testing at multiple viewport sizes
 6. Consider adding user authentication/session management
 7. Add dark/light mode-specific chart color adjustments
+
+---
+Task ID: 2
+Agent: websocket-service-builder
+Task: Create WebSocket mini-service for real-time Swarm updates
+
+Work Log:
+- Read worklog.md to understand project context (NEXUS OS Command Center dashboard)
+- Reviewed existing WebSocket example in /home/z/my-project/examples/websocket/ for reference patterns
+- Created /home/z/my-project/mini-services/swarm-ws/ directory
+- Created package.json with name "nexus-swarm-ws", scripts: { "dev": "bun --hot index.ts" }, dependencies: socket.io + cors
+- Created index.ts with full Socket.io server implementation:
+  - Port 3003 (explicit, no PORT env variable)
+  - CORS enabled for all origins
+  - Default namespace "/" with path: '/'
+  - 5 periodic event emitters with randomized intervals (3-8 seconds):
+    a. swarm:worker-update — random worker status changes (workerId, status, task, progress, tokens)
+    b. swarm:task-complete — task completion events (taskId, workerId, result, duration, tokens)
+    c. swarm:task-queued — new task added to queue (taskId, domain, priority, submittedBy)
+    d. swarm:metrics — aggregate metrics update (throughput, avgDuration, successRate, utilization, totalTokens)
+    e. nexus:activity — general NEXUS OS activity feed items (type, source, message, timestamp)
+  - Client event handler: swarm:assign-task (taskId, workerId) → responds with confirmation + broadcasts worker update + activity
+  - Rich data pools: 6 workers, 12 tasks, 6 domains, 5 submitters, 8 sources, 7+ messages per activity type
+  - Connection logging with socket.id
+  - Graceful shutdown handlers (SIGTERM, SIGINT) with timer cleanup
+- Installed dependencies: socket.io@4.8.3, cors@2.8.6
+- Started service with `bun run dev` (bun --hot index.ts) on port 3003
+- Verified service running:
+  - Socket.io polling endpoint returns 200 with proper SID + config
+  - Accessible through Caddy gateway at /?XTransformPort=3003
+  - Service persists and stays alive
+
+Stage Summary:
+- WebSocket mini-service fully operational at port 3003
+- 5 real-time event channels emitting simulated NEXUS OS data every 3-8 seconds
+- Client can send swarm:assign-task events and receive confirmations
+- Gateway integration verified: frontend can connect via io("/?XTransformPort=3003")
+- Service auto-restarts on file changes (bun --hot)
+- Rich simulation data covering: 6 workers, 12 task types, 6 domains, 8 NEXUS pillars, 28+ activity messages
+
+---
+Task ID: 16
+Agent: main
+Task: Fix preview, add WebSocket mini-service, wire Swarm tab, integrate API keys
+
+Work Log:
+- Diagnosed dev server persistence issue: background processes die when Bash tool shell exits
+- Server compiles and returns 200 correctly when started within same shell session
+- Created WebSocket mini-service at mini-services/swarm-ws/ (port 3003) with 5 real-time event channels
+- Created use-swarm-ws.ts hook with full Socket.io client integration
+- Updated swarm-tab.tsx to merge static base data with live WebSocket updates
+- Added WebSocket connection status indicator (LIVE/Offline badge) with Wifi/WifiOff icons
+- Added live activity feed from WebSocket in Swarm Health banner
+- All metrics now use live data from WebSocket (throughput, avg duration, success rate, utilization)
+- Worker grid, task queue, and recent completions all use merged live+static data
+- Task assignment now sends via WebSocket (swarm:assign-task event)
+- Created /api/settings/route.ts for API key management (GET/PUT/DELETE)
+- Saved 5 API keys to database: OpenRouter, OpenAI, Cerebras, Jina, Kilocode
+- All providers confirmed configured via /api/settings endpoint
+
+Stage Summary:
+- WebSocket mini-service running on port 3003 with auto-restart (bun --hot)
+- Swarm tab now has real-time updates with LIVE indicator
+- 5 API keys integrated into SystemConfig database
+- Settings API endpoint operational at /api/settings
+- All lint checks pass (zero errors)
+- Server compiles and returns 200 for all routes
+- Known issue: dev server process dies between Bash tool calls; must be restarted for preview
+
+Current Project Status:
+- 8 dashboard modules functional
+- Real-time WebSocket updates for Swarm tab
+- API key management system in place
+- AI Assistant chat panel using z-ai-web-dev-sdk
+- Command Palette (Ctrl+K), System Logs (Ctrl+L)
+- Consistent design language across all tabs
+
+Unresolved / Next Phase:
+1. Make more buttons functional (not just toast) — wire actions to real API endpoints
+2. Add rate-limit-aware testing system for LLM model testing
+3. Improve styling with more details (mandatory)
+4. Add more features and functionality (mandatory)
+5. Dev server persistence issue — need persistent process manager
+6. Wire other tabs (Governor, Vault, Research) to WebSocket for live updates
+7. Add more interactive features to Overview tab
