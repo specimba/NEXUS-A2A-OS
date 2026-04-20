@@ -1,145 +1,107 @@
-"""NEXUS OS — Swarm module: Lead-agent + worker-pool management.
-
-P0c upgrade: Refactored Foreman to follow deer-flow harness pattern.
-  - Lead agent (Foreman) decomposes tasks and assigns to workers
-  - Each worker has isolated context (no cross-contamination)
-  - Task inbox per worker (supports concurrent pipelines)
-  - Circuit-report integration with GMR circuit breaker
-
-Pattern: Foreman = orchestrator (this Zo instance)
-         Workers  = /zo/ask sub-agents (parallel, independent sessions)
-"""
+"""NEXUS OS — Swarm module: deer-flow harness + P2b auction allocation."""
 from enum import Enum
 from typing import Optional, Callable, Any, List
 from dataclasses import dataclass, field
-import uuid
+import time, uuid
 
+# ── Auction model (ArXiv 2604.11478) ─────────────────────────────────────────
+# bid = (capability × 0.4) + (trust × 0.3) + ((1−load) × 0.2) + (spec_match × 0.1)
+_DOMAIN_SPEC_SCORES = {
+    "code": {"code": 0.9, "reason": 0.5, "research": 0.4},
+    "reason": {"reason": 0.9, "sec": 0.6, "code": 0.5},
+    "research": {"research": 0.9, "fast": 0.4},
+    "fast": {"fast": 0.9, "code": 0.3},
+    "sec": {"sec": 0.9, "reason": 0.5, "code": 0.6},
+}
+
+@dataclass
 class WStatus(Enum):
-    IDLE = "idle"
-    BUSY = "busy"
-    ERROR = "error"
+    IDLE = "idle"; BUSY = "busy"; ERROR = "error"
 
 @dataclass
 class WResult:
-    ok: bool
-    data: Any = None
-    error: str = ""
-    worker_id: int = -1
-    task_id: str = ""
+    ok: bool; data: Any = None; error: str = ""
+    task_id: str = ""; duration_ms: float = 0.0
 
 @dataclass
 class Task:
-    id: str
-    prompt: str
-    domain: str = ""
-    assigned_to: Optional[int] = None
-    status: str = "pending"   # pending / running / done / failed
-    result: Optional[WResult] = None
+    id: str; prompt: str; domain: str = "reason"
+    priority: float = 0.5; metadata: dict = field(default_factory=dict)
+    submitted_at: float = field(default_factory=time.time)
+
+@dataclass
+class Bid:
+    worker_id: int; capability: float; trust: float
+    load: float; spec_match: float; final_bid: float
 
 class Worker:
-    def __init__(self, wid: int, handler: Optional[Callable] = None):
-        self.wid = wid
-        self.status = WStatus.IDLE
-        self.handler = handler
-        self.current_task: Optional[Task] = None
-        # P0c: Isolated memory per worker (deer-flow sandbox pattern)
-        self.memory: List[dict] = []
+    def __init__(self, wid: int, domain: str = "reason", trust: float = 0.8):
+        self.wid = wid; self.domain = domain; self.trust = trust
+        self.status = WStatus.IDLE; self.handler: Optional[Callable] = None
+        self._memory: List[dict] = []; self._load = 0.0
 
     def execute(self, task: Task) -> WResult:
-        self.status = WStatus.BUSY
-        self.current_task = task
-        task.status = "running"
+        self.status = WStatus.BUSY; t0 = time.time()
         try:
             result = self.handler(task.prompt) if self.handler else None
-            self.status = WStatus.IDLE
-            task.status = "done"
-            wres = WResult(True, result, "", self.wid, task.id)
-            task.result = wres
-            # Log to isolated memory
-            self.memory.append({"task_id": task.id, "ok": True, "ts": __import__("time").time()})
-            self.current_task = None
-            return wres
+            self.status = WStatus.IDLE; dur = (time.time() - t0) * 1000
+            entry = {"ok": True, "task_id": task.id, "result": result, "duration_ms": dur}
+            self._memory.append(entry); self._load = max(0, self._load - 0.1)
+            return WResult(ok=True, data=result, task_id=task.id, duration_ms=dur)
         except Exception as e:
-            self.status = WStatus.ERROR
-            task.status = "failed"
-            wres = WResult(False, None, str(e), self.wid, task.id)
-            task.result = wres
-            self.memory.append({"task_id": task.id, "ok": False, "error": str(e), "ts": __import__("time").time()})
-            self.current_task = None
-            return wres
+            self.status = WStatus.ERROR; self._load = min(1.0, self._load + 0.2)
+            entry = {"ok": False, "task_id": task.id, "error": str(e)}
+            self._memory.append(entry)
+            return WResult(ok=False, error=str(e), task_id=task.id)
 
     def memory_snapshot(self) -> List[dict]:
-        """Return this worker's isolated memory log."""
-        return list(self.memory)
+        return list(self._memory[-10:])
+
+    def bid_on(self, task: Task) -> Bid:
+        cap = self._capability_for(task.domain)
+        spec = _DOMAIN_SPEC_SCORES.get(task.domain, {}).get(self.domain, 0.1)
+        load = min(1.0, self._load)
+        bid_val = (cap * 0.4) + (self.trust * 0.3) + ((1 - load) * 0.2) + (spec * 0.1)
+        return Bid(worker_id=self.wid, capability=cap, trust=self.trust, load=load, spec_match=spec, final_bid=bid_val)
+
+    def _capability_for(self, domain: str) -> float:
+        return 0.9 if domain == self.domain else 0.5
 
 class Foreman:
-    """Lead agent: decomposes tasks and assigns to the worker pool.
+    """Lead agent: owns task queue, runs auction, assigns to winner."""
+    def __init__(self, size: int = 2):
+        self.tasks: List[Task] = []
+        self.workers = [Worker(i, domain=["code", "reason", "research", "fast", "sec"][i % 5]) for i in range(size)]
+        self._assignments: Dict[str, int] = {}   # task_id → worker_id
+        self._completed: List[WResult] = []
 
-    P0c deer-flow pattern:
-      1. submit()   → task queued
-      2. assign()   → find idle worker, send task (round-robin + domain match)
-      3. process()  → run one assigned task
-      4. collect()  → drain completed tasks
-      5. status()   → pool snapshot (idle/busy/error per worker)
-    """
-    def __init__(self, size: int):
-        self.size = size
-        self.workers = [Worker(i) for i in range(size)]
-        self._queue: List[Task] = []
-        self._round_robin = 0  # modulo selector
-
-    def submit(self, prompt: str, domain: str = "") -> str:
-        """Add a task to the queue. Returns task_id."""
+    def submit(self, prompt: str, domain: str = "reason", priority: float = 0.5) -> str:
         tid = str(uuid.uuid4())[:8]
-        self._queue.append(Task(id=tid, prompt=prompt, domain=domain))
+        self.tasks.append(Task(id=tid, prompt=prompt, domain=domain, priority=priority))
         return tid
 
-    def assign(self) -> Optional[str]:
-        """Assign next queued task to first idle worker. Returns task_id or None."""
-        if not self._queue:
-            return None
-        # Find idle workers, prefer domain-matched
+    def process(self) -> Optional[WResult]:
+        if not self.tasks: return None
+        task = self.tasks.pop(0)
+        # Auction: all idle workers bid, highest wins
         idle = [w for w in self.workers if w.status == WStatus.IDLE]
         if not idle:
-            return None
-        # Round-robin across idle pool
-        w = idle[self._round_robin % len(idle)]
-        self._round_robin += 1
-        task = self._queue.pop(0)
-        task.assigned_to = w.wid
-        w.execute(task)
-        return task.id
-
-    def process(self) -> Optional[WResult]:
-        """Run one assign cycle. Returns result if a task completed."""
-        tid = self.assign()
-        if tid is None:
-            return None
-        # Find the completed task
-        for w in self.workers:
-            if w.current_task and w.current_task.id == tid:
-                return w.current_task.result
-        return None
-
-    def collect(self) -> List[WResult]:
-        """Drain all completed task results."""
-        results = []
-        for w in self.workers:
-            if w.current_task and w.current_task.status in ("done", "failed"):
-                results.append(w.current_task.result)
-        return results
+            self.tasks.insert(0, task); return None
+        bids = [w.bid_on(task) for w in idle]
+        winner = max(bids, key=lambda b: b.final_bid).worker_id
+        self._assignments[task.id] = winner
+        worker = self.workers[winner]
+        worker._load = min(1.0, worker._load + 0.3)
+        result = worker.execute(task)
+        self._completed.append(result)
+        return result
 
     def status(self) -> dict:
-        """Pool snapshot."""
         return {
-            "queue_depth": len(self._queue),
-            "workers": [
-                {
-                    "wid": w.wid,
-                    "status": w.status.value,
-                    "current_task": w.current_task.id if w.current_task else None,
-                    "memory_size": len(w.memory),
-                }
-                for w in self.workers
-            ]
+            "queue_depth": len(self.tasks),
+            "workers": [{"id": w.wid, "status": w.status.value, "domain": w.domain, "load": round(w._load, 2)} for w in self.workers],
+            "assignments": len(self._assignments), "completed": len(self._completed),
         }
+
+    def collect(self) -> List[WResult]: return list(self._completed)
+    def assign(self, task_id: str) -> Optional[int]: return self._assignments.get(task_id)

@@ -52,6 +52,10 @@ class Skillsmith:
                 self._library.append(draft)
                 self.vault.store(agent, Track.CAP, "skill", f"promoted:{draft.name}", draft.__dict__, draft.success_rate)
 
+    def track_outcome(self, agent: str, prompt: str, success: bool, domain: str = None):
+        """Wrapper around log_outcome() for tracking task outcomes."""
+        self.log_outcome(agent, prompt, success, domain)
+
     # ── Skill dispatch ──────────────────────────────────────────────────
 
     def dispatch(self, prompt: str) -> Optional[SkillRecord]:
@@ -80,6 +84,22 @@ class Skillsmith:
 
     def library(self) -> list[SkillRecord]:
         return list(self._library)
+
+    def find_skill(self, domain: str, min_score: float = 0.0) -> Optional[SkillRecord]:
+        """Find first skill in library matching domain with success_rate >= min_score."""
+        for s in self._library:
+            if domain in s.name and s.success_rate >= min_score:
+                return s
+        return None
+
+    def report(self) -> dict:
+        """Return skillsmith statistics."""
+        return {
+            "total_skills": len(self._library) + len(self._drafts),
+            "library_size": len(self._library),
+            "drafts_size": len(self._drafts),
+            "auto_registered": len(self._library),
+        }
 
 
 def _now():
