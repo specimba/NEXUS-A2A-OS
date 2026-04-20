@@ -1,0 +1,17 @@
+# Ignore transient / temp files
+*.pyc
+*.pyo
+__pycache__/
+*.log
+*.tmp
+*.swp
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore downloaded skill tarballs (re-downloaded from registry as needed)
+/tmp/skill-*
+
+# But track these explicitly:
+!.gitkeep
