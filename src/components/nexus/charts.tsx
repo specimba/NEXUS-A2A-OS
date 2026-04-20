@@ -15,6 +15,7 @@ import {
   Cell,
   RadialBarChart,
   RadialBar,
+  Legend,
 } from 'recharts'
 
 const COLORS = {
@@ -134,6 +135,73 @@ export function NexusGauge({
         {label && <span className="text-[10px] text-muted-foreground">{label}</span>}
       </div>
     </div>
+  )
+}
+
+// Stacked area chart for multi-series timeline data
+export function NexusStackedAreaChart({
+  data,
+  areas,
+  height = 200,
+  nameKey = 'name',
+}: {
+  data: Record<string, any>[]
+  areas: { dataKey: string; color: string; name: string }[]
+  height?: number
+  nameKey?: string
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+        <defs>
+          {areas.map((area) => (
+            <linearGradient key={area.dataKey} id={`stacked-grad-${area.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={area.color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={area.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+        <XAxis
+          dataKey={nameKey}
+          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+          axisLine={false}
+          tickLine={false}
+          width={30}
+          domain={['auto', 'auto']}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+            fontSize: '11px',
+          }}
+          formatter={(value: number, name: string) => [`${value}%`, name]}
+        />
+        <Legend
+          wrapperStyle={{ fontSize: '10px' }}
+          iconType="circle"
+          iconSize={8}
+        />
+        {areas.map((area) => (
+          <Area
+            key={area.dataKey}
+            type="monotone"
+            dataKey={area.dataKey}
+            name={area.name}
+            stroke={area.color}
+            fill={`url(#stacked-grad-${area.dataKey})`}
+            strokeWidth={1.5}
+          />
+        ))}
+      </AreaChart>
+    </ResponsiveContainer>
   )
 }
 

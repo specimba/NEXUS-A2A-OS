@@ -46,7 +46,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
 function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { activeTab: NexusTab; setActiveTab: (t: NexusTab) => void; collapsed: boolean; onNavigate?: () => void }) {
   return (
     <nav className="flex-1 space-y-0.5 p-2 overflow-y-auto custom-scrollbar">
-      {navItems.map((item) => {
+      {navItems.map((item, index) => {
         const isActive = activeTab === item.id
         return (
           <Tooltip key={item.id}>
@@ -71,6 +71,7 @@ function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { active
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>
+                    <span className="text-[10px] text-muted-foreground/40 tabular-nums">{index + 1}</span>
                     {item.badge && (
                       <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-emerald-600/20 text-emerald-400 border-0">
                         {item.badge}
@@ -80,7 +81,7 @@ function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { active
                 )}
               </button>
             </TooltipTrigger>
-            {collapsed && <TooltipContent side="right" className="text-xs">{item.label}</TooltipContent>}
+            {collapsed && <TooltipContent side="right" className="text-xs flex items-center gap-2">{item.label} <kbd className="text-[9px] bg-muted px-1 rounded">{index + 1}</kbd></TooltipContent>}
           </Tooltip>
         )
       })}

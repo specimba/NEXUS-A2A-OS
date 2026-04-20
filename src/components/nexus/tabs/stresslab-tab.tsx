@@ -32,11 +32,26 @@ import {
   Zap,
   Loader2,
   Shield,
+  Layers,
+  PieChart as PieChartIcon,
 } from 'lucide-react'
-import { useApiData } from '@/hooks/use-api-data'
-import { NexusBarChart, COLORS } from '@/components/nexus/charts'
-import { useState, useEffect } from 'react'
+import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
+import { ExportButton } from '@/components/nexus/export-button'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts'
 
 const templates = [
   { id: 'ISC-001', name: 'Malware Analysis Report', domain: 'cyber', difficulty: 'hard', status: 'tested', collapseRate: 95.3, lastRun: '2m ago' },
@@ -71,13 +86,58 @@ const domainBreakdown = [
   { name: 'security', value: 10, collapses: 3 },
 ]
 
-const arenaData = [
-  { model: 'qwen3-coder', collapse: 34.2, pass: 65.8 },
-  { model: 'dolphin-mistral', collapse: 89.7, pass: 10.3 },
-  { model: 'trinity-large', collapse: 28.4, pass: 71.6 },
-  { model: 'nemotron-3', collapse: 41.3, pass: 58.7 },
-  { model: 'gemma-fast', collapse: 52.8, pass: 47.2 },
+// Test history data for collapse rate over recent runs
+const allTestHistoryData = [
+  { name: 'Run 1', collapseRate: 95.3 },
+  { name: 'Run 2', collapseRate: 89.1 },
+  { name: 'Run 3', collapseRate: 91.7 },
+  { name: 'Run 4', collapseRate: 78.4 },
+  { name: 'Run 5', collapseRate: 82.6 },
+  { name: 'Run 6', collapseRate: 62.1 },
+  { name: 'Run 7', collapseRate: 70.3 },
+  { name: 'Run 8', collapseRate: 55.8 },
+  { name: 'Run 9', collapseRate: 48.2 },
+  { name: 'Run 10', collapseRate: 42.7 },
+  { name: 'Run 11', collapseRate: 38.5 },
+  { name: 'Run 12', collapseRate: 35.1 },
+  { name: 'Run 13', collapseRate: 33.9 },
+  { name: 'Run 14', collapseRate: 30.4 },
+  { name: 'Run 15', collapseRate: 28.7 },
+  { name: 'Run 16', collapseRate: 27.2 },
+  { name: 'Run 17', collapseRate: 25.8 },
+  { name: 'Run 18', collapseRate: 24.1 },
+  { name: 'Run 19', collapseRate: 23.8 },
+  { name: 'Run 20', collapseRate: 23.4 },
 ]
+
+const arenaData = [
+  { model: 'qwen3-coder', collapse: 34.2, pass: 65.8, tier: 'PREMIUM' },
+  { model: 'dolphin-mistral', collapse: 89.7, pass: 10.3, tier: 'HERETIC' },
+  { model: 'trinity-large', collapse: 28.4, pass: 71.6, tier: 'PREMIUM' },
+  { model: 'nemotron-3', collapse: 41.3, pass: 58.7, tier: 'MID' },
+  { model: 'gemma-fast', collapse: 52.8, pass: 47.2, tier: 'FAST' },
+]
+
+const difficultyBreakdown = [
+  { name: 'Easy', value: 2, color: COLORS.emerald },
+  { name: 'Medium', value: 3, color: COLORS.yellow },
+  { name: 'Hard', value: 7, color: COLORS.red },
+]
+
+function getTierBadge(tier: string) {
+  switch (tier) {
+    case 'PREMIUM':
+      return <Badge className="bg-purple-600/15 text-purple-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+    case 'MID':
+      return <Badge className="bg-blue-600/15 text-blue-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+    case 'FAST':
+      return <Badge className="bg-yellow-600/15 text-yellow-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+    case 'HERETIC':
+      return <Badge className="bg-red-600/15 text-red-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+    default:
+      return null
+  }
+}
 
 function RunTestDialog({ template, onComplete }: { template: typeof templates[0]; onComplete: () => void }) {
   const [model, setModel] = useState('')
@@ -189,11 +249,242 @@ function RunTestDialog({ template, onComplete }: { template: typeof templates[0]
   )
 }
 
-export function StressLabTab() {
-  const [testCount, setTestCount] = useState(47)
+function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([])
+  const [model, setModel] = useState('')
+  const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentTemplate, setCurrentTemplate] = useState('')
+
+  const toggleTemplate = (id: string) => {
+    setSelectedTemplates(prev =>
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    )
+  }
+
+  const handleBatchRun = () => {
+    if (selectedTemplates.length === 0 || !model) return
+    setRunning(true)
+    setProgress(0)
+    setCurrentTemplate(selectedTemplates[0])
+
+    let step = 0
+    const totalSteps = selectedTemplates.length * 10
+
+    const interval = setInterval(() => {
+      step++
+      const pct = (step / totalSteps) * 100
+      const currentIdx = Math.min(Math.floor(step / 10), selectedTemplates.length - 1)
+      setCurrentTemplate(selectedTemplates[currentIdx])
+      setProgress(pct)
+
+      if (step >= totalSteps) {
+        clearInterval(interval)
+        setRunning(false)
+        setProgress(100)
+        toast.success(`Batch run completed`, {
+          description: `${selectedTemplates.length} templates tested with ${model}`,
+        })
+        onBatchComplete()
+        setSelectedTemplates([])
+        setModel('')
+        setProgress(0)
+      }
+    }, 200)
+  }
 
   return (
-    <div className="space-y-6 p-6">
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-orange-400" />
+          Batch Run Templates
+        </DialogTitle>
+        <DialogDescription>Select multiple templates and a single model for batch testing</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-2">
+        {/* Template Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium">Select Templates ({selectedTemplates.length} selected)</label>
+          <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 custom-scrollbar">
+            {templates.filter(t => t.status !== 'running').map((t) => (
+              <label
+                key={t.id}
+                className={`flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer transition-colors text-xs ${
+                  selectedTemplates.includes(t.id) ? 'bg-orange-600/10 border border-orange-600/20' : 'hover:bg-accent/50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTemplates.includes(t.id)}
+                  onChange={() => toggleTemplate(t.id)}
+                  disabled={running}
+                  className="rounded border-border accent-orange-500"
+                />
+                <span className="font-mono text-[10px] text-muted-foreground">{t.id}</span>
+                <span className="flex-1 truncate">{t.name}</span>
+                <Badge className={`text-[8px] border-0 px-1 py-0 ${
+                  t.difficulty === 'hard' ? 'bg-red-600/15 text-red-400' :
+                  t.difficulty === 'medium' ? 'bg-yellow-600/15 text-yellow-400' :
+                  'bg-emerald-600/15 text-emerald-400'
+                }`}>{t.difficulty}</Badge>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Model Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium">Model</label>
+          <Select value={model} onValueChange={setModel} disabled={running}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Select model..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="qwen3-coder">qwen3-coder (PREMIUM)</SelectItem>
+              <SelectItem value="trinity-large">trinity-large-preview (PREMIUM)</SelectItem>
+              <SelectItem value="nemotron-3">nemotron-3-super (MID)</SelectItem>
+              <SelectItem value="gemma-fast">gemma-fast (FAST)</SelectItem>
+              <SelectItem value="dolphin-mistral">dolphin-mistral-venice (HERETIC)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {running && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin text-orange-400" />
+                Testing {currentTemplate}...
+              </span>
+              <span className="text-muted-foreground tabular-nums">{Math.min(Math.round(progress), 100)}%</span>
+            </div>
+            <Progress value={Math.min(progress, 100)} className="h-2" />
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="ghost" size="sm" className="h-8" disabled={running} onClick={() => { setSelectedTemplates([]); setModel('') }}>
+          Reset
+        </Button>
+        <Button
+          size="sm"
+          className="h-8 bg-orange-600 hover:bg-orange-700 text-white gap-1.5"
+          onClick={handleBatchRun}
+          disabled={selectedTemplates.length === 0 || !model || running}
+        >
+          {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+          {running ? 'Running...' : 'Execute Batch'}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  )
+}
+
+function TestHistoryChart() {
+  const [timeRange, setTimeRange] = useState<'10' | '20' | 'all'>('10')
+
+  const chartData = useMemo(() => {
+    const count = timeRange === '10' ? 10 : timeRange === '20' ? 20 : allTestHistoryData.length
+    return allTestHistoryData.slice(0, count)
+  }, [timeRange])
+
+  return (
+    <Card className="relative overflow-hidden border-orange-600/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-orange-400" />
+            Collapse Rate Over Recent Runs
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            {(['10', '20', 'all'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all duration-200 ${
+                  timeRange === range
+                    ? 'bg-orange-600 text-white shadow-sm shadow-orange-600/30'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {range === 'all' ? 'All' : `${range} runs`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <MiniAreaChart
+          data={chartData}
+          dataKey="collapseRate"
+          color={COLORS.orange}
+          height={120}
+          showAxis
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+function DifficultyPieChart() {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <PieChartIcon className="h-4 w-4 text-yellow-400" />
+          Template Difficulty
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="h-[140px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={difficultyBreakdown}
+                cx="50%"
+                cy="50%"
+                innerRadius={30}
+                outerRadius={55}
+                paddingAngle={3}
+                dataKey="value"
+                stroke="none"
+              >
+                {difficultyBreakdown.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.7} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                }}
+                formatter={(value: number, name: string) => [`${value} templates`, name]}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: '10px' }}
+                iconType="circle"
+                iconSize={8}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function StressLabTab() {
+  const [testCount, setTestCount] = useState(47)
+  const [batchRunOpen, setBatchRunOpen] = useState(false)
+
+  return (
+    <div className="space-y-6 p-6 grid-pattern">
       {/* Header Stats */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-orange-600/20">
@@ -261,23 +552,29 @@ export function StressLabTab() {
         </Card>
       </div>
 
-      {/* Domain Breakdown Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" /> Test Coverage by Domain
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <NexusBarChart
-            data={domainBreakdown}
-            dataKey="value"
-            nameKey="name"
-            color={COLORS.orange}
-            height={100}
-          />
-        </CardContent>
-      </Card>
+      {/* Domain Breakdown Chart + Difficulty Pie */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" /> Test Coverage by Domain
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <NexusBarChart
+              data={domainBreakdown}
+              dataKey="value"
+              nameKey="name"
+              color={COLORS.orange}
+              height={100}
+            />
+          </CardContent>
+        </Card>
+        <DifficultyPieChart />
+      </div>
+
+      {/* Test History Chart */}
+      <TestHistoryChart />
 
       <Tabs defaultValue="templates" className="space-y-4">
         <TabsList>
@@ -288,94 +585,118 @@ export function StressLabTab() {
 
         {/* Templates Grid */}
         <TabsContent value="templates">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {templates.map((t) => (
-              <Card key={t.id} className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${
-                t.status === 'running' ? 'border-orange-600/30 shadow-orange-600/5' :
-                t.status === 'tested' ? 'hover:border-emerald-600/20' : ''
-              }`}>
-                {t.status === 'tested' && <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />}
-                {t.status === 'running' && <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 via-transparent to-transparent" />}
-                <CardContent className="relative p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-muted-foreground">{t.id}</span>
-                        <Badge
-                          className={
-                            t.difficulty === 'hard'
-                              ? 'bg-red-600/15 text-red-400 border-0 text-[9px]'
-                              : t.difficulty === 'medium'
-                              ? 'bg-yellow-600/15 text-yellow-400 border-0 text-[9px]'
-                              : 'bg-emerald-600/15 text-emerald-400 border-0 text-[9px]'
-                          }
-                        >
-                          {t.difficulty}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-sm font-medium truncate">{t.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{t.domain}</p>
-                    </div>
-                    <div className="shrink-0 ml-2">
-                      {t.status === 'running' && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600/15">
-                          <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
-                        </div>
-                      )}
-                      {t.status === 'tested' && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/15">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        </div>
-                      )}
-                      {t.status === 'pending' && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {t.status === 'tested' && (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>Collapse Rate</span>
-                        <span className={t.collapseRate > 80 ? 'text-red-400 font-medium' : t.collapseRate > 50 ? 'text-yellow-400 font-medium' : 'text-emerald-400 font-medium'}>
-                          {t.collapseRate}%
-                        </span>
-                      </div>
-                      <Progress value={t.collapseRate} className="mt-1 h-1.5" />
-                      <p className="mt-1 text-[10px] text-muted-foreground">Last: {t.lastRun}</p>
-                    </div>
-                  )}
-                  {t.status === 'running' && (
-                    <div className="mt-3">
-                      <Progress value={45} className="h-1.5 animate-pulse" />
-                      <p className="mt-1 text-[10px] text-orange-400 font-medium">Running...</p>
-                    </div>
-                  )}
+          <div className="space-y-3">
+            {/* Batch Run Button */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{templates.length} templates available</span>
+              <Dialog open={batchRunOpen} onOpenChange={setBatchRunOpen}>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={() => setBatchRunOpen(true)}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  Batch Run
+                </Button>
+                <BatchRunDialog onBatchComplete={() => setTestCount(c => c + 3)} />
+              </Dialog>
+            </div>
 
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 h-7 w-full text-[11px] hover:bg-orange-600/10 hover:text-orange-400"
-                        disabled={t.status === 'running'}
-                      >
-                        <Play className="mr-1 h-3 w-3" />
-                        {t.status === 'pending' ? 'Run Test' : 'Re-run'}
-                      </Button>
-                    </DialogTrigger>
-                    <RunTestDialog template={t} onComplete={() => setTestCount(c => c + 1)} />
-                  </Dialog>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {templates.map((t) => (
+                <Card key={t.id} className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md ${
+                  t.status === 'running' ? 'border-orange-600/30 shadow-orange-600/5' :
+                  t.status === 'tested' ? 'hover:border-emerald-600/20' : ''
+                }`}>
+                  {t.status === 'tested' && <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />}
+                  {t.status === 'running' && <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 via-transparent to-transparent" />}
+                  <CardContent className="relative p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-muted-foreground">{t.id}</span>
+                          <Badge
+                            className={
+                              t.difficulty === 'hard'
+                                ? 'bg-red-600/15 text-red-400 border-0 text-[9px]'
+                                : t.difficulty === 'medium'
+                                ? 'bg-yellow-600/15 text-yellow-400 border-0 text-[9px]'
+                                : 'bg-emerald-600/15 text-emerald-400 border-0 text-[9px]'
+                            }
+                          >
+                            {t.difficulty}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-sm font-medium truncate">{t.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{t.domain}</p>
+                      </div>
+                      <div className="shrink-0 ml-2">
+                        {t.status === 'running' && (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600/15">
+                            <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
+                          </div>
+                        )}
+                        {t.status === 'tested' && (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/15">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          </div>
+                        )}
+                        {t.status === 'pending' && (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {t.status === 'tested' && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>Collapse Rate</span>
+                          <span className={t.collapseRate > 80 ? 'text-red-400 font-medium' : t.collapseRate > 50 ? 'text-yellow-400 font-medium' : 'text-emerald-400 font-medium'}>
+                            {t.collapseRate}%
+                          </span>
+                        </div>
+                        <Progress value={t.collapseRate} className="mt-1 h-1.5" />
+                        <p className="mt-1 text-[10px] text-muted-foreground">Last: {t.lastRun}</p>
+                      </div>
+                    )}
+                    {t.status === 'running' && (
+                      <div className="mt-3">
+                        <Progress value={45} className="h-1.5 animate-pulse" />
+                        <p className="mt-1 text-[10px] text-orange-400 font-medium">Running...</p>
+                      </div>
+                    )}
+
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 h-7 w-full text-[11px] hover:bg-orange-600/10 hover:text-orange-400"
+                          disabled={t.status === 'running'}
+                        >
+                          <Play className="mr-1 h-3 w-3" />
+                          {t.status === 'pending' ? 'Run Test' : 'Re-run'}
+                        </Button>
+                      </DialogTrigger>
+                      <RunTestDialog template={t} onComplete={() => setTestCount(c => c + 1)} />
+                    </Dialog>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
         {/* Recent Runs */}
         <TabsContent value="runs">
           <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Recent Test Runs</CardTitle>
+                <ExportButton data={recentRuns} filename="stresslab-runs" />
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -421,52 +742,75 @@ export function StressLabTab() {
           </Card>
         </TabsContent>
 
-        {/* Arena Comparison */}
+        {/* Arena Comparison — Enhanced with Recharts Horizontal BarChart */}
         <TabsContent value="arena">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" /> Commercial vs Heretic (Dual Cascade)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {arenaData.map((m) => (
-                  <div key={m.model}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium">{m.model}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        <span className="text-red-400 font-medium">{m.collapse}%</span> collapse /{' '}
-                        <span className="text-emerald-400 font-medium">{m.pass}%</span> pass
-                      </span>
-                    </div>
-                    <div className="flex h-3 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="bg-gradient-to-r from-red-500/80 to-red-400/60 transition-all duration-500"
-                        style={{ width: `${m.collapse}%` }}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" /> Commercial vs Heretic (Dual Cascade)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={arenaData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="model" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} width={95} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                        }}
+                        formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                       />
-                      <div
-                        className="bg-gradient-to-r from-emerald-400/60 to-emerald-500/80 transition-all duration-500"
-                        style={{ width: `${m.pass}%` }}
-                      />
+                      <Bar dataKey="collapse" name="Collapse" fill="#f87171" fillOpacity={0.7} radius={[0, 2, 2, 0]} stackId="a" />
+                      <Bar dataKey="pass" name="Pass" fill="#34d399" fillOpacity={0.7} radius={[0, 2, 2, 0]} stackId="a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Model Tier Legend */}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {arenaData.map((m) => (
+                    <div key={m.model} className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground">{m.model}</span>
+                      {getTierBadge(m.tier)}
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <div className="rounded-lg border border-red-600/15 bg-red-600/5 p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-red-400">Commercial Avg</p>
-                  <p className="mt-1 text-2xl font-bold text-red-400 tabular-nums">39.2%</p>
-                  <p className="text-[10px] text-muted-foreground">collapse rate</p>
+                  ))}
                 </div>
-                <div className="rounded-lg border border-red-600/25 bg-red-600/8 p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-red-400">Heretic (dolphin)</p>
-                  <p className="mt-1 text-2xl font-bold text-red-400 tabular-nums">89.7%</p>
-                  <p className="text-[10px] text-muted-foreground">collapse rate — uncensored</p>
+              </CardContent>
+            </Card>
+
+            {/* Commercial Average vs Heretic comparison cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative overflow-hidden rounded-xl border border-orange-600/15 bg-gradient-to-br from-orange-600/8 via-orange-600/3 to-transparent p-4">
+                <div className="absolute top-2 right-2">
+                  <Badge className="bg-blue-600/15 text-blue-400 border-0 text-[8px] px-1.5 py-0">COMMERCIAL</Badge>
                 </div>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-orange-400">Commercial Average</p>
+                <p className="mt-1 text-2xl font-bold text-orange-400 tabular-nums">39.2%</p>
+                <p className="text-[10px] text-muted-foreground">collapse rate</p>
+                <Progress value={39.2} className="mt-2 h-1.5 bg-orange-900/20" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="relative overflow-hidden rounded-xl border border-red-600/25 bg-gradient-to-br from-red-600/12 via-red-600/5 to-transparent p-4">
+                <div className="absolute top-2 right-2">
+                  <Badge className="bg-red-600/15 text-red-400 border-0 text-[8px] px-1.5 py-0">HERETIC</Badge>
+                </div>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-red-400">Heretic (dolphin)</p>
+                <p className="mt-1 text-2xl font-bold text-red-400 tabular-nums">89.7%</p>
+                <p className="text-[10px] text-muted-foreground">collapse rate — uncensored</p>
+                <Progress value={89.7} className="mt-2 h-1.5 bg-red-900/20" />
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

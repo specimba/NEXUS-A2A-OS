@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { MiniAreaChart, NexusBarChart, NexusGauge, COLORS } from '@/components/nexus/charts'
+import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
 import {
   Zap,
   Shield,
@@ -21,7 +21,7 @@ import {
   MemoryStick,
   Radio,
 } from 'lucide-react'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 
 const pillars = [
   { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%' },
@@ -60,6 +60,50 @@ const modelDistribution = [
   { name: 'nemotron', value: 12 },
   { name: 'others', value: 8 },
 ]
+
+// Generate 24h health timeline mock data
+const pillarNames = ['Bridge', 'Engine', 'Governor', 'Vault', 'GMR', 'Swarm', 'Monitor', 'Config'] as const
+const pillarColors: Record<string, string> = {
+  Bridge: COLORS.emerald,
+  Engine: COLORS.blue,
+  Governor: COLORS.red,
+  Vault: COLORS.purple,
+  GMR: COLORS.orange,
+  Swarm: COLORS.yellow,
+  Monitor: COLORS.pink,
+  Config: COLORS.emerald,
+}
+
+// Seed-based pseudo-random for consistent data
+function seededRandom(seed: number) {
+  const x = Math.sin(seed) * 10000
+  return x - Math.floor(x)
+}
+
+const healthTimelineData = Array.from({ length: 24 }, (_, i) => {
+  const hour = 23 - i
+  const label = `${hour.toString().padStart(2, '0')}:00`
+  const entry: Record<string, any> = { name: label }
+  pillarNames.forEach((pillar, pi) => {
+    if (pillar === 'Bridge' || pillar === 'Config') {
+      entry[pillar] = 100
+    } else if (pillar === 'Swarm') {
+      // Swarm dips occasionally to 85-92
+      const dip = seededRandom(i * 8 + pi * 3 + 7) > 0.6
+      entry[pillar] = dip ? 85 + Math.floor(seededRandom(i * 11 + pi * 5) * 7) : 93 + Math.floor(seededRandom(i * 13 + pi * 2) * 7)
+    } else {
+      // Other pillars: 85-100 range with occasional dips
+      entry[pillar] = 88 + Math.floor(seededRandom(i * 7 + pi * 4 + 1) * 12)
+    }
+  })
+  return entry
+})
+
+const healthAreas = pillarNames.map((p) => ({
+  dataKey: p,
+  color: pillarColors[p],
+  name: p,
+}))
 
 const initialActivities = [
   { time: '0s ago', event: 'Agent worker-3 completed task T-0847', type: 'success' },
@@ -123,6 +167,60 @@ function LiveActivityFeed() {
         </div>
       ))}
     </div>
+  )
+}
+
+function SystemHealthTimeline() {
+  const [timeRange, setTimeRange] = useState<'6h' | '12h' | '24h'>('24h')
+
+  const filteredData = useMemo(() => {
+    const count = timeRange === '6h' ? 6 : timeRange === '12h' ? 12 : 24
+    return healthTimelineData.slice(0, count)
+  }, [timeRange])
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Activity className="h-4 w-4 text-emerald-400" />
+            24h Health Timeline
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            {(['6h', '12h', '24h'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all duration-200 ${
+                  timeRange === range
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
+          {pillarNames.map((p) => (
+            <span key={p} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pillarColors[p] }} />
+              {p}
+            </span>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <NexusStackedAreaChart
+          data={filteredData}
+          areas={healthAreas}
+          height={180}
+          nameKey="name"
+        />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -358,6 +456,9 @@ export function OverviewTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* System Health Timeline */}
+      <SystemHealthTimeline />
 
       {/* Bottom Row: Activity Feed + Quick Stats */}
       <div className="grid gap-4 lg:grid-cols-2">

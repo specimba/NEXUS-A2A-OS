@@ -289,3 +289,148 @@
     transform: translateY(0);
   }
 }
+
+/* Nexus data table styling */
+.nexus-table th {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(0.6 0.03 155);
+  padding: 12px;
+  border-bottom: 1px solid oklch(1 0 0 / 8%);
+}
+
+.nexus-table td {
+  padding: 12px;
+  border-bottom: 1px solid oklch(1 0 0 / 4%);
+  transition: background-color 150ms ease;
+}
+
+.nexus-table tr:hover td {
+  background-color: oklch(0.22 0.03 155 / 30%);
+}
+
+/* Card header accent bar */
+.card-accent-top {
+  position: relative;
+}
+.card-accent-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, oklch(0.65 0.2 155), oklch(0.65 0.2 155 / 30%));
+  border-radius: 2px 2px 0 0;
+}
+
+/* Status badge glow */
+.badge-glow-emerald {
+  box-shadow: 0 0 8px oklch(0.65 0.2 155 / 20%);
+}
+
+.badge-glow-red {
+  box-shadow: 0 0 8px oklch(0.577 0.245 27.325 / 20%);
+}
+
+/* Light theme specific overrides */
+:root .grid-pattern {
+  background-image:
+    linear-gradient(oklch(0.145 0.005 155 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.145 0.005 155 / 4%) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+:root .glass-card {
+  background: oklch(1 0 0 / 90%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid oklch(0.9 0.01 155);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 8%);
+}
+
+:root .gradient-text {
+  background: linear-gradient(135deg, oklch(0.35 0.1 155), oklch(0.508 0.164 155));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root .hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 8%);
+}
+
+:root .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0.02 155 / 40%);
+}
+
+:root .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0.05 155 / 60%);
+}
+
+:root .shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.01 155 / 0%) 0%,
+    oklch(0.88 0.02 155 / 30%) 50%,
+    oklch(0.96 0.01 155 / 0%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+:root .nexus-table tr:hover td {
+  background-color: oklch(0.94 0.03 155 / 50%);
+}
+
+/* Slide in from right animation */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* Fade in up animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Pulse ring animation for notification dots */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 40%);
+  }
+  70% {
+    box-shadow: 0 0 0 6px oklch(0.65 0.2 155 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 0%);
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}

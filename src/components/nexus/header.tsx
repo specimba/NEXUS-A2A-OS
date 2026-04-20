@@ -1,11 +1,24 @@
 'use client'
 
 import { useNexusStore } from '@/store/nexus-store'
-import { Moon, Sun, Menu, Activity, Bell, Search } from 'lucide-react'
+import { Moon, Sun, Menu, Activity, Settings } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useEffect, useRef, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
+import { NotificationCenter } from '@/components/nexus/notification-center'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useEffect, useState, useCallback } from 'react'
+import { toast } from 'sonner'
 
 const tabTitles: Record<string, string> = {
   overview: 'System Overview',
@@ -18,10 +31,212 @@ const tabTitles: Record<string, string> = {
   tokens: 'Token Budget',
 }
 
+interface SystemConfig {
+  maxAgents: number
+  apiCallsLimit: number
+  fileWritesLimit: number
+  maxConcurrent: number
+  healthCheckInterval: number
+  fallbackEnabled: boolean
+  autoBlockCrit: boolean
+  trustDecayRate: number
+  sensitivity: string
+}
+
+const defaultConfig: SystemConfig = {
+  maxAgents: 5,
+  apiCallsLimit: 20,
+  fileWritesLimit: 30,
+  maxConcurrent: 2,
+  healthCheckInterval: 30,
+  fallbackEnabled: true,
+  autoBlockCrit: true,
+  trustDecayRate: 0.02,
+  sensitivity: 'med',
+}
+
+function SystemConfigDialog({ open, onOpenChange }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const [config, setConfig] = useState<SystemConfig>(defaultConfig)
+
+  const handleSave = useCallback(() => {
+    toast.success('System configuration saved', {
+      description: 'Changes will take effect on next session cycle.',
+    })
+    onOpenChange(false)
+  }, [onOpenChange])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings className="h-4 w-4 text-emerald-400" />
+            System Configuration
+          </DialogTitle>
+          <DialogDescription>
+            Configure NEXUS OS constitution limits, GMR settings, and Governor behavior
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-2">
+          {/* Constitution Limits */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Constitution Limits</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Max Agents / hr</label>
+                <Input
+                  type="number"
+                  value={config.maxAgents}
+                  onChange={(e) => setConfig((c) => ({ ...c, maxAgents: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">API Calls / session</label>
+                <Input
+                  type="number"
+                  value={config.apiCallsLimit}
+                  onChange={(e) => setConfig((c) => ({ ...c, apiCallsLimit: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">File Writes / session</label>
+                <Input
+                  type="number"
+                  value={config.fileWritesLimit}
+                  onChange={(e) => setConfig((c) => ({ ...c, fileWritesLimit: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Max Concurrent</label>
+                <Input
+                  type="number"
+                  value={config.maxConcurrent}
+                  onChange={(e) => setConfig((c) => ({ ...c, maxConcurrent: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* GMR Settings */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GMR Settings</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Health Check Interval (s)</label>
+                <Input
+                  type="number"
+                  value={config.healthCheckInterval}
+                  onChange={(e) => setConfig((c) => ({ ...c, healthCheckInterval: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-5">
+                <Switch
+                  checked={config.fallbackEnabled}
+                  onCheckedChange={(checked) => setConfig((c) => ({ ...c, fallbackEnabled: checked }))}
+                />
+                <span className="text-xs">Pool Fallback</span>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Governor Settings */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Governor Settings</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-medium">Auto-Block CRIT Actions</span>
+                  <p className="text-[10px] text-muted-foreground">Automatically deny CRITICAL impact actions</p>
+                </div>
+                <Switch
+                  checked={config.autoBlockCrit}
+                  onCheckedChange={(checked) => setConfig((c) => ({ ...c, autoBlockCrit: checked }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Trust Decay Rate</label>
+                  <span className="text-xs font-mono text-emerald-400 tabular-nums">{config.trustDecayRate.toFixed(3)}/hr</span>
+                </div>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  max="0.1"
+                  value={config.trustDecayRate}
+                  onChange={(e) => setConfig((c) => ({ ...c, trustDecayRate: parseFloat(e.target.value) || 0 }))}
+                  className="h-8 text-xs font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">Rate at which trust scores decay per hour of inactivity</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Danger Pattern Sensitivity</label>
+                <div className="flex gap-2">
+                  {(['low', 'med', 'high'] as const).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setConfig((c) => ({ ...c, sensitivity: level }))}
+                      className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all duration-200 ${
+                        config.sensitivity === level
+                          ? level === 'high'
+                            ? 'bg-red-600 text-white shadow-sm shadow-red-600/30'
+                            : level === 'med'
+                            ? 'bg-yellow-600 text-white shadow-sm shadow-yellow-600/30'
+                            : 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      {level.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setConfig(defaultConfig)
+              onOpenChange(false)
+            }}
+          >
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleSave}
+          >
+            Save Configuration
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function NexusHeader() {
   const { activeTab, setSidebarOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('')
+  const [configOpen, setConfigOpen] = useState(false)
 
   useEffect(() => {
     const update = () =>
@@ -58,14 +273,22 @@ export function NexusHeader() {
         3 agents
       </Badge>
 
-      {/* Notification bell */}
-      <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
-        <Bell className="h-4 w-4" />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 status-pulse-green" />
-      </Button>
+      {/* Notification center */}
+      <NotificationCenter />
 
       {/* Clock */}
       <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
+
+      {/* System Config */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        onClick={() => setConfigOpen(true)}
+        aria-label="System Settings"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
 
       {/* Theme toggle */}
       <Button
@@ -77,6 +300,9 @@ export function NexusHeader() {
         <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
       </Button>
+
+      {/* System Config Dialog */}
+      <SystemConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
     </header>
   )
 }

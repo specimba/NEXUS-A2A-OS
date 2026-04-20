@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
+import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -15,7 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, FileText, Layers, Library } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface PaperItem {
@@ -53,10 +62,7 @@ const p2Items: PaperItem[] = [
   { id: 'ironengine-2601.03204', title: 'IronEngine', relevance: 0.88, task: 'Review three-phase pipeline for planner-reviewer pattern', priority: 'P2' },
 ]
 
-const allPapers = [...p0Items, ...p1Items, ...p2Items]
-
 function getArxivUrl(id: string): string | null {
-  // Match arXiv paper ID pattern like 2603.23509, 2405.20947 etc.
   const match = id.match(/(\d{4}\.\d{4,5})/)
   if (match) {
     return `https://arxiv.org/abs/${match[1]}`
@@ -105,11 +111,160 @@ function getPriorityConfig(priority: PaperItem['priority']) {
   }
 }
 
+const practiceSteps = [
+  { step: '1', name: 'INTAKE', desc: 'Collect up to 20 links, deduplicate, prioritize by NEXUS relevance', time: '5 min' },
+  { step: '2', name: 'VETTING', desc: 'Extract abstract, conclusion, score relevance 0-1, map to modules', time: '15 min' },
+  { step: '3', name: 'MANIFEST', desc: 'Output papers_manifest with all structured fields', time: '5 min' },
+  { step: '4', name: 'PRIORITY', desc: 'Sort by relevance, tier into P0/P1/P2 with concrete tasks', time: '5 min' },
+  { step: '5', name: 'DELIVER', desc: 'Save manifest + queue, provide download, log to VAP chain', time: '2 min' },
+]
+
+function AddToQueueDialog({ open, onOpenChange, onAdd }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onAdd: (paper: PaperItem) => void
+}) {
+  const [title, setTitle] = useState('')
+  const [paperId, setPaperId] = useState('')
+  const [taskDesc, setTaskDesc] = useState('')
+  const [priority, setPriority] = useState('')
+  const [relevance, setRelevance] = useState([75])
+
+  const handleAdd = () => {
+    if (!title || !paperId || !taskDesc || !priority) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    onAdd({
+      id: paperId,
+      title,
+      relevance: relevance[0] / 100,
+      task: taskDesc,
+      priority: priority as 'P0' | 'P1' | 'P2',
+      status: 'pending',
+    })
+    setTitle('')
+    setPaperId('')
+    setTaskDesc('')
+    setPriority('')
+    setRelevance([75])
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-4 w-4 text-emerald-400" />
+            Add Paper to Queue
+          </DialogTitle>
+          <DialogDescription>Add a new research paper or repo to the NEXUS priority queue</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Paper Title *</label>
+            <Input
+              placeholder="e.g. Safety Alignment in LLMs"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Paper ID *</label>
+            <Input
+              placeholder="e.g. arxiv-2605.12345 or repo-name"
+              value={paperId}
+              onChange={(e) => setPaperId(e.target.value)}
+              className="h-9 text-xs font-mono"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Task Description *</label>
+            <Textarea
+              placeholder="Describe the integration task for NEXUS..."
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              className="min-h-[80px] text-xs"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Priority Tier *</label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Select priority..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="P0">
+                  <span className="flex items-center gap-1.5">
+                    <Flame className="h-3 w-3 text-red-400" /> P0 — Implement Now
+                  </span>
+                </SelectItem>
+                <SelectItem value="P1">
+                  <span className="flex items-center gap-1.5">
+                    <Target className="h-3 w-3 text-orange-400" /> P1 — Next Sprint
+                  </span>
+                </SelectItem>
+                <SelectItem value="P2">
+                  <span className="flex items-center gap-1.5">
+                    <Beaker className="h-3 w-3 text-emerald-400" /> P2 — Research
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium">Relevance Score</label>
+              <span className="text-xs font-bold text-emerald-400 tabular-nums">{relevance[0]}%</span>
+            </div>
+            <Slider
+              value={relevance}
+              onValueChange={setRelevance}
+              min={0}
+              max={100}
+              step={1}
+              className="[&_[data-slot=slider-range]]:bg-emerald-500 [&_[data-slot=slider-thumb]]:border-emerald-500"
+            />
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            size="sm"
+            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            onClick={handleAdd}
+            disabled={!title || !paperId || !taskDesc || !priority}
+          >
+            <Plus className="h-3 w-3" />
+            Add Paper
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function ResearchTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPaper, setSelectedPaper] = useState<PaperItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [addToQueueOpen, setAddToQueueOpen] = useState(false)
+  const [localP0, setLocalP0] = useState<PaperItem[]>(p0Items)
+  const [localP1, setLocalP1] = useState<PaperItem[]>(p1Items)
+  const [localP2, setLocalP2] = useState<PaperItem[]>(p2Items)
 
   const isSearchActive = searchQuery !== ''
 
@@ -124,12 +279,12 @@ export function ResearchTab() {
     )
   }
 
-  const filteredP0 = filterPapers(p0Items)
-  const filteredP1 = filterPapers(p1Items)
-  const filteredP2 = filterPapers(p2Items)
+  const filteredP0 = filterPapers(localP0)
+  const filteredP1 = filterPapers(localP1)
+  const filteredP2 = filterPapers(localP2)
 
   const totalFiltered = filteredP0.length + filteredP1.length + filteredP2.length
-  const totalAll = allPapers.length
+  const totalAll = localP0.length + localP1.length + localP2.length
 
   const openPaperDialog = (paper: PaperItem) => {
     setSelectedPaper(paper)
@@ -155,9 +310,26 @@ export function ResearchTab() {
     })
   }
 
+  const handleAddPaper = (paper: PaperItem) => {
+    switch (paper.priority) {
+      case 'P0':
+        setLocalP0((prev) => [...prev, paper])
+        break
+      case 'P1':
+        setLocalP1((prev) => [...prev, paper])
+        break
+      case 'P2':
+        setLocalP2((prev) => [...prev, paper])
+        break
+    }
+    toast.success('Paper added to queue', {
+      description: `"${paper.title}" → ${paper.priority} queue`,
+    })
+  }
+
   return (
-    <div className="space-y-6 p-6">
-      {/* Search Bar */}
+    <div className="space-y-6 p-6 grid-pattern">
+      {/* Search Bar + Add Button */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -181,42 +353,76 @@ export function ResearchTab() {
             {totalFiltered} of {totalAll} results found
           </span>
         )}
+        <Button
+          size="sm"
+          className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white ml-auto"
+          onClick={() => setAddToQueueOpen(true)}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add to Queue
+        </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — Gradient Cards with Icon Badges */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-red-600/20 bg-red-600/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-red-400" />
-              <p className="text-xs text-muted-foreground">P0 — Implement Now</p>
+        <Card className="relative overflow-hidden border-red-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P0 — Implement Now</p>
+                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{filteredP0.length}</p>
+                <p className="text-[10px] text-muted-foreground">critical items</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
+                <Flame className="h-5 w-5 text-red-400" />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-red-400">{filteredP0.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-orange-600/20 bg-orange-600/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-orange-400" />
-              <p className="text-xs text-muted-foreground">P1 — Next Sprint</p>
+        <Card className="relative overflow-hidden border-orange-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P1 — Next Sprint</p>
+                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums">{filteredP1.length}</p>
+                <p className="text-[10px] text-muted-foreground">high priority</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
+                <Target className="h-5 w-5 text-orange-400" />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-orange-400">{filteredP1.length}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Beaker className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">P2 — Research</p>
+        <Card className="relative overflow-hidden border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P2 — Research</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{filteredP2.length}</p>
+                <p className="text-[10px] text-muted-foreground">research grade</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
+                <Beaker className="h-5 w-5 text-emerald-400" />
+              </div>
             </div>
-            <p className="text-2xl font-bold">{filteredP2.length}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total Vetted</p>
-            <p className="text-2xl font-bold">{totalFiltered}</p>
-            <p className="text-[10px] text-muted-foreground">papers + repos</p>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Vetted</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{totalFiltered}</p>
+                <p className="text-[10px] text-muted-foreground">papers + repos</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
+                <Library className="h-5 w-5 text-blue-400" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -263,6 +469,11 @@ export function ResearchTab() {
                               <code className="text-[10px] rounded bg-accent px-1.5 py-0.5">{item.deliverable}</code>
                             </div>
                           )}
+                          {/* Relevance Score Progress Bar */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                            <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -303,6 +514,11 @@ export function ResearchTab() {
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
+                        {/* Relevance Score Progress Bar */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                          <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -330,18 +546,23 @@ export function ResearchTab() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Beaker className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-600/15">
+                        <Beaker className="h-4 w-4 text-emerald-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                          <Badge variant="outline" className="text-[9px]">
+                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">
                             {(item.relevance * 100).toFixed(0)}%
                           </Badge>
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
+                        {/* Relevance Score Progress Bar */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                          <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -357,33 +578,72 @@ export function ResearchTab() {
           </div>
         </TabsContent>
 
-        {/* Daily Practice */}
+        {/* Daily Practice — Enhanced */}
         <TabsContent value="practice">
-          <Card>
-            <CardHeader>
+          <Card className="relative overflow-hidden border-emerald-600/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+            <CardHeader className="relative pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <BookOpen className="h-4 w-4" /> Daily Research Practice Template
+                <BookOpen className="h-4 w-4 text-emerald-400" /> Daily Research Practice Template
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-4">
-              <div className="grid gap-3 md:grid-cols-5">
-                {[
-                  { step: '1', name: 'INTAKE', desc: 'Collect up to 20 links, deduplicate, prioritize by NEXUS relevance', time: '5 min' },
-                  { step: '2', name: 'VETTING', desc: 'Extract abstract, conclusion, score relevance 0-1, map to modules', time: '15 min' },
-                  { step: '3', name: 'MANIFEST', desc: 'Output papers_manifest with all structured fields', time: '5 min' },
-                  { step: '4', name: 'PRIORITY', desc: 'Sort by relevance, tier into P0/P1/P2 with concrete tasks', time: '5 min' },
-                  { step: '5', name: 'DELIVER', desc: 'Save manifest + queue, provide download, log to VAP chain', time: '2 min' },
-                ].map((s) => (
-                  <div key={s.step} className="rounded-md border border-border p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600/15 text-xs font-bold text-emerald-400">{s.step}</span>
-                      <span className="text-xs font-semibold">{s.name}</span>
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">{s.desc}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground/60">~{s.time}</p>
-                  </div>
-                ))}
+            <CardContent className="relative p-4 pt-0 space-y-4">
+              {/* Steps with progression lines and gradient colors */}
+              <div className="relative">
+                {/* Connector line behind steps */}
+                <div className="absolute top-5 left-5 right-5 h-0.5 bg-gradient-to-r from-emerald-300/30 via-emerald-500/40 to-emerald-700/50 hidden md:block" />
+
+                <div className="grid gap-3 md:grid-cols-5 relative">
+                  {practiceSteps.map((s, i) => {
+                    const emeraldLevels = [
+                      'bg-emerald-300/20 text-emerald-300 border-emerald-300/30',
+                      'bg-emerald-400/20 text-emerald-400 border-emerald-400/30',
+                      'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
+                      'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
+                      'bg-emerald-700/20 text-emerald-400 border-emerald-700/30',
+                    ]
+                    const stepBadgeBg = [
+                      'bg-emerald-300/20 text-emerald-300',
+                      'bg-emerald-400/20 text-emerald-400',
+                      'bg-emerald-500/20 text-emerald-500',
+                      'bg-emerald-600/20 text-emerald-500',
+                      'bg-emerald-700/20 text-emerald-400',
+                    ]
+                    return (
+                      <div
+                        key={s.step}
+                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] ${emeraldLevels[i]}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${stepBadgeBg[i]}`}>
+                            {s.step}
+                          </span>
+                          <span className="text-xs font-semibold">{s.name}</span>
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">{s.desc}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground/60">~{s.time}</p>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
+
+              {/* Start Practice Session Button */}
+              <div className="flex justify-center pt-2">
+                <Button
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                  onClick={() => {
+                    toast.success('Practice session started', {
+                      description: 'INTAKE phase — collecting links...',
+                      duration: 3000,
+                    })
+                  }}
+                >
+                  <Play className="h-4 w-4" />
+                  Start Practice Session
+                </Button>
+              </div>
+
               <div className="rounded-md border border-border/50 bg-accent/30 p-3">
                 <p className="text-xs font-medium">Quality Gates</p>
                 <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
@@ -397,6 +657,13 @@ export function ResearchTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add to Queue Dialog */}
+      <AddToQueueDialog
+        open={addToQueueOpen}
+        onOpenChange={setAddToQueueOpen}
+        onAdd={handleAddPaper}
+      />
 
       {/* Paper Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

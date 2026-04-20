@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Router, Activity, Clock, Zap, Wifi, WifiOff, RefreshCw, Gauge } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
+import { Router, Activity, Clock, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { toast } from 'sonner'
 
 const latencyHistory = [
   { name: '10m', qwen: 1200, trinity: 1350, gemma: 340 },
@@ -85,16 +86,65 @@ export function GmrTab() {
   const baseModels = useMemo(() => modelsData?.models ?? [], [modelsData])
   const [healthPulse, setHealthPulse] = useState(0)
 
+  // Track user overrides for active/inactive state per model ID (optimistic updates)
+  // Empty = use base data; populated = user has toggled that model
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({})
+
   // Simulate health fluctuations on top of base data
   const models = useMemo(() => {
-    return baseModels.map(m => ({
-      ...m,
-      // Add tiny random jitter based on pulse counter to simulate live data
-      health: m.isActive
-        ? Math.min(100, Math.max(80, m.health + (healthPulse % 5 === 0 ? 0 : (healthPulse % 2 === 0 ? 1 : -1))))
-        : m.health,
-    }))
-  }, [baseModels, healthPulse])
+    return baseModels.map(m => {
+      const isActive = m.id in overrides ? overrides[m.id] : m.isActive
+      return {
+        ...m,
+        isActive,
+        // Add tiny random jitter based on pulse counter to simulate live data
+        health: isActive
+          ? Math.min(100, Math.max(80, m.health + (healthPulse % 5 === 0 ? 0 : (healthPulse % 2 === 0 ? 1 : -1))))
+          : m.health,
+      }
+    })
+  }, [baseModels, healthPulse, overrides])
+
+  // Find which pool(s) a model belongs to
+  const getModelPools = useCallback((modelName: string) => {
+    return poolDefinitions.filter(pool => pool.modelNames.includes(modelName))
+  }, [])
+
+  // Check if a model is the last active one in any of its pools
+  const isLastActiveInPool = useCallback((modelId: string) => {
+    const model = models.find(m => m.id === modelId)
+    if (!model) return false
+    const pools = getModelPools(model.name)
+    return pools.some(pool => {
+      const poolModels = models.filter(m => pool.modelNames.includes(m.name))
+      const activeInPool = poolModels.filter(m => m.isActive)
+      return activeInPool.length === 1 && activeInPool[0].id === modelId
+    })
+  }, [models, getModelPools])
+
+  // Handle model toggle
+  const handleToggle = useCallback((modelId: string) => {
+    const model = models.find(m => m.id === modelId)
+    if (!model) return
+
+    const newState = !model.isActive
+
+    // If deactivating, check if it's the last active model in any pool
+    if (!newState && isLastActiveInPool(modelId)) {
+      toast.warning(`Cannot deactivate ${model.name} — it's the last active model in its pool`)
+      return
+    }
+
+    // Optimistic update via override
+    setOverrides(prev => ({ ...prev, [modelId]: newState }))
+    toast.success(`Model ${model.name} ${newState ? 'activated' : 'deactivated'}`)
+  }, [models, isLastActiveInPool])
+
+  // Reset all models to their original isActive state (clear overrides)
+  const handleReset = useCallback(() => {
+    setOverrides({})
+    toast.info('All models reset to default state')
+  }, [])
 
   // Timer for health simulation pulse
   useEffect(() => {
@@ -212,9 +262,15 @@ export function GmrTab() {
 
         {/* Model Registry */}
         <TabsContent value="models">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-muted-foreground">{models.length} models registered</span>
+            <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={handleReset}>
+              <RotateCcw className="h-3 w-3" /> Reset to Default
+            </Button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {models.map((m) => (
-              <Card key={m.id} className={`group relative overflow-hidden transition-all duration-200 ${m.isActive ? 'hover:border-emerald-600/20 hover:shadow-md hover:shadow-emerald-600/5' : 'opacity-60'}`}>
+              <Card key={m.id} className={`group relative overflow-hidden transition-all duration-300 ${m.isActive ? 'hover:border-emerald-600/20 hover:shadow-md hover:shadow-emerald-600/5' : 'opacity-50'}`}>
                 {m.isActive && <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />}
                 <CardContent className="relative p-4">
                   <div className="flex items-start justify-between">
@@ -223,6 +279,9 @@ export function GmrTab() {
                         <p className="text-sm font-medium truncate">{m.name}</p>
                         {m.isFree && (
                           <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px] px-1">FREE</Badge>
+                        )}
+                        {!m.isActive && (
+                          <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px] px-1 animate-in fade-in duration-200">Disabled</Badge>
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">{m.provider} · {m.domain}</p>
@@ -266,7 +325,11 @@ export function GmrTab() {
                     <span className="text-[10px] text-muted-foreground">{m.totalCalls.toLocaleString()} calls</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-muted-foreground">Active</span>
-                      <Switch checked={m.isActive} disabled className="scale-75" />
+                      <Switch
+                        checked={m.isActive}
+                        onCheckedChange={() => handleToggle(m.id)}
+                        className="scale-75"
+                      />
                     </div>
                   </div>
                 </CardContent>
