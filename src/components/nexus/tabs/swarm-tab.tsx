@@ -32,14 +32,45 @@ import {
   Cpu,
   X,
   AlertTriangle,
-  RotateCcw,
   Play,
   ArrowRightLeft,
   Trash2,
   Zap,
+  Gauge,
+  Timer,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
+
+// Worker status export data with meaningful column names
+const workerStatusColumnHeaders: Record<string, string> = {
+  id: 'Worker ID',
+  status: 'Status',
+  task: 'Current Task',
+  domain: 'Domain',
+  progress: 'Progress (%)',
+  tokens: 'Tokens Consumed',
+  uptime: 'Uptime',
+}
+
+const taskHistoryColumnHeaders: Record<string, string> = {
+  id: 'Task ID',
+  worker: 'Worker',
+  result: 'Result',
+  duration: 'Duration',
+  tokens: 'Tokens',
+}
+
+const taskQueueColumnHeaders: Record<string, string> = {
+  id: 'Task ID',
+  domain: 'Domain',
+  priority: 'Priority',
+  status: 'Status',
+  submittedBy: 'Submitted By',
+}
 
 interface Worker {
   id: string
@@ -495,6 +526,79 @@ export function SwarmTab() {
         </Card>
       </div>
 
+      {/* Swarm Metrics Mini-Dashboard */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600/15">
+              <Gauge className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tasks/hour</p>
+              <p className="text-lg font-bold text-emerald-400 tabular-nums">11.2</p>
+            </div>
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-600/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/15">
+              <Timer className="h-4 w-4 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Duration</p>
+              <p className="text-lg font-bold text-blue-400 tabular-nums">12.4s</p>
+            </div>
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-600/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-600/15">
+              <TrendingUp className="h-4 w-4 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Success Rate</p>
+              <p className="text-lg font-bold text-orange-400 tabular-nums">87.3%</p>
+            </div>
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-purple-600/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600/15">
+              <BarChart3 className="h-4 w-4 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Utilization</p>
+              <p className="text-lg font-bold text-purple-400 tabular-nums">60%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Swarm Load Progress Bar */}
+      <div className="rounded-lg border border-border/50 bg-card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium flex items-center gap-1.5">
+            <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+            Swarm Load
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{workers.length} workers occupied</span>
+        </div>
+        <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
+            style={{ width: `${((busyCount + errorCount) / workers.length) * 100}%` }}
+          />
+        </div>
+        <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>{((busyCount + errorCount) / workers.length * 100).toFixed(0)}% capacity utilized</span>
+          <span>{idleCount} workers available</span>
+        </div>
+      </div>
+
       {/* Throughput Chart */}
       <Card>
         <CardHeader className="pb-2">
@@ -527,9 +631,12 @@ export function SwarmTab() {
         {/* Worker Grid */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Users className="h-4 w-4" /> Worker Status Grid
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Users className="h-4 w-4" /> Worker Status Grid
+              </CardTitle>
+              <ExportButton data={workers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
+            </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -665,9 +772,12 @@ export function SwarmTab() {
       {/* Recent Completed */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Recent Completed
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4" /> Recent Completed
+            </CardTitle>
+            <ExportButton data={recentCompleted} filename="swarm-task-history" label="Export Tasks" columnHeaders={taskHistoryColumnHeaders} />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

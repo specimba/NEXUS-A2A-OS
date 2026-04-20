@@ -118,7 +118,26 @@ export function VaultTab() {
   }
 
   return (
-    <div className="space-y-6 p-6 grid-pattern">
+    <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+      {/* Vault Integrity Status Banner */}
+      <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg shadow-emerald-600/10">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Vault Integrity</h2>
+              <p className="text-xs text-muted-foreground">All 5 tracks operational · 1,792 entries · Last verified: 2 min ago</p>
+            </div>
+          </div>
+          <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Operational
+          </Badge>
+        </div>
+      </div>
+
       {/* Gradient Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
@@ -127,7 +146,7 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Entries</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">1,792</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums animate-count-up">1,792</p>
                 <p className="text-[10px] text-muted-foreground">across 5 tracks</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
@@ -143,7 +162,7 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Active Tracks</p>
-                <p className="mt-1 text-3xl font-bold text-blue-400 tabular-nums">5</p>
+                <p className="mt-1 text-3xl font-bold text-blue-400 tabular-nums animate-count-up">5</p>
                 <p className="text-[10px] text-muted-foreground">all tracks operational</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
@@ -175,7 +194,7 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Score</p>
-                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums">0.73</p>
+                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums animate-count-up">0.73</p>
                 <p className="text-[10px] text-muted-foreground">across all entries</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useNexusStore } from '@/store/nexus-store'
-import { Moon, Sun, Menu, Activity, Settings, Terminal } from 'lucide-react'
+import { Moon, Sun, Menu, Activity, Settings, Terminal, Download } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { NotificationCenter } from '@/components/nexus/notification-center'
 import { SystemLogsPanel } from '@/components/nexus/system-logs'
+import { GlobalExportDialog } from '@/components/nexus/global-export-dialog'
 import {
   Dialog,
   DialogContent,
@@ -234,7 +235,7 @@ function SystemConfigDialog({ open, onOpenChange }: {
 }
 
 export function NexusHeader() {
-  const { activeTab, setSidebarOpen } = useNexusStore()
+  const { activeTab, setSidebarOpen, isExportDialogOpen, setExportDialogOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
@@ -247,10 +248,14 @@ export function NexusHeader() {
         e.preventDefault()
         setLogsOpen(prev => !prev)
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault()
+        setExportDialogOpen(true)
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [setExportDialogOpen])
 
   useEffect(() => {
     const update = () =>
@@ -290,6 +295,18 @@ export function NexusHeader() {
       {/* Notification center */}
       <NotificationCenter />
 
+      {/* Export Dashboard */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="hidden h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground sm:flex"
+        onClick={() => setExportDialogOpen(true)}
+        aria-label="Export Dashboard"
+      >
+        <Download className="h-3.5 w-3.5" />
+        <span className="hidden lg:inline">Export</span>
+      </Button>
+
       {/* System Logs */}
       <Button
         variant="ghost"
@@ -328,6 +345,9 @@ export function NexusHeader() {
 
       {/* System Config Dialog */}
       <SystemConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
+
+      {/* Global Export Dialog */}
+      <GlobalExportDialog open={isExportDialogOpen} onOpenChange={setExportDialogOpen} />
 
       {/* System Logs Panel */}
       <SystemLogsPanel open={logsOpen} onOpenChange={setLogsOpen} />

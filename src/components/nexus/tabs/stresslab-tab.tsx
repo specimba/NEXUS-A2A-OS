@@ -40,9 +40,21 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ExportButton } from '@/components/nexus/export-button'
+
+// Column headers for CSV export
+const stresslabRunsColumnHeaders: Record<string, string> = {
+  id: 'Run ID',
+  template: 'Template',
+  model: 'Model',
+  mode: 'Mode',
+  result: 'Result',
+  tokens: 'Tokens Used',
+  duration: 'Duration',
+}
+
 import {
   BarChart,
   Bar,
@@ -183,16 +195,21 @@ function RunTestDialog({ template, onComplete }: { template: typeof templates[0]
   const [mode, setMode] = useState('')
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval>>()
+
+  useEffect(() => {
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
 
   const handleRun = () => {
     if (!model || !mode) return
     setRunning(true)
     setProgress(0)
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setProgress(p => {
         if (p >= 100) {
-          clearInterval(interval)
+          if (intervalRef.current) clearInterval(intervalRef.current)
           setRunning(false)
           toast.success(`Test ${template.id} completed`, {
             description: `Model: ${model} | Mode: ${mode}`,
@@ -294,6 +311,11 @@ function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentTemplate, setCurrentTemplate] = useState('')
+  const intervalRef = useRef<ReturnType<typeof setInterval>>()
+
+  useEffect(() => {
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
 
   const toggleTemplate = (id: string) => {
     setSelectedTemplates(prev =>
@@ -310,7 +332,7 @@ function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
     let step = 0
     const totalSteps = selectedTemplates.length * 10
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       step++
       const pct = (step / totalSteps) * 100
       const currentIdx = Math.min(Math.floor(step / 10), selectedTemplates.length - 1)
@@ -318,7 +340,7 @@ function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
       setProgress(pct)
 
       if (step >= totalSteps) {
-        clearInterval(interval)
+        if (intervalRef.current) clearInterval(intervalRef.current)
         setRunning(false)
         setProgress(100)
         toast.success(`Batch run completed`, {
@@ -1004,7 +1026,7 @@ export function StressLabTab() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">Recent Test Runs</CardTitle>
-                <ExportButton data={recentRuns} filename="stresslab-runs" />
+                <ExportButton data={recentRuns} filename="stresslab-runs" columnHeaders={stresslabRunsColumnHeaders} />
               </div>
             </CardHeader>
             <CardContent className="p-0">

@@ -30,6 +30,8 @@ import {
   Moon,
   Terminal,
   MessageSquare,
+  Bell,
+  Download,
 } from 'lucide-react'
 
 interface CommandItemDef {
@@ -43,7 +45,7 @@ interface CommandItemDef {
 
 export function NexusCommandPalette() {
   const [open, setOpen] = useState(false)
-  const { setActiveTab, toggleSidebar, toggleChat } = useNexusStore()
+  const { setActiveTab, toggleSidebar, toggleChat, toggleNotificationCenter, setExportDialogOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
 
   const commands: CommandItemDef[] = [
@@ -62,6 +64,8 @@ export function NexusCommandPalette() {
     { id: 'act-budget', label: 'Check Token Budget', icon: <Coins className="h-4 w-4 text-emerald-400" />, action: () => setActiveTab('tokens'), group: 'actions' },
     { id: 'act-chat', label: 'Open AI Assistant', icon: <MessageSquare className="h-4 w-4 text-emerald-400" />, action: () => toggleChat(), group: 'actions' },
     { id: 'act-logs', label: 'Open System Logs', icon: <Terminal className="h-4 w-4 text-blue-400" />, shortcut: '⌘L', action: () => { /* Handled by header keyboard listener */ }, group: 'actions' },
+    { id: 'act-notifications', label: 'View Notifications', icon: <Bell className="h-4 w-4 text-red-400" />, shortcut: '⌘N', action: () => toggleNotificationCenter(), group: 'actions' },
+    { id: 'act-export', label: 'Export Dashboard', icon: <Download className="h-4 w-4 text-emerald-400" />, shortcut: '⌘E', action: () => setExportDialogOpen(true), group: 'actions' },
   ]
 
   const runCommand = useCallback((command: CommandItemDef) => {

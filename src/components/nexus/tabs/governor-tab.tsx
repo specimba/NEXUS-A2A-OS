@@ -23,9 +23,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Copy, Plus, ShieldAlert, GitBranch, BookOpen, Bell, Timer } from 'lucide-react'
+import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Plus, ShieldAlert, GitBranch, BookOpen } from 'lucide-react'
 import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
+
+// Column headers for CSV export
+const governorDecisionsColumnHeaders: Record<string, string> = {
+  time: 'Time',
+  agent: 'Agent',
+  action: 'Action Requested',
+  scope: 'Scope',
+  impact: 'Impact Level',
+  decision: 'Governor Decision',
+  trust: 'Trust Score',
+}
+
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis } from 'recharts'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -721,7 +733,26 @@ export function GovernorTab() {
   }, [])
 
   return (
-    <div className="space-y-6 p-6 grid-pattern">
+    <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+      {/* Constitution Status Banner */}
+      <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-purple-600/5 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-purple-600 shadow-lg shadow-emerald-600/10">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Constitution Status</h2>
+              <p className="text-xs text-muted-foreground">7 active rules · Last amendment: 2h ago</p>
+            </div>
+          </div>
+          <Badge className="border-0 text-[10px] gap-1.5 bg-emerald-600/15 text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Constitution Active
+          </Badge>
+        </div>
+      </div>
+
       {/* Decision Stats */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
@@ -1117,7 +1148,7 @@ export function GovernorTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <Eye className="h-4 w-4" /> Decision Log
             </CardTitle>
-            <ExportButton data={decisions} filename="governor-decisions" />
+            <ExportButton data={decisions} filename="governor-decisions" columnHeaders={governorDecisionsColumnHeaders} />
           </div>
         </CardHeader>
         <CardContent className="p-0">

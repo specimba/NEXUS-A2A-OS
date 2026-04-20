@@ -179,15 +179,6 @@
   animation: nexus-glow 3s ease-in-out infinite;
 }
 
-/* Glass card effect */
-.glass-card {
-  background: oklch(0.155 0.008 155 / 80%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid oklch(1 0 0 / 10%);
-  box-shadow: 0 8px 32px oklch(0 0 0 / 20%);
-}
-
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, oklch(0.65 0.2 155), oklch(0.82 0.12 155));
@@ -343,14 +334,6 @@
   background-size: 40px 40px;
 }
 
-:root .glass-card {
-  background: oklch(1 0 0 / 90%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid oklch(0.9 0.01 155);
-  box-shadow: 0 8px 32px oklch(0 0 0 / 8%);
-}
-
 :root .gradient-text {
   background: linear-gradient(135deg, oklch(0.35 0.1 155), oklch(0.508 0.164 155));
   -webkit-background-clip: text;
@@ -460,4 +443,157 @@
 .gradient-bar-animated {
   background-size: 200% 100%;
   animation: gradient-slide 3s linear infinite;
+}
+
+/* Animated gradient border for welcome banner */
+@keyframes gradientBorder {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+/* Animate fade in — opacity + translateY */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 300ms ease-out forwards;
+}
+
+/* Animate slide up — translateY + opacity */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 400ms ease-out forwards;
+}
+
+/* Animate scale in — scale + opacity */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 200ms ease-out forwards;
+}
+
+/* Glass card enhanced — inner shadow + border glow */
+.glass-card {
+  background: oklch(0.155 0.008 155 / 80%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid oklch(1 0 0 / 10%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 5%),
+    0 0 0 1px oklch(0.65 0.2 155 / 5%),
+    0 8px 32px oklch(0 0 0 / 20%);
+}
+
+:root .glass-card {
+  background: oklch(1 0 0 / 90%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid oklch(0.9 0.01 155);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 60%),
+    0 0 0 1px oklch(0.508 0.164 155 / 5%),
+    0 8px 32px oklch(0 0 0 / 8%);
+}
+
+/* Nexus animated gradient border */
+.nexus-gradient-border {
+  position: relative;
+  border: none;
+  background: oklch(0.155 0.008 155);
+}
+
+.nexus-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, oklch(0.65 0.2 155), oklch(0.82 0.12 155), oklch(0.65 0.2 155));
+  background-size: 300% 100%;
+  animation: gradientBorder 4s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Text gradient emerald */
+.text-gradient-emerald {
+  background: linear-gradient(135deg, oklch(0.65 0.2 155), oklch(0.82 0.12 155));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root .text-gradient-emerald {
+  background: linear-gradient(135deg, oklch(0.35 0.1 155), oklch(0.508 0.164 155));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hover glow — emerald glow on hover */
+.hover-glow {
+  transition: box-shadow 200ms ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 16px oklch(0.65 0.2 155 / 25%), 0 4px 12px oklch(0 0 0 / 15%);
+}
+
+/* Animated count-up effect for stat numbers */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-count-up {
+  animation: countUp 600ms ease-out forwards;
+}
+
+/* Pulse on hover for practice template cards */
+@keyframes pulseHover {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 0%);
+  }
+  50% {
+    box-shadow: 0 0 0 4px oklch(0.65 0.2 155 / 15%);
+  }
+}
+
+.hover-pulse:hover {
+  animation: pulseHover 1.5s ease-in-out infinite;
 }

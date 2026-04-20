@@ -25,7 +25,7 @@ import {
   TrendingDown,
   TrendingUp,
   AlertTriangle,
-  PieChart,
+  PieChart as PieChartIcon,
   Activity,
   Lightbulb,
   Eye,
@@ -34,9 +34,18 @@ import {
   ArrowRight,
   Flame,
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
+
+// Column headers for CSV export
+const modelUsageColumnHeaders: Record<string, string> = {
+  model: 'Model Name',
+  tokens: 'Total Tokens',
+  calls: 'API Calls',
+  avgLatency: 'Avg Latency (ms)',
+  cost: 'Cost ($)',
+}
 
 const hourlyUsage = [
   { hour: '08:00', tokens: 1200 },
@@ -287,7 +296,7 @@ export function TokensTab() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
-              <PieChart className="h-4 w-4" /> Per-Agent Token Usage
+              <PieChartIcon className="h-4 w-4" /> Per-Agent Token Usage
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
@@ -475,7 +484,7 @@ export function TokensTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">Per-Model Token Consumption</CardTitle>
-            <ExportButton data={modelUsage} filename="token-usage" />
+            <ExportButton data={modelUsage.map(({ trend, ...rest }) => rest)} filename="token-usage" columnHeaders={modelUsageColumnHeaders} />
           </div>
         </CardHeader>
         <CardContent className="p-0">

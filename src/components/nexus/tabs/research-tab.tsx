@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, FileText, Layers, Library } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface PaperItem {
@@ -328,14 +328,14 @@ export function ResearchTab() {
   }
 
   return (
-    <div className="space-y-6 p-6 grid-pattern">
+    <div className="space-y-6 p-6 grid-pattern animate-fade-in">
       {/* Search Bar + Add Button */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search papers by title, ID, or task..."
-            className="h-9 pl-8 pr-8 text-xs rounded-lg"
+            className="h-9 pl-8 pr-8 text-xs rounded-lg transition-colors hover:border-emerald-600/30 focus:border-emerald-600/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -444,7 +444,7 @@ export function ResearchTab() {
                 return (
                   <Card
                     key={item.id}
-                    className="hover:border-red-600/20 transition-colors cursor-pointer"
+                    className="hover:border-red-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-red-500/60"
                     onClick={() => openPaperDialog(item)}
                   >
                     <CardContent className="p-4">
@@ -460,6 +460,9 @@ export function ResearchTab() {
                             </Badge>
                             {item.status === 'in_progress' && (
                               <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
+                            )}
+                            {item.status === 'pending' && (
+                              <Badge className="bg-yellow-500/15 text-yellow-400 border-0 text-[9px] animate-pulse">NEW</Badge>
                             )}
                           </div>
                           <p className="mt-1 text-sm font-medium">{item.title}</p>
@@ -497,7 +500,7 @@ export function ResearchTab() {
               filteredP1.map((item) => (
                 <Card
                   key={item.id}
-                  className="hover:border-orange-600/20 transition-colors cursor-pointer"
+                  className="hover:border-orange-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60"
                   onClick={() => openPaperDialog(item)}
                 >
                   <CardContent className="p-4">
@@ -541,7 +544,7 @@ export function ResearchTab() {
               filteredP2.map((item) => (
                 <Card
                   key={item.id}
-                  className="hover:border-emerald-600/20 transition-colors cursor-pointer"
+                  className="hover:border-emerald-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-emerald-500/60"
                   onClick={() => openPaperDialog(item)}
                 >
                   <CardContent className="p-4">
@@ -612,7 +615,7 @@ export function ResearchTab() {
                     return (
                       <div
                         key={s.step}
-                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] ${emeraldLevels[i]}`}
+                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover-pulse ${emeraldLevels[i]}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${stepBadgeBg[i]}`}>

@@ -1,0 +1,44 @@
+ificationCenter, setNotificationCenterOpen for cross-component control
+  - Auto-incrementing notification counter for unique IDs
+- Rewrote NotificationCenter component (src/components/nexus/notification-center.tsx):
+  - Replaced local useState with Zustand store for notification state (persistent across component re-mounts)
+  - Uses isNotificationCenterOpen from store (can be opened from Command Palette)
+  - Popover triggered from Bell icon in header with unread count badge (red dot with number, shows 9+ for overflow)
+  - Color-coded type badges: info=blue, warning=yellow, error=red, success=emerald
+  - Source badges with pillar-specific colors (Governor=purple, GMR=cyan, Swarm=orange, Vault=emerald, etc.)
+  - Type icon circles per notification (XCircle, AlertTriangle, CheckCircle2, Info)
+  - Left stripe indicator (colored, full opacity for unread, faded for read)
+  - Unread notification highlight with type-specific background color
+  - Animated pulse dot on unread notifications
+  - Mark all read button (visible when unread > 0)
+  - Clear all button with trash icon (visible when any notifications exist)
+  - Dismiss X button on each notification (appears on hover, group-hover pattern)
+  - Empty state with BellOff icon when no notifications
+  - Footer showing X notifications / Y unread count and Cmd+N shortcut hint
+  - ScrollArea with max-h-96 for notification list overflow
+  - Simulated new notifications arriving every 30-60 seconds (recursive setTimeout):
+    - 12 rotating notification templates from all NEXUS OS sources
+    - Each new notification triggers a sonner toast (bottom-right, 4s duration, truncated description)
+  - Glass morphism styling (glass-card class, rounded-xl, shadow-2xl, border-border/60)
+  - Wider popover (w-96) for better readability
+- Verified header integration (src/components/nexus/header.tsx):
+  - Already imports and renders NotificationCenter component
+  - No changes needed - seamless integration
+- Updated Command Palette (src/components/nexus/command-palette.tsx):
+  - Added Bell icon import from lucide-react
+  - Added View Notifications command to Actions group with Cmd+N shortcut hint
+  - Uses toggleNotificationCenter from Zustand store
+  - Command palette destructured toggleNotificationCenter from useNexusStore
+- All lint checks pass (bun run lint - zero errors)
+- Dev server compiling cleanly (GET / 200)
+
+Stage Summary:
+- Full Notification Center integrated into NEXUS OS header
+- Zustand store manages notification state globally (7 actions + 1 getter)
+- 10 pre-populated realistic notifications from 7 NEXUS OS sources
+- 12 simulated notification templates arriving every 30-60s with toast alerts
+- Interactive: mark read (click), mark all read, dismiss (X), clear all
+- Color-coded types + source badges matching existing dashboard design language
+- Empty state, scroll overflow, glass morphism, animated badges
+- Command Palette integration with View Notifications action (Cmd+N)
+- No lint violations, no compilation errors

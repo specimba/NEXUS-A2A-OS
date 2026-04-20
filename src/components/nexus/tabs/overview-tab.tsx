@@ -1,10 +1,12 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
+import { ExportButton, downloadFile, toCSV } from '@/components/nexus/export-button'
 import {
   Zap,
   Shield,
@@ -24,12 +26,33 @@ import {
   Wrench,
   FileDown,
   Trash2,
-  ArrowUpRight,
   Server,
   CircleDot,
 } from 'lucide-react'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
+
+// System status export data
+const systemStatusExport = [
+  { pillar: 'Bridge', status: 'operational', health: 100, description: 'HMAC auth · JSON-RPC', uptime: '99.99%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Engine', status: 'operational', health: 98, description: 'Hermes intent routing', uptime: '99.94%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Governor', status: 'operational', health: 95, description: 'Kaiju + TrustScorer', uptime: '99.87%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Vault', status: 'operational', health: 100, description: '5-Track memory', uptime: '100%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'GMR', status: 'operational', health: 92, description: 'Model rotation', uptime: '99.71%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Swarm', status: 'degraded', health: 88, description: 'Worker pool', uptime: '98.44%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Monitor', status: 'operational', health: 96, description: 'Token budget + audit', uptime: '99.92%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+  { pillar: 'Config', status: 'operational', health: 100, description: 'Constitution', uptime: '100%', tokenBudget: 73450, tokenBudgetMax: 100000 },
+]
+
+const systemStatusColumnHeaders: Record<string, string> = {
+  pillar: 'Pillar',
+  status: 'Status',
+  health: 'Health (%)',
+  description: 'Description',
+  uptime: 'Uptime',
+  tokenBudget: 'Token Budget Remaining',
+  tokenBudgetMax: 'Token Budget Max',
+}
 
 const pillars = [
   { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%' },
@@ -164,12 +187,12 @@ const recentDecisions = [
 
 function LiveActivityFeed() {
   const [activities, setActivities] = useState(initialActivities)
-  const [tick, setTick] = useState(0)
+  const tickRef = useRef(0)
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTick((t) => t + 1)
-      const newItem = newActivities[tick % newActivities.length]
+      tickRef.current++
+      const newItem = newActivities[tickRef.current % newActivities.length]
       setActivities((prev) => [
         { ...newItem, time: '0s ago' },
         ...prev.slice(0, -1).map((a) => ({
@@ -179,7 +202,7 @@ function LiveActivityFeed() {
       ])
     }, 3000)
     return () => clearInterval(interval)
-  }, [tick])
+  }, [])
 
   return (
     <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1 custom-scrollbar">
@@ -309,15 +332,6 @@ function SystemUptimeCard() {
 }
 
 export function OverviewTab() {
-  const [systemPulse, setSystemPulse] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSystemPulse((p) => p + 1)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
   const handleQuickAction = useCallback((action: string) => {
     switch (action) {
       case 'diagnostic':
@@ -326,12 +340,21 @@ export function OverviewTab() {
           duration: 3000,
         })
         break
-      case 'export':
+      case 'export': {
+        const json = JSON.stringify({
+          exportedAt: new Date().toISOString(),
+          version: 'NEXUS OS v3.0',
+          pillars: systemStatusExport,
+          summary: { totalPillars: 8, operationalPillars: 7, degradedPillars: 1, avgHealth: 96.1, tokenBudget: { remaining: 73450, max: 100000, utilization: '73.45%' } },
+          recentDecisions,
+        }, null, 2)
+        downloadFile(json, 'nexus-system-status.json', 'application/json;charset=utf-8;')
         toast.success('Report exported', {
           description: 'System status report downloaded as JSON',
           duration: 3000,
         })
         break
+      }
       case 'clear':
         toast.success('Cache cleared', {
           description: 'All cached data purged. Refreshing from source...',
@@ -376,13 +399,7 @@ export function OverviewTab() {
             <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-400" /> 73450 tokens left</span>
           </div>
         </div>
-        {/* CSS keyframe for animated border */}
-        <style jsx>{`
-          @keyframes gradientBorder {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 300% 50%; }
-          }
-        `}</style>
+
       </div>
 
       {/* Top Stats with Gradient Cards */}
@@ -539,7 +556,8 @@ export function OverviewTab() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">System Pillars</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <ExportButton data={systemStatusExport} filename="nexus-system-status" label="Export Status" columnHeaders={systemStatusColumnHeaders} />
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] text-muted-foreground">All systems nominal</span>
           </div>
@@ -749,8 +767,4 @@ export function OverviewTab() {
       </div>
     </div>
   )
-}
-
-function Separator({ className }: { className?: string }) {
-  return <div className={`h-px ${className || 'bg-border'}`} />
 }
