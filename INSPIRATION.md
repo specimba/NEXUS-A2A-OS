@@ -1,119 +1,109 @@
 # NEXUS OS — Inspiration Research
-
-Sourced from deep search 2026-04-20. Full references at bottom.
-
----
-
-## Agent Orchestration Frameworks
-
-### Top Tier — Production-grade, active development
-
-| Framework | Language | License | Stars | Key Differentiator |
-|-----------|----------|---------|-------|--------------------|
-| **Agency Swarm** | Python | MIT | — | Extends OpenAI Agents SDK, explicit comm flows, type-safe tools |
-| **AgentEnsemble** | Python | MIT | — | Async-first, 9 agent types (ReAct/Swarm/Pipeline/Debate/Router/Planner), hooks+retries |
-| **Maestro** | Python | — | — | MCP server CLI, streaming API, DOCKER/K8s deploy |
-| **MOCO** | Python | — | — | Multi-provider (Gemini/OpenAI/OpenRouter), FAISS memory, moco CLI |
-| **Agentflow** | Python | — | v0.5.7.0 | 3-layer memory (short/convo/long-term), pg+redis checkpointer, graph DSL |
-| **mesh** | Python | — | — | Mermaid visualization, Vel translation layer, token streaming |
-| **pydantic-collab** | Python | — | — | Pydantic-typed agent graphs, topology validation, observability |
-| **self-evolving-agent** | Python | MIT | — | OpenClaw-based, capability map + promotion gates, 6-mode system |
-
-### Alternative — Notable patterns
-
-| Framework | Notes |
-|-----------|-------|
-| **Agent Squad** | AWS-backed, SupervisorAgent for parallel coordination |
-| **agenticaiframework** | 400+ modules, 237 components, enterprise-grade |
-| **vibex-py** | YAML agent definitions, natural language handoffs, event stream |
-| **OpenClaw** | Tailscale-first networking, mcporter MCP bridge, persistent agents |
+Synthesized from 25 sourced files + 297 GitHub stars + team reports. Updated: 2026-04-20.
 
 ---
 
-## Memory Layer Systems
+## Architecture Map: What We Have vs What We Build
 
-### Top Tier — Structured, production-ready
+### Built (operational)
+- NEXUS OS v3.0 (8/8 tests PASS) — `Skills/nexus-os/`
+- GMR with Zo model stack (MiniMax m2.7 primary, 4 free-tier sub-agents via `/zo/ask`)
+- Heartbeat protocol — sub-agent lifecycle + token enforcement
+- AGENTS.md root memory — identity, governance, system spec
+- Zo Computer as orchestrator (4GB RAM, 3 cores, Python 3.12, Node 22, Bun, DuckDB 1.4.2)
 
-| System | Type | License | Language | Key Differentiator |
-|--------|------|---------|----------|--------------------|
-| **MemoryLayer** | Graph+Vector | — | Python | 60+ typed relationships, recursive LLM reasoning, MCP server |
-| **MemMachine** | Episodic/Profile | Apache 2.0 | Python | Graph-based episodic, profile SQL, working memory |
-| **Engram-Mem** | Dual (Vector+Graph) | MIT | Python | Qdrant + NetworkX, Ebbinghaus decay, federated search |
-| **memweave** | Vector+Keyword | MIT | Python | SQLite only, BM25+vec hybrid, markdown files, offline |
-| **0GMem** | Structured Graph | MIT | Python | Entity+temporal+semantic edges, LoCoMo 88.67% accuracy |
-| **memvid** | Vector | — | Rust | Single-file immutable, sub-5ms recall, capsule contexts |
-| **mnemora** | 4-type (W/S/E/P) | — | Python | AWS DynamoDB+Aurora pgvector+S3, LangGraph/LangChain/CrewAI |
-
-### Alternative — Lighter weight
-
-| System | Notes |
-|--------|-------|
-| **MemoryKit** | Local ChromaDB, recency+importance scoring, 5-line API |
-| **bolnet/agent-memory** | SQLite+pgvector+Neo4j, 3-layer retrieval pipeline |
+### Built (installed, curated)
+- `zopenclaw` — OpenClaw + Tailscale + mcporter bridge
+- `context7` — version-specific library docs
+- `self-improvement` — weekly reflection audit
+- `handoff` — pause/resume across conversations
+- `journal` — daily experiential logging
+- `simplify` — code refinement
+- `mcporter-setup` — MCP server integration
+- `share-skill` — skill contribution prep
 
 ---
 
-## Skill Crafting Systems
+## Core Inspiration Sources (ranked by build priority)
 
-### Top Tier — Self-improving, automated synthesis
+### P0 — Build Now
 
-| System | License | Language | Key Differentiator |
-|--------|---------|----------|--------------------|
-| **EvoSkill** | MIT | Python 3.12+ | Evolutionary loop over agent configs, git-branch frontier |
-| **SkillX** | — | Python | 3-level hierarchy (Planning/Functional/Atomic), automated KB construction |
-| **SkillCraft** | — | Python 3.10+ | Benchmark for skill formation, caching, composition evaluation |
-| **ACE (kortix-ai)** | — | Python | Skillbook of strategies, 20-35% perf improvement claimed |
-| **SkillWeaver** | MIT | Python | Web agents, autonomous skill synthesis as APIs |
-| **skill-evolution** | MIT | Python | Full lifecycle (create/reflect/evaluate/publish/install/fork/merge) for Claude Code |
+**ISC-Bench (wuyoscar/ISC-Bench)** — 0.97
+- 84 TVD templates across 9 domains. TVD = Task-Validator-Data. Failure = when a legitimate workflow *structurally requires* harmful output to pass validation.
+- Steal: TVD template format + dual-cascade runner (commercial vs heretic control group) + VAP logging.
+- Build: `Skills/nexus-os/src/nexus_os/stresslab/` — adapt ISC runner to Zo sub-agents via `/zo/ask`.
 
-### Alternative — OpenClaw ecosystem
+**OR-Bench (ArXiv 2405.20947)** — 0.95
+- 80k prompts, 10 rejection categories. Most models trade safety for over-refusal (Spearman 0.89).
+- Steal: Lane threshold calibration methodology. Update trust_scoring lane thresholds (research 0.3→0.35, audit 0.7→0.72) based on OR-Bench data.
+- Build: `Skills/nexus-os/src/nexus_os/governor/trust_scoring.py` update.
 
-| System | Notes |
-|--------|-------|
-| **self-evolving-agent** | OpenClaw runtime, capability-centric memory, promotion gates |
-| **openclaw/skills** | Modular skill framework, `.learnings` dir, hooks system |
+**deer-flow (bytedance/deer-flow)** — 0.93
+- Lead agent + parallel workers + isolated sandboxes + memory. Scales sub-agent orchestration.
+- Steal: Harness topology — lead spawns bounded workers, each in isolated workspace.
+- Build: `Skills/nexus-os/src/nexus_os/swarm/foreman.py` refactor.
+
+**Adaptive Circuit Breaker (production Reddit)**
+- CLOSED → OPEN → HALF_OPEN → test request → CLOSED or 2x backoff.
+- Build: Upgrade `Skills/nexus-os/src/nexus_os/gmr/` circuit breaker to half-open with exponential backoff.
+
+### P1 — Next Sprint
+
+**RigorLLM + ShieldGemma + AEGIS**
+- RigorLLM: KNN+LLM fusion guardrail. Resilient to jailbreaks.
+- ShieldGemma-2B: +10.8% AU-PRC over Llama Guard. Fast pre-filter.
+- AEGIS: 13 critical + 9 sparse risks. Ensemble scoring.
+- Build: `Skills/nexus-os/src/nexus_os/governor/moderation.py` — fusion guardrail + ShieldGemma-2B gate + AEGIS taxonomy.
+
+**Speculative Routing (ArXiv 2604.09213)**
+- 1M-param proxy predicts best LLM before inference. 62% cost reduction, 2.1% quality loss.
+- Use Zo's fast MiniMax as the proxy router.
+- Build: `Skills/nexus-os/src/nexus_os/gmr/` — add fast proxy classifier for pre-routing.
+
+**AutoSkill Forge (princeton-nlp/AutoSkillForge)**
+- Task success rate > threshold → auto-register SkillRecord. Next similar task → skill fast-path.
+- Build: `Skills/nexus-os/skillsmith/` — add auto_register() monitoring loop.
+
+### P2 — Research
+
+- SuperLocalMemory v2 (HuggingFace Apr 2026): 8-channel memory + TEMPORAL_CAUSAL channel 7 (patch lineage tracking)
+- KV cache compression: 8.3x compression, 0.3% quality loss
+- Auction-based swarm allocation: bid formula replaces round-robin
+- MCP-Auth in bridge
 
 ---
 
-## Implementation Priority Order
+## GitHub Stars — Key Integrations (from 297-repo scan)
 
-### Phase 1 — Immediate (leverage existing Zo primitives)
-1. **memory layer** → `memweave` (zero infra, SQLite, markdown-native — perfect for this env)
-2. **skill crafting** → `skill-evolution` (Claude Code oriented, full lifecycle engine)
-3. **heartbeat** → `heartbeat.md` (already drafted, integrate with NEXUS OS)
-
-### Phase 2 — Core NEXUS integration
-4. **GMR sub-agent spawn** → Wire `/zo/ask` API into `GMR.spawn()` method
-5. **Vault → memweave** → Replace in-memory Vault with persistent memweave store
-6. **skill-evolution** → Integrate into NEXUS OS `swarm` for automated skill discovery
-
-### Phase 3 — Advanced orchestration
-7. **MemoryLayer** → For graph-backed multi-hop reasoning over agent memories
-8. **AgentEnsemble** → For async multi-agent pipelines with hooks
-9. **EvoSkill** → For evolutionary improvement of NEXUS agent configs
+| Repo | Stars | Integration |
+|------|-------|------------|
+| BerriAI/litellm | 19k | Provider mesh / free pool |
+| google/adk-python | 19k | Sub-agent evaluation loops |
+| secure-hulk | — | MCP security scanning |
+| Qwen-Agent | 16k | MCP memory/sandbox |
+| RelayFreeLLM | — | Session affinity / failover |
+| magpie | — | Synthetic regression data |
+| awesome-free-llm-apis repos | — | Free endpoint discovery |
 
 ---
 
-## References
+## Governance Limits
+- Sub-agents/hr: 5
+- API calls/session: 20
+- Concurrent: 2 max
+- File writes/session: 30
+- Loop detection: 3x same action → STOP
 
-[^1]: Agency Swarm — https://github.com/VRSEN/agency-swarm
-[^2]: AgentEnsemble — https://github.com/irfanalidv/AgentEnsemble
-[^3]: Maestro — https://github.com/AI4quantum/maestro
-[^4]: MOCO — https://github.com/moco-ai/moco
-[^5]: Agentflow — https://github.com/10xHub/Agentflow
-[^6]: mesh — https://github.com/rscheiwe/mesh
-[^7]: pydantic-collab — https://github.com/boazkatzir/pydantic-collab
-[^8]: self-evolving-agent — https://github.com/RangeKing/self-evolving-agent
-[^9]: MemoryLayer — https://github.com/scitrera/memorylayer
-[^10]: MemMachine — https://github.com/MemMachine/MemMachine
-[^11]: memweave — https://github.com/sachinsharma9780/memweave
-[^12]: 0GMem — https://github.com/0gfoundation/0gmem
-[^13]: memvid — https://github.com/memvid/memvid
-[^14]: Engram-Mem — https://github.com/docaohieu2808/Engram-Mem
-[^15]: mnemora — https://github.com/mnemora-db/mnemora
-[^16]: EvoSkill — https://github.com/sentient-agi/EvoSkill
-[^17]: SkillX — https://github.com/zjunlp/SkillX
-[^18]: SkillCraft — https://github.com/shiqichen17/SkillCraft
-[^19]: ACE — https://github.com/kortix-ai/kortix-ace
-[^20]: SkillWeaver — https://github.com/OSU-NLP-Group/SkillWeaver
-[^21]: skill-evolution — https://github.com/hao-cyber/skill-evolution
+## Testing Mandate
+- NO local model testing — cannot verify censorship state
+- Commercial endpoints via free API routes only
+- Heretic (decensored) = control group
+- Dual cascade: Route 1 = TokenGuard-tracked Zo calls, Route 2 = heretic baseline
+
+## mail.tm Email Pipeline (for research endpoint acquisition)
+```
+POST https://api.mail.tm/accounts  {"address":"addr","password":"pass"}
+POST https://api.mail.tm/token
+GET  https://api.mail.tm/messages
+# Max 5 signups/hour, 20/day
+```
