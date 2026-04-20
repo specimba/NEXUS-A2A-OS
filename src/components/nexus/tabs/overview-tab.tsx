@@ -137,10 +137,33 @@ export function OverviewTab() {
   }, [])
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 grid-pattern">
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/10 via-emerald-600/5 to-transparent p-4">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/5 to-transparent" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-600/20">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Welcome back, Speci</h2>
+              <p className="text-xs text-muted-foreground">NEXUS OS v3.0 — All 8 pillars operational · Session active</p>
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              All Systems Go
+            </Badge>
+            <Badge variant="outline" className="text-[10px]">⌘K for commands</Badge>
+          </div>
+        </div>
+      </div>
+
       {/* Top Stats with Gradient Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="relative overflow-hidden border-emerald-600/20">
+        <Card className="relative overflow-hidden border-emerald-600/20 hover-lift nexus-glow-effect">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -162,7 +185,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -192,7 +215,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -223,7 +246,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-red-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -255,7 +278,7 @@ export function OverviewTab() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {pillars.map((p) => (
-            <Card key={p.name} className="group relative overflow-hidden hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5">
+            <Card key={p.name} className="group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5">
               <div className={`absolute inset-0 bg-gradient-to-br ${
                 p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
                 p.health >= 95 ? 'from-emerald-600/3 via-transparent to-transparent' :

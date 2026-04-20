@@ -33,9 +33,28 @@ export function SwarmTab() {
   const busyCount = workers.filter(w => w.status === 'busy').length
   const idleCount = workers.filter(w => w.status === 'idle').length
   const errorCount = workers.filter(w => w.status === 'error').length
+  const totalTokens = workers.reduce((s, w) => s + w.tokens, 0)
 
   return (
     <div className="space-y-6 p-6">
+      {/* Swarm Health Indicator */}
+      <div className="relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg shadow-emerald-600/10">
+              <Cpu className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Swarm Health</h2>
+              <p className="text-xs text-muted-foreground">{busyCount} busy · {idleCount} idle · {errorCount} error · {totalTokens.toLocaleString()} total tokens</p>
+            </div>
+          </div>
+          <Badge className={`border-0 text-[10px] gap-1 ${errorCount > 0 ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${errorCount > 0 ? 'bg-yellow-400' : 'bg-emerald-400'} animate-pulse`} />
+            {errorCount > 0 ? 'Attention Needed' : 'Healthy'}
+          </Badge>
+        </div>
+      </div>
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="relative overflow-hidden">

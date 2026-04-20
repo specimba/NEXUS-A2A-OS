@@ -178,3 +178,114 @@
 .nexus-glow-effect {
   animation: nexus-glow 3s ease-in-out infinite;
 }
+
+/* Glass card effect */
+.glass-card {
+  background: oklch(0.155 0.008 155 / 80%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid oklch(1 0 0 / 10%);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 20%);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, oklch(0.65 0.2 155), oklch(0.82 0.12 155));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.2 0.015 155 / 0%) 0%,
+    oklch(0.3 0.03 155 / 30%) 50%,
+    oklch(0.2 0.015 155 / 0%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Pulse border animation */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: oklch(0.65 0.2 155 / 20%);
+  }
+  50% {
+    border-color: oklch(0.65 0.2 155 / 60%);
+  }
+}
+
+.pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 15%);
+}
+
+/* Custom scrollbar for dark theme content areas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0.05 155 / 40%);
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0.1 155 / 60%);
+}
+
+/* Grid pattern background */
+.grid-pattern {
+  background-image:
+    linear-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 3%) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Status indicator animations */
+@keyframes status-pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 40%); }
+  50% { box-shadow: 0 0 0 4px oklch(0.65 0.2 155 / 0%); }
+}
+
+.status-pulse-green {
+  animation: status-pulse-green 2s ease-in-out infinite;
+}
+
+/* Card entrance stagger animation helper */
+.stagger-in > * {
+  opacity: 0;
+  animation: fadeSlideUp 0.4s ease forwards;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

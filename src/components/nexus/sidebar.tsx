@@ -45,7 +45,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
 
 function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { activeTab: NexusTab; setActiveTab: (t: NexusTab) => void; collapsed: boolean; onNavigate?: () => void }) {
   return (
-    <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+    <nav className="flex-1 space-y-0.5 p-2 overflow-y-auto custom-scrollbar">
       {navItems.map((item) => {
         const isActive = activeTab === item.id
         return (
@@ -57,13 +57,17 @@ function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { active
                   onNavigate?.()
                 }}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-150',
+                  'relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200',
                   isActive
                     ? 'bg-gradient-to-r from-emerald-600/20 to-emerald-600/5 text-emerald-400 shadow-sm shadow-emerald-600/10'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground'
                 )}
               >
-                <span className={cn('shrink-0 transition-transform duration-150', isActive && 'scale-110')}>{item.icon}</span>
+                {/* Active left border indicator */}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                )}
+                <span className={cn('shrink-0 transition-transform duration-200', isActive && 'scale-110')}>{item.icon}</span>
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>

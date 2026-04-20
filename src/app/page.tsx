@@ -4,6 +4,8 @@ import { NexusSidebar } from '@/components/nexus/sidebar'
 import { NexusHeader } from '@/components/nexus/header'
 import { NexusFooter } from '@/components/nexus/footer'
 import { TabContent } from '@/components/nexus/tab-content'
+import { NexusAssistant } from '@/components/nexus/ai-assistant'
+import { NexusCommandPalette } from '@/components/nexus/command-palette'
 
 export default function Home() {
   return (
@@ -23,6 +25,12 @@ export default function Home() {
         {/* Sticky Footer */}
         <NexusFooter />
       </div>
+
+      {/* AI Assistant Chat Panel */}
+      <NexusAssistant />
+
+      {/* Command Palette (global overlay, triggered by Ctrl+K / Cmd+K) */}
+      <NexusCommandPalette />
     </div>
   )
 }

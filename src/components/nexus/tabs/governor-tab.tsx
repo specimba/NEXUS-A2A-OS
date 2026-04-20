@@ -1,11 +1,24 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle } from 'lucide-react'
 import { NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { toast } from 'sonner'
 
 const decisions = [
   { time: '14:23:01', agent: 'worker-3', action: 'read file', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.82 },
@@ -86,14 +99,41 @@ function MiniPieChart({ data, height = 120 }: { data: { name: string; value: num
   )
 }
 
-const laneThresholds = [
-  { lane: 'research', min: 0.30, current: 0.45, color: 'emerald' },
-  { lane: 'review', min: 0.50, current: 0.73, color: 'blue' },
-  { lane: 'audit', min: 0.70, current: 0.82, color: 'purple' },
-  { lane: 'impl', min: 0.60, current: 0.91, color: 'orange' },
+const initialLaneThresholds = [
+  { lane: 'research', min: 0.30, current: 0.45, barColor: 'bg-emerald-400/60', minColor: 'bg-emerald-600/20' },
+  { lane: 'review', min: 0.50, current: 0.73, barColor: 'bg-blue-400/60', minColor: 'bg-blue-600/20' },
+  { lane: 'audit', min: 0.70, current: 0.82, barColor: 'bg-purple-400/60', minColor: 'bg-purple-600/20' },
+  { lane: 'impl', min: 0.60, current: 0.91, barColor: 'bg-orange-400/60', minColor: 'bg-orange-600/20' },
 ]
 
+function getAgentsBelowThreshold(lane: string, newMin: number): string[] {
+  return agents.filter((a) => a.lane === lane && a.trust < newMin).map((a) => a.name)
+}
+
 export function GovernorTab() {
+  const [laneThresholds, setLaneThresholds] = useState(initialLaneThresholds)
+  const [adjustedThresholds, setAdjustedThresholds] = useState<Record<string, number>>(
+    Object.fromEntries(initialLaneThresholds.map((l) => [l.lane, l.min]))
+  )
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleSliderChange = useCallback((lane: string, value: number[]) => {
+    setAdjustedThresholds((prev) => ({ ...prev, [lane]: value[0] / 100 }))
+  }, [])
+
+  const applyChanges = useCallback(() => {
+    setLaneThresholds((prev) =>
+      prev.map((l) => ({
+        ...l,
+        min: adjustedThresholds[l.lane] ?? l.min,
+      }))
+    )
+    setDialogOpen(false)
+    toast.success('Trust thresholds updated successfully', {
+      description: 'New minimum thresholds have been applied to all lanes.',
+    })
+  }, [adjustedThresholds])
+
   return (
     <div className="space-y-6 p-6">
       {/* Decision Stats */}
@@ -153,7 +193,7 @@ export function GovernorTab() {
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Trust Score</p>
                 <p className="mt-1 text-3xl font-bold tabular-nums">0.73</p>
-                <p className="text-[10px] text-muted-foreground">threshold: 0.30 (research)</p>
+                <p className="text-[10px] text-muted-foreground">threshold: {laneThresholds.reduce((min, l) => l.min < min ? l.min : min, 1).toFixed(2)} (lowest lane)</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
                 <Scale className="h-5 w-5 text-blue-400" />
@@ -227,26 +267,45 @@ export function GovernorTab() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-4">
-              {agents.map((a) => (
-                <div key={a.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{a.name}</span>
-                      <Badge variant="outline" className="text-[9px]">{a.lane}</Badge>
+              {agents.map((a) => {
+                const laneData = laneThresholds.find((l) => l.lane === a.lane)
+                const belowThreshold = laneData ? a.trust < laneData.min : false
+                return (
+                  <div key={a.name} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{a.name}</span>
+                        <Badge variant="outline" className="text-[9px]">{a.lane}</Badge>
+                        {belowThreshold && (
+                          <Badge className="text-[9px] border-0 bg-red-600/15 text-red-400 gap-1">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Below threshold
+                          </Badge>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold tabular-nums ${a.trust >= 0.7 ? 'text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {a.trust.toFixed(2)}
+                      </span>
                     </div>
-                    <span className={`text-sm font-bold tabular-nums ${a.trust >= 0.7 ? 'text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {a.trust.toFixed(2)}
-                    </span>
+                    <div className="relative">
+                      <Progress value={a.trust * 100} className="h-2" />
+                      {laneData && (
+                        <div
+                          className="absolute top-0 h-2 w-0.5 bg-red-400/80"
+                          style={{ left: `${laneData.min * 100}%` }}
+                          title={`Min threshold: ${laneData.min.toFixed(2)}`}
+                        />
+                      )}
+                    </div>
+                    <div className="flex gap-4 text-[10px]">
+                      <span className="text-muted-foreground">{a.decisions} total</span>
+                      <span className="text-emerald-400">{a.allowed} allow</span>
+                      <span className="text-red-400">{a.denied} deny</span>
+                      <span className="text-yellow-400">{a.held} hold</span>
+                    </div>
                   </div>
-                  <Progress value={a.trust * 100} className="h-2" />
-                  <div className="flex gap-4 text-[10px]">
-                    <span className="text-muted-foreground">{a.decisions} total</span>
-                    <span className="text-emerald-400">{a.allowed} allow</span>
-                    <span className="text-red-400">{a.denied} deny</span>
-                    <span className="text-yellow-400">{a.held} hold</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -283,28 +342,135 @@ export function GovernorTab() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Lane Trust Thresholds</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Lane Trust Thresholds</CardTitle>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                      <Settings2 className="h-3.5 w-3.5" />
+                      Adjust
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Settings2 className="h-4 w-4 text-emerald-400" />
+                        Adjust Trust Thresholds
+                      </DialogTitle>
+                      <DialogDescription>
+                        Set minimum trust thresholds for each lane. Agents below the threshold will be flagged with a warning.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-5 py-2">
+                      {laneThresholds.map((l) => {
+                        const adjusted = adjustedThresholds[l.lane] ?? l.min
+                        const affectedAgents = getAgentsBelowThreshold(l.lane, adjusted)
+                        const hasWarning = affectedAgents.length > 0
+                        const originalMin = initialLaneThresholds.find((il) => il.lane === l.lane)?.min ?? l.min
+                        const changed = Math.abs(adjusted - originalMin) > 0.001
+
+                        return (
+                          <div key={l.lane} className="space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium capitalize">{l.lane}</span>
+                                {hasWarning && (
+                                  <Badge className="text-[9px] border-0 bg-red-600/15 text-red-400 gap-1">
+                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                    {affectedAgents.length} agent{affectedAgents.length > 1 ? 's' : ''} below
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] font-mono tabular-nums">
+                                  was {originalMin.toFixed(2)}
+                                </Badge>
+                                <Badge className={`text-[10px] font-mono tabular-nums border-0 ${changed ? 'bg-emerald-600/15 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                  → {adjusted.toFixed(2)}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="relative px-1">
+                              <Slider
+                                value={[adjusted * 100]}
+                                min={0}
+                                max={100}
+                                step={1}
+                                onValueChange={(v) => handleSliderChange(l.lane, v)}
+                                className="[&_[data-slot=slider-track]]:bg-muted [&_[data-slot=slider-range]]:bg-emerald-500 [&_[data-slot=slider-thumb]]:border-emerald-500 [&_[data-slot=slider-thumb]]:hover:border-emerald-400"
+                              />
+                            </div>
+
+                            {hasWarning && (
+                              <div className="flex items-start gap-1.5 rounded-md bg-red-600/10 border border-red-600/20 px-2.5 py-1.5">
+                                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                                <span className="text-[11px] text-red-400">
+                                  Agents below new threshold: <strong>{affectedAgents.join(', ')}</strong>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAdjustedThresholds(Object.fromEntries(laneThresholds.map((l) => [l.lane, l.min])))
+                          setDialogOpen(false)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={applyChanges}
+                      >
+                        Apply Changes
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="space-y-3">
-                {laneThresholds.map((l) => (
-                  <div key={l.lane}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium capitalize">{l.lane}</span>
-                      <span className="text-muted-foreground">min: {l.min.toFixed(2)} · current: <span className={l.current >= l.min ? 'text-emerald-400' : 'text-red-400'}>{l.current.toFixed(2)}</span></span>
+                {laneThresholds.map((l) => {
+                  const belowCount = agents.filter((a) => a.lane === l.lane && a.trust < l.min).length
+                  return (
+                    <div key={l.lane}>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium capitalize">{l.lane}</span>
+                          {belowCount > 0 && (
+                            <Badge className="text-[8px] border-0 bg-red-600/15 text-red-400 h-4 px-1">
+                              {belowCount} below
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-muted-foreground">
+                          min: <span className="text-foreground font-medium">{l.min.toFixed(2)}</span> · current: <span className={l.current >= l.min ? 'text-emerald-400' : 'text-red-400'}>{l.current.toFixed(2)}</span>
+                        </span>
+                      </div>
+                      <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`${l.minColor} border-r border-background`}
+                          style={{ width: `${l.min * 100}%` }}
+                        />
+                        <div
+                          className={l.barColor}
+                          style={{ width: `${(l.current - l.min) * 100}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="bg-muted-foreground/20 border-r border-background"
-                        style={{ width: `${l.min * 100}%` }}
-                      />
-                      <div
-                        className={`bg-${l.color}-400/60`}
-                        style={{ width: `${(l.current - l.min) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

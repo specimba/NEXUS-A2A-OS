@@ -1,7 +1,7 @@
 'use client'
 
 import { useNexusStore } from '@/store/nexus-store'
-import { Moon, Sun, Menu, Activity } from 'lucide-react'
+import { Moon, Sun, Menu, Activity, Bell, Search } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +20,7 @@ const tabTitles: Record<string, string> = {
 
 export function NexusHeader() {
   const { activeTab, setSidebarOpen } = useNexusStore()
-  const { setTheme } = useTheme()
+  const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('')
 
   useEffect(() => {
@@ -32,7 +32,10 @@ export function NexusHeader() {
   }, [])
 
   return (
-    <header className="flex h-14 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-sm px-4">
+    <header className="relative flex h-14 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-sm px-4">
+      {/* Gradient bottom border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
+
       {/* Mobile menu trigger */}
       <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSidebarOpen(true)}>
         <Menu className="h-4 w-4" />
@@ -55,6 +58,12 @@ export function NexusHeader() {
         3 agents
       </Badge>
 
+      {/* Notification bell */}
+      <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+        <Bell className="h-4 w-4" />
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 status-pulse-green" />
+      </Button>
+
       {/* Clock */}
       <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
 
@@ -63,7 +72,7 @@ export function NexusHeader() {
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={() => setTheme('dark')}
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       >
         <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

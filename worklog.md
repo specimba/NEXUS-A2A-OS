@@ -158,3 +158,172 @@ Unresolved / Next Phase:
 5. Add more StressLab templates (currently 12, target 84 from ISC-Bench)
 6. Consider WebSocket for real-time worker status updates
 7. Add export/download functionality (CSV, JSON) for decision logs and test results
+
+---
+Task ID: 4
+Agent: ai-assistant
+Task: Add AI Assistant Chat Panel to NEXUS OS dashboard
+
+Work Log:
+- Updated Zustand store (src/store/nexus-store.ts) with chat state: isChatOpen, toggleChat, setChatOpen, chatMessages, addChatMessage, clearChatMessages
+- Created backend API route (src/app/api/chat/route.ts) using z-ai-web-dev-sdk LLM chat completions with NEXUS OS system prompt
+- Created AI Assistant component (src/components/nexus/ai-assistant.tsx) with:
+  - Floating emerald gradient button (bottom-right) with Zap icon, ping notification dot, spring animations
+  - Slide-in chat panel (400px, full height) with dark glassmorphism (bg-card/95 backdrop-blur-xl)
+  - Chat message bubbles: user = emerald gradient (right), assistant = muted (left)
+  - Animated typing indicator with staggered pulse dots
+  - Header with "NEXUS AI" label and animated green status dot
+  - Quick prompts: "System Status", "Run StressLab Test", "Show Trust Scores"
+  - Auto-scroll, auto-focus, mobile backdrop overlay
+  - Clear chat button, close button
+- Integrated component into src/app/page.tsx
+- All lint checks pass, dev server running cleanly
+
+Stage Summary:
+- Full AI Assistant chat panel integrated into NEXUS OS dashboard
+- Backend uses z-ai-web-dev-sdk with NEXUS OS-specific system prompt
+- Frontend: floating button → slide-in panel with message history, typing indicator, quick prompts
+- Zustand store extended with chat state management
+- No lint violations, no compilation errors
+
+---
+Task ID: 5, 9
+Agent: subagent
+Task: Add search/filter functionality to Vault and Research tabs, plus research paper detail dialog
+
+Work Log:
+- Enhanced VaultTab (src/components/nexus/tabs/vault-tab.tsx):
+  - Added useState for searchQuery (string) and activeTrack (string | null)
+  - Made search input controlled with value/onChange, added X clear button when text present
+  - Made track overview cards clickable to filter entries by track (toggle on/off)
+  - Made track filter badges in browser header clickable with active state (emerald bg when active)
+  - Added "Clear" button (with Filter icon) that appears when any filter is active
+  - Filter entries using useMemo based on both search query (matches key, agent, value, id) and active track
+  - Shows "X of Y entries" count when filters are active, with active filter badges displayed
+  - Added empty state ("No entries match your filters") when filtered results are empty
+  - Active track card gets emerald border highlight
+- Enhanced ResearchTab (src/components/nexus/tabs/research-tab.tsx):
+  - Added PaperItem interface with unified priority field for all tiers
+  - Added search input at top of tab with clear button, filters papers across all priority tiers
+  - Search matches against title, id, and task fields
+  - Shows "X of Y results found" when search is active
+  - Stat cards dynamically update counts based on filtered results
+  - Empty state per tier when no papers match search
+  - Added paper detail dialog using shadcn Dialog component (max-w-lg):
+    - Gradient header matching priority color (red/orange/emerald)
+    - Title, ID, priority badge, status badge (for P0 items)
+    - Relevance score with Progress bar
+    - Full task description
+    - Deliverable path with copy-to-clipboard button (shows toast)
+    - Priority tier explanation box
+    - "Mark as In Progress" button (simulated, shows toast)
+    - "View on arXiv" link button (detects paper ID pattern XXXX.XXXXX)
+  - All paper cards now cursor-pointer and clickable to open detail dialog
+  - Used toast from sonner for all notifications
+- Fixed React Compiler lint error: removed useMemo with inline filterPapers function (dependency mismatch)
+- All lint checks pass, dev server running cleanly
+
+Stage Summary:
+- VaultTab: fully functional search + track filter with clear/active states and result count
+- ResearchTab: cross-tier search + detailed paper dialog with copy, mark-in-progress, arXiv link
+- Both components use consistent styling: rounded-lg search inputs, emerald active states, X clear buttons
+- No lint violations, no compilation errors
+
+---
+Task ID: 6, 8
+Agent: subagent
+Task: Add command palette (Ctrl+K/Cmd+K) and interactive Governor trust threshold adjustment
+
+Work Log:
+- Created NexusCommandPalette component (src/components/nexus/command-palette.tsx):
+  - Global Ctrl+K / Cmd+K keyboard shortcut to toggle palette
+  - Uses shadcn CommandDialog (Command + Dialog) with bg-card/95 backdrop-blur-xl styling
+  - Two command groups: "Navigation" (8 tabs with lucide icons + shortcut hints) and "Actions" (6 actions)
+  - Navigation commands: Go to Overview/StressLab/GMR Router/Governor/Vault/Research/Swarm/Token Budget
+  - Action commands: Toggle Sidebar, Toggle Theme (with sonner toast), Run StressLab Test, View Trust Scores, Check Token Budget, Clear Chat History
+  - Real-time search filtering via CommandInput
+  - Each command shows keyboard shortcut hint on the right (CommandShortcut)
+  - Footer hint bar with navigation instructions
+  - AnimatePresence wrapper for dialog animation
+  - Uses useNexusStore for tab navigation and sidebar toggle, useTheme for theme switching
+- Upgraded GovernorTab (src/components/nexus/tabs/governor-tab.tsx):
+  - Added "Adjust" button (with Settings2 icon) in Lane Trust Thresholds card header
+  - Opens Dialog with shadcn Slider for each lane (research, review, audit, impl)
+  - Sliders styled with emerald track color ([&_[data-slot=slider-range]]:bg-emerald-500)
+  - Shows original min value badge ("was X.XX") and adjusted value badge ("→ X.XX") side by side
+  - Adjusted value badge turns emerald when changed from original
+  - Warning system: when slider value would cause any agent to fall below the new threshold:
+    - Red warning badge appears next to lane name showing affected agent count
+    - Red alert box below slider listing specific agent names
+  - "Apply Changes" button (emerald styled) commits threshold changes to local state
+  - Toast confirmation via sonner on apply
+  - "Cancel" button resets adjustments and closes dialog
+  - Agent Trust Scores section now shows threshold line markers on Progress bars
+  - "Below threshold" warning badges appear on agents whose trust < lane minimum
+  - Lane thresholds card shows "X below" count badge when agents are below threshold
+  - Avg Trust Score card now dynamically shows lowest lane threshold
+- Integrated NexusCommandPalette into src/app/page.tsx (alongside NexusAssistant)
+- All lint checks pass, dev server running cleanly
+
+Stage Summary:
+- Command Palette: global Ctrl+K overlay with 8 navigation + 6 action commands, real-time search, shortcut hints
+- Governor Threshold Adjustment: interactive dialog with sliders, warning badges for affected agents, apply/cancel flow
+- Both features use existing shadcn/ui components (Command, Dialog, Slider, Badge) and sonner for toasts
+- No lint violations, no compilation errors
+
+---
+Task ID: cron-review-3
+Agent: main
+Task: QA Round 3 + Bug Fixes + Major Feature Additions + Styling Improvements
+
+Work Log:
+- Assessed project status via worklog.md review and agent-browser QA across all 8 tabs
+- Confirmed dev server running cleanly (200 responses, successful Prisma queries)
+- Found and fixed dynamic Tailwind class bugs:
+  - VaultTab: `bg-${t.color}-600/15` replaced with explicit class strings
+  - GovernorTab: `bg-${l.color}-400/60` replaced with explicit class strings
+- AI Assistant Chat Panel added (via subagent):
+  - Backend: /api/chat route using z-ai-web-dev-sdk with NEXUS OS system prompt
+  - Frontend: Floating button, slide-in panel, message history, typing indicator, quick prompts
+  - Zustand store extended with chat state management
+- Search/Filter functionality added (via subagent):
+  - VaultTab: Functional search + track filter with clear/active states and result count
+  - ResearchTab: Cross-tier search + paper detail dialog with copy, mark-in-progress, arXiv link
+- Command Palette created: global Ctrl+K, 8 nav + 6 action commands, number keys 1-8
+- Governor Trust Threshold Adjustment: interactive sliders, agent warnings, apply/cancel flow
+- Major CSS styling improvements:
+  - Added glass-card, gradient-text, shimmer, pulse-border, hover-lift, grid-pattern utility classes
+  - Added status-pulse-green, stagger-in, fadeSlideUp animations
+  - Enhanced custom scrollbar styling
+- Component styling enhancements:
+  - Header: gradient bottom border, notification bell with red dot, proper theme toggle
+  - Footer: gradient top border, gradient-text NEXUS OS, status-pulse-green on Live indicator
+  - Sidebar: active left border indicator with glow, custom-scrollbar, smoother transitions
+  - Tab Content: improved transition animation (scale + fade, smoother easing)
+  - OverviewTab: Welcome banner, hover-lift on stat cards, nexus-glow-effect, grid-pattern background
+  - SwarmTab: Swarm Health indicator banner
+  - TokensTab: burn rate indicator (tok/min + time remaining)
+- All lint checks pass, zero console errors across all tabs
+- Final QA via agent-browser: all 8 tabs + AI assistant panel verified functional
+
+Stage Summary:
+- 2 dynamic Tailwind bugs fixed (Vault, Governor)
+- 6 new features added: AI Assistant chat, Vault search/filter, Research search+detail dialog, Command Palette, Governor threshold adjustment, keyboard shortcuts
+- Extensive styling improvements: 8 new CSS utilities, enhanced header/footer/sidebar, welcome banner, hover-lift, grid pattern, burn rate, swarm health banner
+- All 8 tabs functional with zero errors
+
+Current Project Status:
+- Feature-complete dashboard with all 8 NEXUS OS modules
+- AI Assistant powered by z-ai-web-dev-sdk LLM
+- Command palette with global keyboard shortcuts (Ctrl+K, 1-8)
+- Interactive features: StressLab test runner, Governor threshold adjustment, paper detail dialog, search/filter
+- Consistent design language: gradient cards, emerald accents, glassmorphism, animations
+- No lint violations, no console errors, dev server clean
+
+Unresolved / Next Phase:
+1. Wire more tabs to API data (Vault, Research, Swarm still using mock data)
+2. Add more ISC-Bench templates (currently 12, target 84)
+3. Add WebSocket for real-time updates (worker status, activity feed)
+4. Light theme styling pass (dark theme is well-polished, light needs work)
+5. Add export/download functionality (CSV, JSON) for decision logs and test results
+6. Consider adding more AI Assistant features: system status summaries, proactive alerts

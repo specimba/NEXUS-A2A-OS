@@ -20,9 +20,11 @@ export function NexusFooter() {
   }, [])
 
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
+    <footer className="relative flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
+      {/* Gradient top border */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span className="font-semibold text-emerald-500">NEXUS OS</span>
+        <span className="font-semibold gradient-text">NEXUS OS</span>
         <span>v3.0</span>
         <span className="text-border">|</span>
         <span>Constitution: 5 agents/hr &middot; 20 API/session &middot; 2 concurrent &middot; 30 writes</span>
@@ -31,7 +33,7 @@ export function NexusFooter() {
         <span>Session: {uptime}</span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse status-pulse-green" />
           Live
         </span>
       </div>

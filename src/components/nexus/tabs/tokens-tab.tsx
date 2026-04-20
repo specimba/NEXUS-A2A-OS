@@ -48,6 +48,7 @@ export function TokensTab() {
   const totalBudget = 100000
   const remaining = totalBudget - totalUsed
   const pct = (totalUsed / totalBudget) * 100
+  const burnRate = 142 // tokens/min simulated
 
   return (
     <div className="space-y-6 p-6">
@@ -66,7 +67,17 @@ export function TokensTab() {
             <span className="text-4xl font-bold tabular-nums">{totalUsed.toLocaleString()}</span>
             <span className="text-lg text-muted-foreground mb-1">/ {totalBudget.toLocaleString()}</span>
           </div>
-          <Progress value={pct} className="mt-4 h-3" />
+          {/* Burn rate indicator */}
+          <div className="mt-2 flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <TrendingUp className="h-3 w-3 text-red-400" />
+              {burnRate.toLocaleString()} tok/min
+            </Badge>
+            <span className="text-[10px] text-muted-foreground">
+              ~{Math.round(remaining / burnRate)} min remaining at current rate
+            </span>
+          </div>
+          <Progress value={pct} className="mt-3 h-3" />
           <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>{pct.toFixed(1)}% used</span>
             <span className="text-emerald-400 font-medium">{remaining.toLocaleString()} remaining</span>
