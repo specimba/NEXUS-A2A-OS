@@ -8,7 +8,7 @@ import { TabContent } from '@/components/nexus/tab-content'
 export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar (desktop: inline, mobile: sheet) */}
       <NexusSidebar />
 
       {/* Main Area */}

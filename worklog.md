@@ -56,3 +56,46 @@ Unresolved Issues / Next Phase Priorities:
 5. Charts/graphs for token usage over time (recharts already installed)
 6. Need to import full 84 ISC-Bench templates and 20 vetted papers
 7. The sidebar uses some absolute positioning for badge dots that may need refinement
+
+---
+Task ID: cron-review-1
+Agent: auto-dev
+Task: QA + Bug Fixes + Styling Improvements + Feature Additions
+
+Work Log:
+- Performed comprehensive QA via agent-browser across all 8 tabs
+- Took screenshots at desktop (1920x1080) and mobile (390x844) viewports
+- Found bugs: (1) Mobile Sheet sidebar rendering on desktop, (2) absolute positioning on sidebar badge dots, (3) no proper mobile sheet/trigger
+- Fixed sidebar: complete rewrite with separate mobile (Sheet) and desktop (inline) paths using useMediaQuery hook
+- Created useMediaQuery hook using useSyncExternalStore (no lint violations)
+- Created useApiData hook for future API data fetching with auto-refresh
+- Built custom charts component (src/components/nexus/charts.tsx) with: MiniAreaChart, NexusBarChart, NexusGauge using recharts
+- Upgraded OverviewTab with: gradient stat cards, sparkline charts on token budget, live activity feed (simulated real-time updates every 3s), agent activity bar chart, budget utilization gauge, better governance stats layout, pillar health cards with color-coded status and uptime
+- Upgraded TokensTab with: hourly token consumption area chart, agent usage bar chart, constitution limits progress bars, improved visual styling
+- All lint checks pass, dev server running cleanly on port 3000
+- No console errors across all tabs
+- Mobile responsive verified: sidebar properly shows as sheet on mobile, inline on desktop
+
+Stage Summary:
+- 3 bugs fixed: mobile Sheet on desktop, sidebar badge positioning, mobile trigger
+- 2 new hooks created: useMediaQuery (useSyncExternalStore), useApiData (auto-refresh fetch)
+- 1 new component: charts.tsx with 3 chart types (AreaChart, BarChart, RadialGauge)
+- 2 tabs significantly upgraded: Overview (live feed, charts, gradient cards), Tokens (hourly chart, gauge, limits)
+- Design improvements: gradient card backgrounds, animated status indicators, tabular-nums for numbers, shadow effects, better spacing
+
+Current Project Status:
+- 8 dashboard modules fully functional and styled
+- All API routes working with seeded data
+- No console errors or lint violations
+- Mobile responsive with sheet sidebar
+- Charts integrated into Overview and Tokens tabs
+- Live activity simulation running on Overview
+
+Unresolved / Next Phase:
+1. Wire remaining tab components (StressLab, GMR, Governor, Vault, Research, Swarm) to fetch from API routes
+2. Add interactive actions: StressLab test runner, paper queue management, trust threshold adjustment
+3. Add charts to more tabs (GMR latency over time, Swarm throughput, Governor decision distribution)
+4. Import full 84 ISC-Bench templates + 20 vetted papers into database
+5. Add real-time WebSocket updates for worker status and activity feed
+6. Add dark/light theme refinement (currently light theme needs more work)
+7. Add search/filter functionality to Vault and Research tabs
