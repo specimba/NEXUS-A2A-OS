@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
-import { ExportButton, downloadFile, toCSV } from '@/components/nexus/export-button'
+import { ExportButton, downloadFile } from '@/components/nexus/export-button'
+import { SystemArchitecture } from '@/components/nexus/system-architecture'
+import { SessionTimeline } from '@/components/nexus/session-timeline'
 import {
   Zap,
   Shield,
@@ -366,6 +368,9 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6 p-6 grid-pattern">
+      {/* Session Timeline */}
+      <SessionTimeline />
+
       {/* Welcome Banner with Animated Gradient Border */}
       <div className="relative overflow-hidden rounded-xl">
         {/* Animated gradient border */}
@@ -620,6 +625,9 @@ export function OverviewTab() {
           ))}
         </div>
       </div>
+
+      {/* System Architecture Diagram */}
+      <SystemArchitecture />
 
       {/* Middle Row: Charts */}
       <div className="grid gap-4 lg:grid-cols-3">

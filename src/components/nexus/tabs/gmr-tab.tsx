@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Activity, Clock, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
+import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
@@ -345,7 +345,7 @@ function ModelPerformanceComparison() {
         <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={modelPerformanceData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[70, 100]} />
               <RechartsTooltip

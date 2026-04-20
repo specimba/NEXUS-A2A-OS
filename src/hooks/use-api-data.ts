@@ -3,22 +3,22 @@
 import { useState, useEffect, useCallback } from 'react'
 
 interface SystemData {
-  agents: any[]
-  models: any[]
-  templates: any[]
-  papers: any[]
-  budget: any
-  constitution: any
-  state: any
+  agents: Record<string, unknown>[]
+  models: Record<string, unknown>[]
+  templates: Record<string, unknown>[]
+  papers: Record<string, unknown>[]
+  budget: Record<string, unknown>
+  constitution: Record<string, unknown>
+  state: Record<string, unknown>
 }
 
 export function useSystemData(refreshInterval = 30000) {
   const [data, setData] = useState<SystemData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/system')
+      const res = await globalThis.fetch('/api/system')
       if (res.ok) {
         const json = await res.json()
         setData(json)
@@ -31,21 +31,21 @@ export function useSystemData(refreshInterval = 30000) {
   }, [])
 
   useEffect(() => {
-    fetch()
-    const interval = setInterval(fetch, refreshInterval)
+    fetchData()
+    const interval = setInterval(fetchData, refreshInterval)
     return () => clearInterval(interval)
-  }, [fetch, refreshInterval])
+  }, [fetchData, refreshInterval])
 
-  return { data, loading, refetch: fetch }
+  return { data, loading, refetch: fetchData }
 }
 
-export function useApiData<T = any>(url: string, refreshInterval = 30000) {
+export function useApiData<T = Record<string, unknown>>(url: string, refreshInterval = 30000) {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(url)
+      const res = await globalThis.fetch(url)
       if (res.ok) {
         const json = await res.json()
         setData(json)
@@ -58,10 +58,10 @@ export function useApiData<T = any>(url: string, refreshInterval = 30000) {
   }, [url])
 
   useEffect(() => {
-    fetch()
-    const interval = setInterval(fetch, refreshInterval)
+    fetchData()
+    const interval = setInterval(fetchData, refreshInterval)
     return () => clearInterval(interval)
-  }, [fetch, refreshInterval])
+  }, [fetchData, refreshInterval])
 
-  return { data, loading, refetch: fetch }
+  return { data, loading, refetch: fetchData }
 }

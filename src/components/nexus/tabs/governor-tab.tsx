@@ -493,7 +493,7 @@ function AgentRiskMatrix() {
       <CardContent className="relative p-4 pt-0">
         <ResponsiveContainer width="100%" height={220}>
           <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="trust"
               type="number"

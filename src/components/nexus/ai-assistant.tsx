@@ -133,7 +133,7 @@ export function NexusAssistant() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
-              ...chatMessages.map((m) => ({
+              ...useNexusStore.getState().chatMessages.map((m) => ({
                 role: m.role,
                 content: m.content,
               })),
@@ -158,7 +158,7 @@ export function NexusAssistant() {
         setIsLoading(false)
       }
     },
-    [chatMessages, isLoading, addChatMessage]
+    [isLoading, addChatMessage]
   )
 
   const handleSubmit = useCallback(

@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Coins, Users, Clock } from 'lucide-react'
-import { useNexusStore } from '@/store/nexus-store'
 
 export function QuickStatsWidget() {
   const [collapsed, setCollapsed] = useState(false)
   const [uptime, setUptime] = useState({ days: 0, hours: 3, minutes: 42 })
-
-  const activeTab = useNexusStore((s) => s.activeTab)
 
   // Simulated uptime ticker
   useEffect(() => {

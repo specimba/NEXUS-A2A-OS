@@ -1,12 +1,13 @@
 'use client'
 
+import { useId } from 'react'
 import {
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -36,23 +37,25 @@ export function MiniAreaChart({
   height = 40,
   showAxis = false,
 }: {
-  data: any[]
+  data: Record<string, unknown>[]
   dataKey?: string
   color?: string
   height?: number
   showAxis?: boolean
 }) {
+  const uid = useId()
+  const gradId = `grad-${uid}-${dataKey}`
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
         {showAxis && (
           <>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={30} />
           </>
         )}
-        <Tooltip
+        <RechartsTooltip
           contentStyle={{
             backgroundColor: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -61,12 +64,12 @@ export function MiniAreaChart({
           }}
         />
         <defs>
-          <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.3} />
             <stop offset="95%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <Area type="monotone" dataKey={dataKey} stroke={color} fill={`url(#grad-${dataKey})`} strokeWidth={1.5} />
+        <Area type="monotone" dataKey={dataKey} stroke={color} fill={`url(#${gradId})`} strokeWidth={1.5} />
       </AreaChart>
     </ResponsiveContainer>
   )
@@ -80,7 +83,7 @@ export function NexusBarChart({
   color = COLORS.emerald,
   height = 120,
 }: {
-  data: any[]
+  data: Record<string, unknown>[]
   dataKey?: string
   nameKey?: string
   color?: string
@@ -89,10 +92,10 @@ export function NexusBarChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis dataKey={nameKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-        <Tooltip
+        <RechartsTooltip
           contentStyle={{
             backgroundColor: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -127,7 +130,7 @@ export function NexusGauge({
     <div className="relative" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadialBarChart innerRadius="70%" outerRadius="100%" data={data} startAngle={180} endAngle={0}>
-          <RadialBar dataKey="value" cornerRadius={6} fill={color} background={{ fill: 'rgba(255,255,255,0.05)' }} />
+          <RadialBar dataKey="value" cornerRadius={6} fill={color} background={{ fill: 'hsl(var(--muted))' }} />
         </RadialBarChart>
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -145,23 +148,24 @@ export function NexusStackedAreaChart({
   height = 200,
   nameKey = 'name',
 }: {
-  data: Record<string, any>[]
+  data: Record<string, unknown>[]
   areas: { dataKey: string; color: string; name: string }[]
   height?: number
   nameKey?: string
 }) {
+  const uid = useId()
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
         <defs>
           {areas.map((area) => (
-            <linearGradient key={area.dataKey} id={`stacked-grad-${area.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient key={area.dataKey} id={`stacked-grad-${uid}-${area.dataKey}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={area.color} stopOpacity={0.3} />
               <stop offset="95%" stopColor={area.color} stopOpacity={0} />
             </linearGradient>
           ))}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis
           dataKey={nameKey}
           tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
@@ -175,7 +179,7 @@ export function NexusStackedAreaChart({
           width={30}
           domain={['auto', 'auto']}
         />
-        <Tooltip
+        <RechartsTooltip
           contentStyle={{
             backgroundColor: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -196,7 +200,7 @@ export function NexusStackedAreaChart({
             dataKey={area.dataKey}
             name={area.name}
             stroke={area.color}
-            fill={`url(#stacked-grad-${area.dataKey})`}
+            fill={`url(#stacked-grad-${uid}-${area.dataKey})`}
             strokeWidth={1.5}
           />
         ))}

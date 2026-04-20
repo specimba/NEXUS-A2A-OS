@@ -341,6 +341,10 @@
   background-clip: text;
 }
 
+:root .hover-glow:hover {
+  box-shadow: 0 0 16px oklch(0.508 0.164 155 / 15%), 0 4px 12px oklch(0 0 0 / 10%);
+}
+
 :root .hover-lift:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px oklch(0 0 0 / 8%);
@@ -367,6 +371,60 @@
 
 :root .nexus-table tr:hover td {
   background-color: oklch(0.94 0.03 155 / 50%);
+}
+
+:root .nexus-table th {
+  color: oklch(0.4 0.02 155);
+  border-bottom-color: oklch(0.82 0.01 155);
+}
+
+:root .nexus-table td {
+  border-bottom-color: oklch(0.9 0.005 155);
+}
+
+:root .nexus-glow-effect {
+  animation: none;
+  box-shadow: 0 0 8px oklch(0.508 0.164 155 / 10%);
+}
+
+:root .card-accent-top::before {
+  background: linear-gradient(90deg, oklch(0.508 0.164 155), oklch(0.508 0.164 155 / 40%));
+}
+
+:root .badge-glow-emerald {
+  box-shadow: 0 0 8px oklch(0.508 0.164 155 / 15%);
+}
+
+:root .status-pulse-green {
+  animation: none;
+  box-shadow: 0 0 0 2px oklch(0.508 0.164 155 / 20%);
+}
+
+:root .pulse-ring {
+  animation: none;
+  box-shadow: 0 0 0 2px oklch(0.508 0.164 155 / 20%);
+}
+
+:root .animate-pulse-subtle {
+  animation: none;
+  box-shadow: 0 0 4px oklch(0.577 0.245 27.325 / 8%);
+  border-color: oklch(0.577 0.245 27.325 / 20%);
+}
+
+:root ::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0.02 155 / 50%);
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0.05 155 / 70%);
+}
+
+:root .nexus-gradient-border {
+  background: oklch(1 0 0);
+}
+
+:root .nexus-gradient-border::before {
+  background: linear-gradient(90deg, oklch(0.508 0.164 155), oklch(0.35 0.1 155), oklch(0.508 0.164 155));
 }
 
 /* Slide in from right animation */

@@ -1092,7 +1092,7 @@ export function StressLabTab() {
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="model" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} width={95} />
                       <RechartsTooltip

@@ -33,6 +33,7 @@ import {
   Check,
   ArrowRight,
   Flame,
+  GitBranch,
 } from 'lucide-react'
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { ExportButton } from '@/components/nexus/export-button'
@@ -161,6 +162,180 @@ const heatmapData: Record<string, number[]> = {
 }
 const heatmapMax = 6200
 
+// Token Flow Sankey data
+const flowModels = [
+  { id: 'gemma-fast', tokens: 22400, color: COLORS.emerald },
+  { id: 'trinity-large', tokens: 18200, color: COLORS.blue },
+  { id: 'qwen3-coder', tokens: 15800, color: COLORS.orange },
+  { id: 'nemotron-3', tokens: 8900, color: COLORS.purple },
+  { id: 'kimi-k2.5', tokens: 5400, color: COLORS.pink },
+  { id: 'gpt-oss-120b', tokens: 3200, color: COLORS.yellow },
+]
+
+const flowAgents = [
+  { id: 'worker-3', tokens: 18600, color: COLORS.emerald },
+  { id: 'worker-1', tokens: 12400, color: COLORS.blue },
+  { id: 'coordinator', tokens: 8200, color: COLORS.purple },
+  { id: 'worker-2', tokens: 8200, color: COLORS.orange },
+  { id: 'research-agent', tokens: 5100, color: COLORS.pink },
+]
+
+const flowTasks = [
+  { id: 'Code Gen', tokens: 24200, color: '#34d399' },
+  { id: 'Research', tokens: 18600, color: '#60a5fa' },
+  { id: 'Analysis', tokens: 14200, color: '#a78bfa' },
+  { id: 'Review', tokens: 9800, color: '#fb923c' },
+  { id: 'Testing', tokens: 6700, color: '#f472b6' },
+]
+
+// Flows: model → agent (left connections) and agent → task (right connections)
+const modelToAgentFlows = [
+  { from: 'gemma-fast', to: 'worker-3', volume: 8400 },
+  { from: 'gemma-fast', to: 'worker-1', volume: 7200 },
+  { from: 'gemma-fast', to: 'coordinator', volume: 4100 },
+  { from: 'gemma-fast', to: 'worker-2', volume: 2700 },
+  { from: 'trinity-large', to: 'worker-3', volume: 6200 },
+  { from: 'trinity-large', to: 'worker-1', volume: 4800 },
+  { from: 'trinity-large', to: 'research-agent', volume: 4200 },
+  { from: 'trinity-large', to: 'coordinator', volume: 3000 },
+  { from: 'qwen3-coder', to: 'worker-3', volume: 4000 },
+  { from: 'qwen3-coder', to: 'worker-2', volume: 3800 },
+  { from: 'qwen3-coder', to: 'coordinator', volume: 3200 },
+  { from: 'qwen3-coder', to: 'worker-1', volume: 2800 },
+  { from: 'qwen3-coder', to: 'research-agent', volume: 2000 },
+  { from: 'nemotron-3', to: 'worker-2', volume: 3200 },
+  { from: 'nemotron-3', to: 'coordinator', volume: 2900 },
+  { from: 'nemotron-3', to: 'research-agent', volume: 2800 },
+  { from: 'kimi-k2.5', to: 'research-agent', volume: 3200 },
+  { from: 'kimi-k2.5', to: 'coordinator', volume: 2200 },
+  { from: 'gpt-oss-120b', to: 'worker-2', volume: 1800 },
+  { from: 'gpt-oss-120b', to: 'research-agent', volume: 1400 },
+]
+
+const agentToTaskFlows = [
+  { from: 'worker-3', to: 'Code Gen', volume: 10200 },
+  { from: 'worker-3', to: 'Research', volume: 4800 },
+  { from: 'worker-3', to: 'Testing', volume: 3600 },
+  { from: 'worker-1', to: 'Code Gen', volume: 6200 },
+  { from: 'worker-1', to: 'Analysis', volume: 3800 },
+  { from: 'worker-1', to: 'Review', volume: 2400 },
+  { from: 'coordinator', to: 'Review', volume: 4600 },
+  { from: 'coordinator', to: 'Analysis', volume: 2200 },
+  { from: 'coordinator', to: 'Research', volume: 1400 },
+  { from: 'worker-2', to: 'Research', volume: 5200 },
+  { from: 'worker-2', to: 'Testing', volume: 1800 },
+  { from: 'worker-2', to: 'Code Gen', volume: 1200 },
+  { from: 'research-agent', to: 'Research', volume: 3200 },
+  { from: 'research-agent', to: 'Analysis', volume: 1900 },
+]
+
+const maxFlowVolume = Math.max(...modelToAgentFlows.map(f => f.volume), ...agentToTaskFlows.map(f => f.volume))
+
+function TokenFlowSankey() {
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <GitBranch className="h-4 w-4 text-emerald-400" /> Token Flow Sankey
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="grid grid-cols-3 gap-2">
+          {/* Models Column */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-center mb-2">Models</p>
+            {flowModels.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-r from-muted/30 to-transparent px-2.5 py-2 hover:border-emerald-600/30 transition-colors"
+              >
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                <span className="text-[11px] font-medium truncate flex-1">{m.id}</span>
+                <span className="text-[10px] font-bold tabular-nums text-muted-foreground">{(m.tokens / 1000).toFixed(1)}k</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Connections Column */}
+          <div className="relative flex flex-col items-center justify-center">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-center mb-2">Flow</p>
+            <div className="flex flex-col items-center gap-1 py-2">
+              {/* Model→Agent flows */}
+              <div className="flex flex-wrap items-center justify-center gap-0.5">
+                {modelToAgentFlows.slice(0, 6).map((f, i) => (
+                  <div
+                    key={`ma-${i}`}
+                    className="h-1 rounded-full bg-emerald-400"
+                    style={{
+                      width: `${Math.max(8, (f.volume / maxFlowVolume) * 40)}px`,
+                      opacity: 0.2 + (f.volume / maxFlowVolume) * 0.6,
+                    }}
+                  />
+                ))}
+              </div>
+              <ArrowRight className="h-4 w-4 text-emerald-400/50 my-1" />
+              <div className="flex flex-wrap items-center justify-center gap-0.5">
+                {agentToTaskFlows.slice(0, 6).map((f, i) => (
+                  <div
+                    key={`at-${i}`}
+                    className="h-1 rounded-full bg-blue-400"
+                    style={{
+                      width: `${Math.max(8, (f.volume / maxFlowVolume) * 40)}px`,
+                      opacity: 0.2 + (f.volume / maxFlowVolume) * 0.6,
+                    }}
+                  />
+                ))}
+              </div>
+              <ArrowRight className="h-4 w-4 text-blue-400/50 my-1" />
+            </div>
+            <p className="text-[9px] text-muted-foreground text-center mt-1">Opacity = flow volume</p>
+          </div>
+
+          {/* Agents Column */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-center mb-2">Agents → Tasks</p>
+            {/* Show agents with their primary task destination */}
+            {flowAgents.map((a) => {
+              const primaryTask = agentToTaskFlows
+                .filter(f => f.from === a.id)
+                .sort((a, b) => b.volume - a.volume)[0]
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-r from-muted/30 to-transparent px-2.5 py-2 hover:border-emerald-600/30 transition-colors"
+                >
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                  <span className="text-[11px] font-medium truncate">{a.id}</span>
+                  <span className="text-[9px] text-muted-foreground ml-auto shrink-0">→ {primaryTask?.to}</span>
+                  <span className="text-[10px] font-bold tabular-nums text-muted-foreground shrink-0">{(a.tokens / 1000).toFixed(1)}k</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Task destination summary row */}
+        <div className="mt-4 pt-3 border-t border-border/50">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Task Destinations</p>
+          <div className="flex flex-wrap gap-2">
+            {flowTasks.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5"
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
+                <span className="text-[11px] font-medium">{t.id}</span>
+                <span className="text-[10px] tabular-nums text-muted-foreground">{(t.tokens / 1000).toFixed(1)}k</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Cost optimization suggestions
 const optimizationSuggestions = [
   {
@@ -267,7 +442,7 @@ export function TokensTab() {
             <p className="text-xs text-muted-foreground mb-2">Hourly Token Consumption</p>
             <ResponsiveContainer width="100%" height={120}>
               <AreaChart data={hourlyUsage} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="hour" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={40} />
                 <RechartsTooltipComponent
@@ -290,6 +465,9 @@ export function TokensTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Token Flow Sankey */}
+      <TokenFlowSankey />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Per-Agent Breakdown */}
