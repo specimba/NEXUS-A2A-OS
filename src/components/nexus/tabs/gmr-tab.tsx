@@ -8,9 +8,19 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Router, Activity, Clock, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw } from 'lucide-react'
+import { Router, Activity, Clock, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { toast } from 'sonner'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts'
 
 const latencyHistory = [
   { name: '10m', qwen: 1200, trinity: 1350, gemma: 340 },
@@ -20,6 +30,75 @@ const latencyHistory = [
   { name: '2m', qwen: 1210, trinity: 1380, gemma: 345 },
   { name: 'now', qwen: 1200, trinity: 1350, gemma: 340 },
 ]
+
+// Model performance comparison data for grouped bar chart
+const modelPerformanceData = [
+  { name: 'qwen3', health: 96, successRate: 97, latency: 88 },
+  { name: 'trinity', health: 99, successRate: 99, latency: 82 },
+  { name: 'gemma', health: 100, successRate: 95, latency: 95 },
+  { name: 'nemotron', health: 92, successRate: 94, latency: 90 },
+  { name: 'kimi', health: 91, successRate: 93, latency: 85 },
+  { name: 'minimax', health: 94, successRate: 96, latency: 87 },
+]
+
+// Failover log data
+const failoverLog = [
+  { time: '14:22:45', from: 'gemma-fast', to: 'qwen3-coder', reason: 'Health fallback: 88%', severity: 'warning' },
+  { time: '14:20:55', from: 'gemma-fast', to: 'kimi-k2.5', reason: 'Health fallback: 88%', severity: 'warning' },
+  { time: '14:20:12', from: 'nemotron-3-super', to: 'gpt-oss-120b', reason: 'Rate limit backoff', severity: 'info' },
+  { time: '13:58:30', from: 'qwen3-coder', to: 'trinity-large-preview', reason: 'Latency spike: 2400ms', severity: 'warning' },
+  { time: '13:45:12', from: 'dolphin-mistral-venice', to: 'trinity-large-preview', reason: 'Model disabled by admin', severity: 'critical' },
+]
+
+// Rotation analytics data
+const rotationAnalytics = {
+  mostRotatedTo: [
+    { model: 'trinity-large-preview', count: 23 },
+    { model: 'qwen3-coder', count: 18 },
+    { model: 'kimi-k2.5', count: 12 },
+  ],
+  mostRotatedFrom: [
+    { model: 'gemma-fast', count: 19 },
+    { model: 'dolphin-mistral-venice', count: 15 },
+    { model: 'nemotron-3-super', count: 11 },
+  ],
+}
+
+// Per-model sparkline data for pool cards
+const modelSparklines: Record<string, { name: string; value: number }[]> = {
+  'trinity-large-preview': [
+    { name: '1', value: 95 }, { name: '2', value: 97 }, { name: '3', value: 99 },
+    { name: '4', value: 96 }, { name: '5', value: 98 }, { name: '6', value: 99 },
+  ],
+  'minimax-m2.5': [
+    { name: '1', value: 90 }, { name: '2', value: 93 }, { name: '3', value: 91 },
+    { name: '4', value: 94 }, { name: '5', value: 92 }, { name: '6', value: 94 },
+  ],
+  'qwen3-coder': [
+    { name: '1', value: 96 }, { name: '2', value: 94 }, { name: '3', value: 97 },
+    { name: '4', value: 95 }, { name: '5', value: 96 }, { name: '6', value: 96 },
+  ],
+  'kimi-k2.5': [
+    { name: '1', value: 88 }, { name: '2', value: 91 }, { name: '3', value: 90 },
+    { name: '4', value: 92 }, { name: '5', value: 91 }, { name: '6', value: 91 },
+  ],
+  'gpt-oss-120b': [
+    { name: '1', value: 82 }, { name: '2', value: 85 }, { name: '3', value: 83 },
+    { name: '4', value: 86 }, { name: '5', value: 84 }, { name: '6', value: 85 },
+  ],
+  'gemma-fast': [
+    { name: '1', value: 100 }, { name: '2', value: 98 }, { name: '3', value: 100 },
+    { name: '4', value: 99 }, { name: '5', value: 100 }, { name: '6', value: 100 },
+  ],
+  'nemotron-3-super': [
+    { name: '1', value: 92 }, { name: '2', value: 90 }, { name: '3', value: 93 },
+    { name: '4', value: 91 }, { name: '5', value: 92 }, { name: '6', value: 92 },
+  ],
+  'dolphin-mistral-venice': [
+    { name: '1', value: 85 }, { name: '2', value: 82 }, { name: '3', value: 88 },
+    { name: '4', value: 80 }, { name: '5', value: 84 }, { name: '6', value: 83 },
+  ],
+}
 
 const poolDefinitions = [
   {
@@ -81,6 +160,215 @@ interface ModelData {
   successRate: number
 }
 
+// Pool Health Overview Component - compact horizontal stacked bar
+function PoolHealthOverview({ models }: { models: ModelData[] }) {
+  const poolHealthData = useMemo(() => {
+    return poolDefinitions.map(pool => {
+      const poolModels = models.filter(m => pool.modelNames.includes(m.name))
+      const activeCount = poolModels.filter(m => m.isActive).length
+      const totalHealth = poolModels.reduce((s, m) => s + m.health, 0)
+      const avgHealth = poolModels.length ? Math.round(totalHealth / poolModels.length) : 0
+      return {
+        name: pool.name,
+        color: pool.color,
+        total: poolModels.length,
+        active: activeCount,
+        avgHealth,
+        segments: poolModels.map(m => ({
+          name: m.name.split('-')[0].substring(0, 8),
+          health: m.health,
+          active: m.isActive,
+        })),
+      }
+    })
+  }, [models])
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Activity className="h-4 w-4 text-emerald-400" />
+          Pool Health Overview
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-3">
+        {poolHealthData.map((pool) => (
+          <div key={pool.name}>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: pool.color }} />
+                <span className="text-xs font-medium">{pool.name}</span>
+                <span className="text-[10px] text-muted-foreground">{pool.active}/{pool.total} active</span>
+              </div>
+              <span className={`text-[10px] font-bold tabular-nums ${
+                pool.avgHealth >= 95 ? 'text-emerald-400' :
+                pool.avgHealth >= 85 ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>{pool.avgHealth}% avg</span>
+            </div>
+            {/* Horizontal stacked bar */}
+            <div className="flex h-4 rounded-full overflow-hidden bg-muted/30">
+              {pool.segments.map((seg, i) => (
+                <div
+                  key={`${pool.name}-${seg.name}-${i}`}
+                  className={`h-full flex items-center justify-center text-[8px] font-bold transition-all duration-300 ${
+                    !seg.active ? 'opacity-30' : ''
+                  } ${i === 0 ? 'rounded-l-full' : ''} ${i === pool.segments.length - 1 ? 'rounded-r-full' : ''}`}
+                  style={{
+                    width: `${100 / pool.segments.length}%`,
+                    backgroundColor: seg.active
+                      ? (seg.health >= 95 ? '#34d399' : seg.health >= 85 ? '#facc15' : '#f87171')
+                      : '#6b7280',
+                    opacity: seg.active ? 0.7 : 0.2,
+                  }}
+                >
+                  {seg.health}%
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+// Rotation Analytics Component
+function RotationAnalyticsCard() {
+  return (
+    <Card className="relative overflow-hidden border-blue-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <ArrowRightLeft className="h-4 w-4 text-blue-400" />
+          Rotation Analytics
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Most Rotated To */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <TrendingUp className="h-3 w-3 text-emerald-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-400">Most Rotated To</span>
+            </div>
+            <div className="space-y-1.5">
+              {rotationAnalytics.mostRotatedTo.map((item, i) => (
+                <div key={item.model} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600/10 text-[9px] font-bold text-emerald-400">
+                    {i + 1}
+                  </span>
+                  <span className="text-xs truncate flex-1">{item.model.split('-')[0]}</span>
+                  <span className="text-[10px] font-bold text-emerald-400 tabular-nums">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Most Rotated From */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <TrendingDown className="h-3 w-3 text-red-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-red-400">Most Rotated From</span>
+            </div>
+            <div className="space-y-1.5">
+              {rotationAnalytics.mostRotatedFrom.map((item, i) => (
+                <div key={item.model} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600/10 text-[9px] font-bold text-red-400">
+                    {i + 1}
+                  </span>
+                  <span className="text-xs truncate flex-1">{item.model.split('-')[0]}</span>
+                  <span className="text-[10px] font-bold text-red-400 tabular-nums">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Failover Log Component
+function FailoverLogCard() {
+  return (
+    <Card className="relative overflow-hidden border-red-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-red-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-400" />
+            Failover Log
+          </CardTitle>
+          <Badge variant="outline" className="text-[9px]">{failoverLog.length} events</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-3 pt-0">
+        <div className="max-h-48 space-y-1.5 overflow-y-auto custom-scrollbar">
+          {failoverLog.map((entry, i) => (
+            <div
+              key={`failover-${i}`}
+              className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-2 text-xs hover:bg-accent/40 transition-colors"
+            >
+              <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{entry.time}</span>
+              <Badge className={`shrink-0 border-0 text-[8px] px-1.5 py-0 ${
+                entry.severity === 'critical' ? 'bg-red-600/15 text-red-400' :
+                entry.severity === 'warning' ? 'bg-yellow-600/15 text-yellow-400' :
+                'bg-blue-600/15 text-blue-400'
+              }`}>
+                {entry.severity === 'critical' ? 'CRIT' : entry.severity === 'warning' ? 'WARN' : 'INFO'}
+              </Badge>
+              <span className="text-muted-foreground shrink-0">{entry.from.split('-')[0]}</span>
+              <span className="text-emerald-400">→</span>
+              <span className="truncate">{entry.to.split('-')[0]}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/60 shrink-0 truncate max-w-[120px]">{entry.reason}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Model Performance Comparison Card with grouped bar chart
+function ModelPerformanceComparison() {
+  return (
+    <Card className="relative overflow-hidden border-purple-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-purple-400" />
+          Model Performance Comparison
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="h-[180px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={modelPerformanceData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[70, 100]} />
+              <RechartsTooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                }}
+                formatter={(value: number, name: string) => [`${value}%`, name]}
+              />
+              <Legend wrapperStyle={{ fontSize: '10px' }} iconType="circle" iconSize={8} />
+              <Bar dataKey="health" name="Health" fill={COLORS.emerald} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
+              <Bar dataKey="successRate" name="Success" fill={COLORS.blue} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
+              <Bar dataKey="latency" name="Latency Score" fill={COLORS.orange} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function GmrTab() {
   const { data: modelsData, loading, refetch } = useApiData<{ models: ModelData[] }>('/api/models', 15000)
   const baseModels = useMemo(() => modelsData?.models ?? [], [modelsData])
@@ -97,7 +385,6 @@ export function GmrTab() {
       return {
         ...m,
         isActive,
-        // Add tiny random jitter based on pulse counter to simulate live data
         health: isActive
           ? Math.min(100, Math.max(80, m.health + (healthPulse % 5 === 0 ? 0 : (healthPulse % 2 === 0 ? 1 : -1))))
           : m.health,
@@ -160,7 +447,7 @@ export function GmrTab() {
   const freeActiveCount = models.filter(m => m.isActive && m.isFree).length
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 grid-pattern">
       {/* Stats Row */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-emerald-600/20">
@@ -228,30 +515,40 @@ export function GmrTab() {
         </Card>
       </div>
 
-      {/* Latency Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Gauge className="h-4 w-4" /> Model Latency Over Time
-            </CardTitle>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400" /> qwen3-coder</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-400" /> trinity</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-400" /> gemma-fast</span>
+      {/* Latency Chart + Model Performance Comparison */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Gauge className="h-4 w-4" /> Model Latency Over Time
+              </CardTitle>
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400" /> qwen3-coder</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-400" /> trinity</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-400" /> gemma-fast</span>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <NexusBarChart
-            data={latencyHistory}
-            dataKey="qwen"
-            nameKey="name"
-            color={COLORS.emerald}
-            height={100}
-          />
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <NexusBarChart
+              data={latencyHistory}
+              dataKey="qwen"
+              nameKey="name"
+              color={COLORS.emerald}
+              height={100}
+            />
+          </CardContent>
+        </Card>
+        <ModelPerformanceComparison />
+      </div>
+
+      {/* Pool Health Overview + Rotation Analytics + Failover Log */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <PoolHealthOverview models={models} />
+        <RotationAnalyticsCard />
+        <FailoverLogCard />
+      </div>
 
       <Tabs defaultValue="models" className="space-y-4">
         <TabsList>
@@ -338,7 +635,7 @@ export function GmrTab() {
           </div>
         </TabsContent>
 
-        {/* Pool Status */}
+        {/* Pool Status - Enhanced with per-model mini sparklines */}
         <TabsContent value="pools">
           <div className="grid gap-4 md:grid-cols-2">
             {poolDefinitions.map((pool) => {
@@ -364,16 +661,27 @@ export function GmrTab() {
                   <CardContent className="relative p-4 pt-0">
                     <div className="space-y-2">
                       {poolModels.map((m) => (
-                        <div key={m.id} className="flex items-center justify-between rounded-md bg-accent/20 px-2.5 py-1.5">
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className={`h-1.5 w-1.5 rounded-full ${m.isActive ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
-                            <span className="font-medium">{m.name}</span>
+                        <div key={m.id} className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-1.5">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${m.isActive ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
+                            <span className="font-medium text-xs truncate">{m.name}</span>
                           </div>
-                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
                             <span>{m.health}%</span>
                             <span>{m.latencyMs}ms</span>
                             <span className="text-emerald-400">{m.totalCalls}</span>
                           </div>
+                          {/* Per-model mini sparkline */}
+                          {modelSparklines[m.name] && (
+                            <div className="w-16 shrink-0">
+                              <MiniAreaChart
+                                data={modelSparklines[m.name]}
+                                dataKey="value"
+                                color={m.health >= 95 ? COLORS.emerald : m.health >= 85 ? COLORS.yellow : COLORS.red}
+                                height={20}
+                              />
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -403,7 +711,7 @@ export function GmrTab() {
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <div className="max-h-96 space-y-1.5 overflow-y-auto">
+              <div className="max-h-96 space-y-1.5 overflow-y-auto custom-scrollbar">
                 {rotationLog.map((r, i) => (
                   <div key={i} className="flex items-center gap-3 rounded-lg bg-accent/30 px-3 py-2 text-xs hover:bg-accent/50 transition-colors">
                     <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{r.time}</span>

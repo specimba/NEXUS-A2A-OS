@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
 import {
@@ -20,8 +21,15 @@ import {
   Cpu,
   MemoryStick,
   Radio,
+  Wrench,
+  FileDown,
+  Trash2,
+  ArrowUpRight,
+  Server,
+  CircleDot,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
 
 const pillars = [
   { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%' },
@@ -53,14 +61,6 @@ const agentActivity = [
   { name: 'Sun', tasks: 28, errors: 1 },
 ]
 
-const modelDistribution = [
-  { name: 'qwen3-coder', value: 34 },
-  { name: 'trinity', value: 28 },
-  { name: 'gemma-fast', value: 18 },
-  { name: 'nemotron', value: 12 },
-  { name: 'others', value: 8 },
-]
-
 // Generate 24h health timeline mock data
 const pillarNames = ['Bridge', 'Engine', 'Governor', 'Vault', 'GMR', 'Swarm', 'Monitor', 'Config'] as const
 const pillarColors: Record<string, string> = {
@@ -88,11 +88,9 @@ const healthTimelineData = Array.from({ length: 24 }, (_, i) => {
     if (pillar === 'Bridge' || pillar === 'Config') {
       entry[pillar] = 100
     } else if (pillar === 'Swarm') {
-      // Swarm dips occasionally to 85-92
       const dip = seededRandom(i * 8 + pi * 3 + 7) > 0.6
       entry[pillar] = dip ? 85 + Math.floor(seededRandom(i * 11 + pi * 5) * 7) : 93 + Math.floor(seededRandom(i * 13 + pi * 2) * 7)
     } else {
-      // Other pillars: 85-100 range with occasional dips
       entry[pillar] = 88 + Math.floor(seededRandom(i * 7 + pi * 4 + 1) * 12)
     }
   })
@@ -129,6 +127,39 @@ const newActivities = [
   { event: 'TokenTracker: 1,240 tokens consumed by qwen3-coder', type: 'info' as const },
   { event: 'Swarm worker-4 now idle, ready for assignment', type: 'success' as const },
   { event: 'Bridge: new HMAC session established', type: 'info' as const },
+]
+
+// Collapse rate trend data (over last 20 runs)
+const collapseRateTrend = [
+  { name: '1', value: 95.3 },
+  { name: '2', value: 89.1 },
+  { name: '3', value: 91.7 },
+  { name: '4', value: 78.4 },
+  { name: '5', value: 82.6 },
+  { name: '6', value: 62.1 },
+  { name: '7', value: 70.3 },
+  { name: '8', value: 55.8 },
+  { name: '9', value: 48.2 },
+  { name: '10', value: 42.7 },
+  { name: '11', value: 38.5 },
+  { name: '12', value: 35.1 },
+  { name: '13', value: 33.9 },
+  { name: '14', value: 30.4 },
+  { name: '15', value: 28.7 },
+  { name: '16', value: 27.2 },
+  { name: '17', value: 25.8 },
+  { name: '18', value: 24.1 },
+  { name: '19', value: 23.8 },
+  { name: '20', value: 23.4 },
+]
+
+// Recent Governor decisions for mini-table
+const recentDecisions = [
+  { id: 'GOV-3847', agent: 'worker-3', action: 'ALLOW', scope: 'SELF', time: '2m ago', reason: 'Read file — within trust threshold' },
+  { id: 'GOV-3846', agent: 'worker-1', action: 'ALLOW', scope: 'SELF', time: '5m ago', reason: 'API call — safe domain' },
+  { id: 'GOV-3845', agent: 'research-agent', action: 'HOLD', scope: 'CROSS', time: '8m ago', reason: 'Cross-scope request — pending review' },
+  { id: 'GOV-3844', agent: 'worker-2', action: 'DENY', scope: 'CRIT', time: '12m ago', reason: 'delete_all — critical scope violation' },
+  { id: 'GOV-3843', agent: 'coordinator', action: 'ALLOW', scope: 'SELF', time: '15m ago', reason: 'Write file — trusted agent' },
 ]
 
 function LiveActivityFeed() {
@@ -224,6 +255,59 @@ function SystemHealthTimeline() {
   )
 }
 
+// System uptime formatter with pulsing animation
+function SystemUptimeCard() {
+  const [uptime, setUptime] = useState({ days: 3, hours: 14, minutes: 27, seconds: 52 })
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setUptime((prev) => {
+        let { days, hours, minutes, seconds } = prev
+        seconds++
+        if (seconds >= 60) { seconds = 0; minutes++ }
+        if (minutes >= 60) { minutes = 0; hours++ }
+        if (hours >= 24) { hours = 0; days++ }
+        return { days, hours, minutes, seconds }
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/5 to-transparent" />
+      <CardContent className="relative p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">System Uptime</p>
+            <div className="mt-1 flex items-baseline gap-0.5">
+              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{uptime.days}</span>
+              <span className="text-[11px] text-muted-foreground mr-1">d</span>
+              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{String(uptime.hours).padStart(2, '0')}</span>
+              <span className="text-[11px] text-muted-foreground mr-1">h</span>
+              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{String(uptime.minutes).padStart(2, '0')}</span>
+              <span className="text-[11px] text-muted-foreground mr-1">m</span>
+              <span className="text-lg font-bold text-emerald-400/70 tabular-nums">{String(uptime.seconds).padStart(2, '0')}</span>
+              <span className="text-[11px] text-muted-foreground">s</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Continuous operation</p>
+          </div>
+          <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
+            <Clock className="h-5 w-5 text-emerald-400" />
+            <span className="absolute h-3 w-3 animate-ping rounded-full bg-emerald-400/30" />
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] text-emerald-400 font-medium">99.94% availability</span>
+          <span className="text-[10px] text-muted-foreground ml-2">|</span>
+          <span className="text-[10px] text-muted-foreground ml-2">Last restart: 3d 14h ago</span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function OverviewTab() {
   const [systemPulse, setSystemPulse] = useState(0)
 
@@ -234,29 +318,71 @@ export function OverviewTab() {
     return () => clearInterval(interval)
   }, [])
 
+  const handleQuickAction = useCallback((action: string) => {
+    switch (action) {
+      case 'diagnostic':
+        toast.success('Diagnostic started', {
+          description: 'Running system health checks across all 8 pillars...',
+          duration: 3000,
+        })
+        break
+      case 'export':
+        toast.success('Report exported', {
+          description: 'System status report downloaded as JSON',
+          duration: 3000,
+        })
+        break
+      case 'clear':
+        toast.success('Cache cleared', {
+          description: 'All cached data purged. Refreshing from source...',
+          duration: 3000,
+        })
+        break
+    }
+  }, [])
+
   return (
     <div className="space-y-6 p-6 grid-pattern">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/10 via-emerald-600/5 to-transparent p-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/5 to-transparent" />
-        <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-600/20">
-              <Zap className="h-5 w-5 text-white" />
+      {/* Welcome Banner with Animated Gradient Border */}
+      <div className="relative overflow-hidden rounded-xl">
+        {/* Animated gradient border */}
+        <div className="absolute inset-0 rounded-xl p-[1.5px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #fb923c, #34d399)', backgroundSize: '300% 100%', animation: 'gradientBorder 4s linear infinite' }}>
+          <div className="h-full w-full rounded-xl bg-card" />
+        </div>
+        <div className="relative rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/10 via-emerald-600/5 to-transparent p-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/5 to-transparent rounded-xl" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-600/20">
+                <Zap className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold">Welcome back, Speci</h2>
+                <p className="text-xs text-muted-foreground">NEXUS OS v3.0 — All 8 pillars operational · Session active</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-semibold">Welcome back, Speci</h2>
-              <p className="text-xs text-muted-foreground">NEXUS OS v3.0 — All 8 pillars operational · Session active</p>
+            <div className="hidden sm:flex items-center gap-2">
+              <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                All Systems Go
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">⌘K for commands</Badge>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              All Systems Go
-            </Badge>
-            <Badge variant="outline" className="text-[10px]">⌘K for commands</Badge>
+          {/* Server count indicator */}
+          <div className="relative mt-3 flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><Server className="h-3 w-3 text-emerald-400" /> 3 nodes active</span>
+            <span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-400" /> 8/8 pillars online</span>
+            <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-400" /> 73450 tokens left</span>
           </div>
         </div>
+        {/* CSS keyframe for animated border */}
+        <style jsx>{`
+          @keyframes gradientBorder {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+          }
+        `}</style>
       </div>
 
       {/* Top Stats with Gradient Cards */}
@@ -348,7 +474,7 @@ export function OverviewTab() {
           <div className="absolute inset-0 bg-gradient-to-br from-red-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="flex-1">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Collapse Rate</p>
                 <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">23.4%</p>
                 <p className="text-[10px] text-muted-foreground">↓ from 95.3% baseline</p>
@@ -360,6 +486,50 @@ export function OverviewTab() {
             <div className="mt-3 flex items-center gap-2">
               <Progress value={23.4} className="h-2 flex-1 bg-red-900/20" />
               <span className="text-[10px] text-emerald-400 font-medium">-72pp</span>
+            </div>
+            {/* Collapse Rate Trend Sparkline */}
+            <div className="mt-2">
+              <MiniAreaChart data={collapseRateTrend} dataKey="value" color={COLORS.red} height={32} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* System Uptime + Quick Actions Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <SystemUptimeCard />
+        <Card className="relative overflow-hidden border-blue-600/20 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
+          <CardContent className="relative p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Actions</p>
+            <div className="grid grid-cols-3 gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-400 transition-all duration-200"
+                onClick={() => handleQuickAction('diagnostic')}
+              >
+                <Wrench className="h-4 w-4" />
+                <span className="text-[11px] font-medium">Run Diagnostic</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-400 transition-all duration-200"
+                onClick={() => handleQuickAction('export')}
+              >
+                <FileDown className="h-4 w-4" />
+                <span className="text-[11px] font-medium">Export Report</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-400 transition-all duration-200"
+                onClick={() => handleQuickAction('clear')}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="text-[11px] font-medium">Clear Cache</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -376,7 +546,12 @@ export function OverviewTab() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {pillars.map((p) => (
-            <Card key={p.name} className="group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5">
+            <Card
+              key={p.name}
+              className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 ${
+                p.health < 95 ? 'animate-pulse-subtle' : ''
+              }`}
+            >
               <div className={`absolute inset-0 bg-gradient-to-br ${
                 p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
                 p.health >= 95 ? 'from-emerald-600/3 via-transparent to-transparent' :
@@ -414,6 +589,12 @@ export function OverviewTab() {
                       <Progress value={p.health} className="h-1 flex-1" />
                       <span className="text-[9px] text-muted-foreground ml-2">{p.uptime}</span>
                     </div>
+                    {p.health < 95 && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="h-1 w-1 rounded-full bg-yellow-400 animate-pulse" />
+                        <span className="text-[9px] text-yellow-400">Below threshold</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -460,8 +641,46 @@ export function OverviewTab() {
       {/* System Health Timeline */}
       <SystemHealthTimeline />
 
-      {/* Bottom Row: Activity Feed + Quick Stats */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Recent Governor Decisions + Quick Stats */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Recent Governor Decisions */}
+        <Card className="relative overflow-hidden border-red-600/15">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/3 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5 text-red-400" />
+                Recent Decisions
+              </CardTitle>
+              <Badge variant="outline" className="text-[9px]">Governor</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="relative p-3 pt-0">
+            <div className="max-h-56 space-y-1.5 overflow-y-auto custom-scrollbar">
+              {recentDecisions.map((d) => (
+                <div key={d.id} className="flex items-center gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
+                  <Badge className={`shrink-0 border-0 text-[9px] px-1.5 py-0 ${
+                    d.action === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-400' :
+                    d.action === 'DENY' ? 'bg-red-600/15 text-red-400' :
+                    'bg-yellow-600/15 text-yellow-400'
+                  }`}>
+                    {d.action}
+                  </Badge>
+                  <Badge variant="outline" className={`shrink-0 text-[8px] px-1 py-0 ${
+                    d.scope === 'CRIT' ? 'border-red-600/30 text-red-400' :
+                    d.scope === 'CROSS' ? 'border-yellow-600/30 text-yellow-400' :
+                    'border-blue-600/30 text-blue-400'
+                  }`}>
+                    {d.scope}
+                  </Badge>
+                  <span className="flex-1 truncate text-muted-foreground">{d.agent}</span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground/50 tabular-nums">{d.time}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Activity Feed */}
         <Card>
           <CardHeader className="pb-2">

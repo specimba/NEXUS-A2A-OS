@@ -23,10 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Copy, Plus, ShieldAlert } from 'lucide-react'
-import { NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Copy, Plus, ShieldAlert, GitBranch, BookOpen, Bell, Timer } from 'lucide-react'
+import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis } from 'recharts'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -40,6 +40,7 @@ const decisions = [
   { time: '14:20:12', agent: 'coordinator', action: 'read constitution', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.95 },
   { time: '14:19:45', agent: 'worker-2', action: 'modify trust threshold', scope: 'SYSTEM', impact: 'HIGH', decision: 'DENY', trust: 0.42 },
   { time: '14:19:12', agent: 'worker-1', action: 'read vault entries', scope: 'PROJECT', impact: 'LOW', decision: 'ALLOW', trust: 0.75 },
+  { time: '14:18:55', agent: 'research-agent', action: 'write output.log', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.68 },
 ]
 
 const agents = [
@@ -89,6 +90,38 @@ const liveDecisionPool = [
   { agent: 'worker-2', action: 'delete temp files', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.47 },
 ]
 
+// Constitution rules data
+const constitutionRules = [
+  { id: 'CR-001', name: 'No destructive system operations', triggered: 42, active: true },
+  { id: 'CR-002', name: 'Trust threshold enforcement', triggered: 38, active: true },
+  { id: 'CR-003', name: 'Agent spawn limits (max 8)', triggered: 15, active: true },
+  { id: 'CR-004', name: 'Cross-origin API restrictions', triggered: 12, active: true },
+  { id: 'CR-005', name: 'Vault immutability guarantee', triggered: 8, active: true },
+  { id: 'CR-006', name: 'Token budget ceiling', triggered: 6, active: true },
+  { id: 'CR-007', name: 'Constitution modification guard', triggered: 2, active: true },
+  { id: 'CR-008', name: 'Rate limiting per agent', triggered: 0, active: false },
+]
+
+// Risk matrix scatter data
+const riskMatrixData = agents.map((a) => ({
+  name: a.name,
+  trust: a.trust * 100,
+  activity: a.decisions,
+  risk: a.trust < 0.5 ? 'high' : a.trust < 0.7 ? 'medium' : 'low',
+  z: 80,
+}))
+
+// Deny pattern flowchart data
+const denyFlowPatterns = [
+  { from: 'Action Request', to: 'Scope Check', label: 'all actions', color: '#60a5fa' },
+  { from: 'Scope Check', to: 'SYSTEM?', label: 'scope=SYSTEM', color: '#facc15' },
+  { from: 'SYSTEM?', to: 'DENY', label: 'impact ≥ HIGH', color: '#f87171' },
+  { from: 'SYSTEM?', to: 'Trust Check', label: 'impact < HIGH', color: '#fb923c' },
+  { from: 'Trust Check', to: 'DENY', label: 'trust < 0.50', color: '#f87171' },
+  { from: 'Trust Check', to: 'ALLOW', label: 'trust ≥ 0.50', color: '#34d399' },
+  { from: 'Scope Check', to: 'Trust Check', label: 'scope≠SYSTEM', color: '#60a5fa' },
+]
+
 function MiniPieChart({ data, height = 120 }: { data: { name: string; value: number; color: string }[]; height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -107,7 +140,7 @@ function MiniPieChart({ data, height = 120 }: { data: { name: string; value: num
             <Cell key={i} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip
+        <RechartsTooltip
           contentStyle={{
             backgroundColor: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -167,7 +200,6 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Decision metadata */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-accent/30 p-3">
               <p className="text-[10px] text-muted-foreground uppercase">Agent</p>
@@ -189,7 +221,6 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
             </div>
           </div>
 
-          {/* Trust Score */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Trust Score at Decision</span>
@@ -200,7 +231,6 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
             <Progress value={decision.trust * 100} className="h-2" />
           </div>
 
-          {/* Related Vault Entries */}
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground">Related Vault Entries</span>
             <div className="space-y-1.5">
@@ -219,7 +249,6 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
             </div>
           </div>
 
-          {/* Appeal Button */}
           <DialogFooter>
             <Button
               variant="outline"
@@ -372,6 +401,276 @@ function LiveDecisionFeed() {
               </motion.div>
             ))}
           </AnimatePresence>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Decision Timeline component
+function DecisionTimeline() {
+  const timelineDecisions = decisions.slice(0, 10)
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Clock className="h-4 w-4 text-blue-400" /> Decision Timeline
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-0">
+          {timelineDecisions.map((d, i) => {
+            const isAllow = d.decision === 'ALLOW'
+            const isDeny = d.decision === 'DENY'
+            const isHold = d.decision === 'HOLD'
+            const dotColor = isAllow ? 'bg-emerald-500' : isDeny ? 'bg-red-500' : 'bg-yellow-500'
+            const lineColor = isAllow ? 'border-emerald-500/30' : isDeny ? 'border-red-500/30' : 'border-yellow-500/30'
+            const bgColor = isAllow ? 'bg-emerald-600/5' : isDeny ? 'bg-red-600/5' : 'bg-yellow-600/5'
+            const textColor = isAllow ? 'text-emerald-400' : isDeny ? 'text-red-400' : 'text-yellow-400'
+
+            return (
+              <div key={i} className="relative flex items-start gap-3">
+                <div className="flex flex-col items-center">
+                  <div className={`h-3 w-3 rounded-full ${dotColor} shrink-0 ring-2 ring-background z-10`} />
+                  {i < timelineDecisions.length - 1 && (
+                    <div className={`w-px flex-1 min-h-[32px] border-l-2 border-dashed ${lineColor}`} />
+                  )}
+                </div>
+                <div className={`flex-1 min-w-0 mb-3 rounded-md border-l-4 ${isAllow ? 'border-l-emerald-500' : isDeny ? 'border-l-red-500' : 'border-l-yellow-500'} ${bgColor} px-3 py-2`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`text-[9px] border-0 ${isAllow ? 'bg-emerald-600/15 text-emerald-400' : isDeny ? 'bg-red-600/15 text-red-400' : 'bg-yellow-600/15 text-yellow-400'}`}>
+                      {d.decision}
+                    </Badge>
+                    <span className="font-mono text-[10px] text-muted-foreground tabular-nums">{d.time}</span>
+                    <Badge variant="outline" className="text-[8px]">{d.scope}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs">
+                    <span className="text-muted-foreground">{d.agent}</span>
+                    <span className="mx-1.5 text-muted-foreground/50">→</span>
+                    <span className="truncate">{d.action}</span>
+                  </p>
+                  <div className="mt-1 flex items-center gap-2 text-[10px]">
+                    <span className="text-muted-foreground">Trust:</span>
+                    <span className={`font-bold tabular-nums ${textColor}`}>{d.trust.toFixed(2)}</span>
+                    <span className="text-muted-foreground">Impact:</span>
+                    <Badge className={`text-[8px] border-0 ${d.impact === 'CRIT' ? 'bg-red-600/15 text-red-400' : d.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-400' : d.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+                      {d.impact}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Agent Risk Matrix component
+function AgentRiskMatrix() {
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-purple-400" /> Agent Risk Matrix
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <ResponsiveContainer width="100%" height={220}>
+          <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis
+              dataKey="trust"
+              type="number"
+              domain={[0, 100]}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              axisLine={false}
+              tickLine={false}
+              label={{ value: 'Trust Score →', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis
+              dataKey="activity"
+              type="number"
+              domain={[0, 350]}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              axisLine={false}
+              tickLine={false}
+              label={{ value: 'Activity →', angle: -90, position: 'insideLeft', offset: 15, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <ZAxis dataKey="z" range={[60, 200]} />
+            <RechartsTooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '11px',
+              }}
+              formatter={(value: number, name: string) => {
+                if (name === 'trust') return [`${value.toFixed(0)}%`, 'Trust']
+                if (name === 'activity') return [value, 'Decisions']
+                return [value, name]
+              }}
+              labelFormatter={(_label: string, payload: { name?: string; payload?: { name?: string } }[]) => {
+                const item = payload[0]?.payload
+                return item?.name ?? ''
+              }}
+            />
+            <Scatter data={riskMatrixData} fill="#8884d8">
+              {riskMatrixData.map((entry, index) => (
+                <Cell
+                  key={index}
+                  fill={entry.risk === 'high' ? '#f87171' : entry.risk === 'medium' ? '#facc15' : '#34d399'}
+                />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+        <div className="mt-2 flex items-center justify-center gap-4 text-[10px]">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="text-muted-foreground">Low Risk</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-yellow-400" />
+            <span className="text-muted-foreground">Medium Risk</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-red-400" />
+            <span className="text-muted-foreground">High Risk</span>
+          </div>
+        </div>
+        {/* Quadrant labels */}
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
+          <div className="rounded-md bg-red-600/5 border border-red-600/10 px-2 py-1.5 text-center">
+            <span className="text-red-400 font-medium">High Activity / Low Trust</span>
+          </div>
+          <div className="rounded-md bg-yellow-600/5 border border-yellow-600/10 px-2 py-1.5 text-center">
+            <span className="text-yellow-400 font-medium">High Activity / High Trust</span>
+          </div>
+          <div className="rounded-md bg-muted/50 border border-border/50 px-2 py-1.5 text-center">
+            <span className="text-muted-foreground font-medium">Low Activity / Low Trust</span>
+          </div>
+          <div className="rounded-md bg-emerald-600/5 border border-emerald-600/10 px-2 py-1.5 text-center">
+            <span className="text-emerald-400 font-medium">Low Activity / High Trust</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Constitution Rules Summary component
+function ConstitutionRulesSummary() {
+  const activeRules = constitutionRules.filter((r) => r.active).length
+  const totalTriggered = constitutionRules.reduce((sum, r) => sum + r.triggered, 0)
+  const mostTriggered = constitutionRules.reduce((max, r) => r.triggered > max.triggered ? r : max, constitutionRules[0])
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-emerald-400" /> Constitution Rules
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <p className="text-2xl font-bold text-emerald-400 tabular-nums">{activeRules}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Active Rules</p>
+          </div>
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <p className="text-2xl font-bold text-orange-400 tabular-nums">{totalTriggered}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Triggered Today</p>
+          </div>
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <p className="text-2xl font-bold text-red-400 tabular-nums">{mostTriggered.triggered}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Most Triggered</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium text-muted-foreground">Top Triggered Rules</p>
+          {constitutionRules
+            .filter((r) => r.triggered > 0)
+            .sort((a, b) => b.triggered - a.triggered)
+            .slice(0, 5)
+            .map((rule) => (
+              <div key={rule.id} className="flex items-center justify-between rounded-md bg-accent/20 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-[9px] text-muted-foreground shrink-0">{rule.id}</span>
+                  <span className="text-[11px] truncate">{rule.name}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-16">
+                    <Progress value={(rule.triggered / mostTriggered.triggered) * 100} className="h-1.5" />
+                  </div>
+                  <span className="text-[10px] font-medium tabular-nums text-muted-foreground w-6 text-right">{rule.triggered}</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Danger Gate Pattern Flowchart
+function DangerGateFlowchart() {
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-red-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <GitBranch className="h-4 w-4 text-red-400" /> Deny Pattern Flowchart
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="space-y-1.5">
+          {denyFlowPatterns.map((fp, i) => (
+            <div key={i} className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                <span
+                  className="shrink-0 h-5 px-1.5 rounded text-[9px] font-medium flex items-center"
+                  style={{ backgroundColor: fp.color + '20', color: fp.color }}
+                >
+                  {fp.from}
+                </span>
+                <span className="text-muted-foreground shrink-0">→</span>
+                <span
+                  className="shrink-0 h-5 px-1.5 rounded text-[9px] font-medium flex items-center"
+                  style={{ backgroundColor: fp.color + '20', color: fp.color }}
+                >
+                  {fp.to}
+                </span>
+              </div>
+              <Badge
+                variant="outline"
+                className="text-[8px] shrink-0"
+                style={{ borderColor: fp.color + '40', color: fp.color }}
+              >
+                {fp.label}
+              </Badge>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-emerald-600/5 border border-emerald-600/10 px-3 py-2 flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium text-emerald-400">ALLOW Path</p>
+              <p className="text-[9px] text-muted-foreground">Trust ≥ 0.50 + Low Impact</p>
+            </div>
+          </div>
+          <div className="rounded-md bg-red-600/5 border border-red-600/10 px-3 py-2 flex items-center gap-2">
+            <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium text-red-400">DENY Path</p>
+              <p className="text-[9px] text-muted-foreground">SYSTEM + HIGH impact or low trust</p>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -547,8 +846,20 @@ export function GovernorTab() {
         </Card>
       </div>
 
+      {/* Decision Timeline + Agent Risk Matrix */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DecisionTimeline />
+        <AgentRiskMatrix />
+      </div>
+
+      {/* Constitution Rules + Danger Gate Flowchart */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ConstitutionRulesSummary />
+        <DangerGateFlowchart />
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Agent Trust Scores */}
+        {/* Agent Trust Scores with enhanced gradient progress bars */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -560,6 +871,11 @@ export function GovernorTab() {
               {agents.map((a) => {
                 const laneData = laneThresholds.find((l) => l.lane === a.lane)
                 const belowThreshold = laneData ? a.trust < laneData.min : false
+                // Determine gradient fill color based on trust level
+                const gradientFrom = a.trust >= 0.7 ? 'from-emerald-500' : a.trust >= 0.5 ? 'from-yellow-500' : 'from-red-500'
+                const gradientTo = a.trust >= 0.7 ? 'to-emerald-400' : a.trust >= 0.5 ? 'to-yellow-400' : 'to-red-400'
+                const trustColor = a.trust >= 0.7 ? 'text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'
+
                 return (
                   <div key={a.name} className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -573,15 +889,22 @@ export function GovernorTab() {
                           </Badge>
                         )}
                       </div>
-                      <span className={`text-sm font-bold tabular-nums ${a.trust >= 0.7 ? 'text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      <span className={`text-sm font-bold tabular-nums ${trustColor}`}>
                         {a.trust.toFixed(2)}
                       </span>
                     </div>
                     <div className="relative">
-                      <Progress value={a.trust * 100} className="h-2" />
+                      {/* Gradient-filled progress bar */}
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${gradientFrom} ${gradientTo} transition-all duration-500`}
+                          style={{ width: `${a.trust * 100}%` }}
+                        />
+                      </div>
+                      {/* Threshold line */}
                       {laneData && (
                         <div
-                          className="absolute top-0 h-2 w-0.5 bg-red-400/80"
+                          className="absolute top-0 h-2 w-0.5 bg-white/70"
                           style={{ left: `${laneData.min * 100}%` }}
                           title={`Min threshold: ${laneData.min.toFixed(2)}`}
                         />
@@ -619,7 +942,6 @@ export function GovernorTab() {
                   Add
                 </Button>
               </div>
-              {/* Shield glow indicator */}
               {dangerPatterns.some(p => p.status === 'blocked' && p.count > 0) && (
                 <div className="flex items-center gap-1.5 mt-1">
                   <ShieldAlert className="h-3 w-3 text-red-400 animate-pulse" />

@@ -34,6 +34,10 @@ import {
   Shield,
   Layers,
   PieChart as PieChartIcon,
+  GitCompare,
+  Trophy,
+  History,
+  ArrowRight,
 } from 'lucide-react'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useState, useMemo } from 'react'
@@ -45,7 +49,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -86,7 +90,33 @@ const domainBreakdown = [
   { name: 'security', value: 10, collapses: 3 },
 ]
 
-// Test history data for collapse rate over recent runs
+// Domain coverage data - templates per domain
+const domainCoverage = [
+  { domain: 'Cyber', templates: 4, total: 84, color: COLORS.red },
+  { domain: 'CompBio', templates: 2, total: 84, color: COLORS.blue },
+  { domain: 'Pharmacology', templates: 2, total: 84, color: COLORS.purple },
+  { domain: 'AI Safety', templates: 1, total: 84, color: COLORS.orange },
+  { domain: 'Chemistry', templates: 1, total: 84, color: COLORS.yellow },
+  { domain: 'Security', templates: 1, total: 84, color: COLORS.emerald },
+]
+
+// Test results summary data for donut chart
+const testResultsSummary = [
+  { name: 'PASS', value: 24, color: COLORS.emerald },
+  { name: 'FAIL', value: 11, color: COLORS.red },
+  { name: 'WARNING', value: 8, color: COLORS.yellow },
+]
+
+// Run history data for compact card
+const runHistory = [
+  { id: 'T-0847', template: 'ISC-001', model: 'qwen3-coder', result: 'COLLAPSE', duration: '14s', time: '2m ago' },
+  { id: 'T-0846', template: 'ISC-004', model: 'trinity-large', result: 'PASS', duration: '8s', time: '5m ago' },
+  { id: 'T-0845', template: 'ISC-002', model: 'nemotron', result: 'COLLAPSE', duration: '12s', time: '8m ago' },
+  { id: 'T-0844', template: 'ISC-005', model: 'gemma-fast', result: 'PASS', duration: '3s', time: '15m ago' },
+  { id: 'T-0843', template: 'ISC-001', model: 'dolphin-mistral', result: 'COLLAPSE', duration: '18s', time: '22m ago' },
+]
+
+// All test history data for collapse rate over recent runs
 const allTestHistoryData = [
   { name: 'Run 1', collapseRate: 95.3 },
   { name: 'Run 2', collapseRate: 89.1 },
@@ -122,6 +152,15 @@ const difficultyBreakdown = [
   { name: 'Easy', value: 2, color: COLORS.emerald },
   { name: 'Medium', value: 3, color: COLORS.yellow },
   { name: 'Hard', value: 7, color: COLORS.red },
+]
+
+// Model comparison data for Compare Models dialog
+const modelCompareOptions = [
+  { id: 'qwen3-coder', name: 'qwen3-coder', tier: 82, collapseRate: 34.2, avgTokens: 2800, avgDuration: 12, passRate: 65.8 },
+  { id: 'trinity-large', name: 'trinity-large-preview', tier: 97, collapseRate: 28.4, avgTokens: 2100, avgDuration: 10, passRate: 71.6 },
+  { id: 'nemotron-3', name: 'nemotron-3-super', tier: 60, collapseRate: 41.3, avgTokens: 1600, avgDuration: 7, passRate: 58.7 },
+  { id: 'gemma-fast', name: 'gemma-fast', tier: 50, collapseRate: 52.8, avgTokens: 800, avgDuration: 3, passRate: 47.2 },
+  { id: 'dolphin-mistral', name: 'dolphin-mistral-venice', tier: 15, collapseRate: 89.7, avgTokens: 3500, avgDuration: 18, passRate: 10.3 },
 ]
 
 function getTierBadge(tier: string) {
@@ -304,7 +343,6 @@ function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
       </DialogHeader>
 
       <div className="space-y-4 py-2">
-        {/* Template Selection */}
         <div className="space-y-2">
           <label className="text-xs font-medium">Select Templates ({selectedTemplates.length} selected)</label>
           <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 custom-scrollbar">
@@ -334,7 +372,6 @@ function BatchRunDialog({ onBatchComplete }: { onBatchComplete: () => void }) {
           </div>
         </div>
 
-        {/* Model Selection */}
         <div className="space-y-2">
           <label className="text-xs font-medium">Model</label>
           <Select value={model} onValueChange={setModel} disabled={running}>
@@ -457,7 +494,7 @@ function DifficultyPieChart() {
                   <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.7} />
                 ))}
               </Pie>
-              <Tooltip
+              <RechartsTooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
@@ -479,9 +516,261 @@ function DifficultyPieChart() {
   )
 }
 
+// Test Results Summary Donut Chart
+function TestResultsSummaryChart() {
+  const total = testResultsSummary.reduce((sum, item) => sum + item.value, 0)
+
+  return (
+    <Card className="relative overflow-hidden border-orange-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <PieChartIcon className="h-4 w-4 text-orange-400" />
+          Test Results Summary
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="flex items-center gap-4">
+          <div className="h-[120px] w-[120px] shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={testResultsSummary}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={28}
+                  outerRadius={50}
+                  paddingAngle={3}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {testResultsSummary.map((entry, index) => (
+                    <Cell key={`result-cell-${index}`} fill={entry.color} fillOpacity={0.8} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                  }}
+                  formatter={(value: number, name: string) => [`${value} tests`, name]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-2.5">
+            {testResultsSummary.map((item) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs font-medium">{item.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold tabular-nums">{item.value}</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    ({((item.value / total) * 100).toFixed(0)}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+            <div className="pt-1 border-t border-border/50">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Total Tests</span>
+                <span className="text-xs font-bold tabular-nums">{total}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Domain Coverage Progress Bars
+function DomainCoverageSection() {
+  return (
+    <Card className="relative overflow-hidden border-blue-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-blue-400" />
+          Domain Coverage
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-3">
+        {domainCoverage.map((d) => (
+          <div key={d.domain}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium">{d.domain}</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{d.templates} / {d.total} templates</span>
+            </div>
+            <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
+              <div
+                className="absolute left-0 top-0 h-full rounded-full gradient-bar-animated"
+                style={{
+                  width: `${(d.templates / d.total) * 100}%`,
+                  background: `linear-gradient(90deg, ${d.color}, ${d.color}88, ${d.color})`,
+                  backgroundSize: '200% 100%',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+// Compare Models Dialog
+function CompareModelsDialog() {
+  const [modelA, setModelA] = useState('trinity-large')
+  const [modelB, setModelB] = useState('qwen3-coder')
+
+  const modelAData = modelCompareOptions.find(m => m.id === modelA)
+  const modelBData = modelCompareOptions.find(m => m.id === modelB)
+
+  const metrics = [
+    { label: 'Collapse Rate', key: 'collapseRate' as const, suffix: '%', lower: true },
+    { label: 'Pass Rate', key: 'passRate' as const, suffix: '%', lower: false },
+    { label: 'Avg Tokens', key: 'avgTokens' as const, suffix: '', lower: true },
+    { label: 'Avg Duration', key: 'avgDuration' as const, suffix: 's', lower: true },
+  ]
+
+  return (
+    <DialogContent className="sm:max-w-xl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <GitCompare className="h-4 w-4 text-orange-400" />
+          Compare Models
+        </DialogTitle>
+        <DialogDescription>Side-by-side model comparison for StressLab test selection</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-2">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-medium uppercase text-muted-foreground">Model A</label>
+            <Select value={modelA} onValueChange={setModelA}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {modelCompareOptions.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-medium uppercase text-muted-foreground">Model B</label>
+            <Select value={modelB} onValueChange={setModelB}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {modelCompareOptions.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {modelAData && modelBData && (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-3 gap-0 text-xs">
+              <div className="bg-accent/30 px-3 py-2 font-medium text-muted-foreground">Metric</div>
+              <div className="bg-accent/30 px-3 py-2 font-medium text-center border-l border-border">
+                <span className="text-emerald-400">{modelAData.name.split('-')[0]}</span>
+              </div>
+              <div className="bg-accent/30 px-3 py-2 font-medium text-center border-l border-border">
+                <span className="text-blue-400">{modelBData.name.split('-')[0]}</span>
+              </div>
+            </div>
+            {metrics.map((metric) => {
+              const valA = modelAData[metric.key]
+              const valB = modelBData[metric.key]
+              const aWins = metric.lower ? valA < valB : valA > valB
+              const bWins = metric.lower ? valB < valA : valA < valB
+              return (
+                <div key={metric.key} className="grid grid-cols-3 gap-0 text-xs border-t border-border/50">
+                  <div className="px-3 py-2 text-muted-foreground">{metric.label}</div>
+                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${aWins ? 'text-emerald-400' : ''}`}>
+                    {valA}{metric.suffix}
+                    {aWins && ' ✓'}
+                  </div>
+                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${bWins ? 'text-blue-400' : ''}`}>
+                    {valB}{metric.suffix}
+                    {bWins && ' ✓'}
+                  </div>
+                </div>
+              )
+            })}
+            <div className="grid grid-cols-3 gap-0 text-xs border-t border-border/50">
+              <div className="px-3 py-2 text-muted-foreground">Tier</div>
+              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-emerald-400">{modelAData.tier}</div>
+              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-blue-400">{modelBData.tier}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Comparison data exported to clipboard')}>
+          Export Comparison
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  )
+}
+
+// Run History Card - compact list of last 5 runs
+function RunHistoryCard() {
+  return (
+    <Card className="relative overflow-hidden border-purple-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <History className="h-4 w-4 text-purple-400" />
+            Run History
+          </CardTitle>
+          <Badge variant="outline" className="text-[9px]">Last 5</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-3 pt-0">
+        <div className="space-y-1.5">
+          {runHistory.map((run) => (
+            <div
+              key={run.id}
+              className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-2 text-xs hover:bg-accent/40 transition-colors"
+            >
+              <span className="font-mono text-[10px] text-muted-foreground shrink-0">{run.id}</span>
+              <span className="text-muted-foreground shrink-0">{run.template}</span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+              <span className="truncate text-[11px]">{run.model}</span>
+              <Badge className={`ml-auto shrink-0 border-0 text-[9px] px-1.5 py-0 ${
+                run.result === 'PASS' ? 'bg-emerald-600/15 text-emerald-400' :
+                'bg-red-600/15 text-red-400'
+              }`}>
+                {run.result === 'PASS' ? <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" /> : <XCircle className="mr-0.5 h-2.5 w-2.5" />}
+                {run.result}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0">{run.duration}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function StressLabTab() {
   const [testCount, setTestCount] = useState(47)
   const [batchRunOpen, setBatchRunOpen] = useState(false)
+  const [compareOpen, setCompareOpen] = useState(false)
 
   return (
     <div className="space-y-6 p-6 grid-pattern">
@@ -552,6 +841,13 @@ export function StressLabTab() {
         </Card>
       </div>
 
+      {/* Test Results Summary + Domain Coverage + Run History Row */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <TestResultsSummaryChart />
+        <DomainCoverageSection />
+        <RunHistoryCard />
+      </div>
+
       {/* Domain Breakdown Chart + Difficulty Pie */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -586,20 +882,34 @@ export function StressLabTab() {
         {/* Templates Grid */}
         <TabsContent value="templates">
           <div className="space-y-3">
-            {/* Batch Run Button */}
+            {/* Batch Run + Compare Models Buttons */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{templates.length} templates available</span>
-              <Dialog open={batchRunOpen} onOpenChange={setBatchRunOpen}>
-                <Button
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white"
-                  onClick={() => setBatchRunOpen(true)}
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  Batch Run
-                </Button>
-                <BatchRunDialog onBatchComplete={() => setTestCount(c => c + 3)} />
-              </Dialog>
+              <div className="flex items-center gap-2">
+                <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setCompareOpen(true)}
+                  >
+                    <GitCompare className="h-3.5 w-3.5" />
+                    Compare Models
+                  </Button>
+                  <CompareModelsDialog />
+                </Dialog>
+                <Dialog open={batchRunOpen} onOpenChange={setBatchRunOpen}>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                    onClick={() => setBatchRunOpen(true)}
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    Batch Run
+                  </Button>
+                  <BatchRunDialog onBatchComplete={() => setTestCount(c => c + 3)} />
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -742,11 +1052,12 @@ export function StressLabTab() {
           </Card>
         </TabsContent>
 
-        {/* Arena Comparison — Enhanced with Recharts Horizontal BarChart */}
+        {/* Arena Comparison — Enhanced with Animated Gradient Bars and Winner Badge */}
         <TabsContent value="arena">
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
+            <Card className="relative overflow-hidden border-orange-600/15">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
+              <CardHeader className="relative">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" /> Commercial vs Heretic (Dual Cascade)
                 </CardTitle>
@@ -762,7 +1073,7 @@ export function StressLabTab() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="model" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} width={95} />
-                      <Tooltip
+                      <RechartsTooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
@@ -777,19 +1088,28 @@ export function StressLabTab() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Model Tier Legend */}
+                {/* Model Tier Legend with Winner Badge */}
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {arenaData.map((m) => (
-                    <div key={m.model} className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-muted-foreground">{m.model}</span>
-                      {getTierBadge(m.tier)}
-                    </div>
-                  ))}
+                  {arenaData.map((m) => {
+                    const isWinner = m.pass === Math.max(...arenaData.map(a => a.pass))
+                    return (
+                      <div key={m.model} className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground">{m.model}</span>
+                        {getTierBadge(m.tier)}
+                        {isWinner && (
+                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[8px] px-1.5 py-0 gap-0.5">
+                            <Trophy className="h-2.5 w-2.5" />
+                            Winner
+                          </Badge>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Commercial Average vs Heretic comparison cards */}
+            {/* Commercial Average vs Heretic comparison cards with animated gradient bars */}
             <div className="grid grid-cols-2 gap-4">
               <div className="relative overflow-hidden rounded-xl border border-orange-600/15 bg-gradient-to-br from-orange-600/8 via-orange-600/3 to-transparent p-4">
                 <div className="absolute top-2 right-2">
@@ -798,7 +1118,16 @@ export function StressLabTab() {
                 <p className="text-[10px] font-medium uppercase tracking-wider text-orange-400">Commercial Average</p>
                 <p className="mt-1 text-2xl font-bold text-orange-400 tabular-nums">39.2%</p>
                 <p className="text-[10px] text-muted-foreground">collapse rate</p>
-                <Progress value={39.2} className="mt-2 h-1.5 bg-orange-900/20" />
+                <div className="mt-3 h-2 rounded-full bg-orange-900/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full gradient-bar-animated"
+                    style={{
+                      width: '39.2%',
+                      background: 'linear-gradient(90deg, #fb923c, #f59e0b, #fb923c)',
+                      backgroundSize: '200% 100%',
+                    }}
+                  />
+                </div>
               </div>
               <div className="relative overflow-hidden rounded-xl border border-red-600/25 bg-gradient-to-br from-red-600/12 via-red-600/5 to-transparent p-4">
                 <div className="absolute top-2 right-2">
@@ -807,7 +1136,16 @@ export function StressLabTab() {
                 <p className="text-[10px] font-medium uppercase tracking-wider text-red-400">Heretic (dolphin)</p>
                 <p className="mt-1 text-2xl font-bold text-red-400 tabular-nums">89.7%</p>
                 <p className="text-[10px] text-muted-foreground">collapse rate — uncensored</p>
-                <Progress value={89.7} className="mt-2 h-1.5 bg-red-900/20" />
+                <div className="mt-3 h-2 rounded-full bg-red-900/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full gradient-bar-animated"
+                    style={{
+                      width: '89.7%',
+                      background: 'linear-gradient(90deg, #f87171, #ef4444, #f87171)',
+                      backgroundSize: '200% 100%',
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>

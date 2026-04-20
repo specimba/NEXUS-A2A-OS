@@ -434,3 +434,30 @@
 .pulse-ring {
   animation: pulse-ring 2s ease-out infinite;
 }
+
+/* Subtle pulse for low-health cards */
+@keyframes pulse-subtle {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.577 0.245 27.325 / 0%);
+    border-color: oklch(0.577 0.245 27.325 / 15%);
+  }
+  50% {
+    box-shadow: 0 0 8px oklch(0.577 0.245 27.325 / 10%);
+    border-color: oklch(0.577 0.245 27.325 / 30%);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+/* Animated gradient bar for arena */
+@keyframes gradient-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.gradient-bar-animated {
+  background-size: 200% 100%;
+  animation: gradient-slide 3s linear infinite;
+}

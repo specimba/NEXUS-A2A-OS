@@ -1,7 +1,7 @@
 'use client'
 
 import { useNexusStore } from '@/store/nexus-store'
-import { Moon, Sun, Menu, Activity, Settings } from 'lucide-react'
+import { Moon, Sun, Menu, Activity, Settings, Terminal } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { NotificationCenter } from '@/components/nexus/notification-center'
+import { SystemLogsPanel } from '@/components/nexus/system-logs'
 import {
   Dialog,
   DialogContent,
@@ -237,6 +238,19 @@ export function NexusHeader() {
   const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
+
+  // Ctrl+L shortcut for logs
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+        e.preventDefault()
+        setLogsOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   useEffect(() => {
     const update = () =>
@@ -276,6 +290,17 @@ export function NexusHeader() {
       {/* Notification center */}
       <NotificationCenter />
 
+      {/* System Logs */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        onClick={() => setLogsOpen(true)}
+        aria-label="System Logs"
+      >
+        <Terminal className="h-4 w-4" />
+      </Button>
+
       {/* Clock */}
       <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
 
@@ -303,6 +328,9 @@ export function NexusHeader() {
 
       {/* System Config Dialog */}
       <SystemConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
+
+      {/* System Logs Panel */}
+      <SystemLogsPanel open={logsOpen} onOpenChange={setLogsOpen} />
     </header>
   )
 }

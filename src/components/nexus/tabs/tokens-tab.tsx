@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  Tooltip,
+  Tooltip as ShadcnTooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
@@ -34,7 +34,7 @@ import {
   ArrowRight,
   Flame,
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
 
@@ -261,7 +261,7 @@ export function TokensTab() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="hour" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip
+                <RechartsTooltipComponent
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
@@ -436,7 +436,7 @@ export function TokensTab() {
                       <td className="p-1.5 text-[11px] font-medium truncate">{agent}</td>
                       {heatmapData[agent]?.map((value, colIdx) => (
                         <td key={colIdx} className="p-1.5 text-center">
-                          <Tooltip>
+                          <ShadcnTooltip>
                             <TooltipTrigger asChild>
                               <div
                                 className="mx-auto h-8 w-full max-w-[48px] rounded-md border border-border/30 transition-colors hover:border-emerald-500/40 cursor-default"
@@ -447,7 +447,7 @@ export function TokensTab() {
                               <p className="font-medium">{agent}</p>
                               <p className="text-muted-foreground">{heatmapHours[colIdx]}: {value.toLocaleString()} tokens</p>
                             </TooltipContent>
-                          </Tooltip>
+                          </ShadcnTooltip>
                         </td>
                       ))}
                     </tr>

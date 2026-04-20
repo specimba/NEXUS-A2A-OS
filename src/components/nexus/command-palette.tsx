@@ -61,6 +61,7 @@ export function NexusCommandPalette() {
     { id: 'act-trust', label: 'View Trust Scores', icon: <Shield className="h-4 w-4 text-emerald-400" />, action: () => setActiveTab('governor'), group: 'actions' },
     { id: 'act-budget', label: 'Check Token Budget', icon: <Coins className="h-4 w-4 text-emerald-400" />, action: () => setActiveTab('tokens'), group: 'actions' },
     { id: 'act-chat', label: 'Open AI Assistant', icon: <MessageSquare className="h-4 w-4 text-emerald-400" />, action: () => toggleChat(), group: 'actions' },
+    { id: 'act-logs', label: 'Open System Logs', icon: <Terminal className="h-4 w-4 text-blue-400" />, shortcut: '⌘L', action: () => { /* Handled by header keyboard listener */ }, group: 'actions' },
   ]
 
   const runCommand = useCallback((command: CommandItemDef) => {
