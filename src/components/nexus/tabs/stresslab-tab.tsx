@@ -200,9 +200,12 @@ interface UIRun {
   createdAt: string
 }
 
-function formatTimeAgo(dateStr: string): string {
+function formatTimeAgo(dateStr: string, nowMs?: number): string {
   if (!dateStr) return '-'
-  const diff = Date.now() - new Date(dateStr).getTime()
+  const now = nowMs ?? 0 // Use 0 during SSR to avoid hydration mismatch
+  if (now === 0) return '...' // Placeholder until client-side hydration
+  const diff = now - new Date(dateStr).getTime()
+  if (diff < 0) return 'now'
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return 'now'
   if (minutes < 60) return `${minutes}m ago`
@@ -211,9 +214,9 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d ago`
 }
 
-function mapTemplate(t: ApiTemplate): UITemplate {
+function mapTemplate(t: ApiTemplate, nowMs?: number): UITemplate {
   const lastRun = t.testRuns && t.testRuns.length > 0
-    ? formatTimeAgo(t.testRuns[0].createdAt)
+    ? formatTimeAgo(t.testRuns[0].createdAt, nowMs)
     : '-'
   const hasRuns = t.testRuns && t.testRuns.length > 0
   const isRunning = t.testRuns?.some(r => r.status === 'running')
@@ -650,11 +653,14 @@ function DifficultyPieChart({ templates }: { templates: UITemplate[] }) {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   fontSize: '11px',
+                  color: 'hsl(var(--foreground))',
                 }}
+                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
                 formatter={(value: number, name: string) => [`${value} templates`, name]}
               />
               <Legend
-                wrapperStyle={{ fontSize: '10px' }}
+                wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }}
                 iconType="circle"
                 iconSize={8}
               />
@@ -715,7 +721,10 @@ function TestResultsSummaryChart({ runs }: { runs: UIRun[] }) {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '11px',
+                    color: 'hsl(var(--foreground))',
                   }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
                   formatter={(value: number, name: string) => [`${value} tests`, name]}
                 />
               </PieChart>
@@ -974,6 +983,16 @@ export function StressLabTab() {
   const { data: apiData, refetch } = useApiData<StressLabData>('/api/stresslab', 15000)
   const [batchRunOpen, setBatchRunOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
+  // Client-only time to avoid hydration mismatch in formatTimeAgo
+  const [nowMs, setNowMs] = useState(0)
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setNowMs(Date.now()))
+    const interval = setInterval(() => setNowMs(Date.now()), 30000)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(interval)
+    }
+  }, [])
 
   // Map API data to UI data
   const templates = useMemo<UITemplate[]>(() => {
@@ -986,8 +1005,8 @@ export function StressLabTab() {
         dbId: t.id,
       }))
     }
-    return apiData.templates.map(mapTemplate)
-  }, [apiData])
+    return apiData.templates.map(t => mapTemplate(t, nowMs))
+  }, [apiData, nowMs])
 
   const runs = useMemo<UIRun[]>(() => {
     if (!apiData?.runs || apiData.runs.length === 0) return []
@@ -1354,7 +1373,10 @@ export function StressLabTab() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                           fontSize: '11px',
+                          color: 'hsl(var(--foreground))',
                         }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
                         formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                       />
                       <Bar dataKey="collapse" name="Collapse" fill="#f87171" fillOpacity={0.7} radius={[0, 2, 2, 0]} stackId="a" />

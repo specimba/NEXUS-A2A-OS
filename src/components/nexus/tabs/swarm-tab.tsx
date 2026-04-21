@@ -627,14 +627,14 @@ function WorkerDetailDialog({
           <div className="rounded-lg border border-border/50 bg-gradient-to-r from-amber-600/5 via-transparent to-amber-600/5 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-400" />
-                <p className="text-[10px] uppercase tracking-wider text-amber-400">Trust Adjustment</p>
+                <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Trust Adjustment</p>
               </div>
               <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1 text-[10px] border-red-600/30 text-red-600 dark:text-red-400 hover:bg-red-600/10 hover:text-red-300"
+                  className="h-7 gap-1 text-[10px] border-red-600/30 text-red-600 dark:text-red-400 hover:bg-red-600/10 dark:hover:text-red-300"
                   onClick={() => onUpdateTrust(worker.id, -0.05, `Manual adjustment from worker detail: -0.05`)}
                   disabled={isLoading}
                 >
@@ -648,7 +648,7 @@ function WorkerDetailDialog({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1 text-[10px] border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                  className="h-7 gap-1 text-[10px] border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 dark:hover:text-emerald-300"
                   onClick={() => onUpdateTrust(worker.id, 0.05, `Manual adjustment from worker detail: +0.05`)}
                   disabled={isLoading}
                 >
@@ -727,7 +727,7 @@ function WorkerDetailDialog({
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 border-amber-600/30 text-amber-400 hover:bg-amber-600/10 hover:text-amber-300"
+              className="gap-1.5 border-amber-600/30 text-amber-600 dark:text-amber-400 hover:bg-amber-600/10 dark:hover:text-amber-300"
               onClick={() => onRestart(worker.id)}
               disabled={isLoading}
             >
@@ -796,8 +796,8 @@ export function SwarmTab() {
     if (!apiData?.workers) return []
     return apiData.workers.map(w => {
       const wsUpdate = ws.workers[w.id]
-      // Generate a simulated progress for busy workers
-      const progress = w.status === 'busy' ? Math.min(95, 30 + w.tasksDone * 5) : w.status === 'error' ? Math.floor(Math.random() * 50) : 0
+      // Generate a deterministic simulated progress for busy/error workers
+      const progress = w.status === 'busy' ? Math.min(95, 30 + w.tasksDone * 5) : w.status === 'error' ? ((w.id.charCodeAt(w.id.length - 1) * 37) % 50) : 0
       return {
         id: w.id,
         name: w.name,
@@ -1130,11 +1130,11 @@ export function SwarmTab() {
           <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-amber-600/3 to-transparent" />
           <div className="relative flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-600/15">
-              <ShieldAlert className="h-4 w-4 text-amber-400" />
+              <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Trust</p>
-              <p className="text-lg font-bold text-amber-400 tabular-nums">{avgTrust.toFixed(2)}</p>
+              <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{avgTrust.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -1344,7 +1344,7 @@ export function SwarmTab() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-5 w-5 p-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                            className="h-5 w-5 p-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 dark:hover:text-emerald-300"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleUpdateTrust(w.id, 0.05, `Quick adjust from worker card: +0.05`)
@@ -1400,7 +1400,7 @@ export function SwarmTab() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/10 shrink-0 ml-2"
+                    className="h-6 gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-600/10 shrink-0 ml-2"
                     onClick={() => handleAssignTask(t.id)}
                     disabled={actionLoading !== null}
                   >

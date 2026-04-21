@@ -664,7 +664,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200"
                   onClick={() => handleQuickAction('diagnostic')}
                 >
                   <Wrench className="h-4 w-4" />
@@ -673,7 +673,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200"
                   onClick={() => handleQuickAction('export')}
                 >
                   <FileDown className="h-4 w-4" />
@@ -682,7 +682,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-600 dark:text-orange-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-all duration-200"
                   onClick={() => handleQuickAction('clear')}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -730,7 +730,7 @@ export function OverviewTab() {
                     }`}>
                       <p.icon className={`h-4 w-4 ${
                         p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
-                        p.health >= 95 ? 'text-emerald-500' :
+                        p.health >= 95 ? 'text-emerald-500 dark:text-emerald-400' :
                         'text-yellow-600 dark:text-yellow-400'
                       }`} />
                     </div>
@@ -741,7 +741,7 @@ export function OverviewTab() {
                           variant="secondary"
                           className={`h-5 text-[10px] border-0 ${
                             p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 badge-glow-emerald' :
-                            p.health >= 95 ? 'bg-emerald-600/10 text-emerald-500' :
+                            p.health >= 95 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
                             'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 badge-glow-red'
                           }`}
                         >
@@ -989,7 +989,7 @@ export function OverviewTab() {
                 </div>
                 <span className={`text-sm font-bold tabular-nums ${
                   r.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
-                  r.health >= 95 ? 'text-emerald-500' :
+                  r.health >= 95 ? 'text-emerald-500 dark:text-emerald-400' :
                   r.health >= 85 ? 'text-yellow-600 dark:text-yellow-400' :
                   'text-red-600 dark:text-red-400'
                 }`}>{r.health}%</span>

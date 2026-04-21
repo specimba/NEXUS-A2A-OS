@@ -76,7 +76,7 @@ export function KeyboardShortcuts({ open, onClose }: KeyboardShortcutsProps) {
         <div className="relative bg-gradient-to-r from-emerald-600/10 via-blue-600/5 to-transparent px-6 py-4 border-b border-border">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
-              <Keyboard className="h-5 w-5 text-emerald-400" />
+              <Keyboard className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               Keyboard Shortcuts
             </DialogTitle>
           </DialogHeader>

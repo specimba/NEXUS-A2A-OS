@@ -269,7 +269,7 @@ export function NexusAssistant() {
               {chatMessages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-                    <MessageSquare className="h-8 w-8 text-emerald-500" />
+                    <MessageSquare className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold mb-1">

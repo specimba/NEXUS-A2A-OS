@@ -185,13 +185,12 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
     if (open && steps.every(s => s.status === 'pending')) {
       runDiagnostics()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const scoreColor = overallScore !== null
-    ? overallScore >= 80 ? 'text-emerald-400'
-    : overallScore >= 50 ? 'text-yellow-400'
-    : 'text-red-400'
+    ? overallScore >= 80 ? 'text-emerald-600 dark:text-emerald-400'
+    : overallScore >= 50 ? 'text-yellow-600 dark:text-yellow-400'
+    : 'text-red-600 dark:text-red-400'
     : ''
 
   const scoreBg = overallScore !== null
@@ -211,7 +210,7 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-            <Wrench className="h-5 w-5 text-emerald-400" />
+            <Wrench className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
             <h3 className="text-sm font-semibold">System Diagnostics</h3>
@@ -220,15 +219,15 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
         </div>
         <div className="flex items-center gap-2">
           {running && (
-            <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px] gap-1 animate-pulse">
+            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] gap-1 animate-pulse">
               <Loader2 className="h-3 w-3 animate-spin" /> Running
             </Badge>
           )}
           {overallScore !== null && !running && (
             <Badge className={`border-0 text-[9px] font-bold ${
-              overallScore >= 80 ? 'bg-emerald-600/15 text-emerald-400' :
-              overallScore >= 50 ? 'bg-yellow-600/15 text-yellow-400' :
-              'bg-red-600/15 text-red-400'
+              overallScore >= 80 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+              overallScore >= 50 ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+              'bg-red-600/15 text-red-600 dark:text-red-400'
             }`}>
               Score: {overallScore}%
             </Badge>
@@ -259,16 +258,16 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
               </div>
               <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-2 text-[10px]">
-                  <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-400" /> {steps.filter(s => s.status === 'success').length} passed</span>
-                  <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-yellow-400" /> {steps.filter(s => s.status === 'warning').length} warnings</span>
-                  <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-400" /> {steps.filter(s => s.status === 'error').length} errors</span>
+                  <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> {steps.filter(s => s.status === 'success').length} passed</span>
+                  <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" /> {steps.filter(s => s.status === 'warning').length} warnings</span>
+                  <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-600 dark:text-red-400" /> {steps.filter(s => s.status === 'error').length} errors</span>
                 </div>
                 <Progress
                   value={overallScore}
                   className={`h-2 w-40 ${
-                    overallScore >= 80 ? '[&>div]:bg-emerald-400' :
-                    overallScore >= 50 ? '[&>div]:bg-yellow-400' :
-                    '[&>div]:bg-red-400'
+                    overallScore >= 80 ? '[&>div]:bg-emerald-600 dark:[&>div]:bg-emerald-400' :
+                    overallScore >= 50 ? '[&>div]:bg-yellow-600 dark:[&>div]:bg-yellow-400' :
+                    '[&>div]:bg-red-600 dark:[&>div]:bg-red-400'
                   }`}
                 />
               </div>
@@ -308,13 +307,13 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
                       'bg-muted/30'
                     }`}>
                       {step.status === 'running' ? (
-                        <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" />
+                        <Loader2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-spin" />
                       ) : step.status === 'success' ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       ) : step.status === 'warning' ? (
-                        <Shield className="h-4 w-4 text-yellow-400" />
+                        <Shield className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                       ) : step.status === 'error' ? (
-                        <XCircle className="h-4 w-4 text-red-400" />
+                        <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                       ) : (
                         <step.icon className="h-4 w-4 text-muted-foreground" />
                       )}
@@ -326,9 +325,9 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
                         <span className="text-xs font-medium">{step.name}</span>
                         {step.status !== 'pending' && step.status !== 'running' && (
                           <Badge variant="outline" className={`text-[8px] h-4 px-1.5 ${
-                            step.status === 'success' ? 'border-emerald-600/30 text-emerald-400' :
-                            step.status === 'warning' ? 'border-yellow-600/30 text-yellow-400' :
-                            'border-red-600/30 text-red-400'
+                            step.status === 'success' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' :
+                            step.status === 'warning' ? 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400' :
+                            'border-red-600/30 text-red-600 dark:text-red-400'
                           }`}>
                             {step.status === 'success' ? '✅ PASS' : step.status === 'warning' ? '⚠️ WARN' : '❌ FAIL'}
                           </Badge>

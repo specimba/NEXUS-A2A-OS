@@ -61,7 +61,10 @@ export function MiniAreaChart({
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '11px',
+            color: 'hsl(var(--foreground))',
           }}
+          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
         />
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -101,7 +104,10 @@ export function NexusBarChart({
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '11px',
+            color: 'hsl(var(--foreground))',
           }}
+          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
         />
         <Bar dataKey={dataKey} fill={color} radius={[3, 3, 0, 0]} />
       </BarChart>
@@ -185,11 +191,14 @@ export function NexusStackedAreaChart({
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '11px',
+            color: 'hsl(var(--foreground))',
           }}
+          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
           formatter={(value: number, name: string) => [`${value}%`, name]}
         />
         <Legend
-          wrapperStyle={{ fontSize: '10px' }}
+          wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }}
           iconType="circle"
           iconSize={8}
         />

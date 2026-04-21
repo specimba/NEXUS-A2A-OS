@@ -298,7 +298,10 @@ function MiniPieChart({ data, height = 120 }: { data: { name: string; value: num
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '11px',
+            color: 'hsl(var(--foreground))',
           }}
+          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
         />
       </PieChart>
     </ResponsiveContainer>
@@ -703,7 +706,10 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
                 fontSize: '11px',
+                color: 'hsl(var(--foreground))',
               }}
+              labelStyle={{ color: 'hsl(var(--foreground))' }}
+              itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
               formatter={(value: number, name: string) => {
                 if (name === 'trust') return [`${value.toFixed(0)}%`, 'Trust']
                 if (name === 'activity') return [value, 'Decisions']

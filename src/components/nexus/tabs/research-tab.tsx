@@ -834,17 +834,17 @@ export function ResearchTab() {
                 <div className="grid gap-3 md:grid-cols-5 relative">
                   {practiceSteps.map((s, i) => {
                     const emeraldLevels = [
-                      'bg-emerald-300/20 text-emerald-300 border-emerald-300/30',
+                      'bg-emerald-300/20 text-emerald-600 dark:text-emerald-300 border-emerald-300/30',
                       'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400 border-emerald-400/30',
-                      'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
-                      'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
+                      'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+                      'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-emerald-600/30',
                       'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400 border-emerald-700/30',
                     ]
                     const stepBadgeBg = [
-                      'bg-emerald-300/20 text-emerald-300',
+                      'bg-emerald-300/20 text-emerald-600 dark:text-emerald-300',
                       'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400',
-                      'bg-emerald-500/20 text-emerald-500',
-                      'bg-emerald-600/20 text-emerald-500',
+                      'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+                      'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400',
                       'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400',
                     ]
                     const isActive = practiceSessionActive && i === practiceStep

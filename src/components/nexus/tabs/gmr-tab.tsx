@@ -266,12 +266,16 @@ function RateLimitDashboard({ apiCallTimestamps, lastCallTime }: {
   apiCallTimestamps: number[]
   lastCallTime: number | null
 }) {
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(0)
 
-  // Tick every 200ms for smooth countdown
+  // Tick every 200ms for smooth countdown — start from 0 on SSR, first rAF sets real time
   useEffect(() => {
+    const raf = requestAnimationFrame(() => setNow(Date.now()))
     const interval = setInterval(() => setNow(Date.now()), 200)
-    return () => clearInterval(interval)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(interval)
+    }
   }, [])
 
   // Calculate calls in the last 60 seconds
@@ -622,10 +626,13 @@ function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   fontSize: '11px',
+                  color: 'hsl(var(--foreground))',
                 }}
+                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
                 formatter={(value: number, name: string) => [`${value}%`, name]}
               />
-              <Legend wrapperStyle={{ fontSize: '10px' }} iconType="circle" iconSize={8} />
+              <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }} iconType="circle" iconSize={8} />
               <Bar dataKey="health" name="Health" fill={COLORS.emerald} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
               <Bar dataKey="successRate" name="Success" fill={COLORS.blue} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
               <Bar dataKey="latency" name="Latency Score" fill={COLORS.orange} fillOpacity={0.7} radius={[2, 2, 0, 0]} />

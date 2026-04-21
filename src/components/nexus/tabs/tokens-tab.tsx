@@ -216,7 +216,7 @@ export function TokensTab() {
         cost: data.cost,
         trend: Array.from({ length: 8 }, (_, i) => ({
           name: String(i),
-          value: Math.max(0, data.tokens / 8 + Math.floor(Math.random() * 500) - 250),
+          value: Math.max(0, data.tokens / 8 + ((i * 137 + data.calls * 53) % 500) - 250),
         })),
       }))
       .sort((a, b) => b.tokens - a.tokens)
@@ -359,7 +359,7 @@ export function TokensTab() {
           <CardContent className="p-8 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-                <Database className="h-8 w-8 text-emerald-500" />
+                <Database className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold mb-1">No Token Usage Data Yet</h3>
@@ -438,7 +438,10 @@ export function TokensTab() {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '11px',
+                    color: 'hsl(var(--foreground))',
                   }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
                 />
                 <defs>
                   <linearGradient id="hourlyGrad" x1="0" y1="0" x2="0" y2="1">
@@ -801,7 +804,7 @@ export function TokensTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 gap-1 text-[10px] shrink-0 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                    className="h-7 gap-1 text-[10px] shrink-0 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 dark:hover:text-emerald-300"
                     onClick={() => handleApplySuggestion(s.id, s.title)}
                   >
                     <Check className="h-3 w-3" />
