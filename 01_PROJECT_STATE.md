@@ -102,7 +102,7 @@ Current root files with related functionality:
 1. DoppelGround leak status must be resolved before external handoff or public repo flip.
 2. Dashboard/relay still needs real governance API wiring.
 3. GSPP reference assets from Downloads need reconciliation before they become canonical.
-4. Public launch files still need security/legal review before staging.
+4. Public launch files still need security/legal review before public release.
 5. Sandbox/mock env files must not be committed without an explicit policy decision.
 
 ## Canonical P0 Sequence
@@ -128,11 +128,10 @@ Current root files with related functionality:
 
 These files/directories are currently untracked and intentionally not committed yet:
 
-- `CONTRIBUTING.md`
-- `ONBOARDING.md`
 - `nexus_knowledge_base/`
 - `sandbox/`
 - `test_integration.py`
 
 Reason: they contain policy, onboarding, sandbox, or integration-test draft content that needs separate content/security review.
 
+`CONTRIBUTING.md` and `ONBOARDING.md` have been promoted to canonical documentation once reviewed and committed.
