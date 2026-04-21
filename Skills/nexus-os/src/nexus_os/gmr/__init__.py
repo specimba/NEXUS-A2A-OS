@@ -184,3 +184,15 @@ class TALEstimator:
         actuals   = entry["actuals"][-5:]
         ratio     = sum(actuals) / (len(actuals) * estimated) if estimated else 1.0
         entry["ratio"] = max(0.1, min(3.0, ratio))  # clamp to reasonable range
+
+    def get_efficiency_ratio(self, prompt: str = "") -> float:
+        """Self-calibration ratio: avg(actual) / avg(estimated) across all tasks."""
+        all_actuals = []
+        all_estimated = []
+        for entry in self._estimates.values():
+            if entry["actuals"]:
+                all_actuals.append(sum(entry["actuals"]) / len(entry["actuals"]))
+                all_estimated.append(entry["estimated"])
+        if not all_actuals:
+            return 1.0
+        return max(0.1, min(3.0, sum(all_actuals) / max(1, sum(all_estimated))))
