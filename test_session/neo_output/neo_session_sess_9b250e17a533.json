@@ -1,0 +1,19 @@
+{
+  "session_id": "sess_9b250e17a533",
+  "session_path": "c:\\Users\\speci.000\\Documents\\NEXUS\\test_session",
+  "created_at": "2026-04-21T23:59:49.670546",
+  "quality_metrics": {
+    "overall": 3.33,
+    "coverage": 5.0,
+    "consistency": 5.0,
+    "evidence_count": 3,
+    "avg_quality": 3.33
+  },
+  "export_sections": [
+    "executive_summary",
+    "key_findings"
+  ],
+  "mission_count": 1,
+  "repo_count": 1,
+  "wiki_count": 0
+}

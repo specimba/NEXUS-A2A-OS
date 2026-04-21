@@ -1,0 +1,72 @@
+{
+  "total_evidence": 3,
+  "by_type": {
+    "session_export": 1,
+    "mission_batch": 1,
+    "repo_inspection": 1
+  },
+  "by_quality": {
+    "FAIR": 2,
+    "GOOD": 1
+  },
+  "validation_rate": 1.0,
+  "avg_quality": 3.3333333333333335,
+  "evidence_items": [
+    {
+      "evidence_id": "ev_baa969a183c7",
+      "evidence_type": "session_export",
+      "source_path": "c:\\Users\\speci.000\\Documents\\NEXUS\\test_session\\SESSION_EXPORT.md",
+      "content_hash": "6c5ae854aa8f9762",
+      "timestamp": "2026-04-21T23:59:49.669633",
+      "quality_score": 3,
+      "quality_label": "FAIR",
+      "metadata": {
+        "file_size": 164,
+        "last_modified": "2026-04-21T23:55:43.439045",
+        "sections_found": [
+          "executive_summary",
+          "key_findings"
+        ]
+      },
+      "content_preview": "# Test Session Export  \n## Executive Summary  \nThis is a test session for NEO grounding.  \n## Key Findings  \n- Finding 1: Test finding  \n- Finding 2: Another test \n",
+      "cross_references": [
+        "ev_189483dc4c05"
+      ],
+      "validation_status": "validated"
+    },
+    {
+      "evidence_id": "ev_189483dc4c05",
+      "evidence_type": "mission_batch",
+      "source_path": "c:\\Users\\speci.000\\Documents\\NEXUS\\test_session\\mission_batch_v2.json",
+      "content_hash": "15f504b56caa82b3",
+      "timestamp": "2026-04-21T23:59:49.669822",
+      "quality_score": 4,
+      "quality_label": "GOOD",
+      "metadata": {
+        "source": "c:\\Users\\speci.000\\Documents\\NEXUS\\test_session\\mission_batch_v2.json",
+        "mission_count": 1,
+        "file_size": 104
+      },
+      "content_preview": "[{\"id\": \"test-mission-1\", \"title\": \"Test Mission\", \"description\": \"A test mission for NEO grounding\"}] \n",
+      "cross_references": [],
+      "validation_status": "validated"
+    },
+    {
+      "evidence_id": "ev_78f714cc67db",
+      "evidence_type": "repo_inspection",
+      "source_path": "c:\\Users\\speci.000\\Documents\\NEXUS\\test_session\\review\\repo_inspections\\test_repo.md",
+      "content_hash": "e1b8c61250db9dda",
+      "timestamp": "2026-04-21T23:59:49.670478",
+      "quality_score": 3,
+      "quality_label": "FAIR",
+      "metadata": {
+        "repo_name": "test_repo",
+        "content_length": 63,
+        "findings_count": 1
+      },
+      "content_preview": "# Repo Inspection Test  \n## Finding: Test code review finding \n",
+      "cross_references": [],
+      "validation_status": "validated"
+    }
+  ]
+}
