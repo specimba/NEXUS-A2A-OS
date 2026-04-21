@@ -1,0 +1,5 @@
+{
+  "icon": "arrow-left-right",
+  "tags": ["finance"],
+  "integrations": ["okx"]
+}

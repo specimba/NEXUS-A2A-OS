@@ -1,0 +1,10 @@
+{
+  "icon": "lastfm",
+  "tags": [
+    "entertainment",
+    "data"
+  ],
+  "integrations": [
+    "lastfm"
+  ]
+}

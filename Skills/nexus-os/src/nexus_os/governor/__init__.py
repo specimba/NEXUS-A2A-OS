@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple
 import time, math
 
-# ── Enums ────────────────────────────────────────────────────────────────────
 class Scope(Enum):
     SELF = "self"; PROJECT = "project"; CROSS = "cross"; SYSTEM = "system"
 class Impact(Enum):
@@ -12,7 +11,6 @@ class Impact(Enum):
 class Decision(Enum):
     ALLOW = "allow"; DENY = "deny"; HOLD = "hold"
 
-# ── Lane thresholds (P0b calibrated via OR-Bench) ───────────────────────────
 _LANES: Dict[str, Tuple[float, int, float]] = {
     "research":    (0.35, 7, 0.80),
     "review":      (0.55, 4, 0.60),
@@ -23,9 +21,6 @@ _LANES: Dict[str, Tuple[float, int, float]] = {
 
 _SUSPICIOUS_PATTERNS = ["delete all", "rm -rf", "exfiltrate", "backdoor", "sudo rm"]
 
-# ── RigorLLM Fusion Guardrail ─────────────────────────────────────────────────
-# KNN local classifier + LLM judgment. Resilient to jailbreaks.
-# ArXiv 2403.13031 — fusion KNN+LLM outperforms OpenAI and Perspective APIs.
 _KNN_PATTERNS = [
     "ignore previous instructions", "disregard system prompt",
     "you are now", "pretend you are", "roleplay as",
@@ -47,8 +42,6 @@ def _llm_judgment(text: str) -> float:
     return min(1.0, score)
 
 class RigorLLMGate:
-    """P2c: RigorLLM KNN+LLM fusion guardrail. λ=0.5 balances both signals.
-    Thresholds: <0.35 ALLOW, 0.35–0.65 HOLD, >0.65 DENY."""
     def __init__(self, domain: str = "general", lambda_knn: float = 0.5):
         self.domain = domain
         self.lambda_knn = lambda_knn
@@ -67,19 +60,15 @@ class RigorLLMGate:
         return GuardResult(passed=decision == Decision.ALLOW, score=s, flags=[decision.value])
 
 class ShieldGemmaGate:
-    """P1a: ShieldGemma-2B gate (+10.8% AU-PRC over Llama Guard).
-    ArXiv 2407.21772. Minimal production stub — replace with real ShieldGemma model."""
     RISK_LEVELS = {"LOW": 0.2, "MED": 0.5, "HIGH": 0.75, "CRIT": 0.95}
     def check(self, text: str, risk_level: str = "LOW") -> "GuardResult":
         threshold = self.RISK_LEVELS.get(risk_level, 0.5)
-        score = _knn_score("general", text)  # lightweight proxy
+        score = _knn_score("general", text)
         passed = score < threshold
         flags = [f"shield_score:{score:.3f}"] if not passed else []
         return GuardResult(passed=passed, score=score, flags=flags)
 
 class AEGISGate:
-    """P1a: AEGIS ensemble safety — 13 critical + 9 sparse risk categories.
-    ArXiv 2404.05993. Stub: just uses KNN patterns for now."""
     CRITICAL_RISKS = ["weapon", "exploit", "malware", "phishing", "ransomware", "dox"]
     SPARSE_RISKS   = ["social_engineering", "manipulation", "deception", "fraud"]
     def check(self, text: str, risk_level: str = "LOW") -> "GuardResult":
@@ -94,19 +83,13 @@ class AEGISGate:
         return GuardResult(passed=passed, score=score, flags=flags)
 
 class ComplianceGate:
-    """P2c: Compliance checks — scope, action type, resource sensitivity."""
     SENSITIVE_ACTIONS = ["delete", "rm", "sudo", "drop", "truncate", "exec"]
     SENSITIVE_SCOPES   = [Scope.SYSTEM, Scope.CROSS]
-
     def check(self, action: str, scope: Scope = Scope.PROJECT, resource: str = "") -> "GuardResult":
-        # Scope gate
         if scope in self.SENSITIVE_SCOPES:
-            flags = [f"sensitive_scope:{scope.value}"]
-            return GuardResult(passed=False, score=0.9, flags=flags)
-        # Action gate
+            return GuardResult(passed=False, score=0.9, flags=[f"sensitive_scope:{scope.value}"])
         if any(sa in action.lower() for sa in self.SENSITIVE_ACTIONS):
-            flags = [f"sensitive_action:{action[:40]}"]
-            return GuardResult(passed=False, score=0.8, flags=flags)
+            return GuardResult(passed=False, score=0.8, flags=[f"sensitive_action:{action[:40]}"])
         return GuardResult(passed=True, score=0.0, flags=[])
 
 class GuardResult:
@@ -147,12 +130,11 @@ class Governor:
         }
 
     def guard(self, text: str, domain: str = "general") -> dict:
-        """Run all fusion guardrails on text. P2c."""
         score    = self.rigor.score(text)
-        rigor_r  = self.rigor.check(text).decision.value
+        rigor_r  = "allow" if self.rigor.check(text).passed else "deny"
         shield_r = self.shield.check(text).passed
         aegis_r  = self.aegis.check(text).passed
-        passed   = (rigor_r == Decision.ALLOW.value and shield_r and aegis_r)
+        passed   = (rigor_r == "allow" and shield_r and aegis_r)
         evidence = {
             "rigor_score": score, "rigor_decision": rigor_r,
             "shield_passed": shield_r, "aegis_passed": aegis_r,
@@ -164,5 +146,4 @@ class Governor:
         return list(self._proof_chain)
 
     def audit(self, action: str, scope: Scope = Scope.PROJECT, resource: str = "") -> GuardResult:
-        """P2c: compliance audit with scope + action sensitivity."""
         return self.compliance.check(action, scope, resource)
