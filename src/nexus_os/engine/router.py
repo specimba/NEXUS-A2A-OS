@@ -125,12 +125,18 @@ class EngineRouter:
         """
         DFS-based cycle detection.
         Adding new_task_id with given dependencies creates a cycle if
-        any dependency can reach new_task_id through the existing graph.
+        any dependency can reach new_task_id going DOWNSTREAM (parent->child).
+
+        Edge semantics: (parent_task_id, child_task_id) means child depends on parent.
+        Direction of execution flow: parent -> child.
+        To detect a cycle when adding D->X, we check: can D reach X going downstream?
         """
         visited: set = set()
         stack: set = set()
 
         def _dfs(tid: str) -> bool:
+            if tid == new_task_id:
+                return True
             if tid in stack:
                 return True
             if tid in visited:
@@ -139,15 +145,15 @@ class EngineRouter:
             stack.add(tid)
 
             rows = conn.execute(
-                "SELECT parent_task_id FROM task_dependencies WHERE child_task_id = ?",
+                "SELECT child_task_id FROM task_dependencies WHERE parent_task_id = ?",
                 (tid,),
             ).fetchall()
             for row in rows:
                 if _dfs(row[0]):
-                    stack.remove(tid)
+                    stack.discard(tid)
                     return True
 
-            stack.remove(tid)
+            stack.discard(tid)
             return False
 
         for dep_id in dependencies:
@@ -263,6 +269,66 @@ class EngineRouter:
             (status.value, task_id),
         )
         conn.commit()
+
+    def add_dependency(self, parent_task_id: str, child_task_id: str):
+        """
+        Add a dependency edge: child_task_id depends on parent_task_id.
+        Checks for cycles before inserting. Raises ValueError if cycle detected.
+        """
+        if parent_task_id == child_task_id:
+            raise ValueError(f"Self-loop detected: {parent_task_id} depends on itself")
+
+        conn = self.db.get_connection()
+
+        existing = conn.execute(
+            "SELECT 1 FROM task_dependencies WHERE parent_task_id = ? AND child_task_id = ?",
+            (parent_task_id, child_task_id),
+        ).fetchone()
+        if existing:
+            return
+
+        if self._would_create_cycle_existing(parent_task_id, child_task_id, conn):
+            raise ValueError(
+                f"Circular dependency detected: adding {parent_task_id}->{child_task_id} would create a cycle"
+            )
+
+        conn.execute(
+            "INSERT INTO task_dependencies (parent_task_id, child_task_id) VALUES (?, ?)",
+            (parent_task_id, child_task_id),
+        )
+        conn.commit()
+
+    def _would_create_cycle_existing(
+        self, parent_task_id: str, child_task_id: str, conn
+    ) -> bool:
+        """
+        Check if adding edge parent->child creates a cycle.
+        A cycle exists if child can reach parent going downstream.
+        """
+        visited: set = set()
+        stack: set = set()
+
+        def _dfs(tid: str) -> bool:
+            if tid == parent_task_id:
+                return True
+            if tid in visited:
+                return False
+            visited.add(tid)
+            stack.add(tid)
+
+            rows = conn.execute(
+                "SELECT child_task_id FROM task_dependencies WHERE parent_task_id = ?",
+                (tid,),
+            ).fetchall()
+            for row in rows:
+                if _dfs(row[0]):
+                    stack.discard(tid)
+                    return True
+
+            stack.discard(tid)
+            return False
+
+        return _dfs(child_task_id)
 
     def get_project_tasks(self, project_id: str) -> List[Dict[str, Any]]:
         """Get all tasks for a project with their statuses."""
