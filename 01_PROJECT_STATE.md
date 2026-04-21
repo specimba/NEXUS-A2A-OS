@@ -77,6 +77,11 @@ Current root files with related functionality:
 - `langfuse_tracker.py`
 - `supabase_client.py`
 
+Phase 0 guidance documents:
+
+- `PHASE0_IMPLEMENTATION_PACKAGE.md`
+- `CODEX_HANDOFF.md`
+
 ## Accepted Principles
 
 - Governance Control Plane first: Python/FastAPI is canonical.
@@ -104,6 +109,7 @@ Current root files with related functionality:
 3. GSPP reference assets from Downloads need reconciliation before they become canonical.
 4. Public launch files still need security/legal review before public release.
 5. Sandbox/mock env files must not be committed without an explicit policy decision.
+6. Review-chain package claims must be grounded against tracked repo files before implementation.
 
 ## Canonical P0 Sequence
 
