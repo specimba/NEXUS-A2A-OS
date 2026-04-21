@@ -36,8 +36,10 @@ wheels/
 
 # NEXUS OS Specific
 .pytest_cache/
+.pytest_tmp/
 tests_tmp/
 tmp_pytest_*/
+tmp*/
 .nexus_pytest_tmp/
 venv/
 *.db
@@ -46,6 +48,18 @@ EVIDENCE.md
 worklog.md
 sandbox_p0_changes.patch
 test_skill_adapter.db
+
+# Local evidence and grounding artifacts (not canonical Git history)
+.kilocode/
+GroundingCollectiveBackup/
+research/history/
+
+# Local sandbox and scratch files
+sandbox/
+/test_integration.py
+
+# Archives / bundles
+*.zip
 
 # OS
 .DS_Store
