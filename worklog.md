@@ -1584,3 +1584,80 @@ Files Modified:
 - src/components/nexus/export-button.tsx (bulk)
 - src/components/nexus/system-architecture.tsx (bulk)
 - src/components/nexus/global-export-dialog.tsx (bulk)
+
+---
+Task ID: grounded-pack-integration
+Agent: main
+Task: Integrate NEXUS OS Grounded Pack — TrustEngine v2.2, Cloud Orchestrator, CDR Visualization
+
+Work Log:
+- Reviewed all grounded pack content: TrustEngine v2.2, Cloud Orchestrator SOUL.md/HEARTBEAT.md, Kiloclaw Moveable Heartbeat Protocol, NEXUS OS v3.0 Final Consolidated State, Codex Team Integration Report, 01_PROJECT_STATE.md
+- Created TrustEngine v2.2 Python module (nexus_os/governor/trust_engine_v2.py):
+  - Full HARDWALL defense stack: logistic scaling, adaptive temporal decay, non-compensatory CRITICAL hard block, 6-stage CDR state machine, asymptotic plateau
+  - DangerLevel enum (SAFE/CAUTION/RESTRICTED/HIGH_RISK/CRITICAL)
+  - CDRStage enum with severity ranking and escalation logic
+  - TrustRecord dataclass with convergence, regression, velocity tracking
+  - TrustUpdateResult with full telemetry output
+  - V3 VaultManager integration (store_track / retrieve_track)
+  - Research metrics endpoint (convergence_rate, regression_rate, trust_velocity)
+  - Trust matrix and per-lane trust computation
+  - Agent reset and query methods
+- Created SOUL.md — Cloud Orchestrator identity document with core directives, operating constraints, architecture boundaries, rejected patterns
+- Created HEARTBEAT.md — Moveable Strategy with T+00 to T+30 heartbeat protocol, circuit breaker table, state tracking
+- Created 01_PROJECT_STATE.md — Canonical project state document with verification gate, architecture map, accepted principles, P0 sequence, port map, TrustEngine v2.2 configuration
+- Created handoff/ directory structure (to_local/ and from_local/ with README.md task protocol files)
+- Created nexus-scan.py — DRY-RUN provenance scanner:
+  - SHA-256 file hashing
+  - Binary detection
+  - Secret pattern scanning (API_KEY, PRIVATE_KEY, TOKEN, PASSWORD, SECRET, AWS_KEY, GITHUB_TOKEN)
+  - Skip dirs (.git, node_modules, __pycache__, etc.)
+  - Circuit breaker protocol
+  - JSON inventory output
+  - Summary report
+- Created /api/trust-engine API route:
+  - GET /api/trust-engine — Full trust matrix + CDR distribution + health summary
+  - GET /api/trust-engine?agent=worker-1 — Per-agent research metrics
+  - CDR stage computation from agent trust scores and regression events
+  - Per-lane trust with lane modifiers
+  - HARDWALL configuration in response
+- Added CDRStageMachine component to Governor tab:
+  - Vertical 6-stage CDR pipeline visualization
+  - Active/inactive stage highlighting
+  - Connecting arrows with SVG triangles
+  - System CDR status badge
+  - Recovery path indicator
+- Added TrustEnginePanel component to Governor tab:
+  - Health summary grid (Total, Healthy, Degraded, Collapsed agents)
+  - Average trust bar
+  - Trust velocity per agent with colored indicators
+  - HARDWALL configuration grid
+  - Logistic scaling curve using LineChart
+- All lint checks pass (bun run lint — zero errors)
+- Dev server running cleanly on port 3000
+
+Stage Summary:
+- 1 Python module created: nexus_os/governor/trust_engine_v2.py (TrustEngine v2.2 with HARDWALL defenses)
+- 3 project documents created: SOUL.md, HEARTBEAT.md, 01_PROJECT_STATE.md
+- 1 Python script created: nexus-scan.py (DRY-RUN provenance scanner)
+- 1 API route created: /api/trust-engine (trust matrix + CDR + HARDWALL config)
+- 2 directory structures created: handoff/to_local, handoff/from_local
+- 2 new components added to Governor tab: CDRStageMachine, TrustEnginePanel
+- Grounded pack fully integrated into the cloud sandbox project
+- No lint violations, no compilation errors, dev server clean
+
+Current Project Status:
+- Full NEXUS OS Command Center with 8 tabs, AI Assistant, Command Palette, System Logs
+- TrustEngine v2.2 integrated into Governor tab with CDR visualization and HARDWALL panel
+- Python backend: 66 modules across 9 packages (governor, bridge, vault, engine, gmr, swarm, monitoring, observability, stresslab)
+- Cloud orchestration: SOUL.md + HEARTBEAT.md + handoff directories + nexus-scan.py
+- Canonical state: 01_PROJECT_STATE.md with verified 617-test baseline
+- All API routes functional: /api/governor, /api/trust-engine, /api/models, /api/tokens, etc.
+
+Unresolved / Next Phase:
+1. Build FastAPI governance server wrapping GovernorSkillGate (/skills/propose, /skills/status/{id}, etc.)
+2. Wire dashboard to consume real Python governance API (currently proxied through Next.js routes)
+3. Fix DoppelGround gitleaks (1919 flagged) before external handoff
+4. Push local NEXUS OS work to GitHub (local is ahead)
+5. Add more ISC-Bench templates (currently 12, target 84)
+6. Light theme styling pass
+7. WebSocket for real-time worker/trust updates

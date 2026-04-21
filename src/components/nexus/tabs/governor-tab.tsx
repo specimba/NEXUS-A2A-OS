@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Plus, ShieldAlert, GitBranch, BookOpen, Loader2 } from 'lucide-react'
+import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Plus, ShieldAlert, GitBranch, BookOpen, Loader2, Brain, Activity } from 'lucide-react'
 import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { useApiData } from '@/hooks/use-api-data'
@@ -39,7 +39,7 @@ const governorDecisionsColumnHeaders: Record<string, string> = {
   trust: 'Trust Score',
 }
 
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis } from 'recharts'
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, LineChart, Line } from 'recharts'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -905,9 +905,372 @@ interface SystemAPIResponse {
   constitution: ConstitutionConfig | null
 }
 
+// ─── TrustEngine API Types ───
+
+interface TrustMatrixEntry {
+  agent_id: string
+  overall_trust: number
+  cdr_stage: string
+  cdr_severity: number
+  primary_lane: string
+  convergence_turns: number
+  regression_events: number
+  total_validations: number
+  peak_trust: number
+  trust_velocity: number
+  asymptotic_plateau: boolean
+  disagreement_rate: number
+  lane_details: {
+    lane: string
+    trust: number
+    cdr_stage: string
+    convergence_turns: number
+    regression_events: number
+    total_validations: number
+    trust_velocity: number
+    asymptotic_plateau: boolean
+  }[]
+}
+
+interface CDRStageDef {
+  id: string
+  severity: number
+  color: string
+  description: string
+}
+
+interface CDRDistributionEntry extends CDRStageDef {
+  count: number
+}
+
+interface HealthSummary {
+  total_agents: number
+  healthy: number
+  degraded: number
+  collapsed: number
+  avg_trust: number
+  system_cdr: string
+}
+
+interface HardwallConfig {
+  baseline_score: number
+  max_score: number
+  success_base_delta: number
+  failure_delta: number
+  critical_delta: number
+  logistic_center: number
+  logistic_steepness: number
+  base_decay_lambda: number
+  cdr_collapse_threshold: number
+  cdr_escalation_threshold: number
+}
+
+interface TrustEngineAPIResponse {
+  trust_matrix: TrustMatrixEntry[]
+  cdr_stages: CDRStageDef[]
+  cdr_distribution: CDRDistributionEntry[]
+  danger_levels: { id: string; value: number; color: string }[]
+  health_summary: HealthSummary
+  hardwall_config: HardwallConfig
+}
+
+// ─── CDR Stage Machine Visualization ───
+
+function CDRStageMachine({ data }: { data: TrustEngineAPIResponse | null }) {
+  const cdrStages = data?.cdr_stages ?? []
+  const cdrDistribution = data?.cdr_distribution ?? []
+  const healthSummary = data?.health_summary ?? null
+
+  // Build a lookup for distribution counts
+  const countLookup = useMemo(() => {
+    const map: Record<string, number> = {}
+    cdrDistribution.forEach((d) => {
+      map[d.id] = d.count
+    })
+    return map
+  }, [cdrDistribution])
+
+  // Determine system CDR status styling
+  const systemCdr = healthSummary?.system_cdr ?? 'NORMAL'
+  const systemCdrColor = systemCdr === 'CASCADE' ? 'text-red-600 dark:text-red-400' : systemCdr === 'DEGRADED' ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'
+  const systemCdrBg = systemCdr === 'CASCADE' ? 'bg-red-600/10 border-red-600/20' : systemCdr === 'DEGRADED' ? 'bg-yellow-600/10 border-yellow-600/20' : 'bg-emerald-600/10 border-emerald-600/20'
+
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="h-4 w-4 text-orange-600 dark:text-orange-400" /> CDR Stage Machine
+          </CardTitle>
+          {healthSummary && (
+            <Badge className={`text-[9px] border-0 ${systemCdrBg} ${systemCdrColor}`}>
+              System: {systemCdr}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        {/* Escalation pipeline */}
+        <div className="space-y-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Escalation Path</p>
+          {cdrStages.map((stage, i) => {
+            const count = countLookup[stage.id] ?? 0
+            const isActive = count > 0
+            return (
+              <div key={stage.id}>
+                <div className="flex items-center gap-2">
+                  {/* Stage node */}
+                  <div
+                    className={`flex-1 rounded-lg border p-2.5 transition-all ${
+                      isActive
+                        ? 'border-opacity-40 shadow-sm'
+                        : 'opacity-40 border-border/30 bg-muted/20'
+                    }`}
+                    style={isActive ? {
+                      borderColor: stage.color + '66',
+                      backgroundColor: stage.color + '10',
+                    } : undefined}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        <span className={`text-xs font-medium truncate ${isActive ? '' : 'text-muted-foreground'}`}>
+                          {stage.id}
+                        </span>
+                        <Badge variant="outline" className="text-[8px] shrink-0 tabular-nums">
+                          S{stage.severity}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isActive && (
+                          <Badge
+                            className="text-[8px] border-0 tabular-nums"
+                            style={{ backgroundColor: stage.color + '20', color: stage.color }}
+                          >
+                            {count} agent{count !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <p className={`text-[10px] mt-1 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                      {stage.description}
+                    </p>
+                  </div>
+                </div>
+                {/* Arrow to next stage */}
+                {i < cdrStages.length - 1 && (
+                  <div className="flex items-center justify-center py-0.5">
+                    <div className="flex flex-col items-center">
+                      <div className="h-2 w-px" style={{ backgroundColor: isActive ? stage.color + '80' : 'hsl(var(--border))' }} />
+                      <svg width="8" height="6" className="shrink-0">
+                        <polygon points="0,0 8,0 4,6" fill={isActive ? stage.color + '80' : 'hsl(var(--border))'} />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Recovery path indicator */}
+        <div className="mt-4 rounded-md border border-emerald-600/15 bg-emerald-600/5 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" className="shrink-0 text-emerald-600 dark:text-emerald-400">
+              <path d="M2 8 C2 4, 6 1, 10 3 C12 4, 14 6, 12 8" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              <polygon points="12,6 14,9 10,8" fill="currentColor" />
+            </svg>
+            <div>
+              <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Recovery Path</p>
+              <p className="text-[9px] text-muted-foreground">Any CDR stage can recover to Normal via sustained trust rebuilding</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── TrustEngine HARDWALL Panel ───
+
+function TrustEnginePanel({ data }: { data: TrustEngineAPIResponse | null }) {
+  const hardwallConfig = data?.hardwall_config ?? null
+  const healthSummary = data?.health_summary ?? null
+  const trustMatrix = data?.trust_matrix ?? []
+
+  // Generate logistic curve data points (deterministic, no Math.random)
+  const logisticCurveData = useMemo(() => {
+    const center = hardwallConfig?.logistic_center ?? 0.50
+    const steepness = hardwallConfig?.logistic_steepness ?? 0.10
+    const baseline = hardwallConfig?.baseline_score ?? 0.25
+    const maxScore = hardwallConfig?.max_score ?? 0.995
+    const points: { x: number; y: number }[] = []
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20
+      const logistic = baseline + (maxScore - baseline) / (1 + Math.exp(-steepness * 100 * (t - center * 2)))
+      points.push({ x: Math.round(t * 100), y: Math.round(logistic * 1000) / 1000 })
+    }
+    return points
+  }, [hardwallConfig])
+
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> TrustEngine HARDWALL
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-4">
+        {/* Health Summary */}
+        {healthSummary && (
+          <div className="grid grid-cols-4 gap-2">
+            <div className="rounded-lg bg-accent/30 p-2.5 text-center">
+              <p className="text-lg font-bold tabular-nums">{healthSummary.total_agents}</p>
+              <p className="text-[9px] text-muted-foreground">Total</p>
+            </div>
+            <div className="rounded-lg bg-emerald-600/10 p-2.5 text-center">
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{healthSummary.healthy}</p>
+              <p className="text-[9px] text-muted-foreground">Healthy</p>
+            </div>
+            <div className="rounded-lg bg-yellow-600/10 p-2.5 text-center">
+              <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400 tabular-nums">{healthSummary.degraded}</p>
+              <p className="text-[9px] text-muted-foreground">Degraded</p>
+            </div>
+            <div className="rounded-lg bg-red-600/10 p-2.5 text-center">
+              <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">{healthSummary.collapsed}</p>
+              <p className="text-[9px] text-muted-foreground">Collapsed</p>
+            </div>
+          </div>
+        )}
+
+        {/* Avg Trust */}
+        {healthSummary && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground">Average Trust</span>
+              <span className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{healthSummary.avg_trust.toFixed(3)}</span>
+            </div>
+            <Progress value={healthSummary.avg_trust * 100} className="h-2" />
+          </div>
+        )}
+
+        {/* Trust Velocity per Agent */}
+        {trustMatrix.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Trust Velocity</p>
+            <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-1.5">
+              {trustMatrix.map((agent) => {
+                const maxVelocity = 0.5
+                const barPercent = Math.min(100, (agent.trust_velocity / maxVelocity) * 100)
+                const barColor = agent.trust_velocity > 0.3 ? 'bg-red-500' : agent.trust_velocity > 0.15 ? 'bg-yellow-500' : 'bg-emerald-500'
+                const plateauColor = agent.asymptotic_plateau ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'
+                return (
+                  <div key={agent.agent_id} className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-medium truncate">{agent.agent_id}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono tabular-nums">{agent.trust_velocity.toFixed(3)}</span>
+                        <span className={`text-[8px] font-medium ${plateauColor}`}>
+                          {agent.asymptotic_plateau ? 'PLATEAU' : 'CONVERGED'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                      <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${barPercent}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* HARDWALL Config Grid */}
+        {hardwallConfig && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">HARDWALL Configuration</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { label: 'Baseline', value: hardwallConfig.baseline_score.toFixed(2) },
+                { label: 'Max Score', value: hardwallConfig.max_score.toFixed(3) },
+                { label: 'Success Δ', value: `+${hardwallConfig.success_base_delta.toFixed(2)}` },
+                { label: 'Failure Δ', value: hardwallConfig.failure_delta.toFixed(2) },
+                { label: 'Critical Δ', value: hardwallConfig.critical_delta.toFixed(2) },
+                { label: 'Decay λ', value: hardwallConfig.base_decay_lambda.toFixed(3) },
+                { label: 'CDR Collapse', value: `<${hardwallConfig.cdr_collapse_threshold.toFixed(2)}` },
+                { label: 'CDR Escalation', value: `<${hardwallConfig.cdr_escalation_threshold.toFixed(2)}` },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-md bg-accent/20 px-2 py-1.5">
+                  <span className="text-[9px] text-muted-foreground">{item.label}</span>
+                  <span className="text-[10px] font-mono font-medium tabular-nums">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Logistic Scaling Curve */}
+        {hardwallConfig && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Logistic Scaling Curve</p>
+              <span className="text-[9px] text-muted-foreground">
+                k={hardwallConfig.logistic_steepness} · c={hardwallConfig.logistic_center}
+              </span>
+            </div>
+            <div className="h-24">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={logisticCurveData} margin={{ top: 2, right: 8, bottom: 2, left: 0 }}>
+                  <XAxis
+                    dataKey="x"
+                    type="number"
+                    domain={[0, 100]}
+                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickCount={3}
+                  />
+                  <YAxis
+                    dataKey="y"
+                    type="number"
+                    domain={[0, 1]}
+                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickCount={3}
+                    tickFormatter={(v: number) => v.toFixed(1)}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="y"
+                    stroke="#34d399"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-[9px] text-muted-foreground">
+              Trust converges asymptotically toward {hardwallConfig.max_score} using logistic scaling —
+              initial rapid gains slow as score approaches ceiling.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function GovernorTab() {
   const { data: apiData, loading, refetch } = useApiData<GovernorAPIResponse>('/api/governor', 15000)
   const { data: systemData } = useApiData<SystemAPIResponse>('/api/system', 60000)
+  const { data: trustEngineData } = useApiData<TrustEngineAPIResponse>('/api/trust-engine', 30000)
 
   // Transform API data to UI types
   const decisions = useMemo<DecisionUI[]>(() => {
@@ -1228,6 +1591,12 @@ export function GovernorTab() {
             />
           </CardContent>
         </Card>
+      </div>
+
+      {/* CDR Stage Machine + TrustEngine HARDWALL Panel */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CDRStageMachine data={trustEngineData} />
+        <TrustEnginePanel data={trustEngineData} />
       </div>
 
       {/* Decision Timeline + Agent Risk Matrix */}
