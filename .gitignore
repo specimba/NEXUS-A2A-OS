@@ -58,6 +58,10 @@ research/history/
 sandbox/
 /test_integration.py
 
+# Local agent playgrounds and generated launchers
+/.tmp/
+/neo_exec_*.bat
+
 # Archives / bundles
 *.zip
 
