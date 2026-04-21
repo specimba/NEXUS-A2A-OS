@@ -1,0 +1,169 @@
+{
+  "generated": "2026-04-16T09:15:00Z",
+  "modelrelay_status": {
+    "online_count": 74,
+    "providers": 10,
+    "version": "v1.13.2"
+  },
+  "domains": {
+    "code": {
+      "description": "Code generation, debugging, implementation",
+      "primary": [
+        {"model": "osman-coder", "provider": "ollama", "tier": 40, "latency_ms": 50, "cost_per_1m": 0, "status": "local"},
+        {"model": "Devstral 2 123B", "provider": "nvidia", "tier": 86, "latency_ms": 542, "cost_per_1m": 4.0, "status": "up"},
+        {"model": "Qwen3 Coder 480B", "provider": "nvidia", "tier": 82, "latency_ms": 9897, "cost_per_1m": 8.0, "status": "up"},
+        {"model": "GPT OSS 120B", "provider": "nvidia", "tier": 58, "latency_ms": 398, "cost_per_1m": 3.0, "status": "up"},
+        {"model": "Codestral", "provider": "codestral", "tier": 53, "latency_ms": 464, "cost_per_1m": 2.0, "status": "up"},
+        {"model": "Qwen2.5 Coder 32B", "provider": "nvidia", "tier": 42, "latency_ms": 591, "cost_per_1m": 1.0, "status": "up"}
+      ],
+      "fallback_chain": ["osman-coder", "qwen2.5-coder:7b", "Codestral", "GPT OSS 20B", "Nemotron Super 49B"],
+      "recommended_for": ["implementation", "debugging", "refactoring", "review"]
+    },
+    "reasoning": {
+      "description": "Deep analysis, planning, architecture decisions",
+      "primary": [
+        {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
+        {"model": "Kimi K2 Thinking", "provider": "nvidia", "tier": 84, "latency_ms": 709, "cost_per_1m": 4.0, "status": "up"},
+        {"model": "Qwen3 80B Thinking", "provider": "nvidia", "tier": 72, "latency_ms": 522, "cost_per_1m": 3.0, "status": "up"},
+        {"model": "Mistral Large 675B", "provider": "nvidia", "tier": 53, "latency_ms": 480, "cost_per_1m": 3.0, "status": "up"},
+        {"model": "osman-reasoning", "provider": "ollama", "tier": 40, "latency_ms": 80, "cost_per_1m": 0, "status": "local"}
+      ],
+      "fallback_chain": ["osman-reasoning", "qwen3:8b", "Qwen3 80B Thinking", "Trinity Large Preview"],
+      "recommended_for": ["architecture", "planning", "analysis", "design"]
+    },
+    "research": {
+      "description": "Deep research, synthesis, knowledge extraction",
+      "primary": [
+        {"model": "GLM 5", "provider": "nvidia", "tier": 97, "latency_ms": 4539, "cost_per_1m": 5.0, "status": "up"},
+        {"model": "Kimi K2.5", "provider": "nvidia", "tier": 95, "latency_ms": 2288, "cost_per_1m": 4.0, "status": "up"},
+        {"model": "Nemotron Ultra 253B", "provider": "nvidia", "tier": 51, "latency_ms": 4638, "cost_per_1m": 4.0, "status": "up"},
+        {"model": "Nemotron 3 Super", "provider": "opencode", "tier": 60, "latency_ms": 1275, "cost_per_1m": 2.0, "status": "up"},
+        {"model": "Nemotron Super 49B", "provider": "nvidia", "tier": 44, "latency_ms": 409, "cost_per_1m": 1.0, "status": "up"}
+      ],
+      "fallback_chain": ["GLM 5", "Nemotron 3 Super", "osman-reasoning", "Nemotron Super 49B"],
+      "recommended_for": ["research", "synthesis", "literature_review", "knowledge_graph"]
+    },
+    "fast": {
+      "description": "Hot path, quick responses, low latency",
+      "primary": [
+        {"model": "Bonsai 4B IQ1_S", "provider": "ollama", "tier": 40, "latency_ms": 15, "cost_per_1m": 0, "status": "local"},
+        {"model": "osman-fast", "provider": "ollama", "tier": 40, "latency_ms": 20, "cost_per_1m": 0, "status": "local"},
+        {"model": "osman-speed", "provider": "ollama", "tier": 40, "latency_ms": 30, "cost_per_1m": 0, "status": "local"},
+        {"model": "locooperator", "provider": "ollama", "tier": 40, "latency_ms": 30, "cost_per_1m": 0, "status": "local"},
+        {"model": "Step 3.5 Flash", "provider": "nvidia", "tier": 93, "latency_ms": 1794, "cost_per_1m": 3.0, "status": "up"}
+      ],
+      "fallback_chain": ["Bonsai 4B", "osman-fast", "locooperator", "Nemotron Nano 30B"],
+      "recommended_for": ["hot_path", "status_checks", "quick_queries", "routing"],
+      "requirement": {
+        "max_latency_ms": 100,
+        "prefer_local": true
+      }
+    },
+    "security": {
+      "description": "Security audit, compliance, policy enforcement",
+      "primary": [
+        {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
+        {"model": "MiniMax M2.5", "provider": "opencode", "tier": 99, "latency_ms": 1224, "cost_per_1m": 6.0, "status": "up"},
+        {"model": "GLM 5", "provider": "nvidia", "tier": 97, "latency_ms": 4539, "cost_per_1m": 5.0, "status": "up"}
+      ],
+      "fallback_chain": ["Trinity Large Preview", "GLM 5", "osman-reasoning", "qwen3:8b"],
+      "recommended_for": ["security_audit", "compliance", "policy_check", "vulnerability"],
+      "requirement": {
+        "min_tier": 90,
+        "prefer_local": false
+      }
+    },
+    "general": {
+      "description": "General purpose, balanced quality and cost",
+      "primary": [
+        {"model": "MiniMax M2.5", "provider": "opencode", "tier": 99, "latency_ms": 1224, "cost_per_1m": 6.0, "status": "up"},
+        {"model": "GLM 4.7", "provider": "nvidia", "tier": 88, "latency_ms": 4336, "cost_per_1m": 3.0, "status": "up"},
+        {"model": "Llama 4 Maverick", "provider": "nvidia", "tier": 62, "latency_ms": 1181, "cost_per_1m": 2.0, "status": "up"},
+        {"model": "osman-agent", "provider": "ollama", "tier": 40, "latency_ms": 50, "cost_per_1m": 0, "status": "local"}
+      ],
+      "fallback_chain": ["osman-agent", "qwen3.5:4b", "Llama 4 Maverick", "GLM 4.7"],
+      "recommended_for": ["general", "chat", "mixed_task"]
+    }
+  },
+  "local_models": {
+    "count": 15,
+    "models": [
+      {"name": "osman-agent", "size_gb": 7.5, "latency_ms": 50, "specialty": "general"},
+      {"name": "osman-coder", "size_gb": 4.7, "latency_ms": 50, "specialty": "code"},
+      {"name": "osman-speed", "size_gb": 2.5, "latency_ms": 30, "specialty": "fast"},
+      {"name": "osman-reasoning", "size_gb": 7.4, "latency_ms": 80, "specialty": "reasoning"},
+      {"name": "osman-fast", "size_gb": 3.4, "latency_ms": 20, "specialty": "hot_path"},
+      {"name": "qwen3.5:4b", "size_gb": 3.4, "latency_ms": 40, "specialty": "balanced"},
+      {"name": "qwen3:8b", "size_gb": 5.2, "latency_ms": 60, "specialty": "quality"},
+      {"name": "gemma3n:e4b", "size_gb": 7.5, "latency_ms": 50, "specialty": "agent"},
+      {"name": "qwen2.5-coder:7b", "size_gb": 4.7, "latency_ms": 45, "specialty": "code"},
+      {"name": "qwen3:4b-thinking", "size_gb": 2.5, "latency_ms": 40, "specialty": "reasoning"},
+      {"name": "qwen3.5-uncensored:9b", "size_gb": 7.4, "latency_ms": 70, "specialty": "uncensored"},
+      {"name": "locooperator", "size_gb": 2.5, "latency_ms": 30, "specialty": "fast"},
+      {"name": "Bonsai-4B-IQ1_S", "size_gb": 0.9, "latency_ms": 15, "specialty": "edge"},
+      {"name": "Bonsai-4B-Q2_K", "size_gb": 1.5, "latency_ms": 20, "specialty": "edge"},
+      {"name": "Bonsai-8B-Q2_K", "size_gb": 3.0, "latency_ms": 25, "specialty": "edge_plus"}
+    ],
+    "total_size_gb": 62.2,
+    "zero_cost": true,
+    "always_available": true
+  },
+  "cloud_models": {
+    "tier_s": {
+      "description": "Premium quality (tier 80-100)",
+      "count": 5,
+      "avg_latency_ms": 2320,
+      "avg_cost_per_1m": 4.8,
+      "models": [
+        {"name": "MiniMax M2.5", "tier": 99, "provider": "opencode", "latency_ms": 1224},
+        {"name": "Trinity Large Preview", "tier": 97, "provider": "opencode", "latency_ms": 1707},
+        {"name": "GLM 5", "tier": 97, "provider": "nvidia", "latency_ms": 4539},
+        {"name": "Kimi K2.5", "tier": 95, "provider": "nvidia", "latency_ms": 2288},
+        {"name": "Step 3.5 Flash", "tier": 93, "provider": "nvidia", "latency_ms": 1794}
+      ]
+    },
+    "tier_a": {
+      "description": "High quality (tier 70-79)",
+      "count": 7,
+      "avg_latency_ms": 2249,
+      "avg_cost_per_1m": 3.5
+    },
+    "tier_b": {
+      "description": "Balanced (tier 50-69)",
+      "count": 8,
+      "avg_latency_ms": 1232,
+      "avg_cost_per_1m": 2.0
+    },
+    "tier_c": {
+      "description": "Cost-effective (tier 30-49)",
+      "count": 6,
+      "avg_latency_ms": 514,
+      "avg_cost_per_1m": 0.5
+    }
+  },
+  "providers": {
+    "opencode": {"models": 4, "avg_latency_ms": 1425, "status": "healthy"},
+    "nvidia": {"models": 45, "avg_latency_ms": 2156, "status": "healthy"},
+    "groq": {"models": 8, "status": "partial_offline"},
+    "kilocode": {"models": 12, "status": "partial_offline"},
+    "codestral": {"models": 1, "status": "healthy"},
+    "googleai": {"models": 4, "status": "healthy"},
+    "openrouter": {"models": 15, "status": "partial_offline"},
+    "cerebras": {"models": 4, "status": "offline"},
+    "scaleway": {"models": 5, "status": "offline"},
+    "ollama": {"models": 15, "status": "local"}
+  },
+  "token_savings": {
+    "local_first_savings": "40-60%",
+    "domain_routing_savings": "20-30%",
+    "fallback_chain_savings": "10-20%",
+    "semantic_cache_savings": "30-50%",
+    "prompt_compression_savings": "10-25%",
+    "total_potential_savings": "60-80%"
+  },
+  "refresh_policy": {
+    "interval_seconds": 300,
+    "last_refresh": "2026-04-16T09:15:00Z",
+    "next_refresh": "2026-04-16T09:20:00Z"
+  }
+}
