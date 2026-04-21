@@ -124,6 +124,14 @@ export function NexusAssistant() {
 
       const trimmed = content.trim()
       setInput('')
+
+      // Get current messages BEFORE adding the new user message to avoid duplication
+      const currentMessages = useNexusStore.getState().chatMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }))
+
+      // Add user message to store
       addChatMessage({ role: 'user', content: trimmed })
       setIsLoading(true)
 
@@ -133,10 +141,7 @@ export function NexusAssistant() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
-              ...useNexusStore.getState().chatMessages.map((m) => ({
-                role: m.role,
-                content: m.content,
-              })),
+              ...currentMessages,
               { role: 'user', content: trimmed },
             ],
           }),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -23,9 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Plus, ShieldAlert, GitBranch, BookOpen } from 'lucide-react'
+import { Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Eye, Lock, Scale, Settings2, AlertCircle, Radio, Plus, ShieldAlert, GitBranch, BookOpen, Loader2 } from 'lucide-react'
 import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
+import { useApiData } from '@/hooks/use-api-data'
 
 // Column headers for CSV export
 const governorDecisionsColumnHeaders: Record<string, string> = {
@@ -42,20 +43,164 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, S
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const decisions = [
-  { time: '14:23:01', agent: 'worker-3', action: 'read file', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.82 },
-  { time: '14:22:45', agent: 'coordinator', action: 'spawn sub-agent', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', trust: 0.91 },
-  { time: '14:22:12', agent: 'worker-1', action: 'write stresslab/config.py', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', trust: 0.73 },
-  { time: '14:21:58', agent: 'worker-2', action: 'delete all vault entries', scope: 'SYSTEM', impact: 'CRIT', decision: 'DENY', trust: 0.45 },
-  { time: '14:21:30', agent: 'research-agent', action: 'API call external', scope: 'CROSS', impact: 'MED', decision: 'HOLD', trust: 0.62 },
-  { time: '14:20:55', agent: 'worker-3', action: 'execute shell command', scope: 'PROJECT', impact: 'HIGH', decision: 'DENY', trust: 0.38 },
-  { time: '14:20:12', agent: 'coordinator', action: 'read constitution', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.95 },
-  { time: '14:19:45', agent: 'worker-2', action: 'modify trust threshold', scope: 'SYSTEM', impact: 'HIGH', decision: 'DENY', trust: 0.42 },
-  { time: '14:19:12', agent: 'worker-1', action: 'read vault entries', scope: 'PROJECT', impact: 'LOW', decision: 'ALLOW', trust: 0.75 },
-  { time: '14:18:55', agent: 'research-agent', action: 'write output.log', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.68 },
+// ─── API Response Types ───
+
+interface GovernorDecisionAPI {
+  id: string
+  agentId: string
+  agent: { name: string }
+  action: string
+  scope: string
+  impact: string
+  decision: string
+  reason: string | null
+  trustAtTime: number
+  createdAt: string
+}
+
+interface TrustStatAPI {
+  id: string
+  name: string
+  trust: number
+  decisions: number
+  allowed: number
+  denied: number
+  held: number
+  tasksDone: number
+  tasksFailed: number
+}
+
+interface GovernorAPIResponse {
+  decisions: GovernorDecisionAPI[]
+  trustStats: TrustStatAPI[]
+  thresholds: Record<string, number>
+  patterns: { name: string; severity: string; pattern: string }[]
+}
+
+// ─── UI-facing Types ───
+
+interface DecisionUI {
+  id: string
+  time: string
+  agent: string
+  action: string
+  scope: string
+  impact: string
+  decision: string
+  trust: number
+}
+
+interface AgentUI {
+  name: string
+  trust: number
+  decisions: number
+  allowed: number
+  denied: number
+  held: number
+  lane: string
+}
+
+interface DangerPatternUI {
+  pattern: string
+  count: number
+  severity: string
+  status: 'blocked' | 'watching'
+}
+
+// ─── Data Transformation Helpers ───
+
+function apiDecisionToUI(d: GovernorDecisionAPI): DecisionUI {
+  return {
+    id: d.id,
+    time: new Date(d.createdAt).toLocaleTimeString('en-US', { hour12: false }),
+    agent: d.agent?.name ?? 'unknown',
+    action: d.action,
+    scope: d.scope,
+    impact: d.impact,
+    decision: d.decision,
+    trust: d.trustAtTime,
+  }
+}
+
+function getLaneForAgent(name: string, trust: number): string {
+  if (name.includes('coordinator')) return 'impl'
+  if (name.includes('research')) return 'research'
+  if (trust >= 0.80) return 'audit'
+  if (trust >= 0.60) return 'review'
+  return 'research'
+}
+
+function apiTrustStatToUI(a: TrustStatAPI): AgentUI {
+  return {
+    name: a.name,
+    trust: a.trust,
+    decisions: a.decisions,
+    allowed: a.allowed,
+    denied: a.denied,
+    held: a.held,
+    lane: getLaneForAgent(a.name, a.trust),
+  }
+}
+
+function apiPatternsToUI(patterns: { name: string; severity: string; pattern: string }[]): DangerPatternUI[] {
+  return patterns.map((p) => ({
+    pattern: p.pattern,
+    count: 0,
+    severity: p.severity,
+    status: p.severity === 'CRIT' ? 'blocked' as const : 'watching' as const,
+  }))
+}
+
+function computeDecisionDistribution(decisions: DecisionUI[]) {
+  const counts: Record<string, number> = { ALLOW: 0, DENY: 0, HOLD: 0 }
+  decisions.forEach((d) => {
+    if (counts[d.decision] !== undefined) counts[d.decision]++
+  })
+  return [
+    { name: 'ALLOW', value: counts.ALLOW, color: '#34d399' },
+    { name: 'DENY', value: counts.DENY, color: '#f87171' },
+    { name: 'HOLD', value: counts.HOLD, color: '#facc15' },
+  ]
+}
+
+function computeImpactDistribution(decisions: DecisionUI[]) {
+  const counts: Record<string, number> = { LOW: 0, MED: 0, HIGH: 0, CRIT: 0 }
+  decisions.forEach((d) => {
+    if (counts[d.impact] !== undefined) counts[d.impact]++
+  })
+  return [
+    { name: 'LOW', value: counts.LOW, color: '#34d399' },
+    { name: 'MED', value: counts.MED, color: '#facc15' },
+    { name: 'HIGH', value: counts.HIGH, color: '#fb923c' },
+    { name: 'CRIT', value: counts.CRIT, color: '#f87171' },
+  ]
+}
+
+function computeScopeDistribution(decisions: DecisionUI[]) {
+  const counts: Record<string, number> = {}
+  decisions.forEach((d) => {
+    counts[d.scope] = (counts[d.scope] || 0) + 1
+  })
+  return Object.entries(counts).map(([name, value]) => ({ name, value }))
+}
+
+function computeRiskMatrixData(agents: AgentUI[]) {
+  return agents.map((a) => ({
+    name: a.name,
+    trust: a.trust * 100,
+    activity: a.decisions,
+    risk: a.trust < 0.5 ? 'high' : a.trust < 0.7 ? 'medium' : 'low',
+    z: 80,
+  }))
+}
+
+// ─── Fallback static data (used during loading) ───
+
+const fallbackDecisions: DecisionUI[] = [
+  { id: '0', time: '--:--:--', agent: '—', action: 'Loading...', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.5 },
 ]
 
-const agents = [
+const fallbackAgents: AgentUI[] = [
   { name: 'coordinator', trust: 0.91, decisions: 234, allowed: 228, denied: 4, held: 2, lane: 'impl' },
   { name: 'worker-1', trust: 0.73, decisions: 189, allowed: 172, denied: 12, held: 5, lane: 'review' },
   { name: 'worker-2', trust: 0.45, decisions: 156, allowed: 98, denied: 42, held: 16, lane: 'research' },
@@ -63,46 +208,15 @@ const agents = [
   { name: 'research-agent', trust: 0.62, decisions: 87, allowed: 64, denied: 11, held: 12, lane: 'research' },
 ]
 
-const initialDangerPatterns = [
-  { pattern: 'delete all', count: 3, severity: 'CRIT', status: 'blocked' as const },
-  { pattern: 'rm -rf', count: 1, severity: 'CRIT', status: 'blocked' as const },
-  { pattern: 'exfiltrate data', count: 0, severity: 'HIGH', status: 'watching' as const },
-  { pattern: 'backdoor install', count: 0, severity: 'HIGH', status: 'watching' as const },
-  { pattern: 'override constitution', count: 2, severity: 'CRIT', status: 'blocked' as const },
+const fallbackDangerPatterns: DangerPatternUI[] = [
+  { pattern: 'delete all', count: 3, severity: 'CRIT', status: 'blocked' },
+  { pattern: 'rm -rf', count: 1, severity: 'CRIT', status: 'blocked' },
+  { pattern: 'exfiltrate data', count: 0, severity: 'HIGH', status: 'watching' },
+  { pattern: 'backdoor install', count: 0, severity: 'HIGH', status: 'watching' },
+  { pattern: 'override constitution', count: 2, severity: 'CRIT', status: 'blocked' },
 ]
 
-const decisionPie = [
-  { name: 'ALLOW', value: 847, color: '#34d399' },
-  { name: 'DENY', value: 23, color: '#f87171' },
-  { name: 'HOLD', value: 5, color: '#facc15' },
-]
-
-const impactDistribution = [
-  { name: 'LOW', value: 423, color: '#34d399' },
-  { name: 'MED', value: 312, color: '#facc15' },
-  { name: 'HIGH', value: 87, color: '#fb923c' },
-  { name: 'CRIT', value: 53, color: '#f87171' },
-]
-
-const scopeData = [
-  { name: 'SELF', value: 312 },
-  { name: 'PROJECT', value: 423 },
-  { name: 'CROSS', value: 87 },
-  { name: 'SYSTEM', value: 53 },
-]
-
-const liveDecisionPool = [
-  { agent: 'worker-3', action: 'read config.yaml', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.84 },
-  { agent: 'coordinator', action: 'schedule task T-0851', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', trust: 0.91 },
-  { agent: 'worker-1', action: 'fetch remote resource', scope: 'CROSS', impact: 'MED', decision: 'HOLD', trust: 0.58 },
-  { agent: 'worker-2', action: 'modify vault TRUST track', scope: 'SYSTEM', impact: 'HIGH', decision: 'DENY', trust: 0.41 },
-  { agent: 'research-agent', action: 'query model API', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.72 },
-  { agent: 'worker-3', action: 'write output.json', scope: 'PROJECT', impact: 'LOW', decision: 'ALLOW', trust: 0.85 },
-  { agent: 'coordinator', action: 'spawn sub-agent', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', trust: 0.93 },
-  { agent: 'worker-2', action: 'delete temp files', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', trust: 0.47 },
-]
-
-// Constitution rules data
+// Constitution rules data (truly static — not from API)
 const constitutionRules = [
   { id: 'CR-001', name: 'No destructive system operations', triggered: 42, active: true },
   { id: 'CR-002', name: 'Trust threshold enforcement', triggered: 38, active: true },
@@ -114,16 +228,7 @@ const constitutionRules = [
   { id: 'CR-008', name: 'Rate limiting per agent', triggered: 0, active: false },
 ]
 
-// Risk matrix scatter data
-const riskMatrixData = agents.map((a) => ({
-  name: a.name,
-  trust: a.trust * 100,
-  activity: a.decisions,
-  risk: a.trust < 0.5 ? 'high' : a.trust < 0.7 ? 'medium' : 'low',
-  z: 80,
-}))
-
-// Deny pattern flowchart data
+// Deny pattern flowchart data (truly static)
 const denyFlowPatterns = [
   { from: 'Action Request', to: 'Scope Check', label: 'all actions', color: '#60a5fa' },
   { from: 'Scope Check', to: 'SYSTEM?', label: 'scope=SYSTEM', color: '#facc15' },
@@ -133,6 +238,8 @@ const denyFlowPatterns = [
   { from: 'Trust Check', to: 'ALLOW', label: 'trust ≥ 0.50', color: '#34d399' },
   { from: 'Scope Check', to: 'Trust Check', label: 'scope≠SYSTEM', color: '#60a5fa' },
 ]
+
+// ─── Shared Components ───
 
 function MiniPieChart({ data, height = 120 }: { data: { name: string; value: number; color: string }[]; height?: number }) {
   return (
@@ -165,26 +272,59 @@ function MiniPieChart({ data, height = 120 }: { data: { name: string; value: num
   )
 }
 
-const initialLaneThresholds = [
+const defaultLaneThresholds = [
   { lane: 'research', min: 0.30, current: 0.45, barColor: 'bg-emerald-400/60', minColor: 'bg-emerald-600/20' },
   { lane: 'review', min: 0.50, current: 0.73, barColor: 'bg-blue-400/60', minColor: 'bg-blue-600/20' },
   { lane: 'audit', min: 0.70, current: 0.82, barColor: 'bg-purple-400/60', minColor: 'bg-purple-600/20' },
   { lane: 'impl', min: 0.60, current: 0.91, barColor: 'bg-orange-400/60', minColor: 'bg-orange-600/20' },
 ]
 
-function getAgentsBelowThreshold(lane: string, newMin: number): string[] {
-  return agents.filter((a) => a.lane === lane && a.trust < newMin).map((a) => a.name)
+function buildLaneThresholds(thresholds: Record<string, number>, agents: AgentUI[]) {
+  const laneColors: Record<string, { barColor: string; minColor: string }> = {
+    research: { barColor: 'bg-emerald-400/60', minColor: 'bg-emerald-600/20' },
+    review: { barColor: 'bg-blue-400/60', minColor: 'bg-blue-600/20' },
+    audit: { barColor: 'bg-purple-400/60', minColor: 'bg-purple-600/20' },
+    impl: { barColor: 'bg-orange-400/60', minColor: 'bg-orange-600/20' },
+  }
+  return ['research', 'review', 'audit', 'impl'].map((lane) => {
+    const laneAgents = agents.filter((a) => a.lane === lane)
+    const avgTrust = laneAgents.length > 0
+      ? laneAgents.reduce((sum, a) => sum + a.trust, 0) / laneAgents.length
+      : 0.5
+    return {
+      lane,
+      min: thresholds[lane] ?? 0.5,
+      current: avgTrust,
+      barColor: laneColors[lane]?.barColor ?? 'bg-emerald-400/60',
+      minColor: laneColors[lane]?.minColor ?? 'bg-emerald-600/20',
+    }
+  })
 }
 
-function DecisionDetailDialog({ decision, open, onOpenChange }: {
-  decision: typeof decisions[0] | null
+function DecisionDetailDialog({ decision, open, onOpenChange, onAppeal }: {
+  decision: DecisionUI | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onAppeal: (decisionId: string) => Promise<void>
 }) {
+  const [appealing, setAppealing] = useState(false)
+
   if (!decision) return null
 
   const gradientFrom = decision.decision === 'ALLOW' ? 'from-emerald-600/10' : decision.decision === 'DENY' ? 'from-red-600/10' : 'from-yellow-600/10'
   const gradientTo = decision.decision === 'ALLOW' ? 'to-emerald-600/5' : decision.decision === 'DENY' ? 'to-red-600/5' : 'to-yellow-600/5'
+
+  const handleAppeal = async () => {
+    setAppealing(true)
+    try {
+      await onAppeal(decision.id)
+      onOpenChange(false)
+    } catch {
+      // Error toast handled in onAppeal
+    } finally {
+      setAppealing(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,8 +387,8 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
             <span className="text-xs font-medium text-muted-foreground">Related Vault Entries</span>
             <div className="space-y-1.5">
               {[
-                { id: `V-${2047 - decisions.indexOf(decision) * 2}`, track: 'GOV', summary: `Governor ${decision.decision} ${decision.agent}` },
-                { id: `V-${2046 - decisions.indexOf(decision) * 2}`, track: 'TRUST', summary: `Trust check: ${decision.trust.toFixed(2)}` },
+                { id: `V-${decision.id.slice(-4)}`, track: 'GOV', summary: `Governor ${decision.decision} ${decision.agent}` },
+                { id: `V-${String(Number(decision.id.slice(-4)) - 1).padStart(4, '0')}`, track: 'TRUST', summary: `Trust check: ${decision.trust.toFixed(2)}` },
               ].map((v) => (
                 <div key={v.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2 text-xs">
                   <div className="flex items-center gap-2">
@@ -266,15 +406,11 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
               variant="outline"
               size="sm"
               className="gap-1.5 text-xs"
-              onClick={() => {
-                toast.success('Appeal logged', {
-                  description: `Appeal for ${decision.decision} on "${decision.action}" logged to VAP chain`,
-                })
-                onOpenChange(false)
-              }}
+              onClick={handleAppeal}
+              disabled={appealing}
             >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              Appeal Decision
+              {appealing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+              {appealing ? 'Appealing...' : 'Appeal Decision'}
             </Button>
           </DialogFooter>
         </div>
@@ -286,17 +422,25 @@ function DecisionDetailDialog({ decision, open, onOpenChange }: {
 function AddPatternDialog({ open, onOpenChange, onAdd }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (pattern: string, severity: string) => void
+  onAdd: (pattern: string, severity: string) => Promise<void>
 }) {
   const [pattern, setPattern] = useState('')
   const [severity, setSeverity] = useState('')
+  const [adding, setAdding] = useState(false)
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!pattern || !severity) return
-    onAdd(pattern, severity)
-    setPattern('')
-    setSeverity('')
-    onOpenChange(false)
+    setAdding(true)
+    try {
+      await onAdd(pattern, severity)
+      setPattern('')
+      setSeverity('')
+      onOpenChange(false)
+    } catch {
+      // Error toast handled in onAdd
+    } finally {
+      setAdding(false)
+    }
   }
 
   return (
@@ -339,10 +483,10 @@ function AddPatternDialog({ open, onOpenChange, onAdd }: {
             size="sm"
             className="h-8 bg-red-600 hover:bg-red-700 text-white gap-1.5"
             onClick={handleAdd}
-            disabled={!pattern || !severity}
+            disabled={!pattern || !severity || adding}
           >
-            <Plus className="h-3 w-3" />
-            Add Pattern
+            {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+            {adding ? 'Adding...' : 'Add Pattern'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -350,14 +494,14 @@ function AddPatternDialog({ open, onOpenChange, onAdd }: {
   )
 }
 
-function LiveDecisionFeed() {
-  const [feedItems, setFeedItems] = useState<typeof decisions>([])
+function LiveDecisionFeed({ decisions }: { decisions: DecisionUI[] }) {
+  const [feedItems, setFeedItems] = useState<DecisionUI[]>([])
   const tickRef = useRef(0)
 
   useEffect(() => {
+    if (decisions.length === 0) return
     const interval = setInterval(() => {
-      const pool = liveDecisionPool
-      const item = pool[tickRef.current % pool.length]
+      const item = decisions[tickRef.current % decisions.length]
       tickRef.current++
       const now = new Date()
       const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
@@ -367,7 +511,7 @@ function LiveDecisionFeed() {
       ])
     }, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [decisions])
 
   return (
     <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
@@ -420,7 +564,7 @@ function LiveDecisionFeed() {
 }
 
 // Decision Timeline component
-function DecisionTimeline() {
+function DecisionTimeline({ decisions }: { decisions: DecisionUI[] }) {
   const timelineDecisions = decisions.slice(0, 10)
   return (
     <Card className="relative overflow-hidden">
@@ -432,6 +576,11 @@ function DecisionTimeline() {
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
         <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-0">
+          {timelineDecisions.length === 0 && (
+            <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+              No decisions recorded yet
+            </div>
+          )}
           {timelineDecisions.map((d, i) => {
             const isAllow = d.decision === 'ALLOW'
             const isDeny = d.decision === 'DENY'
@@ -442,7 +591,7 @@ function DecisionTimeline() {
             const textColor = isAllow ? 'text-emerald-400' : isDeny ? 'text-red-400' : 'text-yellow-400'
 
             return (
-              <div key={i} className="relative flex items-start gap-3">
+              <div key={d.id} className="relative flex items-start gap-3">
                 <div className="flex flex-col items-center">
                   <div className={`h-3 w-3 rounded-full ${dotColor} shrink-0 ring-2 ring-background z-10`} />
                   {i < timelineDecisions.length - 1 && (
@@ -481,7 +630,9 @@ function DecisionTimeline() {
 }
 
 // Agent Risk Matrix component
-function AgentRiskMatrix() {
+function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
+  const riskMatrixData = useMemo(() => computeRiskMatrixData(agents), [agents])
+
   return (
     <Card className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
@@ -689,48 +840,196 @@ function DangerGateFlowchart() {
   )
 }
 
+// Loading skeleton for stat cards
+function StatCardSkeleton() {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="relative p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="h-3 w-20 bg-muted/50 rounded animate-pulse" />
+            <div className="mt-2 h-8 w-16 bg-muted/50 rounded animate-pulse" />
+            <div className="mt-1 h-3 w-24 bg-muted/30 rounded animate-pulse" />
+          </div>
+          <div className="h-11 w-11 bg-muted/30 rounded-xl animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function GovernorTab() {
-  const [laneThresholds, setLaneThresholds] = useState(initialLaneThresholds)
+  const { data: apiData, loading, refetch } = useApiData<GovernorAPIResponse>('/api/governor', 15000)
+
+  // Transform API data to UI types
+  const decisions = useMemo<DecisionUI[]>(() => {
+    if (!apiData?.decisions) return fallbackDecisions
+    return apiData.decisions.map(apiDecisionToUI)
+  }, [apiData?.decisions])
+
+  const agents = useMemo<AgentUI[]>(() => {
+    if (!apiData?.trustStats) return fallbackAgents
+    return apiData.trustStats.map(apiTrustStatToUI)
+  }, [apiData?.trustStats])
+
+  const dangerPatterns = useMemo<DangerPatternUI[]>(() => {
+    if (!apiData?.patterns) return fallbackDangerPatterns
+    return apiPatternsToUI(apiData.patterns)
+  }, [apiData?.patterns])
+
+  // Build lane thresholds from API
+  const apiLaneThresholds = useMemo(() => {
+    if (!apiData?.thresholds) return defaultLaneThresholds
+    return buildLaneThresholds(apiData.thresholds, agents)
+  }, [apiData?.thresholds, agents])
+
+  const [laneThresholds, setLaneThresholds] = useState(apiLaneThresholds)
   const [adjustedThresholds, setAdjustedThresholds] = useState<Record<string, number>>(
-    Object.fromEntries(initialLaneThresholds.map((l) => [l.lane, l.min]))
+    Object.fromEntries(apiLaneThresholds.map((l) => [l.lane, l.min]))
   )
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedDecision, setSelectedDecision] = useState<typeof decisions[0] | null>(null)
+  const [selectedDecision, setSelectedDecision] = useState<DecisionUI | null>(null)
   const [decisionDetailOpen, setDecisionDetailOpen] = useState(false)
-  const [dangerPatterns, setDangerPatterns] = useState(initialDangerPatterns)
   const [addPatternOpen, setAddPatternOpen] = useState(false)
+
+  // Sync lane thresholds when API data arrives
+  useEffect(() => {
+    setLaneThresholds(apiLaneThresholds)
+    setAdjustedThresholds(Object.fromEntries(apiLaneThresholds.map((l) => [l.lane, l.min])))
+  }, [apiLaneThresholds])
+
+  // Computed chart data from real decisions
+  const decisionPie = useMemo(() => computeDecisionDistribution(decisions), [decisions])
+  const impactDistribution = useMemo(() => computeImpactDistribution(decisions), [decisions])
+  const scopeData = useMemo(() => computeScopeDistribution(decisions), [decisions])
+
+  // Compute stats for cards
+  const allowCount = decisionPie.find((d) => d.name === 'ALLOW')?.value ?? 0
+  const denyCount = decisionPie.find((d) => d.name === 'DENY')?.value ?? 0
+  const holdCount = decisionPie.find((d) => d.name === 'HOLD')?.value ?? 0
+  const totalDecisions = allowCount + denyCount + holdCount
+  const avgTrust = agents.length > 0 ? agents.reduce((sum, a) => sum + a.trust, 0) / agents.length : 0
 
   const handleSliderChange = useCallback((lane: string, value: number[]) => {
     setAdjustedThresholds((prev) => ({ ...prev, [lane]: value[0] / 100 }))
   }, [])
 
-  const applyChanges = useCallback(() => {
-    setLaneThresholds((prev) =>
-      prev.map((l) => ({
-        ...l,
-        min: adjustedThresholds[l.lane] ?? l.min,
-      }))
-    )
-    setDialogOpen(false)
-    toast.success('Trust thresholds updated successfully', {
-      description: 'New minimum thresholds have been applied to all lanes.',
+  const applyChanges = useCallback(async () => {
+    const thresholdPayload: Record<string, number> = {}
+    laneThresholds.forEach((l) => {
+      thresholdPayload[l.lane] = adjustedThresholds[l.lane] ?? l.min
     })
-  }, [adjustedThresholds])
 
-  const handleAddPattern = useCallback((pattern: string, severity: string) => {
-    setDangerPatterns((prev) => [
-      ...prev,
-      { pattern, count: 0, severity, status: 'watching' as const },
-    ])
-    toast.success('Pattern added to danger gate', {
-      description: `"${pattern}" will be monitored at ${severity} severity`,
-    })
-  }, [])
+    try {
+      const res = await globalThis.fetch('/api/governor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_threshold', thresholds: thresholdPayload }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to update thresholds')
+      }
 
-  const openDecisionDetail = useCallback((decision: typeof decisions[0]) => {
+      setLaneThresholds((prev) =>
+        prev.map((l) => ({
+          ...l,
+          min: adjustedThresholds[l.lane] ?? l.min,
+        }))
+      )
+      setDialogOpen(false)
+      toast.success('Trust thresholds updated successfully', {
+        description: 'New minimum thresholds have been applied to all lanes.',
+      })
+      refetch()
+    } catch (err) {
+      toast.error('Failed to update thresholds', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }, [adjustedThresholds, laneThresholds, refetch])
+
+  const handleAddPattern = useCallback(async (pattern: string, severity: string) => {
+    try {
+      const res = await globalThis.fetch('/api/governor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_pattern',
+          pattern: { name: pattern, severity, pattern },
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to add pattern')
+      }
+
+      toast.success('Pattern added to danger gate', {
+        description: `"${pattern}" will be monitored at ${severity} severity`,
+      })
+      refetch()
+    } catch (err) {
+      toast.error('Failed to add pattern', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }, [refetch])
+
+  const handleAppeal = useCallback(async (decisionId: string) => {
+    try {
+      const res = await globalThis.fetch('/api/governor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'appeal',
+          decisionId,
+          reason: 'Manual appeal from Governor dashboard',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to appeal decision')
+      }
+
+      toast.success('Appeal logged', {
+        description: `Appeal for decision ${decisionId.slice(-6)} has been logged to VAP chain`,
+      })
+      refetch()
+    } catch (err) {
+      toast.error('Failed to appeal decision', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }, [refetch])
+
+  const openDecisionDetail = useCallback((decision: DecisionUI) => {
     setSelectedDecision(decision)
     setDecisionDetailOpen(true)
   }, [])
+
+  // Helper function for agents below threshold — uses dynamic agents list
+  const getAgentsBelowThreshold = useCallback((lane: string, newMin: number): string[] => {
+    return agents.filter((a) => a.lane === lane && a.trust < newMin).map((a) => a.name)
+  }, [agents])
+
+  if (loading && !apiData) {
+    return (
+      <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+        <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-purple-600/5 p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading Governor data...</span>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 p-6 grid-pattern animate-fade-in">
@@ -761,8 +1060,8 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">ALLOW (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">847</p>
-                <p className="text-[10px] text-muted-foreground">96.8% of decisions</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{allowCount}</p>
+                <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((allowCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -777,8 +1076,8 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">DENY (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">23</p>
-                <p className="text-[10px] text-muted-foreground">2.6% of decisions</p>
+                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{denyCount}</p>
+                <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((denyCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
                 <XCircle className="h-5 w-5 text-red-400" />
@@ -793,8 +1092,8 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">HOLD (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-yellow-400 tabular-nums">5</p>
-                <p className="text-[10px] text-muted-foreground">0.6% of decisions</p>
+                <p className="mt-1 text-3xl font-bold text-yellow-400 tabular-nums">{holdCount}</p>
+                <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((holdCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-600/15 shadow-lg shadow-yellow-600/10">
                 <Clock className="h-5 w-5 text-yellow-400" />
@@ -809,7 +1108,7 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Trust Score</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums">0.73</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{avgTrust.toFixed(2)}</p>
                 <p className="text-[10px] text-muted-foreground">threshold: {laneThresholds.reduce((min, l) => l.min < min ? l.min : min, 1).toFixed(2)} (lowest lane)</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
@@ -821,7 +1120,7 @@ export function GovernorTab() {
       </div>
 
       {/* Live Decision Feed */}
-      <LiveDecisionFeed />
+      <LiveDecisionFeed decisions={decisions} />
 
       {/* Decision Distribution + Scope Charts */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -879,8 +1178,8 @@ export function GovernorTab() {
 
       {/* Decision Timeline + Agent Risk Matrix */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <DecisionTimeline />
-        <AgentRiskMatrix />
+        <DecisionTimeline decisions={decisions} />
+        <AgentRiskMatrix agents={agents} />
       </div>
 
       {/* Constitution Rules + Danger Gate Flowchart */}
@@ -1031,7 +1330,7 @@ export function GovernorTab() {
                         const adjusted = adjustedThresholds[l.lane] ?? l.min
                         const affectedAgents = getAgentsBelowThreshold(l.lane, adjusted)
                         const hasWarning = affectedAgents.length > 0
-                        const originalMin = initialLaneThresholds.find((il) => il.lane === l.lane)?.min ?? l.min
+                        const originalMin = apiLaneThresholds.find((il) => il.lane === l.lane)?.min ?? l.min
                         const changed = Math.abs(adjusted - originalMin) > 0.001
 
                         return (
@@ -1166,9 +1465,9 @@ export function GovernorTab() {
                 </tr>
               </thead>
               <tbody>
-                {decisions.map((d, i) => (
+                {decisions.map((d) => (
                   <tr
-                    key={i}
+                    key={d.id}
                     className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
                     onClick={() => openDecisionDetail(d)}
                   >
@@ -1200,6 +1499,7 @@ export function GovernorTab() {
         decision={selectedDecision}
         open={decisionDetailOpen}
         onOpenChange={setDecisionDetailOpen}
+        onAppeal={handleAppeal}
       />
 
       {/* Add Pattern Dialog */}

@@ -24,8 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useApiData } from '@/hooks/use-api-data'
 
 interface PaperItem {
   id: string
@@ -37,30 +38,67 @@ interface PaperItem {
   priority: 'P0' | 'P1' | 'P2'
 }
 
-const p0Items: PaperItem[] = [
-  { id: 'isc-bench-2603.23509', title: 'Internal Safety Collapse in Frontier LLMs', relevance: 0.97, task: 'Import 53 TVD scenarios into stresslab/templates/. Create validator that checks if harmful content is structurally required.', deliverable: 'stresslab/isc_runner.py', status: 'in_progress', priority: 'P0' },
-  { id: 'or-bench-2405.20947', title: 'OR-Bench: Over-Refusal Benchmark', relevance: 0.95, task: 'Load 1k hard prompts. Measure over-refusal rate per lane. Update trust_scoring.py lane thresholds.', deliverable: 'evals/overrefusal/or_bench_eval.py', status: 'pending', priority: 'P0' },
-  { id: 'dual-pool-2502.00409', title: 'Dual-Pool Token-Budget Routing', relevance: 0.93, task: 'Implement bytes-to-token EMA estimator in gmr/scheduler.py. Split GMR pools into short (<4k) and long context.', deliverable: 'gmr/scheduler.py', status: 'pending', priority: 'P0' },
-  { id: 'deer-flow', title: 'bytedance/deer-flow', relevance: 0.93, task: 'Port sub-agent harness pattern: lead agent + parallel workers with isolated sandboxes.', deliverable: 'swarm/foreman.py refactor', status: 'pending', priority: 'P0' },
-]
+interface ResearchApiResponse {
+  papers: {
+    id: string
+    externalId: string | null
+    type: string
+    title: string
+    relevanceScore: number
+    priorityTier: string
+    implementationTask: string | null
+    deliverable: string | null
+    isVetted: boolean
+  }[]
+  p0: {
+    id: string
+    externalId: string | null
+    type: string
+    title: string
+    relevanceScore: number
+    priorityTier: string
+    implementationTask: string | null
+    deliverable: string | null
+    isVetted: boolean
+  }[]
+  p1: {
+    id: string
+    externalId: string | null
+    type: string
+    title: string
+    relevanceScore: number
+    priorityTier: string
+    implementationTask: string | null
+    deliverable: string | null
+    isVetted: boolean
+  }[]
+  p2: {
+    id: string
+    externalId: string | null
+    type: string
+    title: string
+    relevanceScore: number
+    priorityTier: string
+    implementationTask: string | null
+    deliverable: string | null
+    isVetted: boolean
+  }[]
+  total: number
+}
 
-const p1Items: PaperItem[] = [
-  { id: 'routing-survey-2604.08075', title: 'Doing More with Less', relevance: 0.94, task: 'Implement cost-performance scoring function. Add pre-generation router in GMR.', priority: 'P1' },
-  { id: 'dynamic-routing-2603.04445', title: 'Dynamic Model Routing and Cascading', relevance: 0.92, task: 'Build 3-dimension router (when/what/how). Add uncertainty-based fallback.', priority: 'P1' },
-  { id: 'tale-2603.08425', title: 'Token-Budget-Aware LLM Reasoning', relevance: 0.92, task: 'Add per-query token budget estimator to TokenGuard. Enforce via check_and_reserve().', priority: 'P1' },
-  { id: 'infiagent-2412.18547', title: 'InfiAgent', relevance: 0.92, task: 'Prototype file-centric state in vault/manager.py. Replace prompt-as-memory with snapshot reconstruction.', priority: 'P1' },
-  { id: 'rigorllm-2403.13031', title: 'RigorLLM', relevance: 0.87, task: 'Add fusion guardrail (KNN + LLM) to governor/moderation.py for jailbreak resilience.', priority: 'P1' },
-  { id: 'shieldgemma-2407.21772', title: 'ShieldGemma', relevance: 0.9, task: 'Integrate ShieldGemma-2B as fast moderation adapter. Benchmark vs current.', priority: 'P1' },
-]
-
-const p2Items: PaperItem[] = [
-  { id: 'guardt2i-2403.01446', title: 'GuardT2I', relevance: 0.84, task: 'Evaluate generative moderation for multimodal agents', priority: 'P2' },
-  { id: 'aegis-2404.05993', title: 'AEGIS', relevance: 0.88, task: 'Study ensemble safety experts for online adaptation', priority: 'P2' },
-  { id: 'identity-suppression-2409.13725', title: 'Identity Suppression in AI Moderation', relevance: 0.92, task: 'Audit current moderation for identity bias', priority: 'P2' },
-  { id: 'last30days-skill', title: 'last30days-skill', relevance: 0.92, task: 'Integrate as NEXUS world-awareness skill', priority: 'P2' },
-  { id: 'superpowers', title: 'superpowers (TDD)', relevance: 0.88, task: 'Adopt TDD workflow for agent-generated code', priority: 'P2' },
-  { id: 'ironengine-2601.03204', title: 'IronEngine', relevance: 0.88, task: 'Review three-phase pipeline for planner-reviewer pattern', priority: 'P2' },
-]
+function mapApiPaperToItem(p: ResearchApiResponse['p0'][number]): PaperItem {
+  const task = p.implementationTask || 'No task assigned'
+  const status = task === 'In progress' ? 'in_progress' : task === 'No task assigned' ? undefined : 'pending'
+  return {
+    id: p.externalId || p.id,
+    title: p.title,
+    relevance: p.relevanceScore,
+    task,
+    deliverable: p.deliverable || undefined,
+    status,
+    priority: p.priorityTier as 'P0' | 'P1' | 'P2',
+  }
+}
 
 function getArxivUrl(id: string): string | null {
   const match = id.match(/(\d{4}\.\d{4,5})/)
@@ -262,9 +300,21 @@ export function ResearchTab() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [addToQueueOpen, setAddToQueueOpen] = useState(false)
-  const [localP0, setLocalP0] = useState<PaperItem[]>(p0Items)
-  const [localP1, setLocalP1] = useState<PaperItem[]>(p1Items)
-  const [localP2, setLocalP2] = useState<PaperItem[]>(p2Items)
+  const [practiceSessionActive, setPracticeSessionActive] = useState(false)
+  const [practiceStep, setPracticeStep] = useState(0)
+  const [localPapers, setLocalPapers] = useState<PaperItem[]>([])
+
+  const { data: apiData, loading, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
+
+  // Map API data to PaperItems
+  const apiP0: PaperItem[] = (apiData?.p0 || []).map(mapApiPaperToItem)
+  const apiP1: PaperItem[] = (apiData?.p1 || []).map(mapApiPaperToItem)
+  const apiP2: PaperItem[] = (apiData?.p2 || []).map(mapApiPaperToItem)
+
+  // Merge local papers (from "Add to Queue") with API papers
+  const allP0 = [...apiP0, ...localPapers.filter(p => p.priority === 'P0')]
+  const allP1 = [...apiP1, ...localPapers.filter(p => p.priority === 'P1')]
+  const allP2 = [...apiP2, ...localPapers.filter(p => p.priority === 'P2')]
 
   const isSearchActive = searchQuery !== ''
 
@@ -279,12 +329,12 @@ export function ResearchTab() {
     )
   }
 
-  const filteredP0 = filterPapers(localP0)
-  const filteredP1 = filterPapers(localP1)
-  const filteredP2 = filterPapers(localP2)
+  const filteredP0 = filterPapers(allP0)
+  const filteredP1 = filterPapers(allP1)
+  const filteredP2 = filterPapers(allP2)
 
   const totalFiltered = filteredP0.length + filteredP1.length + filteredP2.length
-  const totalAll = localP0.length + localP1.length + localP2.length
+  const totalAll = allP0.length + allP1.length + allP2.length
 
   const openPaperDialog = (paper: PaperItem) => {
     setSelectedPaper(paper)
@@ -303,32 +353,99 @@ export function ResearchTab() {
     }
   }
 
-  const handleMarkInProgress = () => {
+  const handleMarkInProgress = async () => {
     if (!selectedPaper) return
-    toast.success('Status updated', {
-      description: `"${selectedPaper.title}" marked as In Progress`,
-    })
+    try {
+      const res = await fetch('/api/research', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paperId: selectedPaper.id,
+          updates: { implementationTask: 'In progress' },
+        }),
+      })
+      if (res.ok) {
+        toast.success('Status updated', {
+          description: `"${selectedPaper.title}" marked as In Progress`,
+        })
+        refetch()
+      } else {
+        const err = await res.json()
+        toast.error('Failed to update status', { description: err.error || 'Unknown error' })
+      }
+    } catch {
+      toast.error('Failed to update status', { description: 'Network error' })
+    }
+  }
+
+  const handlePriorityChange = async (paperId: string, newTier: 'P0' | 'P1' | 'P2') => {
+    try {
+      const res = await fetch('/api/research', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paperId,
+          updates: { priorityTier: newTier },
+        }),
+      })
+      if (res.ok) {
+        toast.success('Priority updated', {
+          description: `Paper moved to ${newTier} queue`,
+        })
+        refetch()
+      } else {
+        const err = await res.json()
+        toast.error('Failed to update priority', { description: err.error || 'Unknown error' })
+      }
+    } catch {
+      toast.error('Failed to update priority', { description: 'Network error' })
+    }
   }
 
   const handleAddPaper = (paper: PaperItem) => {
-    switch (paper.priority) {
-      case 'P0':
-        setLocalP0((prev) => [...prev, paper])
-        break
-      case 'P1':
-        setLocalP1((prev) => [...prev, paper])
-        break
-      case 'P2':
-        setLocalP2((prev) => [...prev, paper])
-        break
-    }
+    setLocalPapers((prev) => [...prev, paper])
     toast.success('Paper added to queue', {
       description: `"${paper.title}" → ${paper.priority} queue`,
     })
   }
 
+  const handleStartPracticeSession = () => {
+    setPracticeSessionActive(true)
+    setPracticeStep(0)
+    toast.success('Practice session started', {
+      description: 'INTAKE phase — collecting links...',
+      duration: 3000,
+    })
+    // Simulate progression through steps
+    const stepDurations = [5000, 15000, 5000, 5000, 2000]
+    let elapsed = 0
+    stepDurations.forEach((dur, i) => {
+      elapsed += dur
+      setTimeout(() => {
+        if (i < 4) {
+          setPracticeStep(i + 1)
+          const stepNames = ['INTAKE', 'VETTING', 'MANIFEST', 'PRIORITY', 'DELIVER']
+          toast.info(`${stepNames[i + 1]} phase started`, { duration: 2000 })
+        } else {
+          setPracticeSessionActive(false)
+          toast.success('Practice session complete', {
+            description: 'Manifest saved to VAP chain',
+          })
+        }
+      }, elapsed)
+    })
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+      {/* Loading state */}
+      {loading && !apiData && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
+          <span className="ml-3 text-sm text-muted-foreground">Loading research data...</span>
+        </div>
+      )}
+
       {/* Search Bar + Add Button */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
@@ -486,7 +603,7 @@ export function ResearchTab() {
             ) : (
               <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  No P0 papers match your search
+                  {loading ? 'Loading P0 papers...' : 'No P0 papers match your search'}
                 </CardContent>
               </Card>
             )}
@@ -514,6 +631,9 @@ export function ResearchTab() {
                           <Badge className="bg-orange-600/15 text-orange-400 border-0 text-[9px]">
                             Relevance: {(item.relevance * 100).toFixed(0)}%
                           </Badge>
+                          {item.status === 'in_progress' && (
+                            <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
+                          )}
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
@@ -530,7 +650,7 @@ export function ResearchTab() {
             ) : (
               <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  No P1 papers match your search
+                  {loading ? 'Loading P1 papers...' : 'No P1 papers match your search'}
                 </CardContent>
               </Card>
             )}
@@ -574,7 +694,7 @@ export function ResearchTab() {
             ) : (
               <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  No P2 papers match your search
+                  {loading ? 'Loading P2 papers...' : 'No P2 papers match your search'}
                 </CardContent>
               </Card>
             )}
@@ -612,10 +732,11 @@ export function ResearchTab() {
                       'bg-emerald-600/20 text-emerald-500',
                       'bg-emerald-700/20 text-emerald-400',
                     ]
+                    const isActive = practiceSessionActive && i === practiceStep
                     return (
                       <div
                         key={s.step}
-                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover-pulse ${emeraldLevels[i]}`}
+                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover-pulse ${emeraldLevels[i]} ${isActive ? 'ring-2 ring-emerald-400 shadow-lg shadow-emerald-400/20' : ''}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${stepBadgeBg[i]}`}>
@@ -635,15 +756,11 @@ export function ResearchTab() {
               <div className="flex justify-center pt-2">
                 <Button
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
-                  onClick={() => {
-                    toast.success('Practice session started', {
-                      description: 'INTAKE phase — collecting links...',
-                      duration: 3000,
-                    })
-                  }}
+                  onClick={handleStartPracticeSession}
+                  disabled={practiceSessionActive}
                 >
                   <Play className="h-4 w-4" />
-                  Start Practice Session
+                  {practiceSessionActive ? `Running: ${practiceSteps[practiceStep]?.name}...` : 'Start Practice Session'}
                 </Button>
               </div>
 
@@ -743,9 +860,24 @@ export function ResearchTab() {
                   </div>
                 )}
 
-                {/* Priority Tier Explanation */}
+                {/* Priority Tier Explanation + Priority Change */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Priority Tier</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Priority Tier</span>
+                    <Select
+                      value={selectedPaper.priority}
+                      onValueChange={(val) => handlePriorityChange(selectedPaper.id, val as 'P0' | 'P1' | 'P2')}
+                    >
+                      <SelectTrigger className="h-7 w-24 text-[10px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="P0">P0 — Now</SelectItem>
+                        <SelectItem value="P1">P1 — Next</SelectItem>
+                        <SelectItem value="P2">P2 — Research</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="rounded-md border border-border bg-accent/20 px-3 py-2">
                     <p className="text-xs text-muted-foreground">{config.explanation}</p>
                   </div>
@@ -768,9 +900,10 @@ export function ResearchTab() {
                     size="sm"
                     className="gap-1.5 text-xs"
                     onClick={handleMarkInProgress}
+                    disabled={selectedPaper.status === 'in_progress'}
                   >
                     <ArrowUpRight className="h-3.5 w-3.5" />
-                    Mark as In Progress
+                    {selectedPaper.status === 'in_progress' ? 'Already In Progress' : 'Mark as In Progress'}
                   </Button>
                 </DialogFooter>
               </div>

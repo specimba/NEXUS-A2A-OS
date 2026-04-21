@@ -6,9 +6,12 @@ import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
+import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2 } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
@@ -29,16 +32,6 @@ const latencyHistory = [
   { name: '4m', qwen: 1190, trinity: 1320, gemma: 360 },
   { name: '2m', qwen: 1210, trinity: 1380, gemma: 345 },
   { name: 'now', qwen: 1200, trinity: 1350, gemma: 340 },
-]
-
-// Model performance comparison data for grouped bar chart
-const modelPerformanceData = [
-  { name: 'qwen3', health: 96, successRate: 97, latency: 88 },
-  { name: 'trinity', health: 99, successRate: 99, latency: 82 },
-  { name: 'gemma', health: 100, successRate: 95, latency: 95 },
-  { name: 'nemotron', health: 92, successRate: 94, latency: 90 },
-  { name: 'kimi', health: 91, successRate: 93, latency: 85 },
-  { name: 'minimax', health: 94, successRate: 96, latency: 87 },
 ]
 
 // Failover log data
@@ -64,40 +57,22 @@ const rotationAnalytics = {
   ],
 }
 
-// Per-model sparkline data for pool cards
-const modelSparklines: Record<string, { name: string; value: number }[]> = {
-  'trinity-large-preview': [
-    { name: '1', value: 95 }, { name: '2', value: 97 }, { name: '3', value: 99 },
-    { name: '4', value: 96 }, { name: '5', value: 98 }, { name: '6', value: 99 },
-  ],
-  'minimax-m2.5': [
-    { name: '1', value: 90 }, { name: '2', value: 93 }, { name: '3', value: 91 },
-    { name: '4', value: 94 }, { name: '5', value: 92 }, { name: '6', value: 94 },
-  ],
-  'qwen3-coder': [
-    { name: '1', value: 96 }, { name: '2', value: 94 }, { name: '3', value: 97 },
-    { name: '4', value: 95 }, { name: '5', value: 96 }, { name: '6', value: 96 },
-  ],
-  'kimi-k2.5': [
-    { name: '1', value: 88 }, { name: '2', value: 91 }, { name: '3', value: 90 },
-    { name: '4', value: 92 }, { name: '5', value: 91 }, { name: '6', value: 91 },
-  ],
-  'gpt-oss-120b': [
-    { name: '1', value: 82 }, { name: '2', value: 85 }, { name: '3', value: 83 },
-    { name: '4', value: 86 }, { name: '5', value: 84 }, { name: '6', value: 85 },
-  ],
-  'gemma-fast': [
-    { name: '1', value: 100 }, { name: '2', value: 98 }, { name: '3', value: 100 },
-    { name: '4', value: 99 }, { name: '5', value: 100 }, { name: '6', value: 100 },
-  ],
-  'nemotron-3-super': [
-    { name: '1', value: 92 }, { name: '2', value: 90 }, { name: '3', value: 93 },
-    { name: '4', value: 91 }, { name: '5', value: 92 }, { name: '6', value: 92 },
-  ],
-  'dolphin-mistral-venice': [
-    { name: '1', value: 85 }, { name: '2', value: 82 }, { name: '3', value: 88 },
-    { name: '4', value: 80 }, { name: '5', value: 84 }, { name: '6', value: 83 },
-  ],
+// Generate per-model sparkline data based on model health from DB
+// Uses a seeded pseudo-random function for consistent variation around health value
+function generateSparkline(health: number, seed: number): { name: string; value: number }[] {
+  const points = 6
+  return Array.from({ length: points }, (_, i) => {
+    const variation = Math.sin(seed * (i + 1) * 7.3) * 4
+    return { name: String(i + 1), value: Math.round(Math.min(100, Math.max(50, health + variation))) }
+  })
+}
+
+function getModelSparklines(models: ModelData[]): Record<string, { name: string; value: number }[]> {
+  const result: Record<string, { name: string; value: number }[]> = {}
+  models.forEach((m, idx) => {
+    result[m.name] = generateSparkline(m.health, idx + 1)
+  })
+  return result
 }
 
 const poolDefinitions = [
@@ -158,6 +133,128 @@ interface ModelData {
   isActive: boolean
   totalCalls: number
   successRate: number
+}
+
+// ── Test Console Types ──────────────────────────────────────────
+type TestType = 'simple' | 'reasoning' | 'code' | 'json' | 'domain'
+
+interface TestResult {
+  id: string
+  model: string
+  testType: TestType
+  prompt: string
+  response: string
+  responseTimeMs: number
+  tokenCount: number
+  qualityScore: number
+  passed: boolean
+  timestamp: Date
+}
+
+const testTypeConfig: Record<TestType, { label: string; description: string; defaultPrompt: string }> = {
+  simple: {
+    label: 'Simple',
+    description: 'Basic Q&A response test',
+    defaultPrompt: 'What is the capital of France? Answer in one sentence.',
+  },
+  reasoning: {
+    label: 'Reasoning',
+    description: 'Logical reasoning & analysis',
+    defaultPrompt: 'If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly? Explain your reasoning step by step.',
+  },
+  code: {
+    label: 'Code',
+    description: 'Code generation test',
+    defaultPrompt: 'Write a TypeScript function that takes an array of numbers and returns the median value. Handle edge cases for empty arrays and even-length arrays.',
+  },
+  json: {
+    label: 'JSON',
+    description: 'Structured JSON output',
+    defaultPrompt: 'Return a JSON object with exactly these fields: {"status": "ok", "timestamp": current ISO string, "items": array of 3 random color names, "count": number of items}. Return ONLY valid JSON, no markdown.',
+  },
+  domain: {
+    label: 'Domain',
+    description: 'Domain-specific knowledge',
+    defaultPrompt: 'Explain the difference between HMAC and RSA signatures for API authentication. What are the trade-offs in terms of security, performance, and key management?',
+  },
+}
+
+// Quality scoring heuristics
+function scoreResponse(response: string, testType: TestType, responseTimeMs: number): { score: number; passed: boolean; details: string[] } {
+  const details: string[] = []
+  let score = 0
+
+  // Response time scoring (0-25 points)
+  if (responseTimeMs < 2000) { score += 25; details.push('Fast response (<2s)') }
+  else if (responseTimeMs < 5000) { score += 18; details.push('Acceptable response time (<5s)') }
+  else if (responseTimeMs < 10000) { score += 10; details.push('Slow response (<10s)') }
+  else { score += 3; details.push('Very slow response (>10s)') }
+
+  // Length scoring (0-25 points)
+  const wordCount = response.split(/\s+/).length
+  if (testType === 'simple') {
+    if (wordCount >= 5 && wordCount <= 50) { score += 25; details.push('Concise answer') }
+    else if (wordCount > 50) { score += 15; details.push('Verbose for simple question') }
+    else { score += 5; details.push('Very short response') }
+  } else {
+    if (wordCount >= 30) { score += 25; details.push('Substantial response') }
+    else if (wordCount >= 10) { score += 15; details.push('Adequate length') }
+    else { score += 5; details.push('Short response') }
+  }
+
+  // Type-specific scoring (0-25 points)
+  if (testType === 'json') {
+    try {
+      JSON.parse(response)
+      score += 25
+      details.push('Valid JSON output')
+    } catch {
+      // Try to extract JSON from response
+      const jsonMatch = response.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        try {
+          JSON.parse(jsonMatch[0])
+          score += 18
+          details.push('JSON found in response (with extra text)')
+        } catch {
+          score += 5
+          details.push('Invalid JSON structure')
+        }
+      } else {
+        score += 2
+        details.push('No JSON found in response')
+      }
+    }
+  } else if (testType === 'code') {
+    if (/function|const|let|=>|return/.test(response)) { score += 25; details.push('Code syntax detected') }
+    else if (/\{|\}|=|;/.test(response)) { score += 15; details.push('Partial code structure') }
+    else { score += 5; details.push('No code structure detected') }
+  } else if (testType === 'reasoning') {
+    if (/because|therefore|thus|since|however/i.test(response)) { score += 25; details.push('Logical connectors found') }
+    else if (/step|first|second|then/i.test(response)) { score += 15; details.push('Step-by-step reasoning') }
+    else { score += 8; details.push('Limited reasoning structure') }
+  } else {
+    // simple/domain — check for relevant content
+    if (wordCount >= 10) { score += 20; details.push('Informative response') }
+    else { score += 10; details.push('Brief response') }
+  }
+
+  // Basic validation (0-25 points)
+  if (response.length > 0 && !/^(error|failed|sorry)/i.test(response.trim())) {
+    score += 20
+    details.push('No error indicators')
+  } else {
+    score += 0
+    details.push('Response contains error indicators')
+  }
+
+  // Bonus for no repetition
+  const uniqueWords = new Set(response.toLowerCase().split(/\s+/)).size
+  const diversity = uniqueWords / Math.max(wordCount, 1)
+  if (diversity > 0.6) { score += 5; details.push('Good vocabulary diversity') }
+
+  score = Math.min(100, Math.max(0, score))
+  return { score, passed: score >= 50, details }
 }
 
 // Pool Health Overview Component - compact horizontal stacked bar
@@ -331,7 +428,16 @@ function FailoverLogCard() {
 }
 
 // Model Performance Comparison Card with grouped bar chart
-function ModelPerformanceComparison() {
+function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
+  const chartData = useMemo(() => {
+    return models.map(m => ({
+      name: m.name.split('-')[0].substring(0, 8),
+      health: Math.round(m.health),
+      successRate: Math.round(m.successRate),
+      latency: Math.round(Math.max(0, 100 - (m.latencyMs / 50))),
+    }))
+  }, [models])
+
   return (
     <Card className="relative overflow-hidden border-purple-600/15">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
@@ -344,10 +450,10 @@ function ModelPerformanceComparison() {
       <CardContent className="relative p-4 pt-0">
         <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={modelPerformanceData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[70, 100]} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} />
               <RechartsTooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
@@ -366,6 +472,299 @@ function ModelPerformanceComparison() {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ── Model Test Console Component ────────────────────────────────
+function ModelTestConsole({ models }: { models: ModelData[] }) {
+  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [testType, setTestType] = useState<TestType>('simple')
+  const [prompt, setPrompt] = useState(testTypeConfig.simple.defaultPrompt)
+  const [running, setRunning] = useState(false)
+  const [currentResult, setCurrentResult] = useState<TestResult | null>(null)
+  const [testHistory, setTestHistory] = useState<TestResult[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  // Update prompt when test type changes
+  const handleTestTypeChange = useCallback((type: TestType) => {
+    setTestType(type)
+    setPrompt(testTypeConfig[type].defaultPrompt)
+  }, [])
+
+  // Run the test
+  const runTest = useCallback(async () => {
+    if (!selectedModel) {
+      toast.error('Please select a model first')
+      return
+    }
+    if (!prompt.trim()) {
+      toast.error('Please enter a prompt')
+      return
+    }
+
+    setRunning(true)
+    setError(null)
+    setCurrentResult(null)
+
+    const startTime = Date.now()
+
+    try {
+      const res = await globalThis.fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: prompt }],
+          systemPrompt: `You are being tested. Respond to the following prompt as accurately and helpfully as possible. ${testType === 'json' ? 'Return ONLY valid JSON with no markdown formatting.' : ''} ${testType === 'code' ? 'Return working code with proper syntax.' : ''}`,
+        }),
+      })
+
+      const responseTimeMs = Date.now() - startTime
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        throw new Error(errBody.error || `HTTP ${res.status}`)
+      }
+
+      const data = await res.json()
+      const responseText = data.response || ''
+      const tokenCount = responseText.split(/\s+/).length * 1.3 // rough estimate
+
+      const { score, passed, details } = scoreResponse(responseText, testType, responseTimeMs)
+
+      const result: TestResult = {
+        id: `TEST-${Date.now()}`,
+        model: selectedModel,
+        testType,
+        prompt,
+        response: responseText,
+        responseTimeMs,
+        tokenCount: Math.round(tokenCount),
+        qualityScore: score,
+        passed,
+        timestamp: new Date(),
+      }
+
+      setCurrentResult(result)
+      setTestHistory(prev => [result, ...prev].slice(0, 20)) // Keep last 20
+      toast[passed ? 'success' : 'warning'](
+        passed ? 'Test passed' : 'Test needs improvement',
+        { description: `Quality score: ${score}/100 · ${responseTimeMs}ms` }
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(msg)
+      toast.error('Test failed', { description: msg })
+    } finally {
+      setRunning(false)
+    }
+  }, [selectedModel, testType, prompt])
+
+  const activeModels = models.filter(m => m.isActive)
+
+  return (
+    <div className="space-y-4">
+      {/* Test Configuration */}
+      <Card className="relative overflow-hidden border-emerald-600/15">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+        <CardHeader className="relative pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-emerald-400" />
+            Test Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Model</Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Select a model..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeModels.map(m => (
+                    <SelectItem key={m.id} value={m.name}>
+                      {m.name} (Tier {m.tier})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Test Type</Label>
+              <Select value={testType} onValueChange={(v) => handleTestTypeChange(v as TestType)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(testTypeConfig) as [TestType, typeof testTypeConfig.simple][]).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>
+                      {cfg.label} — {cfg.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">Prompt</Label>
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter your test prompt..."
+              rows={3}
+              className="text-xs resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={runTest}
+              disabled={running || !selectedModel}
+              className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+              size="sm"
+            >
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              {running ? 'Running Test...' : 'Run Test'}
+            </Button>
+            {running && (
+              <span className="text-xs text-muted-foreground animate-pulse">
+                Sending prompt to {selectedModel}...
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Current Result */}
+      {(currentResult || error) && (
+        <Card className={`relative overflow-hidden ${error ? 'border-red-600/20' : currentResult?.passed ? 'border-emerald-600/20' : 'border-yellow-600/20'}`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${
+            error ? 'from-red-600/5' : currentResult?.passed ? 'from-emerald-600/5' : 'from-yellow-600/5'
+          } via-transparent to-transparent`} />
+          <CardHeader className="relative pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                {error ? (
+                  <XCircle className="h-4 w-4 text-red-400" />
+                ) : currentResult?.passed ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                )}
+                Test Result
+              </CardTitle>
+              {currentResult && (
+                <div className="flex items-center gap-2">
+                  <Badge className={`border-0 text-[10px] ${currentResult.passed ? 'bg-emerald-600/15 text-emerald-400' : 'bg-yellow-600/15 text-yellow-400'}`}>
+                    {currentResult.passed ? 'PASSED' : 'NEEDS WORK'}
+                  </Badge>
+                  <Badge variant="outline" className="text-[9px]">{currentResult.model}</Badge>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0 space-y-3">
+            {error && (
+              <div className="rounded-md bg-red-600/10 border border-red-600/20 px-3 py-2 text-xs text-red-400">
+                {error}
+              </div>
+            )}
+            {currentResult && (
+              <>
+                {/* Metrics */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-accent/30 p-2.5 text-center">
+                    <Clock className="h-3 w-3 text-blue-400 mx-auto mb-1" />
+                    <p className="text-lg font-bold tabular-nums">{currentResult.responseTimeMs.toLocaleString()}ms</p>
+                    <p className="text-[9px] text-muted-foreground">Response Time</p>
+                  </div>
+                  <div className="rounded-lg bg-accent/30 p-2.5 text-center">
+                    <Hash className="h-3 w-3 text-orange-400 mx-auto mb-1" />
+                    <p className="text-lg font-bold tabular-nums">~{currentResult.tokenCount}</p>
+                    <p className="text-[9px] text-muted-foreground">Token Count</p>
+                  </div>
+                  <div className="rounded-lg bg-accent/30 p-2.5 text-center">
+                    <Activity className="h-3 w-3 text-emerald-400 mx-auto mb-1" />
+                    <p className={`text-lg font-bold tabular-nums ${currentResult.qualityScore >= 70 ? 'text-emerald-400' : currentResult.qualityScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {currentResult.qualityScore}/100
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">Quality Score</p>
+                  </div>
+                </div>
+
+                {/* Quality Progress Bar */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-muted-foreground">Quality</span>
+                    <span className="text-[10px] font-medium tabular-nums">{currentResult.qualityScore}%</span>
+                  </div>
+                  <Progress value={currentResult.qualityScore} className="h-2" />
+                </div>
+
+                {/* Response */}
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground mb-1">Model Response</p>
+                  <div className="max-h-48 overflow-y-auto rounded-md bg-accent/20 border border-border/50 p-3 text-xs leading-relaxed custom-scrollbar whitespace-pre-wrap">
+                    {currentResult.response}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Test History */}
+      {testHistory.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Test History
+                <Badge variant="outline" className="text-[9px]">{testHistory.length} tests</Badge>
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-red-400"
+                onClick={() => {
+                  setTestHistory([])
+                  toast.success('Test history cleared')
+                }}
+              >
+                <Trash2 className="h-3 w-3" /> Clear
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="max-h-64 space-y-1.5 overflow-y-auto custom-scrollbar">
+              {testHistory.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-2 text-xs hover:bg-accent/40 transition-colors cursor-pointer"
+                  onClick={() => setCurrentResult(t)}
+                >
+                  {t.passed ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 shrink-0 text-yellow-400" />
+                  )}
+                  <span className="font-medium truncate max-w-[120px]">{t.model.split('-')[0]}</span>
+                  <Badge variant="outline" className="text-[8px] shrink-0">{testTypeConfig[t.testType].label}</Badge>
+                  <span className="text-muted-foreground shrink-0 tabular-nums">{t.responseTimeMs}ms</span>
+                  <span className={`shrink-0 font-bold tabular-nums ${t.qualityScore >= 70 ? 'text-emerald-400' : t.qualityScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {t.qualityScore}%
+                  </span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50 shrink-0 tabular-nums">
+                    {t.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }
 
@@ -409,8 +808,8 @@ export function GmrTab() {
     })
   }, [models, getModelPools])
 
-  // Handle model toggle
-  const handleToggle = useCallback((modelId: string) => {
+  // Handle model toggle — calls API to persist change
+  const handleToggle = useCallback(async (modelId: string) => {
     const model = models.find(m => m.id === modelId)
     if (!model) return
 
@@ -425,13 +824,71 @@ export function GmrTab() {
     // Optimistic update via override
     setOverrides(prev => ({ ...prev, [modelId]: newState }))
     toast.success(`Model ${model.name} ${newState ? 'activated' : 'deactivated'}`)
-  }, [models, isLastActiveInPool])
 
-  // Reset all models to their original isActive state (clear overrides)
+    // Call API to persist the toggle
+    try {
+      const res = await globalThis.fetch('/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle', modelId }),
+      })
+      if (!res.ok) {
+        toast.error(`Failed to toggle ${model.name}`)
+        // Revert optimistic update
+        setOverrides(prev => {
+          const next = { ...prev }
+          delete next[modelId]
+          return next
+        })
+      } else {
+        refetch()
+      }
+    } catch {
+      toast.error(`Failed to toggle ${model.name}`)
+      // Revert optimistic update
+      setOverrides(prev => {
+        const next = { ...prev }
+        delete next[modelId]
+        return next
+      })
+    }
+  }, [models, isLastActiveInPool, refetch])
+
+  // Reset all models to their original isActive state (clear overrides + refetch)
   const handleReset = useCallback(() => {
     setOverrides({})
+    refetch()
     toast.info('All models reset to default state')
-  }, [])
+  }, [refetch])
+
+  // Run health check on all models
+  const [healthCheckRunning, setHealthCheckRunning] = useState(false)
+  const handleHealthCheck = useCallback(async () => {
+    setHealthCheckRunning(true)
+    toast.info('Running health check on all models...')
+    let successCount = 0
+    let failCount = 0
+    for (const m of models) {
+      try {
+        const res = await globalThis.fetch('/api/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'health_check', modelId: m.id }),
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+    refetch()
+    setHealthCheckRunning(false)
+    if (failCount === 0) {
+      toast.success(`Health check completed for ${successCount} models`)
+    } else {
+      toast.warning(`Health check: ${successCount} succeeded, ${failCount} failed`)
+    }
+  }, [models, refetch])
 
   // Timer for health simulation pulse
   useEffect(() => {
@@ -445,12 +902,13 @@ export function GmrTab() {
   const avgHealth = activeModels.length ? Math.round(activeModels.reduce((s, m) => s + m.health, 0) / activeModels.length) : 0
   const totalCalls = models.reduce((s, m) => s + m.totalCalls, 0)
   const freeActiveCount = models.filter(m => m.isActive && m.isFree).length
+  const modelSparklines = useMemo(() => getModelSparklines(models), [models])
 
   return (
-    <div className="space-y-6 p-6 grid-pattern">
+    <div className="space-y-6 p-6 grid-pattern-animated">
       {/* Stats Row */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="relative overflow-hidden border-emerald-600/20">
+        <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -466,7 +924,7 @@ export function GmrTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -482,7 +940,7 @@ export function GmrTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -498,7 +956,7 @@ export function GmrTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -540,7 +998,7 @@ export function GmrTab() {
             />
           </CardContent>
         </Card>
-        <ModelPerformanceComparison />
+        <ModelPerformanceComparison models={models} />
       </div>
 
       {/* Pool Health Overview + Rotation Analytics + Failover Log */}
@@ -555,19 +1013,31 @@ export function GmrTab() {
           <TabsTrigger value="models">Model Registry</TabsTrigger>
           <TabsTrigger value="pools">Pool Status</TabsTrigger>
           <TabsTrigger value="rotation">Rotation Log</TabsTrigger>
+          <TabsTrigger value="test" className="gap-1.5">
+            <Terminal className="h-3 w-3" />
+            Test Console
+          </TabsTrigger>
         </TabsList>
 
         {/* Model Registry */}
         <TabsContent value="models">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-muted-foreground">{models.length} models registered</span>
-            <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={handleReset}>
-              <RotateCcw className="h-3 w-3" /> Reset to Default
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={() => refetch()}>
+                <RefreshCw className="h-3 w-3" /> Refresh Models
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={handleHealthCheck} disabled={healthCheckRunning}>
+                <HeartPulse className={`h-3 w-3 ${healthCheckRunning ? 'animate-pulse' : ''}`} /> {healthCheckRunning ? 'Checking...' : 'Health Check'}
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={handleReset}>
+                <RotateCcw className="h-3 w-3" /> Reset to Default
+              </Button>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {models.map((m) => (
-              <Card key={m.id} className={`group relative overflow-hidden transition-all duration-300 ${m.isActive ? 'hover:border-emerald-600/20 hover:shadow-md hover:shadow-emerald-600/5' : 'opacity-50'}`}>
+              <Card key={m.id} className={`group relative overflow-hidden transition-all duration-300 hover-lift ${m.isActive ? 'hover:border-emerald-600/20' : 'opacity-50'}`}>
                 {m.isActive && <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />}
                 <CardContent className="relative p-4">
                   <div className="flex items-start justify-between">
@@ -587,7 +1057,7 @@ export function GmrTab() {
                       {m.isActive ? (
                         <span className="relative flex h-4 w-4">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-30" />
-                          <Wifi className="relative h-4 w-4 text-emerald-400" />
+                          <Wifi className="relative h-4 w-4 text-emerald-400 status-glow-green" />
                         </span>
                       ) : (
                         <WifiOff className="h-4 w-4 text-muted-foreground" />
@@ -643,7 +1113,7 @@ export function GmrTab() {
               const poolCalls = poolModels.reduce((s, m) => s + m.totalCalls, 0)
               const poolHealth = poolModels.length ? Math.round(poolModels.reduce((s, m) => s + m.health, 0) / poolModels.length) : 0
               return (
-                <Card key={pool.name} className="relative overflow-hidden">
+                <Card key={pool.name} className="relative overflow-hidden hover-lift">
                   <div className={`absolute inset-0 bg-gradient-to-br ${pool.gradient} via-transparent to-transparent`} />
                   <CardHeader className="relative pb-2">
                     <div className="flex items-center justify-between">
@@ -663,7 +1133,7 @@ export function GmrTab() {
                       {poolModels.map((m) => (
                         <div key={m.id} className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-1.5">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${m.isActive ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
+                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${m.isActive ? 'bg-emerald-500 status-glow-green' : 'bg-muted-foreground'}`} />
                             <span className="font-medium text-xs truncate">{m.name}</span>
                           </div>
                           <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
@@ -725,6 +1195,11 @@ export function GmrTab() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Test Console */}
+        <TabsContent value="test">
+          <ModelTestConsole models={models} />
         </TabsContent>
       </Tabs>
     </div>

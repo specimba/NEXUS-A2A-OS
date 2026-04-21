@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -48,6 +48,7 @@ import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
 import { useSwarmWS, type WorkerUpdate, type TaskQueued, type TaskComplete } from '@/hooks/use-swarm-ws'
+import { useApiData } from '@/hooks/use-api-data'
 
 // Worker status export data with meaningful column names
 const workerStatusColumnHeaders: Record<string, string> = {
@@ -78,88 +79,44 @@ const taskQueueColumnHeaders: Record<string, string> = {
 
 interface Worker {
   id: string
-  status: 'busy' | 'error' | 'idle'
+  name: string
+  status: string
   task: string | null
   domain: string | null
   progress: number
   tokens: number
   uptime: string
+  trustScore: number
+  tasksDone: number
+  tasksFailed: number
 }
 
-interface TaskHistoryItem {
-  id: string
-  result: 'success' | 'failure'
-  duration: string
-  tokens: number
-  completedAt: string
+interface SwarmApiResponse {
+  workers: {
+    id: string
+    name: string
+    type: string
+    status: string
+    domain: string | null
+    trustScore: number
+    totalTokens: number
+    tasksDone: number
+    tasksFailed: number
+    lastActive: string
+    recentActivity: number
+  }[]
+  stats: {
+    totalWorkers: number
+    busyWorkers: number
+    idleWorkers: number
+    errorWorkers: number
+    offlineWorkers: number
+    totalTasks: number
+    avgTrust: number
+  }
 }
 
-const workers: Worker[] = [
-  { id: 'worker-1', status: 'busy', task: 'T-0848', domain: 'code', progress: 67, tokens: 12400, uptime: '2h 34m' },
-  { id: 'worker-2', status: 'error', task: 'T-0846', domain: 'research', progress: 34, tokens: 8200, uptime: '1h 12m' },
-  { id: 'worker-3', status: 'busy', task: 'T-0849', domain: 'cyber', progress: 89, tokens: 18600, uptime: '3h 01m' },
-  { id: 'worker-4', status: 'idle', task: null, domain: null, progress: 0, tokens: 0, uptime: '0h 45m' },
-  { id: 'worker-5', status: 'idle', task: null, domain: null, progress: 0, tokens: 0, uptime: '0h 22m' },
-]
-
-const workerHistory: Record<string, TaskHistoryItem[]> = {
-  'worker-1': [
-    { id: 'T-0847', result: 'success', duration: '14s', tokens: 3420, completedAt: '2m ago' },
-    { id: 'T-0843', result: 'success', duration: '3s', tokens: 640, completedAt: '18m ago' },
-    { id: 'T-0842', result: 'success', duration: '18s', tokens: 4200, completedAt: '32m ago' },
-    { id: 'T-0840', result: 'failure', duration: '8s', tokens: 1280, completedAt: '1h ago' },
-  ],
-  'worker-2': [
-    { id: 'T-0845', result: 'success', duration: '22s', tokens: 5100, completedAt: '15m ago' },
-    { id: 'T-0841', result: 'success', duration: '11s', tokens: 2800, completedAt: '40m ago' },
-    { id: 'T-0839', result: 'failure', duration: '6s', tokens: 920, completedAt: '1h 10m ago' },
-    { id: 'T-0836', result: 'success', duration: '19s', tokens: 4600, completedAt: '1h 45m ago' },
-  ],
-  'worker-3': [
-    { id: 'T-0844', result: 'failure', duration: '8s', tokens: 1280, completedAt: '5m ago' },
-    { id: 'T-0841', result: 'success', duration: '11s', tokens: 2800, completedAt: '20m ago' },
-    { id: 'T-0838', result: 'success', duration: '25s', tokens: 6100, completedAt: '45m ago' },
-    { id: 'T-0835', result: 'success', duration: '16s', tokens: 3900, completedAt: '1h 15m ago' },
-  ],
-  'worker-4': [
-    { id: 'T-0843', result: 'success', duration: '3s', tokens: 640, completedAt: '10m ago' },
-    { id: 'T-0837', result: 'success', duration: '9s', tokens: 2100, completedAt: '35m ago' },
-    { id: 'T-0834', result: 'success', duration: '7s', tokens: 1800, completedAt: '1h ago' },
-  ],
-  'worker-5': [
-    { id: 'T-0839', result: 'success', duration: '5s', tokens: 1200, completedAt: '8m ago' },
-    { id: 'T-0833', result: 'success', duration: '12s', tokens: 2900, completedAt: '50m ago' },
-  ],
-}
-
-const workerSparklines: Record<string, { name: string; value: number }[]> = {
-  'worker-1': [
-    { name: '0', value: 800 }, { name: '1', value: 1200 }, { name: '2', value: 1600 },
-    { name: '3', value: 1400 }, { name: '4', value: 1800 }, { name: '5', value: 2400 },
-    { name: '6', value: 2200 }, { name: '7', value: 2800 },
-  ],
-  'worker-2': [
-    { name: '0', value: 600 }, { name: '1', value: 900 }, { name: '2', value: 1400 },
-    { name: '3', value: 1800 }, { name: '4', value: 1200 }, { name: '5', value: 800 },
-    { name: '6', value: 600 }, { name: '7', value: 400 },
-  ],
-  'worker-3': [
-    { name: '0', value: 2000 }, { name: '1', value: 2400 }, { name: '2', value: 2800 },
-    { name: '3', value: 3200 }, { name: '4', value: 3000 }, { name: '5', value: 3600 },
-    { name: '6', value: 3400 }, { name: '7', value: 3800 },
-  ],
-  'worker-4': [
-    { name: '0', value: 0 }, { name: '1', value: 0 }, { name: '2', value: 200 },
-    { name: '3', value: 400 }, { name: '4', value: 0 }, { name: '5', value: 0 },
-    { name: '6', value: 0 }, { name: '7', value: 0 },
-  ],
-  'worker-5': [
-    { name: '0', value: 0 }, { name: '1', value: 0 }, { name: '2', value: 0 },
-    { name: '3', value: 100 }, { name: '4', value: 300 }, { name: '5', value: 0 },
-    { name: '6', value: 0 }, { name: '7', value: 0 },
-  ],
-}
-
+// Fallback task queue (not from API)
 const taskQueue = [
   { id: 'T-0850', domain: 'ai_safety', priority: 'high', status: 'queued', submittedBy: 'coordinator' },
   { id: 'T-0851', domain: 'compbio', priority: 'medium', status: 'queued', submittedBy: 'coordinator' },
@@ -167,6 +124,7 @@ const taskQueue = [
   { id: 'T-0853', domain: 'code', priority: 'high', status: 'queued', submittedBy: 'coordinator' },
 ]
 
+// Fallback recent completed
 const recentCompleted = [
   { id: 'T-0847', worker: 'worker-3', result: 'success', duration: '14s', tokens: 3420 },
   { id: 'T-0845', worker: 'worker-1', result: 'success', duration: '22s', tokens: 5100 },
@@ -175,56 +133,105 @@ const recentCompleted = [
   { id: 'T-0842', worker: 'worker-1', result: 'success', duration: '18s', tokens: 4200 },
 ]
 
+function formatUptime(lastActive: string): string {
+  const now = new Date()
+  const last = new Date(lastActive)
+  const diffMs = now.getTime() - last.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  if (diffMins < 60) return `${diffMins}m`
+  const diffHours = Math.floor(diffMins / 60)
+  const remainMins = diffMins % 60
+  if (diffHours < 24) return `${diffHours}h ${remainMins}m`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays}d ${diffHours % 24}h`
+}
+
+function getStatusDisplay(status: string): { icon: typeof Loader2; bgClass: string; textClass: string; badgeClass: string; label: string } {
+  switch (status) {
+    case 'busy':
+      return {
+        icon: Loader2,
+        bgClass: 'bg-emerald-600/15 shadow-lg shadow-emerald-600/10',
+        textClass: 'text-emerald-400',
+        badgeClass: 'bg-emerald-600/15 text-emerald-400',
+        label: 'Executing task',
+      }
+    case 'error':
+      return {
+        icon: Bug,
+        bgClass: 'bg-red-600/15 shadow-lg shadow-red-600/10',
+        textClass: 'text-red-400',
+        badgeClass: 'bg-red-600/15 text-red-400',
+        label: 'Error state',
+      }
+    case 'offline':
+      return {
+        icon: WifiOff,
+        bgClass: 'bg-muted',
+        textClass: 'text-muted-foreground',
+        badgeClass: 'bg-muted text-muted-foreground',
+        label: 'Offline',
+      }
+    default: // idle
+      return {
+        icon: Clock,
+        bgClass: 'bg-muted',
+        textClass: 'text-muted-foreground',
+        badgeClass: 'bg-muted text-muted-foreground',
+        label: 'Available for assignment',
+      }
+  }
+}
+
+function getWorkerCardStyle(status: string): string {
+  switch (status) {
+    case 'busy':
+      return 'border-emerald-600/20 bg-gradient-to-br from-emerald-600/10 via-emerald-600/5 to-transparent hover:border-emerald-600/40'
+    case 'error':
+      return 'border-red-600/30 bg-gradient-to-br from-red-600/10 via-red-600/5 to-transparent hover:border-red-600/50 pulse-border'
+    case 'offline':
+      return 'border-border/50 bg-gradient-to-br from-muted/10 via-transparent to-transparent opacity-60'
+    default: // idle
+      return 'border-border bg-gradient-to-br from-muted/20 via-transparent to-transparent hover:border-border/80'
+  }
+}
+
 function WorkerDetailDialog({
   worker,
   open,
   onOpenChange,
+  onTerminate,
+  onReassign,
 }: {
   worker: Worker | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onTerminate: (workerId: string) => void
+  onReassign: (workerId: string) => void
 }) {
   if (!worker) return null
 
-  const history = workerHistory[worker.id] || []
-  const sparkline = workerSparklines[worker.id] || []
   const isIdle = worker.status === 'idle'
   const isError = worker.status === 'error'
+  const statusDisplay = getStatusDisplay(worker.status)
+  const StatusIcon = statusDisplay.icon
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg bg-card border-border/60">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-              worker.status === 'busy'
-                ? 'bg-emerald-600/15 shadow-lg shadow-emerald-600/10'
-                : worker.status === 'error'
-                ? 'bg-red-600/15 shadow-lg shadow-red-600/10'
-                : 'bg-muted'
-            }`}>
-              {worker.status === 'busy' ? (
-                <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
-              ) : worker.status === 'error' ? (
-                <Bug className="h-5 w-5 text-red-400" />
-              ) : (
-                <Clock className="h-5 w-5 text-muted-foreground" />
-              )}
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${statusDisplay.bgClass}`}>
+              <StatusIcon className={`h-5 w-5 ${statusDisplay.textClass} ${worker.status === 'busy' ? 'animate-spin' : ''}`} />
             </div>
             <div>
-              <DialogTitle className="text-base">{worker.id}</DialogTitle>
+              <DialogTitle className="text-base">{worker.name}</DialogTitle>
               <DialogDescription className="text-xs">
                 Worker detail and task history
               </DialogDescription>
             </div>
             <Badge
-              className={`ml-auto text-[10px] border-0 ${
-                worker.status === 'busy'
-                  ? 'bg-emerald-600/15 text-emerald-400'
-                  : worker.status === 'error'
-                  ? 'bg-red-600/15 text-red-400'
-                  : 'bg-muted text-muted-foreground'
-              }`}
+              className={`ml-auto text-[10px] border-0 ${statusDisplay.badgeClass}`}
             >
               {worker.status}
             </Badge>
@@ -240,20 +247,8 @@ function WorkerDetailDialog({
             </div>
             <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</p>
-              <p className={`mt-0.5 text-sm font-medium ${
-                worker.status === 'busy' ? 'text-emerald-400' :
-                worker.status === 'error' ? 'text-red-400' :
-                'text-muted-foreground'
-              }`}>
-                {worker.status === 'busy' ? 'Executing task' :
-                 worker.status === 'error' ? 'Error state' :
-                 'Available for assignment'}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Task</p>
-              <p className="mt-0.5 text-sm font-mono font-medium">
-                {worker.task || '—'}
+              <p className={`mt-0.5 text-sm font-medium ${statusDisplay.textClass}`}>
+                {statusDisplay.label}
               </p>
             </div>
             <div className="rounded-lg border border-border/50 p-3">
@@ -265,30 +260,24 @@ function WorkerDetailDialog({
               </p>
             </div>
             <div className="rounded-lg border border-border/50 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Trust Score</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums">{worker.trustScore.toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tokens Consumed</p>
               <p className="mt-0.5 text-sm font-bold tabular-nums">
                 {worker.tokens > 0 ? worker.tokens.toLocaleString() : '0'}
               </p>
             </div>
             <div className="rounded-lg border border-border/50 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Uptime</p>
-              <p className="mt-0.5 text-sm font-medium tabular-nums">{worker.uptime}</p>
-            </div>
-          </div>
-
-          {/* Progress for busy workers */}
-          {worker.status === 'busy' && (
-            <div className="rounded-lg border border-emerald-600/20 bg-emerald-600/5 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-wider text-emerald-400">Task Progress</p>
-                <span className="text-sm font-bold tabular-nums text-emerald-400">{worker.progress}%</span>
-              </div>
-              <Progress value={worker.progress} className="h-2.5" />
-              <p className="mt-1.5 text-[10px] text-muted-foreground">
-                Executing {worker.task} in {worker.domain} domain
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tasks Done / Failed</p>
+              <p className="mt-0.5 text-sm tabular-nums">
+                <span className="text-emerald-400">{worker.tasksDone}</span>
+                {' / '}
+                <span className="text-red-400">{worker.tasksFailed}</span>
               </p>
             </div>
-          )}
+          </div>
 
           {/* Error details for error workers */}
           {isError && (
@@ -298,7 +287,7 @@ function WorkerDetailDialog({
                 <p className="text-[10px] uppercase tracking-wider text-red-400">Error Details</p>
               </div>
               <p className="text-xs text-red-300 leading-relaxed">
-                Task {worker.task} failed at {worker.progress}% completion in {worker.domain} domain.
+                Worker encountered an error. Last task may have failed.
                 Error: &quot;Rate limit exceeded — retry after 60s or reassign to another worker.&quot;
               </p>
               <div className="mt-2 flex items-center gap-2">
@@ -329,56 +318,6 @@ function WorkerDetailDialog({
               </div>
             </div>
           )}
-
-          {/* Token consumption sparkline */}
-          <div className="rounded-lg border border-border/50 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Token Consumption Trend</p>
-            <MiniAreaChart
-              data={sparkline}
-              dataKey="value"
-              color={worker.status === 'error' ? COLORS.red : worker.status === 'busy' ? COLORS.emerald : '#6b7280'}
-              height={60}
-            />
-          </div>
-
-          {/* Task History */}
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Recent Task History</p>
-            <div className="rounded-lg border border-border/50 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-[10px] h-8">Task</TableHead>
-                    <TableHead className="text-[10px] h-8">Result</TableHead>
-                    <TableHead className="text-[10px] h-8">Duration</TableHead>
-                    <TableHead className="text-[10px] h-8">Tokens</TableHead>
-                    <TableHead className="text-[10px] h-8">Completed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((h) => (
-                    <TableRow key={h.id}>
-                      <TableCell className="text-xs font-mono py-1.5">{h.id}</TableCell>
-                      <TableCell className="py-1.5">
-                        {h.result === 'success' ? (
-                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">
-                            <CheckCircle2 className="mr-1 h-3 w-3" />PASS
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px]">
-                            <XCircle className="mr-1 h-3 w-3" />FAIL
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs py-1.5">{h.duration}</TableCell>
-                      <TableCell className="text-xs tabular-nums py-1.5">{h.tokens.toLocaleString()}</TableCell>
-                      <TableCell className="text-[10px] text-muted-foreground py-1.5">{h.completedAt}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
         </div>
 
         <DialogFooter className="gap-2">
@@ -388,9 +327,7 @@ function WorkerDetailDialog({
               size="sm"
               className="gap-1.5"
               onClick={() => {
-                toast.success(`Task reassigned to ${worker.id}`, {
-                  description: 'Next queued task will be assigned to this worker',
-                })
+                onReassign(worker.id)
                 onOpenChange(false)
               }}
             >
@@ -398,20 +335,20 @@ function WorkerDetailDialog({
               Reassign Task
             </Button>
           )}
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              toast.success(`${worker.id} terminated`, {
-                description: 'Worker removed from the swarm pool',
-              })
-              onOpenChange(false)
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Terminate Worker
-          </Button>
+          {worker.status !== 'offline' && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                onTerminate(worker.id)
+                onOpenChange(false)
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Terminate Worker
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -422,26 +359,41 @@ export function SwarmTab() {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const ws = useSwarmWS()
+  const { data: apiData, loading, refetch } = useApiData<SwarmApiResponse>('/api/swarm', 15000)
 
-  // Merge static base workers with live WebSocket updates
-  const liveWorkers = useMemo(() => {
-    return workers.map(base => {
-      const wsUpdate = ws.workers[base.id]
-      if (wsUpdate) {
-        return {
-          ...base,
-          status: wsUpdate.status,
-          task: wsUpdate.task,
-          progress: wsUpdate.progress,
-          tokens: wsUpdate.tokens,
-          domain: wsUpdate.domain ?? base.domain,
-        }
+  // Map API workers to Worker interface, merging with WebSocket updates
+  const apiWorkers: Worker[] = useMemo(() => {
+    if (!apiData?.workers) return []
+    return apiData.workers.map(w => {
+      const wsUpdate = ws.workers[w.id]
+      // Generate a simulated progress for busy workers
+      const progress = w.status === 'busy' ? Math.min(95, 30 + w.tasksDone * 5) : w.status === 'error' ? Math.floor(Math.random() * 50) : 0
+      return {
+        id: w.id,
+        name: w.name,
+        status: wsUpdate?.status || w.status,
+        task: wsUpdate?.task || (w.status === 'busy' ? `T-${String(800 + w.tasksDone).padStart(4, '0')}` : null),
+        domain: wsUpdate?.domain || w.domain,
+        progress: wsUpdate?.progress || progress,
+        tokens: wsUpdate?.tokens || w.totalTokens,
+        uptime: formatUptime(w.lastActive),
+        trustScore: w.trustScore,
+        tasksDone: w.tasksDone,
+        tasksFailed: w.tasksFailed,
       }
-      return base
     })
-  }, [ws.workers])
+  }, [apiData, ws.workers])
 
-  // Merge static task queue with live WebSocket queue
+  // Stats from API or computed from workers
+  const stats = apiData?.stats
+  const busyCount = stats?.busyWorkers ?? apiWorkers.filter(w => w.status === 'busy').length
+  const idleCount = stats?.idleWorkers ?? apiWorkers.filter(w => w.status === 'idle').length
+  const errorCount = stats?.errorWorkers ?? apiWorkers.filter(w => w.status === 'error').length
+  const offlineCount = stats?.offlineWorkers ?? apiWorkers.filter(w => w.status === 'offline').length
+  const totalTokens = apiWorkers.reduce((s, w) => s + w.tokens, 0)
+  const avgTrust = stats?.avgTrust ?? (apiWorkers.length > 0 ? apiWorkers.reduce((s, w) => s + w.trustScore, 0) / apiWorkers.length : 0)
+
+  // Task queue - use WebSocket data if available, otherwise fallback
   const liveTaskQueue = useMemo(() => {
     if (ws.taskQueue.length > 0) {
       return ws.taskQueue.map(t => ({
@@ -455,7 +407,7 @@ export function SwarmTab() {
     return taskQueue
   }, [ws.taskQueue])
 
-  // Merge recent completions with live data
+  // Recent completions - use WebSocket data if available, otherwise fallback
   const liveRecentCompleted = useMemo(() => {
     if (ws.recentCompletions.length > 0) {
       return ws.recentCompletions.map(c => ({
@@ -469,39 +421,100 @@ export function SwarmTab() {
     return recentCompleted
   }, [ws.recentCompletions])
 
-  const busyCount = liveWorkers.filter(w => w.status === 'busy').length
-  const idleCount = liveWorkers.filter(w => w.status === 'idle').length
-  const errorCount = liveWorkers.filter(w => w.status === 'error').length
-  const totalTokens = liveWorkers.reduce((s, w) => s + w.tokens, 0)
-
-  // Live metrics from WebSocket
-  const liveMetrics = ws.metrics ?? { throughput: 11.2, avgDuration: 12.4, successRate: 87.3, utilization: 60, totalTokens }
+  // Compute live metrics
+  const totalTasks = stats?.totalTasks ?? apiWorkers.reduce((s, w) => s + w.tasksDone + w.tasksFailed, 0)
+  const liveMetrics = ws.metrics ?? {
+    throughput: totalTasks > 0 ? totalTasks * 0.5 : 11.2,
+    avgDuration: 12.4,
+    successRate: totalTasks > 0 ? (apiWorkers.reduce((s, w) => s + w.tasksDone, 0) / totalTasks) * 100 : 87.3,
+    utilization: apiWorkers.length > 0 ? Math.round(((busyCount + errorCount) / apiWorkers.length) * 100) : 60,
+    totalTokens,
+  }
 
   const handleWorkerClick = (worker: Worker) => {
     setSelectedWorker(worker)
     setDialogOpen(true)
   }
 
-  const handleAssignTask = (taskId: string) => {
-    const idleWorker = liveWorkers.find(w => w.status === 'idle')
+  const handleTerminate = useCallback(async (workerId: string) => {
+    try {
+      const res = await fetch('/api/swarm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'terminate_worker', workerId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(`Worker terminated`, {
+          description: data.message || `Worker removed from the swarm pool`,
+        })
+        refetch()
+      } else {
+        const err = await res.json()
+        toast.error('Failed to terminate worker', { description: err.error || 'Unknown error' })
+      }
+    } catch {
+      toast.error('Failed to terminate worker', { description: 'Network error' })
+    }
+  }, [refetch])
+
+  const handleReassign = useCallback(async (workerId: string) => {
+    try {
+      const res = await fetch('/api/swarm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reassign_task', workerId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(`Task reassigned`, {
+          description: data.message || `Next queued task will be assigned to this worker`,
+        })
+        refetch()
+      } else {
+        const err = await res.json()
+        toast.error('Failed to reassign task', { description: err.error || 'Unknown error' })
+      }
+    } catch {
+      toast.error('Failed to reassign task', { description: 'Network error' })
+    }
+  }, [refetch])
+
+  const handleAssignTask = useCallback(async (taskId: string) => {
+    const idleWorker = apiWorkers.find(w => w.status === 'idle')
     if (idleWorker) {
-      // Send via WebSocket
+      // Try WebSocket first
       const sent = ws.assignTask(taskId, idleWorker.id)
       if (sent) {
-        toast.success(`Task ${taskId} assigned to ${idleWorker.id}`, {
+        toast.success(`Task ${taskId} assigned to ${idleWorker.name}`, {
           description: 'Worker will begin processing shortly via WebSocket',
         })
       } else {
-        toast.success(`Task ${taskId} assigned to ${idleWorker.id}`, {
-          description: 'Worker will begin processing shortly',
-        })
+        // Fallback to REST API
+        try {
+          const res = await fetch('/api/swarm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reassign_task', workerId: idleWorker.id, taskId }),
+          })
+          if (res.ok) {
+            toast.success(`Task ${taskId} assigned to ${idleWorker.name}`, {
+              description: 'Worker will begin processing shortly',
+            })
+            refetch()
+          } else {
+            toast.error('Failed to assign task')
+          }
+        } catch {
+          toast.error('Failed to assign task', { description: 'Network error' })
+        }
       }
     } else {
       toast.error('No idle workers available', {
         description: 'All workers are busy or in error state',
       })
     }
-  }
+  }, [apiWorkers, ws, refetch])
 
   return (
     <div className="space-y-6 p-6 grid-pattern">
@@ -514,7 +527,7 @@ export function SwarmTab() {
             </div>
             <div>
               <h2 className="text-base font-semibold">Swarm Health</h2>
-              <p className="text-xs text-muted-foreground">{busyCount} busy · {idleCount} idle · {errorCount} error · {totalTokens.toLocaleString()} total tokens</p>
+              <p className="text-xs text-muted-foreground">{busyCount} busy · {idleCount} idle · {errorCount} error · {offlineCount} offline · {totalTokens.toLocaleString()} total tokens</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -551,7 +564,7 @@ export function SwarmTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Workers</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums">{liveWorkers.length}</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums">{apiWorkers.length}</p>
                 <p className="text-[10px] text-muted-foreground">Foreman pool</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
@@ -666,16 +679,16 @@ export function SwarmTab() {
             <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
             Swarm Load
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{liveWorkers.length} workers occupied</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{apiWorkers.length} workers occupied</span>
         </div>
         <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
-            style={{ width: `${((busyCount + errorCount) / liveWorkers.length) * 100}%` }}
+            style={{ width: `${apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length) * 100 : 0}%` }}
           />
         </div>
         <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{((busyCount + errorCount) / liveWorkers.length * 100).toFixed(0)}% capacity utilized</span>
+          <span>{apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length * 100).toFixed(0) : 0}% capacity utilized</span>
           <span>{idleCount} workers available</span>
         </div>
       </div>
@@ -716,100 +729,88 @@ export function SwarmTab() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" /> Worker Status Grid
               </CardTitle>
-              <ExportButton data={liveWorkers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
+              <ExportButton data={apiWorkers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {liveWorkers.map((w) => {
-                const sparkline = workerSparklines[w.id] || []
-                return (
-                  <div
-                    key={w.id}
-                    onClick={() => handleWorkerClick(w)}
-                    className={`relative rounded-lg border p-3.5 transition-all duration-200 cursor-pointer hover-lift ${
-                      w.status === 'busy'
-                        ? 'border-emerald-600/20 bg-gradient-to-br from-emerald-600/10 via-emerald-600/5 to-transparent hover:border-emerald-600/40'
-                        : w.status === 'error'
-                        ? 'border-red-600/30 bg-gradient-to-br from-red-600/10 via-red-600/5 to-transparent hover:border-red-600/50 pulse-border'
-                        : 'border-border bg-gradient-to-br from-muted/20 via-transparent to-transparent hover:border-border/80'
-                    }`}
-                  >
-                    {/* Pulsing border for error workers */}
-                    {w.status === 'error' && (
-                      <div className="absolute inset-0 rounded-lg border-2 border-red-500/30 animate-pulse pointer-events-none" />
-                    )}
-
-                    {/* Status dot indicator */}
-                    <div className={`absolute top-2 right-2 h-2 w-2 rounded-full ${
-                      w.status === 'busy' ? 'bg-emerald-400 animate-pulse' :
-                      w.status === 'error' ? 'bg-red-400 animate-pulse' :
-                      'bg-muted-foreground/40'
-                    }`} />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{w.id}</span>
-                        <Badge
-                          className={`text-[9px] border-0 ${
-                            w.status === 'busy'
-                              ? 'bg-emerald-600/15 text-emerald-400'
-                              : w.status === 'error'
-                              ? 'bg-red-600/15 text-red-400'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {w.status === 'busy' && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                          {w.status}
-                        </Badge>
-                      </div>
-                      {w.domain && (
-                        <Badge variant="outline" className="text-[9px]">{w.domain}</Badge>
+            {loading && !apiData ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 text-emerald-400 animate-spin" />
+                <span className="ml-2 text-xs text-muted-foreground">Loading workers...</span>
+              </div>
+            ) : apiWorkers.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {apiWorkers.map((w) => {
+                  const statusDisplay = getStatusDisplay(w.status)
+                  const StatusIcon = statusDisplay.icon
+                  return (
+                    <div
+                      key={w.id}
+                      onClick={() => handleWorkerClick(w)}
+                      className={`relative rounded-lg border p-3.5 transition-all duration-200 cursor-pointer hover-lift ${getWorkerCardStyle(w.status)}`}
+                    >
+                      {/* Pulsing border for error workers */}
+                      {w.status === 'error' && (
+                        <div className="absolute inset-0 rounded-lg border-2 border-red-500/30 animate-pulse pointer-events-none" />
                       )}
-                    </div>
-                    {w.task && (
-                      <div className="mt-2">
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                          <span>Task: {w.task}</span>
-                          <span>{w.progress}%</span>
+
+                      {/* Status dot indicator */}
+                      <div className={`absolute top-2 right-2 h-2 w-2 rounded-full ${
+                        w.status === 'busy' ? 'bg-emerald-400 animate-pulse' :
+                        w.status === 'error' ? 'bg-red-400 animate-pulse' :
+                        w.status === 'offline' ? 'bg-muted-foreground/20' :
+                        'bg-muted-foreground/40'
+                      }`} />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{w.name}</span>
+                          <Badge
+                            className={`text-[9px] border-0 ${statusDisplay.badgeClass}`}
+                          >
+                            {w.status === 'busy' && <StatusIcon className={`mr-1 h-3 w-3 ${w.status === 'busy' ? 'animate-spin' : ''}`} />}
+                            {w.status}
+                          </Badge>
                         </div>
-                        <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={`h-full rounded-full transition-all duration-1000 ${
-                              w.status === 'busy'
-                                ? 'bg-gradient-to-r from-emerald-600 to-emerald-400 animate-pulse'
-                                : 'bg-red-400'
-                            }`}
-                            style={{ width: `${w.progress}%` }}
-                          />
-                        </div>
+                        {w.domain && (
+                          <Badge variant="outline" className="text-[9px]">{w.domain}</Badge>
+                        )}
                       </div>
-                    )}
-                    {/* Mini sparkline for token consumption */}
-                    <div className="mt-2 h-8">
-                      <MiniAreaChart
-                        data={sparkline}
-                        dataKey="value"
-                        color={
-                          w.status === 'error' ? COLORS.red :
-                          w.status === 'busy' ? COLORS.emerald :
-                          '#6b7280'
-                        }
-                        height={32}
-                      />
+                      {w.task && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>Task: {w.task}</span>
+                            <span>{w.progress}%</span>
+                          </div>
+                          <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className={`h-full rounded-full transition-all duration-1000 ${
+                                w.status === 'busy'
+                                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-400 animate-pulse'
+                                  : 'bg-red-400'
+                              }`}
+                              style={{ width: `${w.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{w.tokens > 0 ? `${w.tokens.toLocaleString()} tokens` : 'No task'}</span>
+                        <span>↑ {w.uptime}</span>
+                      </div>
+                      {/* Click hint */}
+                      <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
+                        <Zap className="h-2.5 w-2.5" />
+                        Click for details
+                      </div>
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>{w.tokens > 0 ? `${w.tokens.toLocaleString()} tokens` : 'No task'}</span>
-                      <span>↑ {w.uptime}</span>
-                    </div>
-                    {/* Click hint */}
-                    <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
-                      <Zap className="h-2.5 w-2.5" />
-                      Click for details
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+                No workers found. Seed the database to see workers.
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -885,7 +886,7 @@ export function SwarmTab() {
                       )}
                     </td>
                     <td className="p-3 text-xs">{r.duration}</td>
-                    <td className="p-3 text-xs">{r.tokens.toLocaleString()}</td>
+                    <td className="p-3 text-xs tabular-nums">{r.tokens.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -899,6 +900,8 @@ export function SwarmTab() {
         worker={selectedWorker}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onTerminate={handleTerminate}
+        onReassign={handleReassign}
       />
     </div>
   )

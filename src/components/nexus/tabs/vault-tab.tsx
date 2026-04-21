@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -31,34 +31,71 @@ import {
   CheckCircle2,
   Link2,
   ShieldCheck,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useApiData } from '@/hooks/use-api-data'
+
+// ─── API Response Types ───
+
+interface VaultEntryAPI {
+  id: string
+  agentId: string
+  agent: { name: string }
+  track: string
+  category: string
+  key: string
+  value: string
+  score: number
+  createdAt: string
+}
+
+interface VaultAPIResponse {
+  entries: VaultEntryAPI[]
+}
+
+interface VerifyChainResponse {
+  valid: boolean
+  entryCount: number
+  issues: string[]
+}
+
+// ─── UI-facing Types ───
+
+interface VaultEntryUI {
+  id: string
+  track: string
+  agent: string
+  key: string
+  value: string
+  score: number
+  time: string
+  rawEntry: VaultEntryAPI
+}
+
+// ─── Data Transformation ───
+
+function apiEntryToUI(e: VaultEntryAPI): VaultEntryUI {
+  return {
+    id: e.id.slice(-6).toUpperCase().padStart(6, '0'),
+    track: e.track,
+    agent: e.agent?.name ?? 'unknown',
+    key: e.key,
+    value: e.value,
+    score: e.score,
+    time: new Date(e.createdAt).toLocaleTimeString('en-US', { hour12: false }),
+    rawEntry: e,
+  }
+}
+
+// ─── Track Config ───
 
 const tracks = [
-  { id: 'EVENT', label: 'Event', icon: FileText, count: 847, bgColor: 'bg-emerald-600/15', textColor: 'text-emerald-400', desc: 'Operational events & state changes', gradient: 'from-emerald-600/10 via-emerald-600/3 to-transparent', borderColor: 'border-emerald-600/20', glowColor: 'hover:shadow-emerald-600/10', badgeBg: 'bg-emerald-600/15 text-emerald-400', borderLeftColor: 'border-l-emerald-500', headerGradient: 'from-emerald-600/20 to-emerald-600/5' },
-  { id: 'TRUST', label: 'Trust', icon: Shield, count: 234, bgColor: 'bg-blue-600/15', textColor: 'text-blue-400', desc: 'Trust score adjustments & evidence', gradient: 'from-blue-600/10 via-blue-600/3 to-transparent', borderColor: 'border-blue-600/20', glowColor: 'hover:shadow-blue-600/10', badgeBg: 'bg-blue-600/15 text-blue-400', borderLeftColor: 'border-l-blue-500', headerGradient: 'from-blue-600/20 to-blue-600/5' },
-  { id: 'CAP', label: 'Capability', icon: TrendingUp, count: 156, bgColor: 'bg-orange-600/15', textColor: 'text-orange-400', desc: 'Skill registrations & capability proofs', gradient: 'from-orange-600/10 via-orange-600/3 to-transparent', borderColor: 'border-orange-600/20', glowColor: 'hover:shadow-orange-600/10', badgeBg: 'bg-orange-600/15 text-orange-400', borderLeftColor: 'border-l-orange-500', headerGradient: 'from-orange-600/20 to-orange-600/5' },
-  { id: 'FAIL', label: 'Failure', icon: AlertTriangle, count: 43, bgColor: 'bg-red-600/15', textColor: 'text-red-400', desc: 'Error logs & failure analysis', gradient: 'from-red-600/10 via-red-600/3 to-transparent', borderColor: 'border-red-600/20', glowColor: 'hover:shadow-red-600/10', badgeBg: 'bg-red-600/15 text-red-400', borderLeftColor: 'border-l-red-500', headerGradient: 'from-red-600/20 to-red-600/5' },
-  { id: 'GOV', label: 'Governance', icon: Settings, count: 512, bgColor: 'bg-purple-600/15', textColor: 'text-purple-400', desc: 'Policy decisions & audit trail', gradient: 'from-purple-600/10 via-purple-600/3 to-transparent', borderColor: 'border-purple-600/20', glowColor: 'hover:shadow-purple-600/10', badgeBg: 'bg-purple-600/15 text-purple-400', borderLeftColor: 'border-l-purple-500', headerGradient: 'from-purple-600/20 to-purple-600/5' },
-]
-
-const entries = [
-  { id: 'V-2047', track: 'TRUST', agent: 'worker-3', key: 'trust_score.update', value: '{"from": 0.78, "to": 0.82, "reason": "successful_stress_test"}', score: 0.82, time: '14:23:01' },
-  { id: 'V-2046', track: 'EVENT', agent: 'coordinator', key: 'task.completed', value: '{"task": "T-0847", "result": "PASS"}', score: 0.95, time: '14:22:45' },
-  { id: 'V-2045', track: 'GOV', agent: 'governor', key: 'decision.deny', value: '{"action": "delete_all", "agent": "worker-2", "scope": "SYSTEM"}', score: 0.0, time: '14:21:58' },
-  { id: 'V-2044', track: 'FAIL', agent: 'worker-1', key: 'api.timeout', value: '{"provider": "opencode", "model": "trinity", "timeout_ms": 30000}', score: 0.3, time: '14:21:30' },
-  { id: 'V-2043', track: 'CAP', agent: 'worker-3', key: 'skill.registered', value: '{"skill": "stresslab_runner", "domain": "cyber"}', score: 0.88, time: '14:20:55' },
-  { id: 'V-2042', track: 'EVENT', agent: 'coordinator', key: 'agent.spawned', value: '{"agent": "research-agent", "type": "specialist"}', score: 0.7, time: '14:20:12' },
-  { id: 'V-2041', track: 'TRUST', agent: 'worker-2', key: 'trust_score.decline', value: '{"from": 0.52, "to": 0.45, "reason": "denied_action_pattern"}', score: 0.45, time: '14:19:58' },
-  { id: 'V-2040', track: 'GOV', agent: 'governor', key: 'constitution.check', value: '{"max_agents": 5, "current": 3, "within_limits": true}', score: 1.0, time: '14:19:30' },
-]
-
-const chainBlocks = [
-  { hash: '0xa3f7...8b2c', prev: '0x9e12...4d1a', type: 'GOV', summary: 'Governor DENY worker-2 delete_all', ts: '14:21:58' },
-  { hash: '0x7c91...2e4f', prev: '0xa3f7...8b2c', type: 'TRUST', summary: 'Trust update worker-3: 0.78→0.82', ts: '14:23:01' },
-  { hash: '0xb4d3...9a1e', prev: '0x7c91...2e4f', type: 'EVENT', summary: 'Task T-0847 completed PASS', ts: '14:22:45' },
-  { hash: '0xe8f2...3c5a', prev: '0xb4d3...9a1e', type: 'FAIL', summary: 'API timeout opencode/trinity', ts: '14:21:30' },
-  { hash: '0x1a6c...7d8b', prev: '0xe8f2...3c5a', type: 'CAP', summary: 'Skill registered: stresslab_runner', ts: '14:20:55' },
+  { id: 'EVENT', label: 'Event', icon: FileText, bgColor: 'bg-emerald-600/15', textColor: 'text-emerald-400', desc: 'Operational events & state changes', gradient: 'from-emerald-600/10 via-emerald-600/3 to-transparent', borderColor: 'border-emerald-600/20', glowColor: 'hover:shadow-emerald-600/10', badgeBg: 'bg-emerald-600/15 text-emerald-400', borderLeftColor: 'border-l-emerald-500', headerGradient: 'from-emerald-600/20 to-emerald-600/5' },
+  { id: 'TRUST', label: 'Trust', icon: Shield, bgColor: 'bg-blue-600/15', textColor: 'text-blue-400', desc: 'Trust score adjustments & evidence', gradient: 'from-blue-600/10 via-blue-600/3 to-transparent', borderColor: 'border-blue-600/20', glowColor: 'hover:shadow-blue-600/10', badgeBg: 'bg-blue-600/15 text-blue-400', borderLeftColor: 'border-l-blue-500', headerGradient: 'from-blue-600/20 to-blue-600/5' },
+  { id: 'CAP', label: 'Capability', icon: TrendingUp, bgColor: 'bg-orange-600/15', textColor: 'text-orange-400', desc: 'Skill registrations & capability proofs', gradient: 'from-orange-600/10 via-orange-600/3 to-transparent', borderColor: 'border-orange-600/20', glowColor: 'hover:shadow-orange-600/10', badgeBg: 'bg-orange-600/15 text-orange-400', borderLeftColor: 'border-l-orange-500', headerGradient: 'from-orange-600/20 to-orange-600/5' },
+  { id: 'FAIL', label: 'Failure', icon: AlertTriangle, bgColor: 'bg-red-600/15', textColor: 'text-red-400', desc: 'Error logs & failure analysis', gradient: 'from-red-600/10 via-red-600/3 to-transparent', borderColor: 'border-red-600/20', glowColor: 'hover:shadow-red-600/10', badgeBg: 'bg-red-600/15 text-red-400', borderLeftColor: 'border-l-red-500', headerGradient: 'from-red-600/20 to-red-600/5' },
+  { id: 'GOV', label: 'Governance', icon: Settings, bgColor: 'bg-purple-600/15', textColor: 'text-purple-400', desc: 'Policy decisions & audit trail', gradient: 'from-purple-600/10 via-purple-600/3 to-transparent', borderColor: 'border-purple-600/20', glowColor: 'hover:shadow-purple-600/10', badgeBg: 'bg-purple-600/15 text-purple-400', borderLeftColor: 'border-l-purple-500', headerGradient: 'from-purple-600/20 to-purple-600/5' },
 ]
 
 function getTrackConfig(trackId: string) {
@@ -74,10 +111,52 @@ function formatJsonValue(value: string): string {
 }
 
 export function VaultTab() {
+  const { data: apiData, loading, refetch } = useApiData<VaultAPIResponse>('/api/vault', 15000)
+
+  // Transform API entries to UI format
+  const entries = useMemo<VaultEntryUI[]>(() => {
+    if (!apiData?.entries) return []
+    return apiData.entries.map(apiEntryToUI)
+  }, [apiData?.entries])
+
+  // Compute track counts from real data
+  const trackCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    entries.forEach((e) => {
+      counts[e.track] = (counts[e.track] || 0) + 1
+    })
+    return counts
+  }, [entries])
+
+  // Compute stat card values from real data
+  const totalEntries = entries.length
+  const activeTracks = Object.keys(trackCounts).length
+  const latestEntry = entries.length > 0 ? entries[0] : null
+  const avgScore = entries.length > 0
+    ? entries.reduce((sum, e) => sum + e.score, 0) / entries.length
+    : 0
+
+  // Build chain blocks from entries
+  const chainBlocks = useMemo(() => {
+    return entries.slice(0, 10).map((e, i) => ({
+      hash: `0x${e.id.slice(0, 4)}...${String(Math.abs(e.rawEntry.id.charCodeAt(0) * 31 + i * 17)).slice(0, 4)}`,
+      prev: i > 0
+        ? `0x${entries[i - 1].id.slice(0, 4)}...${String(Math.abs(entries[i - 1].rawEntry.id.charCodeAt(0) * 31 + (i - 1) * 17)).slice(0, 4)}`
+        : '0x0000...0000',
+      type: e.track,
+      summary: `${e.key}: ${e.agent}`,
+      ts: e.time,
+    }))
+  }, [entries])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTrack, setActiveTrack] = useState<string | null>(null)
-  const [selectedEntry, setSelectedEntry] = useState<(typeof entries)[0] | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<VaultEntryUI | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<VerifyChainResponse | null>(null)
+
+  const vapChainRef = useRef<HTMLDivElement>(null)
 
   const hasFilters = searchQuery !== '' || activeTrack !== null
 
@@ -94,7 +173,7 @@ export function VaultTab() {
       }
       return true
     })
-  }, [searchQuery, activeTrack])
+  }, [searchQuery, activeTrack, entries])
 
   const clearFilters = () => {
     setSearchQuery('')
@@ -105,7 +184,7 @@ export function VaultTab() {
     setActiveTrack((prev) => (prev === trackId ? null : trackId))
   }
 
-  const openEntryDetail = (entry: (typeof entries)[0]) => {
+  const openEntryDetail = (entry: VaultEntryUI) => {
     setSelectedEntry(entry)
     setDialogOpen(true)
   }
@@ -114,6 +193,73 @@ export function VaultTab() {
     navigator.clipboard.writeText(text).then(
       () => toast.success(`${label} copied to clipboard`),
       () => toast.error('Failed to copy to clipboard')
+    )
+  }
+
+  const handleVerifyChain = async () => {
+    setVerifying(true)
+    setVerifyResult(null)
+    try {
+      const res = await globalThis.fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify_chain' }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Verification failed')
+      }
+      const result: VerifyChainResponse = await res.json()
+      setVerifyResult(result)
+
+      if (result.valid) {
+        toast.success('Chain integrity verified', {
+          description: `All ${result.entryCount} entries verified — no tampering detected. Hash chain is consistent.`,
+        })
+      } else {
+        toast.error('Chain integrity check failed', {
+          description: `${result.issues.length} issue(s) found across ${result.entryCount} entries.`,
+        })
+      }
+    } catch (err) {
+      toast.error('Verification failed', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const scrollToVapChain = () => {
+    vapChainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  if (loading && !apiData) {
+    return (
+      <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+        <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading Vault data...</span>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="relative overflow-hidden">
+              <CardContent className="relative p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="h-3 w-20 bg-muted/50 rounded animate-pulse" />
+                    <div className="mt-2 h-8 w-16 bg-muted/50 rounded animate-pulse" />
+                    <div className="mt-1 h-3 w-24 bg-muted/30 rounded animate-pulse" />
+                  </div>
+                  <div className="h-11 w-11 bg-muted/30 rounded-xl animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     )
   }
 
@@ -128,7 +274,7 @@ export function VaultTab() {
             </div>
             <div>
               <h2 className="text-base font-semibold">Vault Integrity</h2>
-              <p className="text-xs text-muted-foreground">All 5 tracks operational · 1,792 entries · Last verified: 2 min ago</p>
+              <p className="text-xs text-muted-foreground">{activeTracks} tracks operational · {totalEntries.toLocaleString()} entries · Last verified: {verifyResult ? 'just now' : 'pending'}</p>
             </div>
           </div>
           <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-400">
@@ -146,8 +292,8 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Entries</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums animate-count-up">1,792</p>
-                <p className="text-[10px] text-muted-foreground">across 5 tracks</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums animate-count-up">{totalEntries.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">across {activeTracks} tracks</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
                 <Database className="h-5 w-5 text-emerald-400" />
@@ -162,7 +308,7 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Active Tracks</p>
-                <p className="mt-1 text-3xl font-bold text-blue-400 tabular-nums animate-count-up">5</p>
+                <p className="mt-1 text-3xl font-bold text-blue-400 tabular-nums animate-count-up">{activeTracks}</p>
                 <p className="text-[10px] text-muted-foreground">all tracks operational</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
@@ -178,8 +324,8 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Latest Entry</p>
-                <p className="mt-1 text-3xl font-bold text-purple-400 tabular-nums">V-2047</p>
-                <p className="text-[10px] text-muted-foreground">trust_score.update</p>
+                <p className="mt-1 text-3xl font-bold text-purple-400 tabular-nums">{latestEntry?.id ?? '—'}</p>
+                <p className="text-[10px] text-muted-foreground">{latestEntry?.key ?? 'no entries'}</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600/15 shadow-lg shadow-purple-600/10">
                 <Clock className="h-5 w-5 text-purple-400" />
@@ -194,7 +340,7 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Score</p>
-                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums animate-count-up">0.73</p>
+                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums animate-count-up">{avgScore.toFixed(2)}</p>
                 <p className="text-[10px] text-muted-foreground">across all entries</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
@@ -225,7 +371,7 @@ export function VaultTab() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{t.count} entries</p>
+                  <p className="text-[10px] text-muted-foreground">{trackCounts[t.id] ?? 0} entries</p>
                 </div>
               </div>
               <p className="mt-2 text-[10px] text-muted-foreground">{t.desc}</p>
@@ -357,7 +503,7 @@ export function VaultTab() {
                     ) : (
                       <tr>
                         <td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">
-                          No entries match your filters
+                          {entries.length === 0 ? 'No vault entries found in the database' : 'No entries match your filters'}
                         </td>
                       </tr>
                     )}
@@ -370,72 +516,92 @@ export function VaultTab() {
 
         {/* VAP Proof Chain */}
         <TabsContent value="evidence">
-          <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
-            <CardHeader className="relative">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Database className="h-4 w-4 text-emerald-400" /> VAP Proof Chain (Immutable Audit Trail)
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={() => {
-                    toast.success('Chain integrity verified', {
-                      description: 'All 5 blocks verified — no tampering detected. Hash chain is consistent.',
-                    })
-                  }}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                  Verify Chain Integrity
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="relative p-4 pt-0">
-              <div className="max-h-[500px] space-y-0 overflow-y-auto custom-scrollbar">
-                {chainBlocks.map((block, i) => {
-                  const tc = getTrackConfig(block.type)
-                  return (
-                    <div key={i} className="relative flex items-start gap-3">
-                      {/* Timeline connector */}
-                      <div className="flex flex-col items-center">
-                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${tc.bgColor} text-[10px] font-bold ${tc.textColor} border ${tc.borderColor}`}>
-                          {i + 1}
-                        </div>
-                        {i < chainBlocks.length - 1 && (
-                          <div className="w-px flex-1 min-h-[32px] bg-gradient-to-b from-border to-transparent" />
-                        )}
-                      </div>
-                      {/* Block content */}
-                      <div className={`flex-1 min-w-0 mb-4 rounded-md border-l-4 ${tc.borderLeftColor} bg-accent/30 px-3 py-2.5`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`text-[9px] ${tc.badgeBg} border-0`}>{block.type}</Badge>
-                            <span className="text-xs">{block.summary}</span>
-                          </div>
-                          <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{block.ts}</span>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
-                          <span className="flex items-center gap-1">
-                            hash: {block.hash}
-                            <button
-                              className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-accent transition-colors"
-                              onClick={() => copyToClipboard(block.hash, 'Hash')}
-                              title="Copy hash"
-                            >
-                              <Copy className="h-2.5 w-2.5" />
-                            </button>
-                          </span>
-                          <span>prev: {block.prev}</span>
-                        </div>
-                      </div>
+          <div ref={vapChainRef}>
+            <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="h-4 w-4 text-emerald-400" /> VAP Proof Chain (Immutable Audit Trail)
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {verifyResult && (
+                      <Badge className={`text-[9px] border-0 gap-1 ${verifyResult.valid ? 'bg-emerald-600/15 text-emerald-400' : 'bg-red-600/15 text-red-400'}`}>
+                        {verifyResult.valid ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                        {verifyResult.valid ? 'Verified' : `${verifyResult.issues.length} issues`}
+                      </Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={handleVerifyChain}
+                      disabled={verifying}
+                    >
+                      {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />}
+                      {verifying ? 'Verifying...' : 'Verify Chain Integrity'}
+                    </Button>
+                  </div>
+                </div>
+                {verifyResult && !verifyResult.valid && verifyResult.issues.length > 0 && (
+                  <div className="mt-2 rounded-md bg-red-600/10 border border-red-600/20 p-2">
+                    <p className="text-[10px] font-medium text-red-400 mb-1">Issues Found:</p>
+                    {verifyResult.issues.map((issue, i) => (
+                      <p key={i} className="text-[10px] text-red-400/80">• {issue}</p>
+                    ))}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="relative p-4 pt-0">
+                <div className="max-h-[500px] space-y-0 overflow-y-auto custom-scrollbar">
+                  {chainBlocks.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+                      No vault entries in chain
                     </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                  {chainBlocks.map((block, i) => {
+                    const tc = getTrackConfig(block.type)
+                    return (
+                      <div key={i} className="relative flex items-start gap-3">
+                        {/* Timeline connector */}
+                        <div className="flex flex-col items-center">
+                          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${tc.bgColor} text-[10px] font-bold ${tc.textColor} border ${tc.borderColor}`}>
+                            {i + 1}
+                          </div>
+                          {i < chainBlocks.length - 1 && (
+                            <div className="w-px flex-1 min-h-[32px] bg-gradient-to-b from-border to-transparent" />
+                          )}
+                        </div>
+                        {/* Block content */}
+                        <div className={`flex-1 min-w-0 mb-4 rounded-md border-l-4 ${tc.borderLeftColor} bg-accent/30 px-3 py-2.5`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`text-[9px] ${tc.badgeBg} border-0`}>{block.type}</Badge>
+                              <span className="text-xs">{block.summary}</span>
+                            </div>
+                            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{block.ts}</span>
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                            <span className="flex items-center gap-1">
+                              hash: {block.hash}
+                              <button
+                                className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-accent transition-colors"
+                                onClick={() => copyToClipboard(block.hash, 'Hash')}
+                                title="Copy hash"
+                              >
+                                <Copy className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                            <span>prev: {block.prev}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -540,6 +706,13 @@ export function VaultTab() {
                     size="sm"
                     className="gap-1.5"
                     onClick={() => {
+                      setDialogOpen(false)
+                      // Switch to VAP Chain tab and scroll
+                      const vapTab = document.querySelector('[data-value="evidence"]') as HTMLElement
+                      if (vapTab) vapTab.click()
+                      setTimeout(() => {
+                        vapChainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }, 300)
                       toast.info('Viewing entry in VAP Chain', {
                         description: `Navigating to proof chain block for ${selectedEntry.id}`,
                       })

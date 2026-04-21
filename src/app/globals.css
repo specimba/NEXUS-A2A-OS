@@ -222,13 +222,18 @@
   animation: pulse-border 2s ease-in-out infinite;
 }
 
-/* Hover lift effect */
+/* Hover lift effect — enhanced with scale and border glow */
 .hover-lift {
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 250ms ease;
 }
 .hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px oklch(0 0 0 / 15%);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 8px 24px oklch(0 0 0 / 15%),
+    0 0 0 1px oklch(0.65 0.2 155 / 15%);
+  border-color: oklch(0.65 0.2 155 / 25%);
 }
 
 /* Custom scrollbar for dark theme content areas */
@@ -249,9 +254,29 @@
 /* Grid pattern background */
 .grid-pattern {
   background-image:
+    radial-gradient(circle, oklch(1 0 0 / 6%) 1px, transparent 1px),
     linear-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px),
     linear-gradient(90deg, oklch(1 0 0 / 3%) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-size: 40px 40px, 40px 40px, 40px 40px;
+}
+
+/* Animated dot grid pattern — particles effect */
+@keyframes dotGridDrift {
+  0% {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 40px 40px, 40px 0, 0 40px;
+  }
+}
+
+.grid-pattern-animated {
+  background-image:
+    radial-gradient(circle, oklch(0.65 0.2 155 / 12%) 1px, transparent 1px),
+    linear-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 3%) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 40px 40px;
+  animation: dotGridDrift 20s linear infinite;
 }
 
 /* Status indicator animations */
@@ -326,12 +351,47 @@
   box-shadow: 0 0 8px oklch(0.577 0.245 27.325 / 20%);
 }
 
+/* Enhanced status indicator glow */
+.status-glow-green {
+  box-shadow: 0 0 6px oklch(0.65 0.2 155 / 40%), 0 0 12px oklch(0.65 0.2 155 / 20%);
+}
+
+.status-glow-red {
+  box-shadow: 0 0 6px oklch(0.577 0.245 27.325 / 40%), 0 0 12px oklch(0.577 0.245 27.325 / 20%);
+}
+
+.status-glow-yellow {
+  box-shadow: 0 0 6px oklch(0.828 0.189 84.429 / 40%), 0 0 12px oklch(0.828 0.189 84.429 / 20%);
+}
+
+:root .status-glow-green {
+  box-shadow: 0 0 6px oklch(0.508 0.164 155 / 30%), 0 0 12px oklch(0.508 0.164 155 / 15%);
+}
+
+:root .status-glow-red {
+  box-shadow: 0 0 6px oklch(0.577 0.245 27.325 / 30%), 0 0 12px oklch(0.577 0.245 27.325 / 15%);
+}
+
+:root .status-glow-yellow {
+  box-shadow: 0 0 6px oklch(0.828 0.189 84.429 / 30%), 0 0 12px oklch(0.828 0.189 84.429 / 15%);
+}
+
 /* Light theme specific overrides */
 :root .grid-pattern {
   background-image:
+    radial-gradient(circle, oklch(0.145 0.005 155 / 6%) 1px, transparent 1px),
     linear-gradient(oklch(0.145 0.005 155 / 4%) 1px, transparent 1px),
     linear-gradient(90deg, oklch(0.145 0.005 155 / 4%) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-size: 40px 40px, 40px 40px, 40px 40px;
+}
+
+:root .grid-pattern-animated {
+  background-image:
+    radial-gradient(circle, oklch(0.508 0.164 155 / 8%) 1px, transparent 1px),
+    linear-gradient(oklch(0.145 0.005 155 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.145 0.005 155 / 4%) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 40px 40px;
+  animation: dotGridDrift 20s linear infinite;
 }
 
 :root .gradient-text {
@@ -346,8 +406,11 @@
 }
 
 :root .hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px oklch(0 0 0 / 8%);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 8px 24px oklch(0 0 0 / 8%),
+    0 0 0 1px oklch(0.508 0.164 155 / 12%);
+  border-color: oklch(0.508 0.164 155 / 20%);
 }
 
 :root .custom-scrollbar::-webkit-scrollbar-thumb {

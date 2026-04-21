@@ -2,10 +2,26 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Coins, Users, Clock } from 'lucide-react'
+import { useMediaQuery } from '@/hooks/use-media'
+import { useApiData } from '@/hooks/use-api-data'
+
+interface TokensApiResponse {
+  budget: {
+    id: string
+    totalBudget: number
+    usedBudget: number
+    remainingBudget: number
+    isActive: boolean
+  } | null
+  usageLogs: unknown[]
+  agentUsage: { name: string; totalTokens: number }[]
+}
 
 export function QuickStatsWidget() {
   const [collapsed, setCollapsed] = useState(false)
   const [uptime, setUptime] = useState({ days: 0, hours: 3, minutes: 42 })
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const { data } = useApiData<TokensApiResponse>('/api/tokens', 60000)
 
   // Simulated uptime ticker
   useEffect(() => {
@@ -22,16 +38,19 @@ export function QuickStatsWidget() {
     return () => clearInterval(interval)
   }, [])
 
-  // Token budget: 45,200 / 100,000
-  const tokenBudget = { used: 45200, total: 100000 }
+  // Token budget from API
+  const tokenBudget = {
+    used: data?.budget?.usedBudget ?? 45200,
+    total: data?.budget?.totalBudget ?? 100000,
+  }
   const tokenPercent = (tokenBudget.used / tokenBudget.total) * 100
 
-  // Active agents: 3/5
-  const activeAgents = 3
-  const totalAgents = 5
+  // Active agents from API
+  const activeAgents = data?.agentUsage?.filter(a => a.totalTokens > 0).length ?? 3
+  const totalAgents = data?.agentUsage?.length ?? 5
 
   // Hide on mobile
-  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+  if (!isDesktop) {
     return null
   }
 
