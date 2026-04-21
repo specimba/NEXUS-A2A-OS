@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2 } from 'lucide-react'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   BarChart,
@@ -24,6 +24,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+
+// ── Rate Limit Constants ────────────────────────────────────────
+const RATE_LIMIT_THRESHOLD = 8 // max calls per minute for z-ai-sdk
+const MIN_CALL_DELAY_MS = 2000 // minimum 2-second delay between API calls
 
 const latencyHistory = [
   { name: '10m', qwen: 1200, trinity: 1350, gemma: 340 },
@@ -257,6 +261,164 @@ function scoreResponse(response: string, testType: TestType, responseTimeMs: num
   return { score, passed: score >= 50, details }
 }
 
+// ── Rate Limit Dashboard Component ─────────────────────────────
+function RateLimitDashboard({ apiCallTimestamps, lastCallTime }: {
+  apiCallTimestamps: number[]
+  lastCallTime: number | null
+}) {
+  const [now, setNow] = useState(() => Date.now())
+
+  // Tick every 200ms for smooth countdown
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 200)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Calculate calls in the last 60 seconds
+  const callsInLastMinute = useMemo(() => {
+    const cutoff = now - 60000
+    return apiCallTimestamps.filter(t => t > cutoff).length
+  }, [apiCallTimestamps, now])
+
+  const ratePercent = Math.min(100, (callsInLastMinute / RATE_LIMIT_THRESHOLD) * 100)
+
+  // Calculate backoff time remaining
+  const backoffRemaining = useMemo(() => {
+    if (!lastCallTime) return 0
+    const elapsed = now - lastCallTime
+    return Math.max(0, MIN_CALL_DELAY_MS - elapsed)
+  }, [lastCallTime, now])
+
+  // Color coding: green (<5), yellow (5-7), red (8+)
+  const statusColor = callsInLastMinute >= RATE_LIMIT_THRESHOLD
+    ? 'red'
+    : callsInLastMinute >= 5
+      ? 'yellow'
+      : 'emerald'
+
+  const statusLabel = callsInLastMinute >= RATE_LIMIT_THRESHOLD
+    ? 'RATE LIMITED'
+    : callsInLastMinute >= 5
+      ? 'CAUTION'
+      : 'SAFE'
+
+  const barColorClass = statusColor === 'red'
+    ? 'bg-red-500'
+    : statusColor === 'yellow'
+      ? 'bg-yellow-500'
+      : 'bg-emerald-500'
+
+  const textColorClass = statusColor === 'red'
+    ? 'text-red-600 dark:text-red-400'
+    : statusColor === 'yellow'
+      ? 'text-yellow-600 dark:text-yellow-400'
+      : 'text-emerald-600 dark:text-emerald-400'
+
+  const glowClass = statusColor === 'red'
+    ? 'shadow-red-500/20'
+    : statusColor === 'yellow'
+      ? 'shadow-yellow-500/20'
+      : 'shadow-emerald-500/20'
+
+  return (
+    <Card className={`relative overflow-hidden border-${statusColor === 'red' ? 'red' : statusColor === 'yellow' ? 'yellow' : 'emerald'}-600/20 hover-lift shadow-lg ${glowClass}`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${
+        statusColor === 'red' ? 'from-red-600/8' : statusColor === 'yellow' ? 'from-yellow-600/8' : 'from-emerald-600/8'
+      } via-transparent to-transparent`} />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Signal className={`h-4 w-4 ${textColorClass}`} />
+            Rate Limit Dashboard
+          </CardTitle>
+          <Badge className={`border-0 text-[9px] px-2 ${
+            statusColor === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+            statusColor === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+            'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
+          }`}>
+            {statusLabel}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          {/* Current Rate */}
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <Signal className={`h-4 w-4 ${textColorClass} mx-auto mb-1`} />
+            <p className={`text-2xl font-bold tabular-nums ${textColorClass}`}>{callsInLastMinute}</p>
+            <p className="text-[9px] text-muted-foreground">calls/min</p>
+          </div>
+          {/* Threshold */}
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+            <p className="text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">{RATE_LIMIT_THRESHOLD}</p>
+            <p className="text-[9px] text-muted-foreground">rpm limit</p>
+          </div>
+          {/* Backoff Timer */}
+          <div className="rounded-lg bg-accent/30 p-3 text-center">
+            <Hourglass className={`h-4 w-4 ${backoffRemaining > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'} mx-auto mb-1`} />
+            <p className={`text-2xl font-bold tabular-nums ${backoffRemaining > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {backoffRemaining > 0 ? `${(backoffRemaining / 1000).toFixed(1)}s` : '0.0s'}
+            </p>
+            <p className="text-[9px] text-muted-foreground">backoff</p>
+          </div>
+        </div>
+
+        {/* Rate Progress Bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-medium text-muted-foreground">API Call Rate</span>
+            <span className={`text-[10px] font-bold tabular-nums ${textColorClass}`}>{callsInLastMinute}/{RATE_LIMIT_THRESHOLD} rpm</span>
+          </div>
+          <div className="relative h-3 rounded-full bg-muted/30 overflow-hidden">
+            {/* Threshold marker */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-red-400/60 z-10"
+              style={{ left: '100%' }}
+            />
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${barColorClass}`}
+              style={{ width: `${ratePercent}%`, opacity: 0.8 }}
+            />
+          </div>
+          {/* Zone indicators */}
+          <div className="flex justify-between mt-1 text-[8px] text-muted-foreground">
+            <span className="text-emerald-600 dark:text-emerald-400">Safe (0-4)</span>
+            <span className="text-yellow-600 dark:text-yellow-400">Caution (5-7)</span>
+            <span className="text-red-600 dark:text-red-400">Limited (8+)</span>
+          </div>
+        </div>
+
+        {/* Can Call Indicator */}
+        <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
+          backoffRemaining > 0
+            ? 'bg-yellow-600/10 border border-yellow-600/20 text-yellow-600 dark:text-yellow-400'
+            : callsInLastMinute >= RATE_LIMIT_THRESHOLD
+              ? 'bg-red-600/10 border border-red-600/20 text-red-600 dark:text-red-400'
+              : 'bg-emerald-600/10 border border-emerald-600/20 text-emerald-600 dark:text-emerald-400'
+        }`}>
+          {backoffRemaining > 0 ? (
+            <>
+              <Hourglass className="h-3.5 w-3.5 animate-pulse" />
+              <span>Backoff active — {(backoffRemaining / 1000).toFixed(1)}s until next call allowed</span>
+            </>
+          ) : callsInLastMinute >= RATE_LIMIT_THRESHOLD ? (
+            <>
+              <Ban className="h-3.5 w-3.5" />
+              <span>Rate limit reached — wait before making more calls</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Ready — {RATE_LIMIT_THRESHOLD - callsInLastMinute} calls remaining this minute</span>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Pool Health Overview Component - compact horizontal stacked bar
 function PoolHealthOverview({ models }: { models: ModelData[] }) {
   const poolHealthData = useMemo(() => {
@@ -285,7 +447,7 @@ function PoolHealthOverview({ models }: { models: ModelData[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Activity className="h-4 w-4 text-emerald-400" />
+          <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           Pool Health Overview
         </CardTitle>
       </CardHeader>
@@ -299,9 +461,9 @@ function PoolHealthOverview({ models }: { models: ModelData[] }) {
                 <span className="text-[10px] text-muted-foreground">{pool.active}/{pool.total} active</span>
               </div>
               <span className={`text-[10px] font-bold tabular-nums ${
-                pool.avgHealth >= 95 ? 'text-emerald-400' :
-                pool.avgHealth >= 85 ? 'text-yellow-400' :
-                'text-red-400'
+                pool.avgHealth >= 95 ? 'text-emerald-600 dark:text-emerald-400' :
+                pool.avgHealth >= 85 ? 'text-yellow-600 dark:text-yellow-400' :
+                'text-red-600 dark:text-red-400'
               }`}>{pool.avgHealth}% avg</span>
             </div>
             {/* Horizontal stacked bar */}
@@ -338,7 +500,7 @@ function RotationAnalyticsCard() {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <ArrowRightLeft className="h-4 w-4 text-blue-400" />
+          <ArrowRightLeft className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           Rotation Analytics
         </CardTitle>
       </CardHeader>
@@ -347,17 +509,17 @@ function RotationAnalyticsCard() {
           {/* Most Rotated To */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <TrendingUp className="h-3 w-3 text-emerald-400" />
-              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-400">Most Rotated To</span>
+              <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Most Rotated To</span>
             </div>
             <div className="space-y-1.5">
               {rotationAnalytics.mostRotatedTo.map((item, i) => (
                 <div key={item.model} className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600/10 text-[9px] font-bold text-emerald-400">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600/10 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
                     {i + 1}
                   </span>
                   <span className="text-xs truncate flex-1">{item.model.split('-')[0]}</span>
-                  <span className="text-[10px] font-bold text-emerald-400 tabular-nums">{item.count}</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{item.count}</span>
                 </div>
               ))}
             </div>
@@ -365,17 +527,17 @@ function RotationAnalyticsCard() {
           {/* Most Rotated From */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <TrendingDown className="h-3 w-3 text-red-400" />
-              <span className="text-[10px] font-medium uppercase tracking-wider text-red-400">Most Rotated From</span>
+              <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-red-600 dark:text-red-400">Most Rotated From</span>
             </div>
             <div className="space-y-1.5">
               {rotationAnalytics.mostRotatedFrom.map((item, i) => (
                 <div key={item.model} className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600/10 text-[9px] font-bold text-red-400">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600/10 text-[9px] font-bold text-red-600 dark:text-red-400">
                     {i + 1}
                   </span>
                   <span className="text-xs truncate flex-1">{item.model.split('-')[0]}</span>
-                  <span className="text-[10px] font-bold text-red-400 tabular-nums">{item.count}</span>
+                  <span className="text-[10px] font-bold text-red-600 dark:text-red-400 tabular-nums">{item.count}</span>
                 </div>
               ))}
             </div>
@@ -394,7 +556,7 @@ function FailoverLogCard() {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
             Failover Log
           </CardTitle>
           <Badge variant="outline" className="text-[9px]">{failoverLog.length} events</Badge>
@@ -409,14 +571,14 @@ function FailoverLogCard() {
             >
               <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{entry.time}</span>
               <Badge className={`shrink-0 border-0 text-[8px] px-1.5 py-0 ${
-                entry.severity === 'critical' ? 'bg-red-600/15 text-red-400' :
-                entry.severity === 'warning' ? 'bg-yellow-600/15 text-yellow-400' :
-                'bg-blue-600/15 text-blue-400'
+                entry.severity === 'critical' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                entry.severity === 'warning' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                'bg-blue-600/15 text-blue-600 dark:text-blue-400'
               }`}>
                 {entry.severity === 'critical' ? 'CRIT' : entry.severity === 'warning' ? 'WARN' : 'INFO'}
               </Badge>
               <span className="text-muted-foreground shrink-0">{entry.from.split('-')[0]}</span>
-              <span className="text-emerald-400">→</span>
+              <span className="text-emerald-600 dark:text-emerald-400">→</span>
               <span className="truncate">{entry.to.split('-')[0]}</span>
               <span className="ml-auto text-[10px] text-muted-foreground/60 shrink-0 truncate max-w-[120px]">{entry.reason}</span>
             </div>
@@ -443,7 +605,7 @@ function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-purple-400" />
+          <BarChart3 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           Model Performance Comparison
         </CardTitle>
       </CardHeader>
@@ -568,7 +730,7 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
         <CardHeader className="relative pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-emerald-400" />
+            <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             Test Configuration
           </CardTitle>
         </CardHeader>
@@ -644,17 +806,17 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 {error ? (
-                  <XCircle className="h-4 w-4 text-red-400" />
+                  <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                 ) : currentResult?.passed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                 )}
                 Test Result
               </CardTitle>
               {currentResult && (
                 <div className="flex items-center gap-2">
-                  <Badge className={`border-0 text-[10px] ${currentResult.passed ? 'bg-emerald-600/15 text-emerald-400' : 'bg-yellow-600/15 text-yellow-400'}`}>
+                  <Badge className={`border-0 text-[10px] ${currentResult.passed ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'}`}>
                     {currentResult.passed ? 'PASSED' : 'NEEDS WORK'}
                   </Badge>
                   <Badge variant="outline" className="text-[9px]">{currentResult.model}</Badge>
@@ -664,7 +826,7 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
           </CardHeader>
           <CardContent className="relative p-4 pt-0 space-y-3">
             {error && (
-              <div className="rounded-md bg-red-600/10 border border-red-600/20 px-3 py-2 text-xs text-red-400">
+              <div className="rounded-md bg-red-600/10 border border-red-600/20 px-3 py-2 text-xs text-red-600 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -673,18 +835,18 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg bg-accent/30 p-2.5 text-center">
-                    <Clock className="h-3 w-3 text-blue-400 mx-auto mb-1" />
+                    <Clock className="h-3 w-3 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
                     <p className="text-lg font-bold tabular-nums">{currentResult.responseTimeMs.toLocaleString()}ms</p>
                     <p className="text-[9px] text-muted-foreground">Response Time</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5 text-center">
-                    <Hash className="h-3 w-3 text-orange-400 mx-auto mb-1" />
+                    <Hash className="h-3 w-3 text-orange-600 dark:text-orange-400 mx-auto mb-1" />
                     <p className="text-lg font-bold tabular-nums">~{currentResult.tokenCount}</p>
                     <p className="text-[9px] text-muted-foreground">Token Count</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5 text-center">
-                    <Activity className="h-3 w-3 text-emerald-400 mx-auto mb-1" />
-                    <p className={`text-lg font-bold tabular-nums ${currentResult.qualityScore >= 70 ? 'text-emerald-400' : currentResult.qualityScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    <Activity className="h-3 w-3 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
+                    <p className={`text-lg font-bold tabular-nums ${currentResult.qualityScore >= 70 ? 'text-emerald-600 dark:text-emerald-400' : currentResult.qualityScore >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                       {currentResult.qualityScore}/100
                     </p>
                     <p className="text-[9px] text-muted-foreground">Quality Score</p>
@@ -726,7 +888,7 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-red-400"
+                className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-red-600 dark:text-red-400"
                 onClick={() => {
                   setTestHistory([])
                   toast.success('Test history cleared')
@@ -745,14 +907,14 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
                   onClick={() => setCurrentResult(t)}
                 >
                   {t.passed ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   ) : (
-                    <XCircle className="h-3.5 w-3.5 shrink-0 text-yellow-400" />
+                    <XCircle className="h-3.5 w-3.5 shrink-0 text-yellow-600 dark:text-yellow-400" />
                   )}
                   <span className="font-medium truncate max-w-[120px]">{t.model.split('-')[0]}</span>
                   <Badge variant="outline" className="text-[8px] shrink-0">{testTypeConfig[t.testType].label}</Badge>
                   <span className="text-muted-foreground shrink-0 tabular-nums">{t.responseTimeMs}ms</span>
-                  <span className={`shrink-0 font-bold tabular-nums ${t.qualityScore >= 70 ? 'text-emerald-400' : t.qualityScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  <span className={`shrink-0 font-bold tabular-nums ${t.qualityScore >= 70 ? 'text-emerald-600 dark:text-emerald-400' : t.qualityScore >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                     {t.qualityScore}%
                   </span>
                   <span className="ml-auto text-[10px] text-muted-foreground/50 shrink-0 tabular-nums">
@@ -914,11 +1076,11 @@ export function GmrTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Models Online</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{activeModels.length}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{activeModels.length}</p>
                 <p className="text-[10px] text-muted-foreground">of {models.length} total</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <Wifi className="h-5 w-5 text-emerald-400" />
+                <Wifi className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -934,7 +1096,7 @@ export function GmrTab() {
                 <p className="text-[10px] text-muted-foreground">across active models</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Activity className="h-5 w-5 text-blue-400" />
+                <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -950,7 +1112,7 @@ export function GmrTab() {
                 <p className="text-[10px] text-muted-foreground">this session</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
-                <Zap className="h-5 w-5 text-orange-400" />
+                <Zap className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -962,11 +1124,11 @@ export function GmrTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">FREE_RESEARCH Pool</p>
-                <p className="mt-1 text-3xl font-bold text-purple-400 tabular-nums">{freeActiveCount}</p>
+                <p className="mt-1 text-3xl font-bold text-purple-600 dark:text-purple-400 tabular-nums">{freeActiveCount}</p>
                 <p className="text-[10px] text-muted-foreground">free-tier models active</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600/15 shadow-lg shadow-purple-600/10">
-                <Gauge className="h-5 w-5 text-purple-400" />
+                <Gauge className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </CardContent>
@@ -1045,10 +1207,10 @@ export function GmrTab() {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium truncate">{m.name}</p>
                         {m.isFree && (
-                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px] px-1">FREE</Badge>
+                          <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] px-1">FREE</Badge>
                         )}
                         {!m.isActive && (
-                          <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px] px-1 animate-in fade-in duration-200">Disabled</Badge>
+                          <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px] px-1 animate-in fade-in duration-200">Disabled</Badge>
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">{m.provider} · {m.domain}</p>
@@ -1057,7 +1219,7 @@ export function GmrTab() {
                       {m.isActive ? (
                         <span className="relative flex h-4 w-4">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-30" />
-                          <Wifi className="relative h-4 w-4 text-emerald-400 status-glow-green" />
+                          <Wifi className="relative h-4 w-4 text-emerald-600 dark:text-emerald-400 status-glow-green" />
                         </span>
                       ) : (
                         <WifiOff className="h-4 w-4 text-muted-foreground" />
@@ -1072,7 +1234,7 @@ export function GmrTab() {
                     </div>
                     <div className="rounded-md bg-accent/30 py-1">
                       <p className="text-[9px] text-muted-foreground">Health</p>
-                      <p className={`text-sm font-bold ${m.health >= 95 ? 'text-emerald-400' : m.health >= 85 ? 'text-yellow-400' : 'text-red-400'}`}>{m.health}%</p>
+                      <p className={`text-sm font-bold ${m.health >= 95 ? 'text-emerald-600 dark:text-emerald-400' : m.health >= 85 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>{m.health}%</p>
                     </div>
                     <div className="rounded-md bg-accent/30 py-1">
                       <p className="text-[9px] text-muted-foreground">Latency</p>
@@ -1083,7 +1245,7 @@ export function GmrTab() {
                   <div className="mt-3">
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                       <span>Success Rate</span>
-                      <span className={m.successRate >= 98 ? 'text-emerald-400' : m.successRate >= 90 ? 'text-yellow-400' : 'text-red-400'}>{m.successRate}%</span>
+                      <span className={m.successRate >= 98 ? 'text-emerald-600 dark:text-emerald-400' : m.successRate >= 90 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}>{m.successRate}%</span>
                     </div>
                     <Progress value={m.successRate} className="mt-1 h-1.5" />
                   </div>
@@ -1123,7 +1285,7 @@ export function GmrTab() {
                       </CardTitle>
                       <div className="flex gap-2">
                         <Badge variant="outline" className="text-[10px]">Tier {pool.tierRange}</Badge>
-                        <Badge className="text-[10px] border-0 bg-emerald-600/15 text-emerald-400">{poolHealth}% health</Badge>
+                        <Badge className="text-[10px] border-0 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">{poolHealth}% health</Badge>
                       </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground">{pool.desc}</p>
@@ -1139,7 +1301,7 @@ export function GmrTab() {
                           <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
                             <span>{m.health}%</span>
                             <span>{m.latencyMs}ms</span>
-                            <span className="text-emerald-400">{m.totalCalls}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{m.totalCalls}</span>
                           </div>
                           {/* Per-model mini sparkline */}
                           {modelSparklines[m.name] && (
@@ -1186,7 +1348,7 @@ export function GmrTab() {
                   <div key={i} className="flex items-center gap-3 rounded-lg bg-accent/30 px-3 py-2 text-xs hover:bg-accent/50 transition-colors">
                     <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{r.time}</span>
                     <span className="text-muted-foreground">{r.from === '-' ? '—' : r.from}</span>
-                    <span className="text-emerald-400 font-medium">→</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">→</span>
                     <span className="font-medium">{r.to}</span>
                     <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{r.reason}</span>
                     {r.tokens > 0 && <Badge variant="outline" className="text-[9px] shrink-0">{r.tokens}tok</Badge>}

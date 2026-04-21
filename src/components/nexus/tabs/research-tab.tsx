@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2 } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 
@@ -116,7 +116,7 @@ function getPriorityConfig(priority: PaperItem['priority']) {
         label: 'P0 — Implement Now',
         color: 'red',
         bgColor: 'bg-red-600/15',
-        textColor: 'text-red-400',
+        textColor: 'text-red-600 dark:text-red-400',
         borderColor: 'border-red-600/20',
         gradientFrom: 'from-red-600/10',
         gradientTo: 'to-red-600/5',
@@ -128,7 +128,7 @@ function getPriorityConfig(priority: PaperItem['priority']) {
         label: 'P1 — Next Sprint',
         color: 'orange',
         bgColor: 'bg-orange-600/15',
-        textColor: 'text-orange-400',
+        textColor: 'text-orange-600 dark:text-orange-400',
         borderColor: 'border-orange-600/20',
         gradientFrom: 'from-orange-600/10',
         gradientTo: 'to-orange-600/5',
@@ -140,7 +140,7 @@ function getPriorityConfig(priority: PaperItem['priority']) {
         label: 'P2 — Research',
         color: 'emerald',
         bgColor: 'bg-emerald-600/15',
-        textColor: 'text-emerald-400',
+        textColor: 'text-emerald-600 dark:text-emerald-400',
         borderColor: 'border-emerald-600/20',
         gradientFrom: 'from-emerald-600/10',
         gradientTo: 'to-emerald-600/5',
@@ -194,7 +194,7 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-4 w-4 text-emerald-400" />
+            <Plus className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             Add Paper to Queue
           </DialogTitle>
           <DialogDescription>Add a new research paper or repo to the NEXUS priority queue</DialogDescription>
@@ -240,17 +240,17 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
               <SelectContent>
                 <SelectItem value="P0">
                   <span className="flex items-center gap-1.5">
-                    <Flame className="h-3 w-3 text-red-400" /> P0 — Implement Now
+                    <Flame className="h-3 w-3 text-red-600 dark:text-red-400" /> P0 — Implement Now
                   </span>
                 </SelectItem>
                 <SelectItem value="P1">
                   <span className="flex items-center gap-1.5">
-                    <Target className="h-3 w-3 text-orange-400" /> P1 — Next Sprint
+                    <Target className="h-3 w-3 text-orange-600 dark:text-orange-400" /> P1 — Next Sprint
                   </span>
                 </SelectItem>
                 <SelectItem value="P2">
                   <span className="flex items-center gap-1.5">
-                    <Beaker className="h-3 w-3 text-emerald-400" /> P2 — Research
+                    <Beaker className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> P2 — Research
                   </span>
                 </SelectItem>
               </SelectContent>
@@ -260,7 +260,7 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium">Relevance Score</label>
-              <span className="text-xs font-bold text-emerald-400 tabular-nums">{relevance[0]}%</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{relevance[0]}%</span>
             </div>
             <Slider
               value={relevance}
@@ -304,7 +304,7 @@ export function ResearchTab() {
   const [practiceStep, setPracticeStep] = useState(0)
   const [localPapers, setLocalPapers] = useState<PaperItem[]>([])
 
-  const { data: apiData, loading, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
+  const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
 
   // Map API data to PaperItems
   const apiP0: PaperItem[] = (apiData?.p0 || []).map(mapApiPaperToItem)
@@ -437,12 +437,46 @@ export function ResearchTab() {
   }
 
   return (
-    <div className="space-y-6 p-6 grid-pattern animate-fade-in">
-      {/* Loading state */}
+    <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
+      {/* Loading state with shimmer skeletons */}
       {loading && !apiData && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
-          <span className="ml-3 text-sm text-muted-foreground">Loading research data...</span>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading research data...</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="relative overflow-hidden">
+                <CardContent className="relative p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="h-3 w-20 shimmer-skeleton" />
+                      <div className="mt-2 h-8 w-16 shimmer-skeleton" />
+                      <div className="mt-1 h-3 w-24 shimmer-skeleton" />
+                    </div>
+                    <div className="h-11 w-11 shimmer-skeleton rounded-xl" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="relative overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 shimmer-skeleton rounded-md" />
+                    <div className="flex-1">
+                      <div className="h-3 w-48 shimmer-skeleton" />
+                      <div className="mt-2 h-4 w-72 shimmer-skeleton" />
+                      <div className="mt-2 h-2 w-full shimmer-skeleton" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -452,7 +486,7 @@ export function ResearchTab() {
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search papers by title, ID, or task..."
-            className="h-9 pl-8 pr-8 text-xs rounded-lg transition-colors hover:border-emerald-600/30 focus:border-emerald-600/50"
+            className="h-9 pl-8 pr-8 text-xs rounded-lg transition-colors hover:border-emerald-600/30 focus:border-emerald-600/50 focus-ring-enhanced"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -472,7 +506,7 @@ export function ResearchTab() {
         )}
         <Button
           size="sm"
-          className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white ml-auto"
+          className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white ml-auto btn-press focus-ring-enhanced"
           onClick={() => setAddToQueueOpen(true)}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -480,68 +514,126 @@ export function ResearchTab() {
         </Button>
       </div>
 
-      {/* Stats — Gradient Cards with Icon Badges */}
+      {/* Stats — Gradient Cards with Icon Badges + Hover Lift + Glow */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="relative overflow-hidden border-red-600/20">
+        <Card className="relative overflow-hidden border-red-600/20 hover-lift priority-p0-glow">
           <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P0 — Implement Now</p>
-                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{filteredP0.length}</p>
+                <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums animate-count-up">{filteredP0.length}</p>
                 <p className="text-[10px] text-muted-foreground">critical items</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
-                <Flame className="h-5 w-5 text-red-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10 status-glow-red">
+                <Flame className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-orange-600/20">
+        <Card className="relative overflow-hidden border-orange-600/20 hover-lift priority-p1-glow">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P1 — Next Sprint</p>
-                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums">{filteredP1.length}</p>
+                <p className="mt-1 text-3xl font-bold text-orange-600 dark:text-orange-400 tabular-nums animate-count-up">{filteredP1.length}</p>
                 <p className="text-[10px] text-muted-foreground">high priority</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
-                <Target className="h-5 w-5 text-orange-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10 status-glow-orange">
+                <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-emerald-600/20">
+        <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P2 — Research</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{filteredP2.length}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums animate-count-up">{filteredP2.length}</p>
                 <p className="text-[10px] text-muted-foreground">research grade</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <Beaker className="h-5 w-5 text-emerald-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10 status-glow-green">
+                <Beaker className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Vetted</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums">{totalFiltered}</p>
+                <p className="mt-1 text-3xl font-bold tabular-nums animate-count-up">{totalFiltered}</p>
                 <p className="text-[10px] text-muted-foreground">papers + repos</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Library className="h-5 w-5 text-blue-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10 status-glow-blue">
+                <Library className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Pipeline Progress Indicator */}
+      <div className="relative overflow-hidden rounded-xl">
+        <div className="absolute inset-0 rounded-xl p-[1.5px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #fb923c, #34d399)', backgroundSize: '300% 100%', animation: 'gradientBorder 4s linear infinite' }}>
+          <div className="h-full w-full rounded-xl bg-card" />
+        </div>
+      <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+        <CardHeader className="relative pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0">
+          <div className="flex items-center gap-1">
+            {[
+              { label: 'Intake', count: Math.min(totalAll + 4, 24), color: 'emerald', icon: BookOpen },
+              { label: 'Vetting', count: Math.max(totalAll - 2, 3), color: 'blue', icon: Search, vetting: true },
+              { label: 'Manifest', count: totalAll, color: 'purple', icon: Library },
+              { label: 'Priority', count: totalAll, color: 'orange', icon: Target },
+              { label: 'Delivered', count: filteredP0.length + filteredP1.filter(p => p.status === 'in_progress').length, color: 'emerald', icon: CheckCircle2 },
+            ].map((step, i) => (
+              <div key={step.label} className="flex items-center flex-1 pipeline-step-animate" style={{ animationDelay: `${i * 100}ms` }}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <step.icon className={`h-3 w-3 ${
+                      step.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                      step.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                      step.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+                      'text-orange-600 dark:text-orange-400'
+                    } ${'vetting' in step && step.vetting ? 'vetting-indicator' : ''}`} />
+                    <span className="text-[10px] font-medium">{step.label}</span>
+                    {'vetting' in step && step.vetting && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                    <span className="text-[9px] text-muted-foreground tabular-nums ml-auto">{step.count}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full relevance-bar-animate ${
+                        step.color === 'emerald' ? 'bg-emerald-500' :
+                        step.color === 'blue' ? 'bg-blue-500' :
+                        step.color === 'purple' ? 'bg-purple-500' :
+                        'bg-orange-500'
+                      }`}
+                      style={{ width: `${Math.min((step.count / (totalAll || 1)) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                {i < 4 && (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 mx-1 shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
       </div>
 
       <Tabs defaultValue="p0" className="space-y-4">
@@ -561,25 +653,25 @@ export function ResearchTab() {
                 return (
                   <Card
                     key={item.id}
-                    className="hover:border-red-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-red-500/60"
+                    className="hover:border-red-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-red-500/60 btn-press shadow-sm shadow-red-600/5"
                     onClick={() => openPaperDialog(item)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-600/15">
-                          <Flame className="h-4 w-4 text-red-400" />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-600/15 status-glow-red priority-p0-glow">
+                          <Flame className="h-4 w-4 text-red-600 dark:text-red-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                            <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px]">
+                            <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px] badge-glow-red">
                               Relevance: {(item.relevance * 100).toFixed(0)}%
                             </Badge>
                             {item.status === 'in_progress' && (
-                              <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
+                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
                             )}
                             {item.status === 'pending' && (
-                              <Badge className="bg-yellow-500/15 text-yellow-400 border-0 text-[9px] animate-pulse">NEW</Badge>
+                              <Badge className="bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-0 text-[9px] animate-pulse">NEW</Badge>
                             )}
                           </div>
                           <p className="mt-1 text-sm font-medium">{item.title}</p>
@@ -589,9 +681,18 @@ export function ResearchTab() {
                               <code className="text-[10px] rounded bg-accent px-1.5 py-0.5">{item.deliverable}</code>
                             </div>
                           )}
-                          {/* Relevance Score Progress Bar */}
+                          {/* Relevance Score Visual Bar with color coding */}
                           <div className="mt-2 flex items-center gap-2">
-                            <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                            <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full relevance-bar-animate ${
+                                  item.relevance >= 0.8 ? 'bg-red-500' :
+                                  item.relevance >= 0.6 ? 'bg-orange-500' :
+                                  'bg-emerald-500'
+                                }`}
+                                style={{ width: `${item.relevance * 100}%` }}
+                              />
+                            </div>
                             <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
                           </div>
                         </div>
@@ -617,29 +718,38 @@ export function ResearchTab() {
               filteredP1.map((item) => (
                 <Card
                   key={item.id}
-                  className="hover:border-orange-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60"
+                  className="hover:border-orange-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60 btn-press shadow-sm shadow-orange-600/5"
                   onClick={() => openPaperDialog(item)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/15">
-                        <Target className="h-4 w-4 text-orange-400" />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/15 status-glow-orange priority-p1-glow">
+                        <Target className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                          <Badge className="bg-orange-600/15 text-orange-400 border-0 text-[9px]">
+                          <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px] status-glow-orange">
                             Relevance: {(item.relevance * 100).toFixed(0)}%
                           </Badge>
                           {item.status === 'in_progress' && (
-                            <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
+                            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
                           )}
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                        {/* Relevance Score Progress Bar */}
+                        {/* Relevance Score Visual Bar with color coding */}
                         <div className="mt-2 flex items-center gap-2">
-                          <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full relevance-bar-animate ${
+                                item.relevance >= 0.8 ? 'bg-orange-500' :
+                                item.relevance >= 0.6 ? 'bg-yellow-500' :
+                                'bg-emerald-500'
+                              }`}
+                              style={{ width: `${item.relevance * 100}%` }}
+                            />
+                          </div>
                           <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
                         </div>
                       </div>
@@ -664,26 +774,31 @@ export function ResearchTab() {
               filteredP2.map((item) => (
                 <Card
                   key={item.id}
-                  className="hover:border-emerald-600/20 transition-all cursor-pointer hover-lift border-l-4 border-l-emerald-500/60"
+                  className="hover:border-emerald-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-emerald-500/60 btn-press shadow-sm shadow-emerald-600/5"
                   onClick={() => openPaperDialog(item)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-600/15">
-                        <Beaker className="h-4 w-4 text-emerald-400" />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-600/15 status-glow-green">
+                        <Beaker className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">
-                            {(item.relevance * 100).toFixed(0)}%
+                          <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] badge-glow-emerald">
+                            Relevance: {(item.relevance * 100).toFixed(0)}%
                           </Badge>
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                        {/* Relevance Score Progress Bar */}
+                        {/* Relevance Score Visual Bar with color coding */}
                         <div className="mt-2 flex items-center gap-2">
-                          <Progress value={item.relevance * 100} className="h-1 flex-1" />
+                          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full relevance-bar-animate bg-emerald-500"
+                              style={{ width: `${item.relevance * 100}%` }}
+                            />
+                          </div>
                           <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
                         </div>
                       </div>
@@ -703,11 +818,11 @@ export function ResearchTab() {
 
         {/* Daily Practice — Enhanced */}
         <TabsContent value="practice">
-          <Card className="relative overflow-hidden border-emerald-600/20">
+          <Card className="relative overflow-hidden border-emerald-600/20 nexus-gradient-border">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
             <CardHeader className="relative pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-emerald-400" /> Daily Research Practice Template
+                <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Daily Research Practice Template
               </CardTitle>
             </CardHeader>
             <CardContent className="relative p-4 pt-0 space-y-4">
@@ -720,17 +835,17 @@ export function ResearchTab() {
                   {practiceSteps.map((s, i) => {
                     const emeraldLevels = [
                       'bg-emerald-300/20 text-emerald-300 border-emerald-300/30',
-                      'bg-emerald-400/20 text-emerald-400 border-emerald-400/30',
+                      'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400 border-emerald-400/30',
                       'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
                       'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
-                      'bg-emerald-700/20 text-emerald-400 border-emerald-700/30',
+                      'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400 border-emerald-700/30',
                     ]
                     const stepBadgeBg = [
                       'bg-emerald-300/20 text-emerald-300',
-                      'bg-emerald-400/20 text-emerald-400',
+                      'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400',
                       'bg-emerald-500/20 text-emerald-500',
                       'bg-emerald-600/20 text-emerald-500',
-                      'bg-emerald-700/20 text-emerald-400',
+                      'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400',
                     ]
                     const isActive = practiceSessionActive && i === practiceStep
                     return (
@@ -755,11 +870,11 @@ export function ResearchTab() {
               {/* Start Practice Session Button */}
               <div className="flex justify-center pt-2">
                 <Button
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 btn-press focus-ring-enhanced"
                   onClick={handleStartPracticeSession}
                   disabled={practiceSessionActive}
                 >
-                  <Play className="h-4 w-4" />
+                  <Zap className="h-4 w-4" />
                   {practiceSessionActive ? `Running: ${practiceSteps[practiceStep]?.name}...` : 'Start Practice Session'}
                 </Button>
               </div>
@@ -793,7 +908,7 @@ export function ResearchTab() {
           const PriorityIcon = config.icon
 
           return (
-            <DialogContent className="max-w-lg p-0 overflow-hidden">
+            <DialogContent className="max-w-lg p-0 overflow-hidden animate-scale-in">
               {/* Gradient header matching priority color */}
               <div className={`bg-gradient-to-r ${config.gradientFrom} ${config.gradientTo} p-6 border-b`}>
                 <DialogHeader>
@@ -803,7 +918,7 @@ export function ResearchTab() {
                       {config.label}
                     </Badge>
                     {selectedPaper.status === 'in_progress' && (
-                      <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px]">
+                      <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px]">
                         IN PROGRESS
                       </Badge>
                     )}
@@ -823,7 +938,7 @@ export function ResearchTab() {
               </div>
 
               <div className="p-6 space-y-5">
-                {/* Relevance Score with Progress Bar */}
+                {/* Relevance Score with Visual Bar */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">Relevance Score</span>
@@ -831,7 +946,16 @@ export function ResearchTab() {
                       {(selectedPaper.relevance * 100).toFixed(0)}%
                     </span>
                   </div>
-                  <Progress value={selectedPaper.relevance * 100} className="h-2" />
+                  <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full relevance-bar-animate ${
+                        selectedPaper.priority === 'P0' ? 'bg-red-500' :
+                        selectedPaper.priority === 'P1' ? 'bg-orange-500' :
+                        'bg-emerald-500'
+                      }`}
+                      style={{ width: `${selectedPaper.relevance * 100}%` }}
+                    />
+                  </div>
                 </div>
 
                 {/* Task Description */}
@@ -851,7 +975,7 @@ export function ResearchTab() {
                         className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-accent"
                       >
                         {copied ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                         ) : (
                           <Copy className="h-3.5 w-3.5" />
                         )}

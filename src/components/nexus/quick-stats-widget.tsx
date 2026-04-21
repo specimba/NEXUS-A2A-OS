@@ -80,11 +80,11 @@ export function QuickStatsWidget() {
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[10px]">
                 <span className="flex items-center gap-1 text-muted-foreground">
-                  <Coins className="h-3 w-3 text-emerald-400" />
+                  <Coins className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                   Token Budget
                 </span>
                 <span className="tabular-nums font-medium">
-                  <span className="text-emerald-400">{(tokenBudget.total - tokenBudget.used).toLocaleString()}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{(tokenBudget.total - tokenBudget.used).toLocaleString()}</span>
                   <span className="text-muted-foreground">/{tokenBudget.total.toLocaleString()}</span>
                 </span>
               </div>
@@ -99,11 +99,11 @@ export function QuickStatsWidget() {
             {/* Active Agents */}
             <div className="flex items-center justify-between text-[10px]">
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Users className="h-3 w-3 text-blue-400" />
+                <Users className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                 Active Agents
               </span>
               <span className="tabular-nums font-medium">
-                <span className="text-blue-400">{activeAgents}</span>
+                <span className="text-blue-600 dark:text-blue-400">{activeAgents}</span>
                 <span className="text-muted-foreground">/{totalAgents}</span>
               </span>
             </div>
@@ -111,10 +111,10 @@ export function QuickStatsWidget() {
             {/* System Uptime */}
             <div className="flex items-center justify-between text-[10px]">
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Clock className="h-3 w-3 text-purple-400" />
+                <Clock className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                 System Uptime
               </span>
-              <span className="tabular-nums font-medium text-purple-400">
+              <span className="tabular-nums font-medium text-purple-600 dark:text-purple-400">
                 {uptime.days > 0 && `${uptime.days}d `}
                 {uptime.hours}h {uptime.minutes}m
               </span>

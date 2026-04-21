@@ -91,11 +91,11 @@ function apiEntryToUI(e: VaultEntryAPI): VaultEntryUI {
 // ─── Track Config ───
 
 const tracks = [
-  { id: 'EVENT', label: 'Event', icon: FileText, bgColor: 'bg-emerald-600/15', textColor: 'text-emerald-400', desc: 'Operational events & state changes', gradient: 'from-emerald-600/10 via-emerald-600/3 to-transparent', borderColor: 'border-emerald-600/20', glowColor: 'hover:shadow-emerald-600/10', badgeBg: 'bg-emerald-600/15 text-emerald-400', borderLeftColor: 'border-l-emerald-500', headerGradient: 'from-emerald-600/20 to-emerald-600/5' },
-  { id: 'TRUST', label: 'Trust', icon: Shield, bgColor: 'bg-blue-600/15', textColor: 'text-blue-400', desc: 'Trust score adjustments & evidence', gradient: 'from-blue-600/10 via-blue-600/3 to-transparent', borderColor: 'border-blue-600/20', glowColor: 'hover:shadow-blue-600/10', badgeBg: 'bg-blue-600/15 text-blue-400', borderLeftColor: 'border-l-blue-500', headerGradient: 'from-blue-600/20 to-blue-600/5' },
-  { id: 'CAP', label: 'Capability', icon: TrendingUp, bgColor: 'bg-orange-600/15', textColor: 'text-orange-400', desc: 'Skill registrations & capability proofs', gradient: 'from-orange-600/10 via-orange-600/3 to-transparent', borderColor: 'border-orange-600/20', glowColor: 'hover:shadow-orange-600/10', badgeBg: 'bg-orange-600/15 text-orange-400', borderLeftColor: 'border-l-orange-500', headerGradient: 'from-orange-600/20 to-orange-600/5' },
-  { id: 'FAIL', label: 'Failure', icon: AlertTriangle, bgColor: 'bg-red-600/15', textColor: 'text-red-400', desc: 'Error logs & failure analysis', gradient: 'from-red-600/10 via-red-600/3 to-transparent', borderColor: 'border-red-600/20', glowColor: 'hover:shadow-red-600/10', badgeBg: 'bg-red-600/15 text-red-400', borderLeftColor: 'border-l-red-500', headerGradient: 'from-red-600/20 to-red-600/5' },
-  { id: 'GOV', label: 'Governance', icon: Settings, bgColor: 'bg-purple-600/15', textColor: 'text-purple-400', desc: 'Policy decisions & audit trail', gradient: 'from-purple-600/10 via-purple-600/3 to-transparent', borderColor: 'border-purple-600/20', glowColor: 'hover:shadow-purple-600/10', badgeBg: 'bg-purple-600/15 text-purple-400', borderLeftColor: 'border-l-purple-500', headerGradient: 'from-purple-600/20 to-purple-600/5' },
+  { id: 'EVENT', label: 'Event', icon: FileText, bgColor: 'bg-emerald-600/15', textColor: 'text-emerald-600 dark:text-emerald-400', desc: 'Operational events & state changes', gradient: 'from-emerald-600/10 via-emerald-600/3 to-transparent', borderColor: 'border-emerald-600/20', glowColor: 'hover:shadow-emerald-600/10', badgeBg: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400', borderLeftColor: 'border-l-emerald-500', headerGradient: 'from-emerald-600/20 to-emerald-600/5' },
+  { id: 'TRUST', label: 'Trust', icon: Shield, bgColor: 'bg-blue-600/15', textColor: 'text-blue-600 dark:text-blue-400', desc: 'Trust score adjustments & evidence', gradient: 'from-blue-600/10 via-blue-600/3 to-transparent', borderColor: 'border-blue-600/20', glowColor: 'hover:shadow-blue-600/10', badgeBg: 'bg-blue-600/15 text-blue-600 dark:text-blue-400', borderLeftColor: 'border-l-blue-500', headerGradient: 'from-blue-600/20 to-blue-600/5' },
+  { id: 'CAP', label: 'Capability', icon: TrendingUp, bgColor: 'bg-orange-600/15', textColor: 'text-orange-600 dark:text-orange-400', desc: 'Skill registrations & capability proofs', gradient: 'from-orange-600/10 via-orange-600/3 to-transparent', borderColor: 'border-orange-600/20', glowColor: 'hover:shadow-orange-600/10', badgeBg: 'bg-orange-600/15 text-orange-600 dark:text-orange-400', borderLeftColor: 'border-l-orange-500', headerGradient: 'from-orange-600/20 to-orange-600/5' },
+  { id: 'FAIL', label: 'Failure', icon: AlertTriangle, bgColor: 'bg-red-600/15', textColor: 'text-red-600 dark:text-red-400', desc: 'Error logs & failure analysis', gradient: 'from-red-600/10 via-red-600/3 to-transparent', borderColor: 'border-red-600/20', glowColor: 'hover:shadow-red-600/10', badgeBg: 'bg-red-600/15 text-red-600 dark:text-red-400', borderLeftColor: 'border-l-red-500', headerGradient: 'from-red-600/20 to-red-600/5' },
+  { id: 'GOV', label: 'Governance', icon: Settings, bgColor: 'bg-purple-600/15', textColor: 'text-purple-600 dark:text-purple-400', desc: 'Policy decisions & audit trail', gradient: 'from-purple-600/10 via-purple-600/3 to-transparent', borderColor: 'border-purple-600/20', glowColor: 'hover:shadow-purple-600/10', badgeBg: 'bg-purple-600/15 text-purple-600 dark:text-purple-400', borderLeftColor: 'border-l-purple-500', headerGradient: 'from-purple-600/20 to-purple-600/5' },
 ]
 
 function getTrackConfig(trackId: string) {
@@ -111,7 +111,7 @@ function formatJsonValue(value: string): string {
 }
 
 export function VaultTab() {
-  const { data: apiData, loading, refetch } = useApiData<VaultAPIResponse>('/api/vault', 15000)
+  const { data: apiData, loading, error: apiError, refetch } = useApiData<VaultAPIResponse>('/api/vault', 15000)
 
   // Transform API entries to UI format
   const entries = useMemo<VaultEntryUI[]>(() => {
@@ -239,7 +239,7 @@ export function VaultTab() {
       <div className="space-y-6 p-6 grid-pattern animate-fade-in">
         <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
           <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
+            <Loader2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 animate-spin" />
             <span className="text-sm text-muted-foreground">Loading Vault data...</span>
           </div>
         </div>
@@ -263,6 +263,26 @@ export function VaultTab() {
     )
   }
 
+  if (apiError && !apiData) {
+    return (
+      <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+        <div className="relative overflow-hidden rounded-xl border border-red-600/20 bg-gradient-to-r from-red-600/5 via-transparent to-red-600/5 p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <div>
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">Failed to load Vault data</span>
+              <p className="text-xs text-muted-foreground mt-1">{apiError}</p>
+            </div>
+            <Button variant="outline" size="sm" className="ml-auto gap-1.5" onClick={() => refetch()}>
+              <Loader2 className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern animate-fade-in">
       {/* Vault Integrity Status Banner */}
@@ -277,7 +297,7 @@ export function VaultTab() {
               <p className="text-xs text-muted-foreground">{activeTracks} tracks operational · {totalEntries.toLocaleString()} entries · Last verified: {verifyResult ? 'just now' : 'pending'}</p>
             </div>
           </div>
-          <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-400">
+          <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Operational
           </Badge>
@@ -292,11 +312,11 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Entries</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums animate-count-up">{totalEntries.toLocaleString()}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums animate-count-up">{totalEntries.toLocaleString()}</p>
                 <p className="text-[10px] text-muted-foreground">across {activeTracks} tracks</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <Database className="h-5 w-5 text-emerald-400" />
+                <Database className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -308,11 +328,11 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Active Tracks</p>
-                <p className="mt-1 text-3xl font-bold text-blue-400 tabular-nums animate-count-up">{activeTracks}</p>
+                <p className="mt-1 text-3xl font-bold text-blue-600 dark:text-blue-400 tabular-nums animate-count-up">{activeTracks}</p>
                 <p className="text-[10px] text-muted-foreground">all tracks operational</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Activity className="h-5 w-5 text-blue-400" />
+                <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -324,11 +344,11 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Latest Entry</p>
-                <p className="mt-1 text-3xl font-bold text-purple-400 tabular-nums">{latestEntry?.id ?? '—'}</p>
+                <p className="mt-1 text-3xl font-bold text-purple-600 dark:text-purple-400 tabular-nums">{latestEntry?.id ?? '—'}</p>
                 <p className="text-[10px] text-muted-foreground">{latestEntry?.key ?? 'no entries'}</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-600/15 shadow-lg shadow-purple-600/10">
-                <Clock className="h-5 w-5 text-purple-400" />
+                <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </CardContent>
@@ -340,11 +360,11 @@ export function VaultTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Score</p>
-                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums animate-count-up">{avgScore.toFixed(2)}</p>
+                <p className="mt-1 text-3xl font-bold text-orange-600 dark:text-orange-400 tabular-nums animate-count-up">{avgScore.toFixed(2)}</p>
                 <p className="text-[10px] text-muted-foreground">across all entries</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
-                <TrendingUp className="h-5 w-5 text-orange-400" />
+                <TrendingUp className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -378,7 +398,7 @@ export function VaultTab() {
               {activeTrack === t.id && (
                 <div className="mt-2 flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[9px] text-emerald-400 font-medium">Filtered</span>
+                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">Filtered</span>
                 </div>
               )}
             </CardContent>
@@ -421,7 +441,7 @@ export function VaultTab() {
                       variant="outline"
                       className={`cursor-pointer text-[10px] transition-colors ${
                         activeTrack === t.id
-                          ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/40 hover:bg-emerald-600/30'
+                          ? 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-emerald-600/40 hover:bg-emerald-600/30'
                           : 'hover:bg-accent'
                       }`}
                       onClick={() => toggleTrack(t.id)}
@@ -448,12 +468,12 @@ export function VaultTab() {
                     {filteredEntries.length} of {entries.length} entries
                   </span>
                   {activeTrack && (
-                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">
+                    <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
                       Track: {activeTrack}
                     </Badge>
                   )}
                   {searchQuery && (
-                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">
+                    <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
                       Search: &quot;{searchQuery}&quot;
                     </Badge>
                   )}
@@ -492,7 +512,7 @@ export function VaultTab() {
                             <td className="p-3 text-xs font-mono max-w-[150px] truncate">{e.key}</td>
                             <td className="p-3 text-[11px] text-muted-foreground max-w-[250px] truncate font-mono">{e.value}</td>
                             <td className="p-3">
-                              <span className={`text-xs font-medium ${e.score >= 0.7 ? 'text-emerald-400' : e.score >= 0.4 ? 'text-yellow-400' : 'text-red-400'}`}>
+                              <span className={`text-xs font-medium ${e.score >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : e.score >= 0.4 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                                 {e.score.toFixed(2)}
                               </span>
                             </td>
@@ -522,11 +542,11 @@ export function VaultTab() {
               <CardHeader className="relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Database className="h-4 w-4 text-emerald-400" /> VAP Proof Chain (Immutable Audit Trail)
+                    <Database className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> VAP Proof Chain (Immutable Audit Trail)
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {verifyResult && (
-                      <Badge className={`text-[9px] border-0 gap-1 ${verifyResult.valid ? 'bg-emerald-600/15 text-emerald-400' : 'bg-red-600/15 text-red-400'}`}>
+                      <Badge className={`text-[9px] border-0 gap-1 ${verifyResult.valid ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-600/15 text-red-600 dark:text-red-400'}`}>
                         {verifyResult.valid ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
                         {verifyResult.valid ? 'Verified' : `${verifyResult.issues.length} issues`}
                       </Badge>
@@ -538,16 +558,16 @@ export function VaultTab() {
                       onClick={handleVerifyChain}
                       disabled={verifying}
                     >
-                      {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />}
+                      {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
                       {verifying ? 'Verifying...' : 'Verify Chain Integrity'}
                     </Button>
                   </div>
                 </div>
                 {verifyResult && !verifyResult.valid && verifyResult.issues.length > 0 && (
                   <div className="mt-2 rounded-md bg-red-600/10 border border-red-600/20 p-2">
-                    <p className="text-[10px] font-medium text-red-400 mb-1">Issues Found:</p>
+                    <p className="text-[10px] font-medium text-red-600 dark:text-red-400 mb-1">Issues Found:</p>
                     {verifyResult.issues.map((issue, i) => (
-                      <p key={i} className="text-[10px] text-red-400/80">• {issue}</p>
+                      <p key={i} className="text-[10px] text-red-600/80 dark:text-red-400/80">• {issue}</p>
                     ))}
                   </div>
                 )}
@@ -687,7 +707,7 @@ export function VaultTab() {
                           }`}
                         />
                         <span className={`text-sm font-bold tabular-nums ${
-                          selectedEntry.score >= 0.7 ? 'text-emerald-400' : selectedEntry.score >= 0.4 ? 'text-yellow-400' : 'text-red-400'
+                          selectedEntry.score >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : selectedEntry.score >= 0.4 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                         }`}>
                           {selectedEntry.score.toFixed(2)}
                         </span>

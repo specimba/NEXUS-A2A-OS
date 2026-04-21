@@ -271,7 +271,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-emerald-400" />
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             Export Dashboard
           </DialogTitle>
           <DialogDescription>
@@ -296,7 +296,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                   <div className={`flex h-6 w-6 items-center justify-center rounded-md ${
                     scope === 'full' ? 'bg-emerald-600/15' : 'bg-muted'
                   }`}>
-                    <FileJson className={`h-3.5 w-3.5 ${scope === 'full' ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+                    <FileJson className={`h-3.5 w-3.5 ${scope === 'full' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
                   </div>
                   <span className="text-xs font-semibold">Full Dashboard</span>
                 </div>
@@ -305,7 +305,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                 </p>
                 {scope === 'full' && (
                   <div className="absolute top-2 right-2">
-                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[8px] px-1.5 py-0">8 pillars</Badge>
+                    <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0">8 pillars</Badge>
                   </div>
                 )}
               </button>
@@ -321,7 +321,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                   <div className={`flex h-6 w-6 items-center justify-center rounded-md ${
                     scope === 'individual' ? 'bg-emerald-600/15' : 'bg-muted'
                   }`}>
-                    <FileSpreadsheet className={`h-3.5 w-3.5 ${scope === 'individual' ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+                    <FileSpreadsheet className={`h-3.5 w-3.5 ${scope === 'individual' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
                   </div>
                   <span className="text-xs font-semibold">Individual Tab</span>
                 </div>
@@ -330,7 +330,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                 </p>
                 {scope === 'individual' && (
                   <div className="absolute top-2 right-2">
-                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[8px] px-1.5 py-0">{estimatedRows} rows</Badge>
+                    <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0">{estimatedRows} rows</Badge>
                   </div>
                 )}
               </button>
@@ -368,7 +368,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                     : 'border-border/60 hover:border-blue-600/20'
                 }`}
               >
-                <FileJson className={`h-4 w-4 ${format === 'json' ? 'text-blue-400' : 'text-muted-foreground'}`} />
+                <FileJson className={`h-4 w-4 ${format === 'json' ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
                 <div>
                   <p className="text-xs font-medium">JSON</p>
                   <p className="text-[9px] text-muted-foreground">Structured data</p>
@@ -382,7 +382,7 @@ export function GlobalExportDialog({ open, onOpenChange }: GlobalExportDialogPro
                     : 'border-border/60 hover:border-emerald-600/20'
                 }`}
               >
-                <FileSpreadsheet className={`h-4 w-4 ${format === 'csv' ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+                <FileSpreadsheet className={`h-4 w-4 ${format === 'csv' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
                 <div>
                   <p className="text-xs font-medium">CSV</p>
                   <p className="text-[9px] text-muted-foreground">Spreadsheet-ready</p>

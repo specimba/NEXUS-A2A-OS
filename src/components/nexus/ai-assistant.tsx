@@ -21,7 +21,7 @@ function TypingIndicator() {
   return (
     <div className="flex items-start gap-2 mb-4">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-        <Bot className="h-4 w-4 text-emerald-400" />
+        <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
       </div>
       <div className="rounded-xl rounded-tl-none bg-muted px-4 py-2.5">
         <div className="flex gap-1.5">
@@ -64,9 +64,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         }`}
       >
         {isUser ? (
-          <User className="h-4 w-4 text-emerald-400" />
+          <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         ) : (
-          <Bot className="h-4 w-4 text-emerald-400" />
+          <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         )}
       </div>
       <div
@@ -287,7 +287,7 @@ export function NexusAssistant() {
                         onClick={() => handleQuickPrompt(prompt)}
                         className="text-left text-xs rounded-lg border border-border/60 bg-muted/50 px-3 py-2.5 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer"
                       >
-                        <span className="text-emerald-400 mr-1.5">▸</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 mr-1.5">▸</span>
                         {prompt}
                       </button>
                     ))}

@@ -59,13 +59,13 @@ export function NexusCommandPalette() {
     { id: 'nav-tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" />, shortcut: '8', action: () => setActiveTab('tokens'), group: 'navigation' },
     { id: 'act-sidebar', label: 'Toggle Sidebar', icon: <PanelLeftClose className="h-4 w-4" />, shortcut: '⌘B', action: () => toggleSidebar(), group: 'actions' },
     { id: 'act-theme', label: 'Toggle Theme', icon: theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />, shortcut: '⌘⇧D', action: () => setTheme(theme === 'dark' ? 'light' : 'dark'), group: 'actions' },
-    { id: 'act-stresslab', label: 'Run StressLab Test', icon: <FlaskConical className="h-4 w-4 text-orange-400" />, action: () => setActiveTab('stresslab'), group: 'actions' },
-    { id: 'act-trust', label: 'View Trust Scores', icon: <Shield className="h-4 w-4 text-emerald-400" />, action: () => setActiveTab('governor'), group: 'actions' },
-    { id: 'act-budget', label: 'Check Token Budget', icon: <Coins className="h-4 w-4 text-emerald-400" />, action: () => setActiveTab('tokens'), group: 'actions' },
-    { id: 'act-chat', label: 'Open AI Assistant', icon: <MessageSquare className="h-4 w-4 text-emerald-400" />, action: () => toggleChat(), group: 'actions' },
-    { id: 'act-logs', label: 'Open System Logs', icon: <Terminal className="h-4 w-4 text-blue-400" />, shortcut: '⌘L', action: () => { /* Handled by header keyboard listener */ }, group: 'actions' },
-    { id: 'act-notifications', label: 'View Notifications', icon: <Bell className="h-4 w-4 text-red-400" />, shortcut: '⌘N', action: () => toggleNotificationCenter(), group: 'actions' },
-    { id: 'act-export', label: 'Export Dashboard', icon: <Download className="h-4 w-4 text-emerald-400" />, shortcut: '⌘E', action: () => setExportDialogOpen(true), group: 'actions' },
+    { id: 'act-stresslab', label: 'Run StressLab Test', icon: <FlaskConical className="h-4 w-4 text-orange-600 dark:text-orange-400" />, action: () => setActiveTab('stresslab'), group: 'actions' },
+    { id: 'act-trust', label: 'View Trust Scores', icon: <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />, action: () => setActiveTab('governor'), group: 'actions' },
+    { id: 'act-budget', label: 'Check Token Budget', icon: <Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />, action: () => setActiveTab('tokens'), group: 'actions' },
+    { id: 'act-chat', label: 'Open AI Assistant', icon: <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />, action: () => toggleChat(), group: 'actions' },
+    { id: 'act-logs', label: 'Open System Logs', icon: <Terminal className="h-4 w-4 text-blue-600 dark:text-blue-400" />, shortcut: '⌘L', action: () => { /* Handled by header keyboard listener */ }, group: 'actions' },
+    { id: 'act-notifications', label: 'View Notifications', icon: <Bell className="h-4 w-4 text-red-600 dark:text-red-400" />, shortcut: '⌘N', action: () => toggleNotificationCenter(), group: 'actions' },
+    { id: 'act-export', label: 'Export Dashboard', icon: <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />, shortcut: '⌘E', action: () => setExportDialogOpen(true), group: 'actions' },
   ]
 
   const runCommand = useCallback((command: CommandItemDef) => {
@@ -108,7 +108,7 @@ export function NexusCommandPalette() {
       <DialogContent className="overflow-hidden rounded-xl border border-border/60 bg-card/95 p-0 shadow-2xl backdrop-blur-xl max-w-lg">
         <Command className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-11 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2.5 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4">
           <div className="flex items-center border-b border-border/50 px-3">
-            <Terminal className="mr-2 h-4 w-4 shrink-0 text-emerald-400" />
+            <Terminal className="mr-2 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <CommandInput placeholder="Type a command or search..." />
           </div>
           <CommandList>

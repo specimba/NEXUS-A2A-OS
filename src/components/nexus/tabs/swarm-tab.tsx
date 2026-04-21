@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -14,13 +15,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Bug,
   Activity,
@@ -30,7 +30,6 @@ import {
   Loader2,
   Users,
   Cpu,
-  X,
   AlertTriangle,
   Play,
   ArrowRightLeft,
@@ -43,11 +42,19 @@ import {
   Wifi,
   WifiOff,
   Radio,
+  RotateCcw,
+  Plus,
+  ThumbsUp,
+  ThumbsDown,
+  ShieldAlert,
+  Sparkles,
+  UserPlus,
+  RefreshCw,
 } from 'lucide-react'
-import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
-import { useSwarmWS, type WorkerUpdate, type TaskQueued, type TaskComplete } from '@/hooks/use-swarm-ws'
+import { useSwarmWS } from '@/hooks/use-swarm-ws'
 import { useApiData } from '@/hooks/use-api-data'
 
 // Worker status export data with meaningful column names
@@ -69,13 +76,8 @@ const taskHistoryColumnHeaders: Record<string, string> = {
   tokens: 'Tokens',
 }
 
-const taskQueueColumnHeaders: Record<string, string> = {
-  id: 'Task ID',
-  domain: 'Domain',
-  priority: 'Priority',
-  status: 'Status',
-  submittedBy: 'Submitted By',
-}
+const WORKER_TYPES = ['foreman', 'researcher', 'coder', 'auditor', 'reviewer']
+const WORKER_DOMAINS = ['code', 'research', 'cyber', 'ai_safety', 'compbio', 'pharmacology', 'general']
 
 interface Worker {
   id: string
@@ -152,16 +154,16 @@ function getStatusDisplay(status: string): { icon: typeof Loader2; bgClass: stri
       return {
         icon: Loader2,
         bgClass: 'bg-emerald-600/15 shadow-lg shadow-emerald-600/10',
-        textClass: 'text-emerald-400',
-        badgeClass: 'bg-emerald-600/15 text-emerald-400',
+        textClass: 'text-emerald-600 dark:text-emerald-400',
+        badgeClass: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400',
         label: 'Executing task',
       }
     case 'error':
       return {
         icon: Bug,
         bgClass: 'bg-red-600/15 shadow-lg shadow-red-600/10',
-        textClass: 'text-red-400',
-        badgeClass: 'bg-red-600/15 text-red-400',
+        textClass: 'text-red-600 dark:text-red-400',
+        badgeClass: 'bg-red-600/15 text-red-600 dark:text-red-400',
         label: 'Error state',
       }
     case 'offline':
@@ -196,25 +198,356 @@ function getWorkerCardStyle(status: string): string {
   }
 }
 
+// ─── Shared API helper with rate-limit awareness ──────────────────────────────
+
+async function callSwarmApi<T = { message?: string }>(
+  action: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; data?: T; status: number }> {
+  try {
+    const res = await fetch('/api/swarm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+    })
+
+    if (res.status === 429) {
+      toast.warning('Rate limited', {
+        description: 'Too many requests — please wait a moment before trying again.',
+        duration: 5000,
+        icon: <ShieldAlert className="h-4 w-4" />,
+      })
+      return { ok: false, status: 429 }
+    }
+
+    const json = await res.json()
+
+    if (res.ok) {
+      return { ok: true, data: json as T, status: res.status }
+    } else {
+      toast.error(`Action failed: ${action.replace(/_/g, ' ')}`, {
+        description: json.error || 'Unknown error occurred',
+      })
+      return { ok: false, status: res.status }
+    }
+  } catch {
+    toast.error('Network error', {
+      description: 'Could not reach the Swarm API. Check your connection.',
+    })
+    return { ok: false, status: 0 }
+  }
+}
+
+// ─── Spawn Worker Dialog ──────────────────────────────────────────────────────
+
+function SpawnWorkerDialog({
+  open,
+  onOpenChange,
+  onSpawned,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSpawned: () => void
+}) {
+  const [name, setName] = useState('')
+  const [type, setType] = useState('')
+  const [domain, setDomain] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !type) {
+      toast.error('Missing fields', { description: 'Name and Type are required.' })
+      return
+    }
+    setSubmitting(true)
+    const result = await callSwarmApi('spawn_worker', {
+      name: name.trim(),
+      type,
+      domain: domain || 'general',
+    })
+    setSubmitting(false)
+
+    if (result.ok) {
+      toast.success('Worker spawned', {
+        description: result.data?.message || `${name} is now online.`,
+        icon: <UserPlus className="h-4 w-4" />,
+      })
+      onSpawned()
+      onOpenChange(false)
+      setName('')
+      setType('')
+      setDomain('')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/60">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-lg shadow-emerald-600/20">
+              <UserPlus className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-base">Spawn New Worker</DialogTitle>
+              <DialogDescription className="text-xs">
+                Create a new worker node in the swarm pool
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          {/* Gradient divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+
+          <div className="space-y-2">
+            <Label htmlFor="spawn-name" className="text-xs font-medium">Worker Name</Label>
+            <Input
+              id="spawn-name"
+              placeholder="e.g. worker-6, research-agent-2"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Worker Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {WORKER_TYPES.map(t => (
+                  <SelectItem key={t} value={t} className="text-sm">
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Domain</Label>
+            <Select value={domain} onValueChange={setDomain}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select domain (optional)..." />
+              </SelectTrigger>
+              <SelectContent>
+                {WORKER_DOMAINS.map(d => (
+                  <SelectItem key={d} value={d} className="text-sm">
+                    {d.charAt(0).toUpperCase() + d.slice(1).replace('_', ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Info banner */}
+          <div className="rounded-lg border border-emerald-600/20 bg-emerald-600/5 p-3">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+              <div className="text-[11px] text-muted-foreground leading-relaxed">
+                New workers start with <span className="text-emerald-600 dark:text-emerald-400 font-medium">0.50 trust score</span> in idle status.
+                The maximum active worker limit is enforced by the NEXUS constitution.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0"
+            onClick={handleSubmit}
+            disabled={submitting || !name.trim() || !type}
+          >
+            {submitting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+            {submitting ? 'Spawning...' : 'Spawn Worker'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Reassign Task Dialog ─────────────────────────────────────────────────────
+
+function ReassignTaskDialog({
+  worker,
+  open,
+  onOpenChange,
+  onReassigned,
+}: {
+  worker: Worker | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onReassigned: () => void
+}) {
+  const [newDomain, setNewDomain] = useState('')
+  const [newTask, setNewTask] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Reset form when worker changes
+  const prevWorkerRef = useRef<string | null>(null)
+  if (worker?.id !== prevWorkerRef.current) {
+    prevWorkerRef.current = worker?.id ?? null
+    if (worker) {
+      setNewDomain(worker.domain || '')
+      setNewTask('')
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!worker) return
+    setSubmitting(true)
+    const result = await callSwarmApi('reassign_task', {
+      workerId: worker.id,
+      newDomain: newDomain || undefined,
+      newTask: newTask.trim() || undefined,
+    })
+    setSubmitting(false)
+
+    if (result.ok) {
+      toast.success('Task reassigned', {
+        description: result.data?.message || `New task assigned to ${worker.name}`,
+        icon: <ArrowRightLeft className="h-4 w-4" />,
+      })
+      onReassigned()
+      onOpenChange(false)
+    }
+  }
+
+  if (!worker) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/60">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-600/20">
+              <ArrowRightLeft className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-base">Reassign Task</DialogTitle>
+              <DialogDescription className="text-xs">
+                Assign a new task and domain to {worker.name}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          {/* Gradient divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">New Domain</Label>
+            <Select value={newDomain} onValueChange={setNewDomain}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select domain..." />
+              </SelectTrigger>
+              <SelectContent>
+                {WORKER_DOMAINS.map(d => (
+                  <SelectItem key={d} value={d} className="text-sm">
+                    {d.charAt(0).toUpperCase() + d.slice(1).replace('_', ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reassign-task" className="text-xs font-medium">New Task ID</Label>
+            <Input
+              id="reassign-task"
+              placeholder="e.g. T-0854 or leave empty for auto-assign"
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              className="text-sm font-mono"
+            />
+          </div>
+
+          {/* Current state info */}
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Current Assignment</p>
+            <div className="flex items-center gap-2 text-xs">
+              {worker.domain ? (
+                <Badge variant="outline" className="text-[9px]">{worker.domain}</Badge>
+              ) : (
+                <span className="text-muted-foreground">No domain</span>
+              )}
+              {worker.task && (
+                <>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-mono">{worker.task}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-0"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+            )}
+            {submitting ? 'Reassigning...' : 'Reassign'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Worker Detail Dialog ─────────────────────────────────────────────────────
+
 function WorkerDetailDialog({
   worker,
   open,
   onOpenChange,
   onTerminate,
+  onRestart,
   onReassign,
+  onUpdateTrust,
+  actionLoading,
 }: {
   worker: Worker | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onTerminate: (workerId: string) => void
+  onTerminate: (workerId: string) => Promise<void>
+  onRestart: (workerId: string) => Promise<void>
   onReassign: (workerId: string) => void
+  onUpdateTrust: (workerId: string, delta: number, reason: string) => Promise<void>
+  actionLoading: string | null
 }) {
   if (!worker) return null
 
   const isIdle = worker.status === 'idle'
   const isError = worker.status === 'error'
+  const isOffline = worker.status === 'offline'
+  const canRestart = isError || isOffline
   const statusDisplay = getStatusDisplay(worker.status)
   const StatusIcon = statusDisplay.icon
+  const isLoading = actionLoading === worker.id
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,6 +572,9 @@ function WorkerDetailDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Gradient divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
+
           {/* Worker Info Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-border/50 p-3">
@@ -261,7 +597,15 @@ function WorkerDetailDialog({
             </div>
             <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Trust Score</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums">{worker.trustScore.toFixed(2)}</p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <p className="text-sm font-bold tabular-nums">{worker.trustScore.toFixed(2)}</p>
+                {/* Trust score color indicator */}
+                <div className={`h-1.5 w-8 rounded-full ${
+                  worker.trustScore >= 0.8 ? 'bg-emerald-500' :
+                  worker.trustScore >= 0.5 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`} />
+              </div>
             </div>
             <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tokens Consumed</p>
@@ -272,28 +616,86 @@ function WorkerDetailDialog({
             <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tasks Done / Failed</p>
               <p className="mt-0.5 text-sm tabular-nums">
-                <span className="text-emerald-400">{worker.tasksDone}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{worker.tasksDone}</span>
                 {' / '}
-                <span className="text-red-400">{worker.tasksFailed}</span>
+                <span className="text-red-600 dark:text-red-400">{worker.tasksFailed}</span>
               </p>
             </div>
+          </div>
+
+          {/* Trust Adjustment Panel */}
+          <div className="rounded-lg border border-border/50 bg-gradient-to-r from-amber-600/5 via-transparent to-amber-600/5 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-amber-400" />
+                <p className="text-[10px] uppercase tracking-wider text-amber-400">Trust Adjustment</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-[10px] border-red-600/30 text-red-600 dark:text-red-400 hover:bg-red-600/10 hover:text-red-300"
+                  onClick={() => onUpdateTrust(worker.id, -0.05, `Manual adjustment from worker detail: -0.05`)}
+                  disabled={isLoading}
+                >
+                  {actionLoading === `trust-down-${worker.id}` ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ThumbsDown className="h-3 w-3" />
+                  )}
+                  -0.05
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-[10px] border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                  onClick={() => onUpdateTrust(worker.id, 0.05, `Manual adjustment from worker detail: +0.05`)}
+                  disabled={isLoading}
+                >
+                  {actionLoading === `trust-up-${worker.id}` ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ThumbsUp className="h-3 w-3" />
+                  )}
+                  +0.05
+                </Button>
+              </div>
+            </div>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              Current: <span className="font-bold tabular-nums">{worker.trustScore.toFixed(2)}</span>
+              {' · '}Range: [0.00 – 1.00]
+              {' · '}Lane thresholds: research ≥ 0.75, audit ≥ 0.85
+            </p>
           </div>
 
           {/* Error details for error workers */}
           {isError && (
             <div className="rounded-lg border border-red-600/20 bg-red-600/5 p-3">
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-                <p className="text-[10px] uppercase tracking-wider text-red-400">Error Details</p>
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <p className="text-[10px] uppercase tracking-wider text-red-600 dark:text-red-400">Error Details</p>
               </div>
               <p className="text-xs text-red-300 leading-relaxed">
                 Worker encountered an error. Last task may have failed.
                 Error: &quot;Rate limit exceeded — retry after 60s or reassign to another worker.&quot;
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px]">E-RATE-429</Badge>
-                <Badge className="bg-red-600/15 text-red-400 border-0 text-[9px]">Auto-retry: disabled</Badge>
+                <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px]">E-RATE-429</Badge>
+                <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px]">Auto-retry: disabled</Badge>
               </div>
+            </div>
+          )}
+
+          {/* Offline info */}
+          {isOffline && (
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <WifiOff className="h-4 w-4 text-muted-foreground" />
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Offline</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This worker is offline. Use &quot;Restart Worker&quot; to bring it back online, or &quot;Terminate&quot; to remove it permanently.
+              </p>
             </div>
           )}
 
@@ -320,8 +722,24 @@ function WorkerDetailDialog({
           )}
         </div>
 
-        <DialogFooter className="gap-2">
-          {isIdle && (
+        <DialogFooter className="gap-2 flex-wrap">
+          {canRestart && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-600/30 text-amber-400 hover:bg-amber-600/10 hover:text-amber-300"
+              onClick={() => onRestart(worker.id)}
+              disabled={isLoading}
+            >
+              {actionLoading === `restart-${worker.id}` ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5" />
+              )}
+              Restart Worker
+            </Button>
+          )}
+          {(isIdle || !isOffline) && (
             <Button
               variant="outline"
               size="sm"
@@ -330,6 +748,7 @@ function WorkerDetailDialog({
                 onReassign(worker.id)
                 onOpenChange(false)
               }}
+              disabled={isLoading}
             >
               <ArrowRightLeft className="h-3.5 w-3.5" />
               Reassign Task
@@ -340,12 +759,17 @@ function WorkerDetailDialog({
               variant="destructive"
               size="sm"
               className="gap-1.5"
-              onClick={() => {
-                onTerminate(worker.id)
+              onClick={async () => {
+                await onTerminate(worker.id)
                 onOpenChange(false)
               }}
+              disabled={isLoading}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              {actionLoading === `terminate-${worker.id}` ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
               Terminate Worker
             </Button>
           )}
@@ -355,9 +779,15 @@ function WorkerDetailDialog({
   )
 }
 
+// ─── Main Swarm Tab ───────────────────────────────────────────────────────────
+
 export function SwarmTab() {
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [spawnDialogOpen, setSpawnDialogOpen] = useState(false)
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [reassignWorkerId, setReassignWorkerId] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const ws = useSwarmWS()
   const { data: apiData, loading, refetch } = useApiData<SwarmApiResponse>('/api/swarm', 15000)
 
@@ -431,52 +861,58 @@ export function SwarmTab() {
     totalTokens,
   }
 
+  // Find worker for reassign dialog
+  const reassignWorker = reassignWorkerId ? apiWorkers.find(w => w.id === reassignWorkerId) ?? null : null
+
   const handleWorkerClick = (worker: Worker) => {
     setSelectedWorker(worker)
     setDialogOpen(true)
   }
 
   const handleTerminate = useCallback(async (workerId: string) => {
-    try {
-      const res = await fetch('/api/swarm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'terminate_worker', workerId }),
+    setActionLoading(`terminate-${workerId}`)
+    const result = await callSwarmApi('terminate_worker', { workerId })
+    setActionLoading(null)
+    if (result.ok) {
+      toast.success('Worker terminated', {
+        description: result.data?.message || 'Worker removed from the swarm pool',
+        icon: <Trash2 className="h-4 w-4" />,
       })
-      if (res.ok) {
-        const data = await res.json()
-        toast.success(`Worker terminated`, {
-          description: data.message || `Worker removed from the swarm pool`,
-        })
-        refetch()
-      } else {
-        const err = await res.json()
-        toast.error('Failed to terminate worker', { description: err.error || 'Unknown error' })
-      }
-    } catch {
-      toast.error('Failed to terminate worker', { description: 'Network error' })
+      refetch()
     }
   }, [refetch])
 
-  const handleReassign = useCallback(async (workerId: string) => {
-    try {
-      const res = await fetch('/api/swarm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reassign_task', workerId }),
+  const handleRestart = useCallback(async (workerId: string) => {
+    setActionLoading(`restart-${workerId}`)
+    const result = await callSwarmApi('restart_worker', { workerId })
+    setActionLoading(null)
+    if (result.ok) {
+      toast.success('Worker restarted', {
+        description: result.data?.message || 'Worker is now idle and ready',
+        icon: <RotateCcw className="h-4 w-4" />,
       })
-      if (res.ok) {
-        const data = await res.json()
-        toast.success(`Task reassigned`, {
-          description: data.message || `Next queued task will be assigned to this worker`,
-        })
-        refetch()
-      } else {
-        const err = await res.json()
-        toast.error('Failed to reassign task', { description: err.error || 'Unknown error' })
-      }
-    } catch {
-      toast.error('Failed to reassign task', { description: 'Network error' })
+      refetch()
+    }
+  }, [refetch])
+
+  const handleUpdateTrust = useCallback(async (workerId: string, delta: number, reason: string) => {
+    const direction = delta > 0 ? 'up' : 'down'
+    setActionLoading(`trust-${direction}-${workerId}`)
+    const result = await callSwarmApi('update_trust', { workerId, delta, reason })
+    setActionLoading(null)
+    if (result.ok) {
+      toast.success(`Trust ${delta > 0 ? 'increased' : 'decreased'}`, {
+        description: result.data?.message || `Trust score adjusted by ${delta > 0 ? '+' : ''}${delta}`,
+        icon: delta > 0 ? <ThumbsUp className="h-4 w-4" /> : <ThumbsDown className="h-4 w-4" />,
+      })
+      refetch()
+      // Update the selected worker in the detail dialog if it's the same worker
+      setSelectedWorker(prev => {
+        if (prev && prev.id === workerId) {
+          return { ...prev, trustScore: Math.max(0, Math.min(1, prev.trustScore + delta)) }
+        }
+        return prev
+      })
     }
   }, [refetch])
 
@@ -491,39 +927,45 @@ export function SwarmTab() {
         })
       } else {
         // Fallback to REST API
-        try {
-          const res = await fetch('/api/swarm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'reassign_task', workerId: idleWorker.id, taskId }),
+        setActionLoading(`assign-${idleWorker.id}`)
+        const result = await callSwarmApi('reassign_task', {
+          workerId: idleWorker.id,
+          newTask: taskId,
+        })
+        setActionLoading(null)
+        if (result.ok) {
+          toast.success(`Task ${taskId} assigned to ${idleWorker.name}`, {
+            description: 'Worker will begin processing shortly',
+            icon: <Play className="h-4 w-4" />,
           })
-          if (res.ok) {
-            toast.success(`Task ${taskId} assigned to ${idleWorker.name}`, {
-              description: 'Worker will begin processing shortly',
-            })
-            refetch()
-          } else {
-            toast.error('Failed to assign task')
-          }
-        } catch {
-          toast.error('Failed to assign task', { description: 'Network error' })
+          refetch()
         }
       }
     } else {
       toast.error('No idle workers available', {
         description: 'All workers are busy or in error state',
+        icon: <AlertTriangle className="h-4 w-4" />,
       })
     }
   }, [apiWorkers, ws, refetch])
+
+  const handleOpenReassign = useCallback((workerId: string) => {
+    setReassignWorkerId(workerId)
+    setReassignDialogOpen(true)
+  }, [])
 
   return (
     <div className="space-y-6 p-6 grid-pattern">
       {/* Swarm Health Indicator with WebSocket status */}
       <div className="relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
-        <div className="flex items-center justify-between">
+        {/* Animated gradient border glow */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-600/10 via-transparent to-blue-600/10 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg shadow-emerald-600/10">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg shadow-emerald-600/10">
               <Cpu className="h-5 w-5 text-white" />
+              {/* Animated pulse ring */}
+              <div className="absolute inset-0 rounded-xl border border-emerald-400/30 animate-ping" style={{ animationDuration: '3s' }} />
             </div>
             <div>
               <h2 className="text-base font-semibold">Swarm Health</h2>
@@ -531,12 +973,21 @@ export function SwarmTab() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Spawn Worker Button */}
+            <Button
+              size="sm"
+              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0 shadow-lg shadow-emerald-600/10"
+              onClick={() => setSpawnDialogOpen(true)}
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Spawn Worker
+            </Button>
             {/* WebSocket Connection Status */}
-            <Badge className={`border-0 text-[10px] gap-1 ${ws.connected ? 'bg-emerald-600/15 text-emerald-400' : 'bg-red-600/15 text-red-400'}`}>
+            <Badge className={`border-0 text-[10px] gap-1 ${ws.connected ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-600/15 text-red-600 dark:text-red-400'}`}>
               {ws.connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {ws.connected ? 'LIVE' : 'Offline'}
             </Badge>
-            <Badge className={`border-0 text-[10px] gap-1 ${errorCount > 0 ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+            <Badge className={`border-0 text-[10px] gap-1 ${errorCount > 0 ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${errorCount > 0 ? 'bg-yellow-400' : 'bg-emerald-400'} animate-pulse`} />
               {errorCount > 0 ? 'Attention Needed' : 'Healthy'}
             </Badge>
@@ -545,7 +996,7 @@ export function SwarmTab() {
         {/* Live activity feed from WebSocket */}
         {ws.activities.length > 0 && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
-            <Radio className="h-3 w-3 text-emerald-400 animate-pulse shrink-0" />
+            <Radio className="h-3 w-3 text-emerald-600 dark:text-emerald-400 animate-pulse shrink-0" />
             <p className="text-[11px] text-muted-foreground truncate">
               {ws.activities[0].message}
             </p>
@@ -558,8 +1009,10 @@ export function SwarmTab() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
+          {/* Hover glow border */}
+          <div className="absolute inset-0 rounded-lg border border-blue-600/0 group-hover:border-blue-600/20 transition-colors duration-300 pointer-events-none" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -568,28 +1021,30 @@ export function SwarmTab() {
                 <p className="text-[10px] text-muted-foreground">Foreman pool</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Users className="h-5 w-5 text-blue-400" />
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-emerald-600/20">
+        <Card className="relative overflow-hidden border-emerald-600/20 group">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-transparent to-transparent" />
+          <div className="absolute inset-0 rounded-lg border border-emerald-600/0 group-hover:border-emerald-600/30 transition-colors duration-300 pointer-events-none" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Busy</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{busyCount}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{busyCount}</p>
                 <p className="text-[10px] text-muted-foreground">executing tasks</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <Activity className="h-5 w-5 text-emerald-400" />
+                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-muted/30 via-transparent to-transparent" />
+          <div className="absolute inset-0 rounded-lg border border-border/0 group-hover:border-border/30 transition-colors duration-300 pointer-events-none" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -603,17 +1058,18 @@ export function SwarmTab() {
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-red-600/20">
+        <Card className="relative overflow-hidden border-red-600/20 group">
           <div className="absolute inset-0 bg-gradient-to-br from-red-600/8 via-transparent to-transparent" />
+          <div className="absolute inset-0 rounded-lg border border-red-600/0 group-hover:border-red-600/30 transition-colors duration-300 pointer-events-none" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Error</p>
-                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{errorCount}</p>
+                <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">{errorCount}</p>
                 <p className="text-[10px] text-muted-foreground">needs attention</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
-                <Bug className="h-5 w-5 text-red-400" />
+                <Bug className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -621,16 +1077,16 @@ export function SwarmTab() {
       </div>
 
       {/* Swarm Metrics Mini-Dashboard */}
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+      <div className="grid gap-3 md:grid-cols-5">
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift group">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/3 to-transparent" />
           <div className="relative flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600/15">
-              <Gauge className="h-4 w-4 text-emerald-400" />
+              <Gauge className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tasks/hour</p>
-              <p className="text-lg font-bold text-emerald-400 tabular-nums">{liveMetrics.throughput.toFixed(1)}</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{liveMetrics.throughput.toFixed(1)}</p>
             </div>
           </div>
         </div>
@@ -638,11 +1094,11 @@ export function SwarmTab() {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-600/3 to-transparent" />
           <div className="relative flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/15">
-              <Timer className="h-4 w-4 text-blue-400" />
+              <Timer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Duration</p>
-              <p className="text-lg font-bold text-blue-400 tabular-nums">{liveMetrics.avgDuration.toFixed(1)}s</p>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400 tabular-nums">{liveMetrics.avgDuration.toFixed(1)}s</p>
             </div>
           </div>
         </div>
@@ -650,11 +1106,11 @@ export function SwarmTab() {
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-600/3 to-transparent" />
           <div className="relative flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-600/15">
-              <TrendingUp className="h-4 w-4 text-orange-400" />
+              <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Success Rate</p>
-              <p className="text-lg font-bold text-orange-400 tabular-nums">{liveMetrics.successRate.toFixed(1)}%</p>
+              <p className="text-lg font-bold text-orange-600 dark:text-orange-400 tabular-nums">{liveMetrics.successRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>
@@ -662,11 +1118,23 @@ export function SwarmTab() {
           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-purple-600/3 to-transparent" />
           <div className="relative flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600/15">
-              <BarChart3 className="h-4 w-4 text-purple-400" />
+              <BarChart3 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Utilization</p>
-              <p className="text-lg font-bold text-purple-400 tabular-nums">{liveMetrics.utilization}%</p>
+              <p className="text-lg font-bold text-purple-600 dark:text-purple-400 tabular-nums">{liveMetrics.utilization}%</p>
+            </div>
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-lg border border-border/50 p-3 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-amber-600/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-600/15">
+              <ShieldAlert className="h-4 w-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Trust</p>
+              <p className="text-lg font-bold text-amber-400 tabular-nums">{avgTrust.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -682,10 +1150,14 @@ export function SwarmTab() {
           <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{apiWorkers.length} workers occupied</span>
         </div>
         <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+          {/* Gradient fill with animated shimmer */}
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 transition-all duration-500 relative overflow-hidden"
             style={{ width: `${apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length) * 100 : 0}%` }}
-          />
+          >
+            {/* Shimmer overlay */}
+            <div className="absolute inset-0 shimmer opacity-40" />
+          </div>
         </div>
         <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
           <span>{apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length * 100).toFixed(0) : 0}% capacity utilized</span>
@@ -694,13 +1166,26 @@ export function SwarmTab() {
       </div>
 
       {/* Throughput Chart */}
-      <Card>
+      <Card className="relative overflow-hidden">
+        {/* Gradient border accent */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <Cpu className="h-4 w-4" /> Swarm Throughput
             </CardTitle>
-            <Badge variant="outline" className="text-[9px]">last 10 intervals</Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 text-[9px] text-muted-foreground hover:text-foreground"
+                onClick={() => refetch()}
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh
+              </Button>
+              <Badge variant="outline" className="text-[9px]">last 10 intervals</Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0">
@@ -723,19 +1208,31 @@ export function SwarmTab() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Worker Grid */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 relative overflow-hidden">
+          {/* Gradient border accent */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" /> Worker Status Grid
               </CardTitle>
-              <ExportButton data={apiWorkers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export Workers" columnHeaders={workerStatusColumnHeaders} />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0 h-7 text-[10px]"
+                  onClick={() => setSpawnDialogOpen(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                  Spawn
+                </Button>
+                <ExportButton data={apiWorkers.map(w => ({ ...w }))} filename="swarm-worker-status" label="Export" columnHeaders={workerStatusColumnHeaders} />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             {loading && !apiData ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 text-emerald-400 animate-spin" />
+                <Loader2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 animate-spin" />
                 <span className="ml-2 text-xs text-muted-foreground">Loading workers...</span>
               </div>
             ) : apiWorkers.length > 0 ? (
@@ -747,12 +1244,20 @@ export function SwarmTab() {
                     <div
                       key={w.id}
                       onClick={() => handleWorkerClick(w)}
-                      className={`relative rounded-lg border p-3.5 transition-all duration-200 cursor-pointer hover-lift ${getWorkerCardStyle(w.status)}`}
+                      className={`relative rounded-lg border p-3.5 transition-all duration-200 cursor-pointer hover-lift group ${getWorkerCardStyle(w.status)}`}
                     >
                       {/* Pulsing border for error workers */}
                       {w.status === 'error' && (
                         <div className="absolute inset-0 rounded-lg border-2 border-red-500/30 animate-pulse pointer-events-none" />
                       )}
+
+                      {/* Gradient top accent line based on status */}
+                      <div className={`absolute inset-x-0 top-0 h-0.5 rounded-t-lg ${
+                        w.status === 'busy' ? 'bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600' :
+                        w.status === 'error' ? 'bg-gradient-to-r from-red-600 via-red-400 to-red-600' :
+                        w.status === 'offline' ? 'bg-gradient-to-r from-muted via-muted-foreground/30 to-muted' :
+                        'bg-gradient-to-r from-muted-foreground/10 via-muted-foreground/20 to-muted-foreground/10'
+                      }`} />
 
                       {/* Status dot indicator */}
                       <div className={`absolute top-2 right-2 h-2 w-2 rounded-full ${
@@ -761,6 +1266,7 @@ export function SwarmTab() {
                         w.status === 'offline' ? 'bg-muted-foreground/20' :
                         'bg-muted-foreground/40'
                       }`} />
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{w.name}</span>
@@ -775,6 +1281,23 @@ export function SwarmTab() {
                           <Badge variant="outline" className="text-[9px]">{w.domain}</Badge>
                         )}
                       </div>
+
+                      {/* Trust indicator bar */}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[9px] text-muted-foreground shrink-0">Trust</span>
+                        <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              w.trustScore >= 0.8 ? 'bg-emerald-500' :
+                              w.trustScore >= 0.5 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${w.trustScore * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-mono tabular-nums text-muted-foreground shrink-0">{w.trustScore.toFixed(2)}</span>
+                      </div>
+
                       {w.task && (
                         <div className="mt-2">
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
@@ -785,7 +1308,7 @@ export function SwarmTab() {
                             <div
                               className={`h-full rounded-full transition-all duration-1000 ${
                                 w.status === 'busy'
-                                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-400 animate-pulse'
+                                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-400'
                                   : 'bg-red-400'
                               }`}
                               style={{ width: `${w.progress}%` }}
@@ -797,25 +1320,65 @@ export function SwarmTab() {
                         <span>{w.tokens > 0 ? `${w.tokens.toLocaleString()} tokens` : 'No task'}</span>
                         <span>↑ {w.uptime}</span>
                       </div>
-                      {/* Click hint */}
-                      <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
-                        <Zap className="h-2.5 w-2.5" />
-                        Click for details
+
+                      {/* Quick action buttons on hover */}
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
+                          <Zap className="h-2.5 w-2.5" />
+                          Click for details
+                        </div>
+                        {/* Quick trust buttons */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 text-red-600 dark:text-red-400 hover:bg-red-600/10 hover:text-red-300"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUpdateTrust(w.id, -0.05, `Quick adjust from worker card: -0.05`)
+                            }}
+                            disabled={actionLoading !== null}
+                          >
+                            <ThumbsDown className="h-2.5 w-2.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUpdateTrust(w.id, 0.05, `Quick adjust from worker card: +0.05`)
+                            }}
+                            disabled={actionLoading !== null}
+                          >
+                            <ThumbsUp className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
             ) : (
-              <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
-                No workers found. Seed the database to see workers.
+              <div className="flex flex-col items-center justify-center py-8 text-xs text-muted-foreground gap-3">
+                <Users className="h-8 w-8 text-muted-foreground/30" />
+                <span>No workers found. Seed the database or spawn a new worker.</span>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0"
+                  onClick={() => setSpawnDialogOpen(true)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Spawn Worker
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Task Queue */}
-        <Card>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-600/40 to-transparent" />
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
               <Clock className="h-4 w-4" /> Task Queue
@@ -824,12 +1387,12 @@ export function SwarmTab() {
           <CardContent className="p-4 pt-0">
             <div className="space-y-2">
               {liveTaskQueue.map((t) => (
-                <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2">
+                <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2 transition-colors hover:bg-accent/50">
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-mono">{t.id}</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Badge variant="outline" className="text-[9px]">{t.domain}</Badge>
-                      <Badge className={`text-[9px] border-0 ${t.priority === 'high' ? 'bg-red-600/15 text-red-400' : t.priority === 'medium' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-muted text-muted-foreground'}`}>
+                      <Badge className={`text-[9px] border-0 ${t.priority === 'high' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : t.priority === 'medium' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-muted text-muted-foreground'}`}>
                         {t.priority}
                       </Badge>
                     </div>
@@ -837,10 +1400,15 @@ export function SwarmTab() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 gap-1 text-[9px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/10 shrink-0 ml-2"
+                    className="h-6 gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/10 shrink-0 ml-2"
                     onClick={() => handleAssignTask(t.id)}
+                    disabled={actionLoading !== null}
                   >
-                    <Play className="h-3 w-3" />
+                    {actionLoading?.startsWith('assign-') ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Play className="h-3 w-3" />
+                    )}
                     Assign
                   </Button>
                 </div>
@@ -852,7 +1420,8 @@ export function SwarmTab() {
       </div>
 
       {/* Recent Completed */}
-      <Card>
+      <Card className="relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -875,14 +1444,14 @@ export function SwarmTab() {
               </thead>
               <tbody>
                 {liveRecentCompleted.map((r) => (
-                  <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50">
+                  <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
                     <td className="p-3 font-mono text-xs">{r.id}</td>
                     <td className="p-3 text-xs">{r.worker}</td>
                     <td className="p-3">
                       {r.result === 'success' ? (
-                        <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />PASS</Badge>
+                        <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />PASS</Badge>
                       ) : (
-                        <Badge className="bg-red-600/15 text-red-400 border-0 text-[10px]"><XCircle className="mr-1 h-3 w-3" />FAIL</Badge>
+                        <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[10px]"><XCircle className="mr-1 h-3 w-3" />FAIL</Badge>
                       )}
                     </td>
                     <td className="p-3 text-xs">{r.duration}</td>
@@ -901,7 +1470,25 @@ export function SwarmTab() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onTerminate={handleTerminate}
-        onReassign={handleReassign}
+        onRestart={handleRestart}
+        onReassign={handleOpenReassign}
+        onUpdateTrust={handleUpdateTrust}
+        actionLoading={actionLoading}
+      />
+
+      {/* Spawn Worker Dialog */}
+      <SpawnWorkerDialog
+        open={spawnDialogOpen}
+        onOpenChange={setSpawnDialogOpen}
+        onSpawned={refetch}
+      />
+
+      {/* Reassign Task Dialog */}
+      <ReassignTaskDialog
+        worker={reassignWorker}
+        open={reassignDialogOpen}
+        onOpenChange={setReassignDialogOpen}
+        onReassigned={refetch}
       />
     </div>
   )

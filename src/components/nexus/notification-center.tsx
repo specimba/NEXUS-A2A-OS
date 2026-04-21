@@ -26,21 +26,21 @@ import { useNexusStore, type NotificationType, type Notification } from '@/store
 import { toast } from 'sonner'
 
 const typeConfig: Record<NotificationType, { icon: React.ElementType; color: string; stripe: string; bg: string; badgeBg: string }> = {
-  error: { icon: XCircle, color: 'text-red-400', stripe: 'bg-red-500', bg: 'bg-red-600/5', badgeBg: 'bg-red-600/15 text-red-400' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-400', stripe: 'bg-yellow-500', bg: 'bg-yellow-600/5', badgeBg: 'bg-yellow-600/15 text-yellow-400' },
-  success: { icon: CheckCircle2, color: 'text-emerald-400', stripe: 'bg-emerald-500', bg: 'bg-emerald-600/5', badgeBg: 'bg-emerald-600/15 text-emerald-400' },
-  info: { icon: Info, color: 'text-blue-400', stripe: 'bg-blue-500', bg: 'bg-blue-600/5', badgeBg: 'bg-blue-600/15 text-blue-400' },
+  error: { icon: XCircle, color: 'text-red-600 dark:text-red-400', stripe: 'bg-red-500', bg: 'bg-red-600/5', badgeBg: 'bg-red-600/15 text-red-600 dark:text-red-400' },
+  warning: { icon: AlertTriangle, color: 'text-yellow-600 dark:text-yellow-400', stripe: 'bg-yellow-500', bg: 'bg-yellow-600/5', badgeBg: 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' },
+  success: { icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', stripe: 'bg-emerald-500', bg: 'bg-emerald-600/5', badgeBg: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' },
+  info: { icon: Info, color: 'text-blue-600 dark:text-blue-400', stripe: 'bg-blue-500', bg: 'bg-blue-600/5', badgeBg: 'bg-blue-600/15 text-blue-600 dark:text-blue-400' },
 }
 
 const sourceColors: Record<string, string> = {
-  Governor: 'bg-purple-600/15 text-purple-400',
-  GMR: 'bg-cyan-600/15 text-cyan-400',
-  Swarm: 'bg-orange-600/15 text-orange-400',
-  Vault: 'bg-emerald-600/15 text-emerald-400',
-  StressLab: 'bg-red-600/15 text-red-400',
-  Research: 'bg-blue-600/15 text-blue-400',
-  Tokens: 'bg-yellow-600/15 text-yellow-400',
-  Monitor: 'bg-indigo-600/15 text-indigo-400',
+  Governor: 'bg-purple-600/15 text-purple-600 dark:text-purple-400',
+  GMR: 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400',
+  Swarm: 'bg-orange-600/15 text-orange-600 dark:text-orange-400',
+  Vault: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400',
+  StressLab: 'bg-red-600/15 text-red-600 dark:text-red-400',
+  Research: 'bg-blue-600/15 text-blue-600 dark:text-blue-400',
+  Tokens: 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400',
+  Monitor: 'bg-indigo-600/15 text-indigo-600 dark:text-indigo-400',
 }
 
 const simulatedNotifications: Omit<Notification, 'id' | 'read'>[] = [
@@ -128,10 +128,10 @@ export function NotificationCenter() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-emerald-400" />
+            <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-semibold">Notifications</h3>
             {count > 0 && (
-              <Badge className="h-5 px-1.5 text-[9px] bg-red-600/15 text-red-400 border-0">
+              <Badge className="h-5 px-1.5 text-[9px] bg-red-600/15 text-red-600 dark:text-red-400 border-0">
                 {count} new
               </Badge>
             )}
@@ -152,7 +152,7 @@ export function NotificationCenter() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-[10px] text-muted-foreground hover:text-red-400 gap-1 px-2"
+                className="h-6 text-[10px] text-muted-foreground hover:text-red-600 dark:hover:text-red-400 gap-1 px-2"
                 onClick={handleClearAll}
               >
                 <Trash2 className="h-3 w-3" />
@@ -222,7 +222,7 @@ export function NotificationCenter() {
                           {n.type.toUpperCase()}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground/60 tabular-nums">{n.time}</span>
-                        {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                        {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />}
                       </div>
                     </div>
                   </div>

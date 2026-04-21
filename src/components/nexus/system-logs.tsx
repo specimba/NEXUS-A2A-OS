@@ -27,10 +27,10 @@ interface LogEntry {
 
 const levelColors: Record<LogLevel, string> = {
   DEBUG: 'text-muted-foreground',
-  INFO: 'text-blue-400',
-  WARN: 'text-yellow-400',
-  ERROR: 'text-red-400',
-  CRITICAL: 'text-red-500 font-bold',
+  INFO: 'text-blue-600 dark:text-blue-400',
+  WARN: 'text-yellow-600 dark:text-yellow-400',
+  ERROR: 'text-red-600 dark:text-red-400',
+  CRITICAL: 'text-red-600 dark:text-red-500 font-bold',
 }
 
 const levelBgColors: Record<LogLevel, string> = {
@@ -42,14 +42,14 @@ const levelBgColors: Record<LogLevel, string> = {
 }
 
 const sourceColors: Record<LogSource, string> = {
-  BRIDGE: 'bg-emerald-600/15 text-emerald-400',
-  ENGINE: 'bg-blue-600/15 text-blue-400',
-  GOVERNOR: 'bg-red-600/15 text-red-400',
-  VAULT: 'bg-purple-600/15 text-purple-400',
-  GMR: 'bg-orange-600/15 text-orange-400',
-  SWARM: 'bg-yellow-600/15 text-yellow-400',
-  MONITOR: 'bg-pink-600/15 text-pink-400',
-  CONFIG: 'bg-emerald-600/15 text-emerald-400',
+  BRIDGE: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400',
+  ENGINE: 'bg-blue-600/15 text-blue-600 dark:text-blue-400',
+  GOVERNOR: 'bg-red-600/15 text-red-600 dark:text-red-400',
+  VAULT: 'bg-purple-600/15 text-purple-600 dark:text-purple-400',
+  GMR: 'bg-orange-600/15 text-orange-600 dark:text-orange-400',
+  SWARM: 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400',
+  MONITOR: 'bg-pink-600/15 text-pink-600 dark:text-pink-400',
+  CONFIG: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400',
 }
 
 const logMessages: { level: LogLevel; source: LogSource; message: string }[] = [
@@ -150,7 +150,7 @@ export function SystemLogsPanel({ open, onOpenChange }: {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-emerald-600/5 via-transparent to-transparent">
           <div className="flex items-center gap-3">
-            <Terminal className="h-4 w-4 text-emerald-400" />
+            <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-semibold">System Logs</h3>
             <Badge variant="outline" className="text-[9px] gap-1">
               <span className={`h-1.5 w-1.5 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-emerald-500 animate-pulse'}`} />
@@ -189,7 +189,7 @@ export function SystemLogsPanel({ open, onOpenChange }: {
               </SelectContent>
             </Select>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsPaused(p => !p)}>
-              {isPaused ? <Play className="h-3.5 w-3.5 text-emerald-400" /> : <Pause className="h-3.5 w-3.5" />}
+              {isPaused ? <Play className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Pause className="h-3.5 w-3.5" />}
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport}>
               <Download className="h-3.5 w-3.5" />

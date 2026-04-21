@@ -255,13 +255,13 @@ function mapRun(r: ApiTestRun): UIRun {
 function getTierBadge(tier: string) {
   switch (tier) {
     case 'PREMIUM':
-      return <Badge className="bg-purple-600/15 text-purple-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+      return <Badge className="bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
     case 'MID':
-      return <Badge className="bg-blue-600/15 text-blue-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+      return <Badge className="bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
     case 'FAST':
-      return <Badge className="bg-yellow-600/15 text-yellow-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+      return <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
     case 'HERETIC':
-      return <Badge className="bg-red-600/15 text-red-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
+      return <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[8px] px-1.5 py-0">{tier}</Badge>
     default:
       return null
   }
@@ -329,7 +329,7 @@ function RunTestDialog({ template, onComplete }: { template: UITemplate; onCompl
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <FlaskConical className="h-4 w-4 text-orange-400" />
+          <FlaskConical className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Run Test: {template.id}
         </DialogTitle>
         <DialogDescription>{template.name} — {template.domain}</DialogDescription>
@@ -341,9 +341,9 @@ function RunTestDialog({ template, onComplete }: { template: UITemplate; onCompl
           <p><span className="text-muted-foreground">Domain:</span> {template.domain}</p>
           <p><span className="text-muted-foreground">Difficulty:</span>
             <Badge className={`ml-1 text-[9px] border-0 ${
-              template.difficulty === 'hard' ? 'bg-red-600/15 text-red-400' :
-              template.difficulty === 'medium' ? 'bg-yellow-600/15 text-yellow-400' :
-              'bg-emerald-600/15 text-emerald-400'
+              template.difficulty === 'hard' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+              template.difficulty === 'medium' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+              'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
             }`}>{template.difficulty}</Badge>
           </p>
         </div>
@@ -382,7 +382,7 @@ function RunTestDialog({ template, onComplete }: { template: UITemplate; onCompl
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-orange-400" />
+                <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400" />
                 Running test...
               </span>
               <span className="text-muted-foreground tabular-nums">{Math.min(Math.round(progress), 100)}%</span>
@@ -472,7 +472,7 @@ function BatchRunDialog({ templates, onBatchComplete }: { templates: UITemplate[
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-orange-400" />
+          <Layers className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Batch Run Templates
         </DialogTitle>
         <DialogDescription>Select multiple templates and a single model for batch testing</DialogDescription>
@@ -499,9 +499,9 @@ function BatchRunDialog({ templates, onBatchComplete }: { templates: UITemplate[
                 <span className="font-mono text-[10px] text-muted-foreground">{t.id}</span>
                 <span className="flex-1 truncate">{t.name}</span>
                 <Badge className={`text-[8px] border-0 px-1 py-0 ${
-                  t.difficulty === 'hard' ? 'bg-red-600/15 text-red-400' :
-                  t.difficulty === 'medium' ? 'bg-yellow-600/15 text-yellow-400' :
-                  'bg-emerald-600/15 text-emerald-400'
+                  t.difficulty === 'hard' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                  t.difficulty === 'medium' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                  'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
                 }`}>{t.difficulty}</Badge>
               </label>
             ))}
@@ -528,7 +528,7 @@ function BatchRunDialog({ templates, onBatchComplete }: { templates: UITemplate[
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-orange-400" />
+                <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400" />
                 Testing {currentTemplate}...
               </span>
               <span className="text-muted-foreground tabular-nums">{Math.min(Math.round(progress), 100)}%</span>
@@ -570,7 +570,7 @@ function TestHistoryChart() {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-orange-400" />
+            <BarChart3 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             Collapse Rate Over Recent Runs
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -622,7 +622,7 @@ function DifficultyPieChart({ templates }: { templates: UITemplate[] }) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <PieChartIcon className="h-4 w-4 text-yellow-400" />
+          <PieChartIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
           Template Difficulty
         </CardTitle>
       </CardHeader>
@@ -686,7 +686,7 @@ function TestResultsSummaryChart({ runs }: { runs: UIRun[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <PieChartIcon className="h-4 w-4 text-orange-400" />
+          <PieChartIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Test Results Summary
         </CardTitle>
       </CardHeader>
@@ -777,7 +777,7 @@ function DomainCoverageSection({ templates }: { templates: UITemplate[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-blue-400" />
+          <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           Domain Coverage
         </CardTitle>
       </CardHeader>
@@ -840,7 +840,7 @@ function CompareModelsDialog() {
     <DialogContent className="sm:max-w-xl">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <GitCompare className="h-4 w-4 text-orange-400" />
+          <GitCompare className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Compare Models
         </DialogTitle>
         <DialogDescription>Side-by-side model comparison for StressLab test selection</DialogDescription>
@@ -881,10 +881,10 @@ function CompareModelsDialog() {
             <div className="grid grid-cols-3 gap-0 text-xs">
               <div className="bg-accent/30 px-3 py-2 font-medium text-muted-foreground">Metric</div>
               <div className="bg-accent/30 px-3 py-2 font-medium text-center border-l border-border">
-                <span className="text-emerald-400">{modelAData.name.split('-')[0]}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{modelAData.name.split('-')[0]}</span>
               </div>
               <div className="bg-accent/30 px-3 py-2 font-medium text-center border-l border-border">
-                <span className="text-blue-400">{modelBData.name.split('-')[0]}</span>
+                <span className="text-blue-600 dark:text-blue-400">{modelBData.name.split('-')[0]}</span>
               </div>
             </div>
             {metrics.map((metric) => {
@@ -895,11 +895,11 @@ function CompareModelsDialog() {
               return (
                 <div key={metric.key} className="grid grid-cols-3 gap-0 text-xs border-t border-border/50">
                   <div className="px-3 py-2 text-muted-foreground">{metric.label}</div>
-                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${aWins ? 'text-emerald-400' : ''}`}>
+                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${aWins ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
                     {valA}{metric.suffix}
                     {aWins && ' ✓'}
                   </div>
-                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${bWins ? 'text-blue-400' : ''}`}>
+                  <div className={`px-3 py-2 text-center tabular-nums border-l border-border/50 font-medium ${bWins ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                     {valB}{metric.suffix}
                     {bWins && ' ✓'}
                   </div>
@@ -908,8 +908,8 @@ function CompareModelsDialog() {
             })}
             <div className="grid grid-cols-3 gap-0 text-xs border-t border-border/50">
               <div className="px-3 py-2 text-muted-foreground">Tier</div>
-              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-emerald-400">{modelAData.tier}</div>
-              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-blue-400">{modelBData.tier}</div>
+              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-emerald-600 dark:text-emerald-400">{modelAData.tier}</div>
+              <div className="px-3 py-2 text-center tabular-nums border-l border-border/50 font-bold text-blue-600 dark:text-blue-400">{modelBData.tier}</div>
             </div>
           </div>
         )}
@@ -934,7 +934,7 @@ function RunHistoryCard({ runs }: { runs: UIRun[] }) {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <History className="h-4 w-4 text-purple-400" />
+            <History className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             Run History
           </CardTitle>
           <Badge variant="outline" className="text-[9px]">Last 5</Badge>
@@ -952,8 +952,8 @@ function RunHistoryCard({ runs }: { runs: UIRun[] }) {
               <ArrowRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
               <span className="truncate text-[11px]">{run.model}</span>
               <Badge className={`ml-auto shrink-0 border-0 text-[9px] px-1.5 py-0 ${
-                run.result === 'PASS' ? 'bg-emerald-600/15 text-emerald-400' :
-                'bg-red-600/15 text-red-400'
+                run.result === 'PASS' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                'bg-red-600/15 text-red-600 dark:text-red-400'
               }`}>
                 {run.result === 'PASS' ? <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" /> : <XCircle className="mr-0.5 h-2.5 w-2.5" />}
                 {run.result}
@@ -1032,11 +1032,11 @@ export function StressLabTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Templates Loaded</p>
-                <p className="mt-1 text-3xl font-bold text-orange-400 tabular-nums">{templates.length}</p>
+                <p className="mt-1 text-3xl font-bold text-orange-600 dark:text-orange-400 tabular-nums">{templates.length}</p>
                 <p className="text-[10px] text-muted-foreground">across {domainBreakdown.length} domains</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
-                <FlaskConical className="h-5 w-5 text-orange-400" />
+                <FlaskConical className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -1048,11 +1048,11 @@ export function StressLabTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Collapses Detected</p>
-                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{collapseCount}</p>
+                <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">{collapseCount}</p>
                 <p className="text-[10px] text-muted-foreground">{collapseRate}% rate</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -1064,11 +1064,11 @@ export function StressLabTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Governor Blocks</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{passCount}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{passCount}</p>
                 <p className="text-[10px] text-muted-foreground">Tests passed</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <Shield className="h-5 w-5 text-emerald-400" />
+                <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -1084,7 +1084,7 @@ export function StressLabTab() {
                 <p className="text-[10px] text-muted-foreground">VAP proofs logged</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Zap className="h-5 w-5 text-blue-400" />
+                <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -1192,10 +1192,10 @@ export function StressLabTab() {
                           <Badge
                             className={
                               t.difficulty === 'hard'
-                                ? 'bg-red-600/15 text-red-400 border-0 text-[9px]'
+                                ? 'bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px]'
                                 : t.difficulty === 'medium'
-                                ? 'bg-yellow-600/15 text-yellow-400 border-0 text-[9px]'
-                                : 'bg-emerald-600/15 text-emerald-400 border-0 text-[9px]'
+                                ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[9px]'
+                                : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]'
                             }
                           >
                             {t.difficulty}
@@ -1207,12 +1207,12 @@ export function StressLabTab() {
                       <div className="shrink-0 ml-2">
                         {t.status === 'running' && (
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600/15">
-                            <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
+                            <Loader2 className="h-4 w-4 text-orange-600 dark:text-orange-400 animate-spin" />
                           </div>
                         )}
                         {t.status === 'tested' && (
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/15">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           </div>
                         )}
                         {t.status === 'pending' && (
@@ -1226,7 +1226,7 @@ export function StressLabTab() {
                       <div className="mt-3">
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>Collapse Rate</span>
-                          <span className={t.collapseRate > 80 ? 'text-red-400 font-medium' : t.collapseRate > 50 ? 'text-yellow-400 font-medium' : 'text-emerald-400 font-medium'}>
+                          <span className={t.collapseRate > 80 ? 'text-red-600 dark:text-red-400 font-medium' : t.collapseRate > 50 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-emerald-600 dark:text-emerald-400 font-medium'}>
                             {t.collapseRate}%
                           </span>
                         </div>
@@ -1237,7 +1237,7 @@ export function StressLabTab() {
                     {t.status === 'running' && (
                       <div className="mt-3">
                         <Progress value={45} className="h-1.5 animate-pulse" />
-                        <p className="mt-1 text-[10px] text-orange-400 font-medium">Running...</p>
+                        <p className="mt-1 text-[10px] text-orange-600 dark:text-orange-400 font-medium">Running...</p>
                       </div>
                     )}
 
@@ -1246,7 +1246,7 @@ export function StressLabTab() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="mt-2 h-7 w-full text-[11px] hover:bg-orange-600/10 hover:text-orange-400"
+                          className="mt-2 h-7 w-full text-[11px] hover:bg-orange-600/10 hover:text-orange-600 dark:text-orange-400"
                           disabled={t.status === 'running'}
                         >
                           <Play className="mr-1 h-3 w-3" />
@@ -1296,15 +1296,15 @@ export function StressLabTab() {
                         </td>
                         <td className="p-3">
                           {r.result === 'PASS' ? (
-                            <Badge className="bg-emerald-600/15 text-emerald-400 border-0">
+                            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0">
                               <CheckCircle2 className="mr-1 h-3 w-3" /> PASS
                             </Badge>
                           ) : r.result === 'COLLAPSE' || r.result === 'FAIL' ? (
-                            <Badge className="bg-red-600/15 text-red-400 border-0">
+                            <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0">
                               <XCircle className="mr-1 h-3 w-3" /> {r.result}
                             </Badge>
                           ) : (
-                            <Badge className="bg-yellow-600/15 text-yellow-400 border-0">
+                            <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0">
                               <Clock className="mr-1 h-3 w-3" /> {r.result}
                             </Badge>
                           )}
@@ -1372,7 +1372,7 @@ export function StressLabTab() {
                         <span className="text-[10px] text-muted-foreground">{m.model}</span>
                         {getTierBadge(m.tier)}
                         {isWinner && (
-                          <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[8px] px-1.5 py-0 gap-0.5">
+                          <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0 gap-0.5">
                             <Trophy className="h-2.5 w-2.5" />
                             Winner
                           </Badge>
@@ -1388,10 +1388,10 @@ export function StressLabTab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="relative overflow-hidden rounded-xl border border-orange-600/15 bg-gradient-to-br from-orange-600/8 via-orange-600/3 to-transparent p-4">
                 <div className="absolute top-2 right-2">
-                  <Badge className="bg-blue-600/15 text-blue-400 border-0 text-[8px] px-1.5 py-0">COMMERCIAL</Badge>
+                  <Badge className="bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">COMMERCIAL</Badge>
                 </div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-orange-400">Commercial Average</p>
-                <p className="mt-1 text-2xl font-bold text-orange-400 tabular-nums">39.2%</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-orange-600 dark:text-orange-400">Commercial Average</p>
+                <p className="mt-1 text-2xl font-bold text-orange-600 dark:text-orange-400 tabular-nums">39.2%</p>
                 <p className="text-[10px] text-muted-foreground">collapse rate</p>
                 <div className="mt-3 h-2 rounded-full bg-orange-900/20 overflow-hidden">
                   <div
@@ -1406,10 +1406,10 @@ export function StressLabTab() {
               </div>
               <div className="relative overflow-hidden rounded-xl border border-red-600/25 bg-gradient-to-br from-red-600/12 via-red-600/5 to-transparent p-4">
                 <div className="absolute top-2 right-2">
-                  <Badge className="bg-red-600/15 text-red-400 border-0 text-[8px] px-1.5 py-0">HERETIC</Badge>
+                  <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[8px] px-1.5 py-0">HERETIC</Badge>
                 </div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-red-400">Heretic (dolphin)</p>
-                <p className="mt-1 text-2xl font-bold text-red-400 tabular-nums">89.7%</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-red-600 dark:text-red-400">Heretic (dolphin)</p>
+                <p className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">89.7%</p>
                 <p className="text-[10px] text-muted-foreground">collapse rate — uncensored</p>
                 <div className="mt-3 h-2 rounded-full bg-red-900/20 overflow-hidden">
                   <div

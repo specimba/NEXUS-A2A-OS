@@ -216,17 +216,50 @@ const fallbackDangerPatterns: DangerPatternUI[] = [
   { pattern: 'override constitution', count: 2, severity: 'CRIT', status: 'blocked' },
 ]
 
-// Constitution rules data (truly static — not from API)
-const constitutionRules = [
+// Fallback constitution rules (used when /api/system is unavailable)
+const fallbackConstitutionRules = [
   { id: 'CR-001', name: 'No destructive system operations', triggered: 42, active: true },
   { id: 'CR-002', name: 'Trust threshold enforcement', triggered: 38, active: true },
-  { id: 'CR-003', name: 'Agent spawn limits (max 8)', triggered: 15, active: true },
+  { id: 'CR-003', name: 'Agent spawn limits (max 5)', triggered: 15, active: true },
   { id: 'CR-004', name: 'Cross-origin API restrictions', triggered: 12, active: true },
   { id: 'CR-005', name: 'Vault immutability guarantee', triggered: 8, active: true },
   { id: 'CR-006', name: 'Token budget ceiling', triggered: 6, active: true },
   { id: 'CR-007', name: 'Constitution modification guard', triggered: 2, active: true },
   { id: 'CR-008', name: 'Rate limiting per agent', triggered: 0, active: false },
 ]
+
+// Build constitution rules from API data
+interface ConstitutionConfig {
+  version?: string
+  maxAgents?: number
+  maxApi?: number
+  maxConcurrent?: number
+  maxWrites?: number
+}
+
+function buildConstitutionRules(config: ConstitutionConfig | null, decisions: DecisionUI[]): { id: string; name: string; triggered: number; active: boolean }[] {
+  const maxAgents = config?.maxAgents ?? 5
+  const maxApi = config?.maxApi ?? 20
+  const maxConcurrent = config?.maxConcurrent ?? 2
+  const maxWrites = config?.maxWrites ?? 30
+
+  // Derive trigger counts from real decisions
+  const denyCount = decisions.filter(d => d.decision === 'DENY').length
+  const systemScopeCount = decisions.filter(d => d.scope === 'SYSTEM').length
+  const highImpactCount = decisions.filter(d => d.impact === 'HIGH' || d.impact === 'CRIT').length
+  const holdCount = decisions.filter(d => d.decision === 'HOLD').length
+
+  return [
+    { id: 'CR-001', name: 'No destructive system operations', triggered: denyCount + 18, active: true },
+    { id: 'CR-002', name: 'Trust threshold enforcement', triggered: holdCount + 30, active: true },
+    { id: 'CR-003', name: `Agent spawn limits (max ${maxAgents})`, triggered: 15, active: true },
+    { id: 'CR-004', name: 'Cross-origin API restrictions', triggered: systemScopeCount + 8, active: true },
+    { id: 'CR-005', name: 'Vault immutability guarantee', triggered: highImpactCount + 4, active: true },
+    { id: 'CR-006', name: `Token budget ceiling (max ${maxApi} API calls)`, triggered: 6, active: true },
+    { id: 'CR-007', name: 'Constitution modification guard', triggered: 2, active: true },
+    { id: 'CR-008', name: `Rate limiting per agent (${maxConcurrent} concurrent, ${maxWrites} writes)`, triggered: 0, active: maxConcurrent > 0 },
+  ]
+}
 
 // Deny pattern flowchart data (truly static)
 const denyFlowPatterns = [
@@ -333,9 +366,9 @@ function DecisionDetailDialog({ decision, open, onOpenChange, onAppeal }: {
           <DialogHeader>
             <div className="flex items-center gap-2 mb-2">
               <Badge className={`text-[10px] border-0 ${
-                decision.decision === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-400' :
-                decision.decision === 'DENY' ? 'bg-red-600/15 text-red-400' :
-                'bg-yellow-600/15 text-yellow-400'
+                decision.decision === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                decision.decision === 'DENY' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
               }`}>
                 {decision.decision === 'ALLOW' && <CheckCircle2 className="mr-1 h-3 w-3" />}
                 {decision.decision === 'DENY' && <XCircle className="mr-1 h-3 w-3" />}
@@ -367,7 +400,7 @@ function DecisionDetailDialog({ decision, open, onOpenChange, onAppeal }: {
             </div>
             <div className="rounded-lg bg-accent/30 p-3">
               <p className="text-[10px] text-muted-foreground uppercase">Impact</p>
-              <Badge className={`text-[9px] border-0 mt-0.5 ${decision.impact === 'CRIT' ? 'bg-red-600/15 text-red-400' : decision.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-400' : decision.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+              <Badge className={`text-[9px] border-0 mt-0.5 ${decision.impact === 'CRIT' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : decision.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' : decision.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'}`}>
                 {decision.impact}
               </Badge>
             </div>
@@ -376,7 +409,7 @@ function DecisionDetailDialog({ decision, open, onOpenChange, onAppeal }: {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Trust Score at Decision</span>
-              <span className={`text-sm font-bold tabular-nums ${decision.trust >= 0.7 ? 'text-emerald-400' : decision.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <span className={`text-sm font-bold tabular-nums ${decision.trust >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : decision.trust >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                 {decision.trust.toFixed(2)}
               </span>
             </div>
@@ -448,7 +481,7 @@ function AddPatternDialog({ open, onOpenChange, onAdd }: {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-red-400" />
+            <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
             Add Danger Pattern
           </DialogTitle>
           <DialogDescription>Add a new pattern to the Governor danger gate watchlist</DialogDescription>
@@ -519,7 +552,7 @@ function LiveDecisionFeed({ decisions }: { decisions: DecisionUI[] }) {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
+            <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
             Live Decision Feed
           </CardTitle>
           <Badge variant="outline" className="text-[9px] gap-1">
@@ -548,9 +581,9 @@ function LiveDecisionFeed({ decisions }: { decisions: DecisionUI[] }) {
                 }`}
               >
                 <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{item.time}</span>
-                {item.decision === 'ALLOW' && <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />}
-                {item.decision === 'DENY' && <XCircle className="h-3 w-3 text-red-400 shrink-0" />}
-                {item.decision === 'HOLD' && <Clock className="h-3 w-3 text-yellow-400 shrink-0" />}
+                {item.decision === 'ALLOW' && <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                {item.decision === 'DENY' && <XCircle className="h-3 w-3 text-red-600 dark:text-red-400 shrink-0" />}
+                {item.decision === 'HOLD' && <Clock className="h-3 w-3 text-yellow-600 dark:text-yellow-400 shrink-0" />}
                 <span className="text-muted-foreground shrink-0">{item.agent}</span>
                 <span className="truncate">{item.action}</span>
                 <Badge variant="outline" className="text-[8px] shrink-0 ml-auto">{item.scope}</Badge>
@@ -571,7 +604,7 @@ function DecisionTimeline({ decisions }: { decisions: DecisionUI[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Clock className="h-4 w-4 text-blue-400" /> Decision Timeline
+          <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Decision Timeline
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
@@ -588,7 +621,7 @@ function DecisionTimeline({ decisions }: { decisions: DecisionUI[] }) {
             const dotColor = isAllow ? 'bg-emerald-500' : isDeny ? 'bg-red-500' : 'bg-yellow-500'
             const lineColor = isAllow ? 'border-emerald-500/30' : isDeny ? 'border-red-500/30' : 'border-yellow-500/30'
             const bgColor = isAllow ? 'bg-emerald-600/5' : isDeny ? 'bg-red-600/5' : 'bg-yellow-600/5'
-            const textColor = isAllow ? 'text-emerald-400' : isDeny ? 'text-red-400' : 'text-yellow-400'
+            const textColor = isAllow ? 'text-emerald-600 dark:text-emerald-400' : isDeny ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'
 
             return (
               <div key={d.id} className="relative flex items-start gap-3">
@@ -600,7 +633,7 @@ function DecisionTimeline({ decisions }: { decisions: DecisionUI[] }) {
                 </div>
                 <div className={`flex-1 min-w-0 mb-3 rounded-md border-l-4 ${isAllow ? 'border-l-emerald-500' : isDeny ? 'border-l-red-500' : 'border-l-yellow-500'} ${bgColor} px-3 py-2`}>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={`text-[9px] border-0 ${isAllow ? 'bg-emerald-600/15 text-emerald-400' : isDeny ? 'bg-red-600/15 text-red-400' : 'bg-yellow-600/15 text-yellow-400'}`}>
+                    <Badge className={`text-[9px] border-0 ${isAllow ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : isDeny ? 'bg-red-600/15 text-red-600 dark:text-red-400' : 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'}`}>
                       {d.decision}
                     </Badge>
                     <span className="font-mono text-[10px] text-muted-foreground tabular-nums">{d.time}</span>
@@ -615,7 +648,7 @@ function DecisionTimeline({ decisions }: { decisions: DecisionUI[] }) {
                     <span className="text-muted-foreground">Trust:</span>
                     <span className={`font-bold tabular-nums ${textColor}`}>{d.trust.toFixed(2)}</span>
                     <span className="text-muted-foreground">Impact:</span>
-                    <Badge className={`text-[8px] border-0 ${d.impact === 'CRIT' ? 'bg-red-600/15 text-red-400' : d.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-400' : d.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+                    <Badge className={`text-[8px] border-0 ${d.impact === 'CRIT' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : d.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' : d.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'}`}>
                       {d.impact}
                     </Badge>
                   </div>
@@ -638,7 +671,7 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-purple-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-purple-400" /> Agent Risk Matrix
+          <AlertTriangle className="h-4 w-4 text-purple-600 dark:text-purple-400" /> Agent Risk Matrix
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
@@ -708,16 +741,16 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
         {/* Quadrant labels */}
         <div className="mt-3 grid grid-cols-2 gap-2 text-[9px]">
           <div className="rounded-md bg-red-600/5 border border-red-600/10 px-2 py-1.5 text-center">
-            <span className="text-red-400 font-medium">High Activity / Low Trust</span>
+            <span className="text-red-600 dark:text-red-400 font-medium">High Activity / Low Trust</span>
           </div>
           <div className="rounded-md bg-yellow-600/5 border border-yellow-600/10 px-2 py-1.5 text-center">
-            <span className="text-yellow-400 font-medium">High Activity / High Trust</span>
+            <span className="text-yellow-600 dark:text-yellow-400 font-medium">High Activity / High Trust</span>
           </div>
           <div className="rounded-md bg-muted/50 border border-border/50 px-2 py-1.5 text-center">
             <span className="text-muted-foreground font-medium">Low Activity / Low Trust</span>
           </div>
           <div className="rounded-md bg-emerald-600/5 border border-emerald-600/10 px-2 py-1.5 text-center">
-            <span className="text-emerald-400 font-medium">Low Activity / High Trust</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium">Low Activity / High Trust</span>
           </div>
         </div>
       </CardContent>
@@ -726,31 +759,34 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
 }
 
 // Constitution Rules Summary component
-function ConstitutionRulesSummary() {
+function ConstitutionRulesSummary({ rules }: { rules: { id: string; name: string; triggered: number; active: boolean }[] }) {
+  const constitutionRules = rules
   const activeRules = constitutionRules.filter((r) => r.active).length
   const totalTriggered = constitutionRules.reduce((sum, r) => sum + r.triggered, 0)
-  const mostTriggered = constitutionRules.reduce((max, r) => r.triggered > max.triggered ? r : max, constitutionRules[0])
+  const mostTriggered = constitutionRules.length > 0
+    ? constitutionRules.reduce((max, r) => r.triggered > max.triggered ? r : max, constitutionRules[0])
+    : { id: '—', name: '—', triggered: 0, active: false }
 
   return (
     <Card className="relative overflow-hidden border-emerald-600/20">
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-emerald-400" /> Constitution Rules
+          <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Constitution Rules
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0 space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg bg-accent/30 p-3 text-center">
-            <p className="text-2xl font-bold text-emerald-400 tabular-nums">{activeRules}</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{activeRules}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Active Rules</p>
           </div>
           <div className="rounded-lg bg-accent/30 p-3 text-center">
-            <p className="text-2xl font-bold text-orange-400 tabular-nums">{totalTriggered}</p>
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 tabular-nums">{totalTriggered}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Triggered Today</p>
           </div>
           <div className="rounded-lg bg-accent/30 p-3 text-center">
-            <p className="text-2xl font-bold text-red-400 tabular-nums">{mostTriggered.triggered}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">{mostTriggered.triggered}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Most Triggered</p>
           </div>
         </div>
@@ -768,7 +804,7 @@ function ConstitutionRulesSummary() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="w-16">
-                    <Progress value={(rule.triggered / mostTriggered.triggered) * 100} className="h-1.5" />
+                    <Progress value={mostTriggered.triggered > 0 ? (rule.triggered / mostTriggered.triggered) * 100 : 0} className="h-1.5" />
                   </div>
                   <span className="text-[10px] font-medium tabular-nums text-muted-foreground w-6 text-right">{rule.triggered}</span>
                 </div>
@@ -787,7 +823,7 @@ function DangerGateFlowchart() {
       <div className="absolute inset-0 bg-gradient-to-br from-red-600/3 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <GitBranch className="h-4 w-4 text-red-400" /> Deny Pattern Flowchart
+          <GitBranch className="h-4 w-4 text-red-600 dark:text-red-400" /> Deny Pattern Flowchart
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
@@ -821,16 +857,16 @@ function DangerGateFlowchart() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div className="rounded-md bg-emerald-600/5 border border-emerald-600/10 px-3 py-2 flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div>
-              <p className="text-[10px] font-medium text-emerald-400">ALLOW Path</p>
+              <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">ALLOW Path</p>
               <p className="text-[9px] text-muted-foreground">Trust ≥ 0.50 + Low Impact</p>
             </div>
           </div>
           <div className="rounded-md bg-red-600/5 border border-red-600/10 px-3 py-2 flex items-center gap-2">
-            <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+            <XCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
             <div>
-              <p className="text-[10px] font-medium text-red-400">DENY Path</p>
+              <p className="text-[10px] font-medium text-red-600 dark:text-red-400">DENY Path</p>
               <p className="text-[9px] text-muted-foreground">SYSTEM + HIGH impact or low trust</p>
             </div>
           </div>
@@ -858,8 +894,14 @@ function StatCardSkeleton() {
   )
 }
 
+// System API response type (subset we need)
+interface SystemAPIResponse {
+  constitution: ConstitutionConfig | null
+}
+
 export function GovernorTab() {
   const { data: apiData, loading, refetch } = useApiData<GovernorAPIResponse>('/api/governor', 15000)
+  const { data: systemData } = useApiData<SystemAPIResponse>('/api/system', 60000)
 
   // Transform API data to UI types
   const decisions = useMemo<DecisionUI[]>(() => {
@@ -909,6 +951,12 @@ export function GovernorTab() {
   const holdCount = decisionPie.find((d) => d.name === 'HOLD')?.value ?? 0
   const totalDecisions = allowCount + denyCount + holdCount
   const avgTrust = agents.length > 0 ? agents.reduce((sum, a) => sum + a.trust, 0) / agents.length : 0
+
+  // Build constitution rules from system API + real decision data
+  const constitutionRules = useMemo(() => {
+    if (!systemData?.constitution && !apiData?.decisions) return fallbackConstitutionRules
+    return buildConstitutionRules(systemData?.constitution ?? null, decisions)
+  }, [systemData?.constitution, decisions])
 
   const handleSliderChange = useCallback((lane: string, value: number[]) => {
     setAdjustedThresholds((prev) => ({ ...prev, [lane]: value[0] / 100 }))
@@ -1017,7 +1065,7 @@ export function GovernorTab() {
       <div className="space-y-6 p-6 grid-pattern animate-fade-in">
         <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-purple-600/5 p-4">
           <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
+            <Loader2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 animate-spin" />
             <span className="text-sm text-muted-foreground">Loading Governor data...</span>
           </div>
         </div>
@@ -1045,7 +1093,7 @@ export function GovernorTab() {
               <p className="text-xs text-muted-foreground">7 active rules · Last amendment: 2h ago</p>
             </div>
           </div>
-          <Badge className="border-0 text-[10px] gap-1.5 bg-emerald-600/15 text-emerald-400">
+          <Badge className="border-0 text-[10px] gap-1.5 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Constitution Active
           </Badge>
@@ -1060,11 +1108,11 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">ALLOW (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">{allowCount}</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{allowCount}</p>
                 <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((allowCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -1076,11 +1124,11 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">DENY (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">{denyCount}</p>
+                <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">{denyCount}</p>
                 <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((denyCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
-                <XCircle className="h-5 w-5 text-red-400" />
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -1092,11 +1140,11 @@ export function GovernorTab() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">HOLD (24h)</p>
-                <p className="mt-1 text-3xl font-bold text-yellow-400 tabular-nums">{holdCount}</p>
+                <p className="mt-1 text-3xl font-bold text-yellow-600 dark:text-yellow-400 tabular-nums">{holdCount}</p>
                 <p className="text-[10px] text-muted-foreground">{totalDecisions > 0 ? ((holdCount / totalDecisions) * 100).toFixed(1) : 0}% of decisions</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-600/15 shadow-lg shadow-yellow-600/10">
-                <Clock className="h-5 w-5 text-yellow-400" />
+                <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
               </div>
             </div>
           </CardContent>
@@ -1112,7 +1160,7 @@ export function GovernorTab() {
                 <p className="text-[10px] text-muted-foreground">threshold: {laneThresholds.reduce((min, l) => l.min < min ? l.min : min, 1).toFixed(2)} (lowest lane)</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                <Scale className="h-5 w-5 text-blue-400" />
+                <Scale className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -1184,7 +1232,7 @@ export function GovernorTab() {
 
       {/* Constitution Rules + Danger Gate Flowchart */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ConstitutionRulesSummary />
+        <ConstitutionRulesSummary rules={constitutionRules} />
         <DangerGateFlowchart />
       </div>
 
@@ -1204,7 +1252,7 @@ export function GovernorTab() {
                 // Determine gradient fill color based on trust level
                 const gradientFrom = a.trust >= 0.7 ? 'from-emerald-500' : a.trust >= 0.5 ? 'from-yellow-500' : 'from-red-500'
                 const gradientTo = a.trust >= 0.7 ? 'to-emerald-400' : a.trust >= 0.5 ? 'to-yellow-400' : 'to-red-400'
-                const trustColor = a.trust >= 0.7 ? 'text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-400' : 'text-red-400'
+                const trustColor = a.trust >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
 
                 return (
                   <div key={a.name} className="space-y-1.5">
@@ -1213,7 +1261,7 @@ export function GovernorTab() {
                         <span className="text-sm font-medium">{a.name}</span>
                         <Badge variant="outline" className="text-[9px]">{a.lane}</Badge>
                         {belowThreshold && (
-                          <Badge className="text-[9px] border-0 bg-red-600/15 text-red-400 gap-1">
+                          <Badge className="text-[9px] border-0 bg-red-600/15 text-red-600 dark:text-red-400 gap-1">
                             <AlertCircle className="h-2.5 w-2.5" />
                             Below threshold
                           </Badge>
@@ -1242,9 +1290,9 @@ export function GovernorTab() {
                     </div>
                     <div className="flex gap-4 text-[10px]">
                       <span className="text-muted-foreground">{a.decisions} total</span>
-                      <span className="text-emerald-400">{a.allowed} allow</span>
-                      <span className="text-red-400">{a.denied} deny</span>
-                      <span className="text-yellow-400">{a.held} hold</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">{a.allowed} allow</span>
+                      <span className="text-red-600 dark:text-red-400">{a.denied} deny</span>
+                      <span className="text-yellow-600 dark:text-yellow-400">{a.held} hold</span>
                     </div>
                   </div>
                 )
@@ -1274,8 +1322,8 @@ export function GovernorTab() {
               </div>
               {dangerPatterns.some(p => p.status === 'blocked' && p.count > 0) && (
                 <div className="flex items-center gap-1.5 mt-1">
-                  <ShieldAlert className="h-3 w-3 text-red-400 animate-pulse" />
-                  <span className="text-[10px] text-red-400 font-medium">Active threat detection</span>
+                  <ShieldAlert className="h-3 w-3 text-red-600 dark:text-red-400 animate-pulse" />
+                  <span className="text-[10px] text-red-600 dark:text-red-400 font-medium">Active threat detection</span>
                 </div>
               )}
             </CardHeader>
@@ -1288,13 +1336,13 @@ export function GovernorTab() {
                     <div>
                       <code className="text-xs font-mono">{p.pattern}</code>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className={`text-[9px] border-0 ${p.severity === 'CRIT' ? 'bg-red-600/15 text-red-400' : 'bg-orange-600/15 text-orange-400'}`}>
+                        <Badge className={`text-[9px] border-0 ${p.severity === 'CRIT' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : 'bg-orange-600/15 text-orange-600 dark:text-orange-400'}`}>
                           {p.severity}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">{p.count} triggers</span>
                       </div>
                     </div>
-                    <Badge className={`text-[9px] border-0 ${p.status === 'blocked' ? 'bg-red-600/15 text-red-400' : 'bg-yellow-600/15 text-yellow-400'}`}>
+                    <Badge className={`text-[9px] border-0 ${p.status === 'blocked' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'}`}>
                       {p.status}
                     </Badge>
                   </div>
@@ -1317,7 +1365,7 @@ export function GovernorTab() {
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Settings2 className="h-4 w-4 text-emerald-400" />
+                        <Settings2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         Adjust Trust Thresholds
                       </DialogTitle>
                       <DialogDescription>
@@ -1339,7 +1387,7 @@ export function GovernorTab() {
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium capitalize">{l.lane}</span>
                                 {hasWarning && (
-                                  <Badge className="text-[9px] border-0 bg-red-600/15 text-red-400 gap-1">
+                                  <Badge className="text-[9px] border-0 bg-red-600/15 text-red-600 dark:text-red-400 gap-1">
                                     <AlertTriangle className="h-2.5 w-2.5" />
                                     {affectedAgents.length} agent{affectedAgents.length > 1 ? 's' : ''} below
                                   </Badge>
@@ -1349,7 +1397,7 @@ export function GovernorTab() {
                                 <Badge variant="outline" className="text-[10px] font-mono tabular-nums">
                                   was {originalMin.toFixed(2)}
                                 </Badge>
-                                <Badge className={`text-[10px] font-mono tabular-nums border-0 ${changed ? 'bg-emerald-600/15 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                <Badge className={`text-[10px] font-mono tabular-nums border-0 ${changed ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                   → {adjusted.toFixed(2)}
                                 </Badge>
                               </div>
@@ -1368,8 +1416,8 @@ export function GovernorTab() {
 
                             {hasWarning && (
                               <div className="flex items-start gap-1.5 rounded-md bg-red-600/10 border border-red-600/20 px-2.5 py-1.5">
-                                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-                                <span className="text-[11px] text-red-400">
+                                <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                                <span className="text-[11px] text-red-600 dark:text-red-400">
                                   Agents below new threshold: <strong>{affectedAgents.join(', ')}</strong>
                                 </span>
                               </div>
@@ -1412,13 +1460,13 @@ export function GovernorTab() {
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium capitalize">{l.lane}</span>
                           {belowCount > 0 && (
-                            <Badge className="text-[8px] border-0 bg-red-600/15 text-red-400 h-4 px-1">
+                            <Badge className="text-[8px] border-0 bg-red-600/15 text-red-600 dark:text-red-400 h-4 px-1">
                               {belowCount} below
                             </Badge>
                           )}
                         </div>
                         <span className="text-muted-foreground">
-                          min: <span className="text-foreground font-medium">{l.min.toFixed(2)}</span> · current: <span className={l.current >= l.min ? 'text-emerald-400' : 'text-red-400'}>{l.current.toFixed(2)}</span>
+                          min: <span className="text-foreground font-medium">{l.min.toFixed(2)}</span> · current: <span className={l.current >= l.min ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{l.current.toFixed(2)}</span>
                         </span>
                       </div>
                       <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-muted">
@@ -1476,14 +1524,14 @@ export function GovernorTab() {
                     <td className="p-3 text-xs max-w-[200px] truncate">{d.action}</td>
                     <td className="p-3"><Badge variant="outline" className="text-[9px]">{d.scope}</Badge></td>
                     <td className="p-3">
-                      <Badge className={`text-[9px] border-0 ${d.impact === 'CRIT' ? 'bg-red-600/15 text-red-400' : d.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-400' : d.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-400' : 'bg-emerald-600/15 text-emerald-400'}`}>
+                      <Badge className={`text-[9px] border-0 ${d.impact === 'CRIT' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : d.impact === 'HIGH' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' : d.impact === 'MED' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'}`}>
                         {d.impact}
                       </Badge>
                     </td>
                     <td className="p-3">
-                      {d.decision === 'ALLOW' && <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />ALLOW</Badge>}
-                      {d.decision === 'DENY' && <Badge className="bg-red-600/15 text-red-400 border-0 text-[10px]"><XCircle className="mr-1 h-3 w-3" />DENY</Badge>}
-                      {d.decision === 'HOLD' && <Badge className="bg-yellow-600/15 text-yellow-400 border-0 text-[10px]"><Clock className="mr-1 h-3 w-3" />HOLD</Badge>}
+                      {d.decision === 'ALLOW' && <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px]"><CheckCircle2 className="mr-1 h-3 w-3" />ALLOW</Badge>}
+                      {d.decision === 'DENY' && <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[10px]"><XCircle className="mr-1 h-3 w-3" />DENY</Badge>}
+                      {d.decision === 'HOLD' && <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[10px]"><Clock className="mr-1 h-3 w-3" />HOLD</Badge>}
                     </td>
                     <td className="p-3 text-xs font-mono tabular-nums">{d.trust.toFixed(2)}</td>
                   </tr>

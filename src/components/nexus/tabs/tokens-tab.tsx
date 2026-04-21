@@ -36,6 +36,9 @@ import {
   GitBranch,
   Loader2,
   Database,
+  Zap,
+  ShieldAlert,
+  BarChart3,
 } from 'lucide-react'
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { ExportButton } from '@/components/nexus/export-button'
@@ -117,8 +120,8 @@ const optimizationSuggestions = [
 ]
 
 function getImpactBadge(impact: 'high' | 'medium' | 'low') {
-  if (impact === 'high') return <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[9px]">High</Badge>
-  if (impact === 'medium') return <Badge className="bg-yellow-600/15 text-yellow-400 border-0 text-[9px]">Medium</Badge>
+  if (impact === 'high') return <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">High</Badge>
+  if (impact === 'medium') return <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[9px]">Medium</Badge>
   return <Badge className="bg-muted text-muted-foreground border-0 text-[9px]">Low</Badge>
 }
 
@@ -293,13 +296,53 @@ export function TokensTab() {
     return 'rgba(52, 211, 153, 0.75)'
   }
 
-  // Loading state
+  // Loading state with shimmer skeletons
   if (loading && !data) {
     return (
-      <div className="space-y-6 p-6 grid-pattern">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
-          <span className="ml-3 text-sm text-muted-foreground">Loading token budget data...</span>
+      <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
+        <div className="flex items-center gap-3 mb-4">
+          <Loader2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading token budget data...</span>
+        </div>
+        {/* Main budget skeleton */}
+        <Card className="relative overflow-hidden">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="h-3 w-32 shimmer-skeleton" />
+                <div className="mt-2 h-10 w-48 shimmer-skeleton" />
+                <div className="mt-2 h-3 w-64 shimmer-skeleton" />
+              </div>
+              <div className="h-8 w-8 shimmer-skeleton rounded" />
+            </div>
+            <div className="mt-4 h-3 w-full shimmer-skeleton" />
+          </CardContent>
+        </Card>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="h-3 w-24 shimmer-skeleton" />
+                      <div className="h-3 w-16 shimmer-skeleton" />
+                    </div>
+                    <div className="h-2 w-full shimmer-skeleton" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 shimmer-skeleton" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -309,7 +352,7 @@ export function TokensTab() {
   const isEmpty = !budget && usageLogs.length === 0 && agentUsageRaw.length === 0
 
   return (
-    <div className="space-y-6 p-6 grid-pattern">
+    <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Empty state */}
       {isEmpty && (
         <Card className="border-emerald-600/20">
@@ -329,8 +372,12 @@ export function TokensTab() {
         </Card>
       )}
 
-      {/* Main Budget Card with Chart */}
-      <Card className="relative overflow-hidden border-emerald-600/20">
+      {/* Main Budget Card with Chart — Animated gradient border */}
+      <div className="relative overflow-hidden rounded-xl">
+        <div className="absolute inset-0 rounded-xl p-[1px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #fb923c, #34d399)', backgroundSize: '300% 100%', animation: 'gradientBorder 4s linear infinite' }}>
+          <div className="h-full w-full rounded-xl bg-card" />
+        </div>
+      <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-transparent to-transparent" />
         <CardContent className="relative p-6">
           <div className="flex items-start justify-between mb-4">
@@ -338,30 +385,48 @@ export function TokensTab() {
               <h2 className="text-lg font-semibold">Session Token Budget</h2>
               <p className="text-sm text-muted-foreground">Current active session monitoring</p>
             </div>
-            <Coins className="h-8 w-8 text-emerald-400" />
+            <Coins className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-4xl font-bold tabular-nums">{totalUsed.toLocaleString()}</span>
+            <span className="text-4xl font-bold tabular-nums animate-token-count">{totalUsed.toLocaleString()}</span>
             <span className="text-lg text-muted-foreground mb-1">/ {totalBudget.toLocaleString()}</span>
+            {pct > 80 && (
+              <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[10px] gap-1 ml-2 budget-over-pulse">
+                <ShieldAlert className="h-3 w-3" />
+                Over 80%
+              </Badge>
+            )}
           </div>
-          {/* Burn rate indicator */}
+          {/* Burn rate indicator with animated token flow bar */}
           <div className="mt-2 flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] gap-1">
-              <TrendingUp className="h-3 w-3 text-red-400" />
+              <TrendingUp className="h-3 w-3 text-red-600 dark:text-red-400" />
               {burnRate.toLocaleString()} tok/min
             </Badge>
             <span className="text-[10px] text-muted-foreground">
               ~{remaining > 0 ? Math.round(remaining / burnRate) : 0} min remaining at current rate
             </span>
           </div>
-          <Progress value={pct} className="mt-3 h-3" />
+          <div className="mt-3 relative">
+            <Progress value={pct} className={`h-3 ${pct > 80 ? '[&>div]:bg-red-500' : pct > 60 ? '[&>div]:bg-orange-500' : ''}`} />
+            {/* Token flow animation overlay */}
+            <div className="absolute inset-0 h-3 rounded-full overflow-hidden pointer-events-none">
+              <div className="token-flow-bar h-full w-full opacity-30 rounded-full" />
+            </div>
+          </div>
           <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>{pct.toFixed(1)}% used</span>
-            <span className="text-emerald-400 font-medium">{remaining.toLocaleString()} remaining</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <Zap className="h-3 w-3" />
+              {remaining.toLocaleString()} remaining
+            </span>
           </div>
           {/* Hourly usage chart */}
-          <div className="mt-6">
-            <p className="text-xs text-muted-foreground mb-2">Hourly Token Consumption</p>
+          <div className="mt-6 chart-glow-emerald">
+            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+              <Activity className="h-3 w-3" />
+              Hourly Token Consumption
+            </p>
             <ResponsiveContainer width="100%" height={120}>
               <AreaChart data={hourlyUsage} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -387,13 +452,14 @@ export function TokensTab() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Token Flow Sankey */}
-      <Card className="relative overflow-hidden border-emerald-600/20">
+      <Card className="relative overflow-hidden border-emerald-600/20 hover-lift btn-press">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
         <CardHeader className="relative pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-emerald-400" /> Token Flow
+            <GitBranch className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Token Flow
           </CardTitle>
         </CardHeader>
         <CardContent className="relative p-4 pt-0">
@@ -436,7 +502,11 @@ export function TokensTab() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Per-Agent Breakdown */}
-        <Card className="lg:col-span-2">
+        <div className="relative overflow-hidden rounded-xl lg:col-span-2">
+          <div className="absolute inset-0 rounded-xl p-[1px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #34d399)', backgroundSize: '200% 100%', animation: 'gradientBorder 4s linear infinite' }}>
+            <div className="h-full w-full rounded-xl bg-card" />
+          </div>
+        <Card className="relative hover-lift">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
               <PieChartIcon className="h-4 w-4" /> Per-Agent Token Usage
@@ -456,15 +526,15 @@ export function TokensTab() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold tabular-nums">{a.tokens.toLocaleString()}</span>
                         {a.trend === 'up' ? (
-                          <TrendingUp className="h-3 w-3 text-red-400" />
+                          <TrendingUp className="h-3 w-3 text-red-600 dark:text-red-400" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-emerald-400" />
+                          <TrendingDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress value={a.pct * 3.3} className="h-2 flex-1" />
-                      <span className="text-[10px] text-muted-foreground w-8 tabular-nums">{a.pct}%</span>
+                      <Progress value={a.pct * 3.3} className={`h-2 flex-1 ${a.pct > 25 ? '[&>div]:bg-orange-500' : ''}`} />
+                      <span className={`text-[10px] w-8 tabular-nums ${a.pct > 25 ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-muted-foreground'}`}>{a.pct}%</span>
                     </div>
                   </div>
                 ))}
@@ -481,12 +551,14 @@ export function TokensTab() {
             )}
           </CardContent>
         </Card>
+        </div>
 
         {/* Budget Alerts */}
-        <Card>
+        <Card className="hover-lift">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" /> Budget Alerts
+              {pct > 80 && <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse" />}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
@@ -496,13 +568,13 @@ export function TokensTab() {
                   key={i}
                   className={`rounded-lg px-3 py-2.5 ${
                     alert.level === 'warning'
-                      ? 'bg-yellow-600/10 border border-yellow-600/15'
+                      ? 'bg-yellow-600/10 border border-yellow-600/15 budget-alert-pulse'
                       : 'bg-accent/30 border border-border/50'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {alert.level === 'warning' && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-yellow-400" />}
-                    {alert.level === 'info' && <Activity className="h-3.5 w-3.5 shrink-0 text-blue-400" />}
+                    {alert.level === 'warning' && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-yellow-600 dark:text-yellow-400" />}
+                    {alert.level === 'info' && <Activity className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />}
                     <span className="text-[11px] leading-snug flex-1">{alert.msg}</span>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between">
@@ -512,7 +584,7 @@ export function TokensTab() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-5 gap-1 text-[9px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-600/10 px-1.5"
+                          className="h-5 gap-1 text-[9px] text-yellow-600 dark:text-yellow-400 hover:text-yellow-300 hover:bg-yellow-600/10 px-1.5"
                           onClick={() => toast.info('Alert details', {
                             description: alert.msg,
                           })}
@@ -553,7 +625,7 @@ export function TokensTab() {
                   <div key={l.label}>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                       <span>{l.label}</span>
-                      <span className={l.used >= l.max ? 'text-red-400 font-medium' : ''}>{l.used} / {l.max}</span>
+                      <span className={l.used >= l.max ? 'text-red-600 dark:text-red-400 font-medium' : ''}>{l.used} / {l.max}</span>
                     </div>
                     <Progress value={(l.used / l.max) * 100} className={`mt-0.5 h-1.5 ${l.used >= l.max ? '[&>div]:bg-red-400' : ''}`} />
                   </div>
@@ -632,7 +704,11 @@ export function TokensTab() {
       )}
 
       {/* Per-Model Usage with Sparklines */}
-      <Card>
+      <div className="relative overflow-hidden rounded-xl">
+        <div className="absolute inset-0 rounded-xl p-[1px]" style={{ background: 'linear-gradient(90deg, #34d399, #fb923c, #60a5fa, #34d399)', backgroundSize: '200% 100%', animation: 'gradientBorder 4s linear infinite' }}>
+          <div className="h-full w-full rounded-xl bg-card" />
+        </div>
+      <Card className="relative hover-lift">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">Per-Model Token Consumption</CardTitle>
@@ -659,7 +735,7 @@ export function TokensTab() {
                       <TableCell className="text-xs font-medium">{m.model}</TableCell>
                       <TableCell className="text-xs tabular-nums">{m.tokens.toLocaleString()}</TableCell>
                       <TableCell className="text-xs tabular-nums">{m.calls.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs text-emerald-400">${m.cost.toFixed(4)}</TableCell>
+                      <TableCell className="text-xs text-emerald-600 dark:text-emerald-400">${m.cost.toFixed(4)}</TableCell>
                       <TableCell className="w-28 p-1.5">
                         <MiniAreaChart
                           data={m.trend}
@@ -686,13 +762,14 @@ export function TokensTab() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Cost Optimization Suggestions */}
-      <Card className="border-emerald-600/20">
+      <Card className="border-emerald-600/20 hover-lift">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-yellow-400" /> Cost Optimization
+              <Lightbulb className="h-4 w-4 text-yellow-600 dark:text-yellow-400" /> Cost Optimization
             </CardTitle>
             <Badge variant="outline" className="text-[9px]">{optimizationSuggestions.length} suggestions</Badge>
           </div>
@@ -702,12 +779,12 @@ export function TokensTab() {
             {optimizationSuggestions.map((s) => (
               <div
                 key={s.id}
-                className="rounded-lg border border-border/50 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent p-3.5 hover:border-emerald-600/30 transition-colors"
+                className="rounded-lg border border-border/50 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent p-3.5 hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 btn-press"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Lightbulb className="h-3.5 w-3.5 shrink-0 text-yellow-400" />
+                      <Lightbulb className="h-3.5 w-3.5 shrink-0 text-yellow-600 dark:text-yellow-400" />
                       <span className="text-xs font-medium leading-tight">{s.title}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground leading-relaxed ml-5.5 pl-0.5">
@@ -724,7 +801,7 @@ export function TokensTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 gap-1 text-[10px] shrink-0 border-emerald-600/30 text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
+                    className="h-7 gap-1 text-[10px] shrink-0 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300"
                     onClick={() => handleApplySuggestion(s.id, s.title)}
                   >
                     <Check className="h-3 w-3" />

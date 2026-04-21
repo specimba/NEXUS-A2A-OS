@@ -138,9 +138,9 @@ export function NexusFooter() {
 
         {/* Error Count */}
         <div className="flex items-center gap-1">
-          <AlertTriangle className={`h-3 w-3 ${errorCount > 3 ? 'text-red-400' : errorCount > 0 ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+          <AlertTriangle className={`h-3 w-3 ${errorCount > 3 ? 'text-red-600 dark:text-red-400' : errorCount > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-muted-foreground'}`} />
           <span className="text-[10px]">Errors (5m):</span>
-          <span className={`text-[10px] font-bold tabular-nums ${errorCount > 3 ? 'text-red-400' : errorCount > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+          <span className={`text-[10px] font-bold tabular-nums ${errorCount > 3 ? 'text-red-600 dark:text-red-400' : errorCount > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {errorCount}
           </span>
         </div>
@@ -150,15 +150,15 @@ export function NexusFooter() {
         {/* Rate Limit Status */}
         <div className="flex items-center gap-1">
           <Gauge className={`h-3 w-3 ${
-            rateLimitStatus === 'ok' ? 'text-emerald-400' :
-            rateLimitStatus === 'caution' ? 'text-yellow-400' :
-            'text-red-400'
+            rateLimitStatus === 'ok' ? 'text-emerald-600 dark:text-emerald-400' :
+            rateLimitStatus === 'caution' ? 'text-yellow-600 dark:text-yellow-400' :
+            'text-red-600 dark:text-red-400'
           }`} />
           <span className="text-[10px]">Rate:</span>
           <span className={`text-[10px] font-bold ${
-            rateLimitStatus === 'ok' ? 'text-emerald-400' :
-            rateLimitStatus === 'caution' ? 'text-yellow-400' :
-            'text-red-400'
+            rateLimitStatus === 'ok' ? 'text-emerald-600 dark:text-emerald-400' :
+            rateLimitStatus === 'caution' ? 'text-yellow-600 dark:text-yellow-400' :
+            'text-red-600 dark:text-red-400'
           }`}>
             {rateLimitStatus === 'ok' ? 'OK' : rateLimitStatus === 'caution' ? 'CAUTION' : 'LIMITED'}
           </span>

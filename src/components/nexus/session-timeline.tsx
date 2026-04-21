@@ -39,7 +39,7 @@ export function SessionTimeline() {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Clock className="h-4 w-4 text-blue-400" /> Session Timeline
+            <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Session Timeline
           </CardTitle>
           <Badge variant="outline" className="text-[9px] gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -71,7 +71,7 @@ export function SessionTimeline() {
                       <Icon
                         className={`h-4 w-4 ${
                           event.status === 'active'
-                            ? 'text-emerald-400'
+                            ? 'text-emerald-600 dark:text-emerald-400'
                             : event.status === 'past'
                               ? 'text-muted-foreground'
                               : 'text-muted-foreground/40'
@@ -98,7 +98,7 @@ export function SessionTimeline() {
                     {/* Timestamp */}
                     <span
                       className={`text-[9px] tabular-nums ${
-                        event.status === 'active' ? 'text-emerald-400 font-medium' : 'text-muted-foreground/50'
+                        event.status === 'active' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-muted-foreground/50'
                       }`}
                     >
                       {event.time}
@@ -106,7 +106,7 @@ export function SessionTimeline() {
 
                     {/* Status badge */}
                     {event.status === 'active' && (
-                      <Badge className="mt-1 bg-emerald-600/15 text-emerald-400 border-0 text-[8px] px-1.5 py-0">
+                      <Badge className="mt-1 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0">
                         now
                       </Badge>
                     )}

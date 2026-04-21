@@ -75,7 +75,7 @@ function SystemConfigDialog({ open, onOpenChange }: {
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-emerald-400" />
+            <Settings className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             System Configuration
           </DialogTitle>
           <DialogDescription>
@@ -171,7 +171,7 @@ function SystemConfigDialog({ open, onOpenChange }: {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium">Trust Decay Rate</label>
-                  <span className="text-xs font-mono text-emerald-400 tabular-nums">{config.trustDecayRate.toFixed(3)}/hr</span>
+                  <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">{config.trustDecayRate.toFixed(3)}/hr</span>
                 </div>
                 <Input
                   type="number"
@@ -281,8 +281,8 @@ export function NexusHeader() {
 
       {/* Token budget indicator */}
       <div className="hidden items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600/10 to-emerald-600/5 border border-emerald-600/10 px-3 py-1.5 sm:flex">
-        <Activity className="h-3.5 w-3.5 text-emerald-400" />
-        <span className="text-xs font-medium text-emerald-400">73,450</span>
+        <Activity className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">73,450</span>
         <span className="text-[10px] text-muted-foreground">/ 100,000</span>
       </div>
 

@@ -59,7 +59,7 @@ function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { active
                 className={cn(
                   'relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-gradient-to-r from-emerald-600/20 to-emerald-600/5 text-emerald-400 shadow-sm shadow-emerald-600/10'
+                    ? 'bg-gradient-to-r from-emerald-600/20 to-emerald-600/5 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-600/10'
                     : 'text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground'
                 )}
               >
@@ -73,7 +73,7 @@ function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { active
                     <span className="flex-1 text-left truncate">{item.label}</span>
                     <span className="text-[10px] text-muted-foreground/40 tabular-nums">{index + 1}</span>
                     {item.badge && (
-                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-emerald-600/20 text-emerald-400 border-0">
+                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-0">
                         {item.badge}
                       </Badge>
                     )}

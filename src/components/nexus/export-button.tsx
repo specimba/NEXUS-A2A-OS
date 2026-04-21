@@ -140,11 +140,11 @@ export function ExportButton({ data, filename, label = 'Export', columnHeaders }
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem onClick={exportCSV} className="gap-2 text-xs cursor-pointer">
-          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           Export as CSV
         </DropdownMenuItem>
         <DropdownMenuItem onClick={exportJSON} className="gap-2 text-xs cursor-pointer">
-          <FileJson className="h-3.5 w-3.5 text-blue-400" />
+          <FileJson className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           Export as JSON
         </DropdownMenuItem>
       </DropdownMenuContent>

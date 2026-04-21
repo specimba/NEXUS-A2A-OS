@@ -46,7 +46,7 @@ export function SystemArchitecture() {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Hexagon className="h-4 w-4 text-emerald-400" /> System Architecture
+            <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> System Architecture
           </CardTitle>
           <Badge variant="outline" className="text-[9px]">8 Pillars</Badge>
         </div>
@@ -59,7 +59,7 @@ export function SystemArchitecture() {
             xmlns="http://www.w3.org/2000/svg"
           >
             {/* Connection lines from center to each pillar */}
-            {nodePositions.map((node) => (
+            {nodePositions.map((node, i) => (
               <g key={`line-${node.name}`}>
                 <line
                   x1={centerX}
@@ -70,10 +70,10 @@ export function SystemArchitecture() {
                   strokeWidth="1.5"
                   strokeOpacity="0.25"
                 />
-                {/* Animated data flow dot */}
+                {/* Animated data flow dot — deterministic durations to avoid hydration mismatch */}
                 <circle r="2.5" fill={node.color} opacity="0.7">
                   <animateMotion
-                    dur={`${2 + Math.random() * 2}s`}
+                    dur={`${2 + (i * 0.37) % 2}s`}
                     repeatCount="indefinite"
                     path={`M${centerX},${centerY} L${node.x},${node.y}`}
                   />
@@ -81,7 +81,7 @@ export function SystemArchitecture() {
                 {/* Reverse flow dot */}
                 <circle r="2" fill={node.color} opacity="0.4">
                   <animateMotion
-                    dur={`${3 + Math.random() * 2}s`}
+                    dur={`${3 + (i * 0.43) % 2}s`}
                     repeatCount="indefinite"
                     path={`M${node.x},${node.y} L${centerX},${centerY}`}
                     begin="1s"

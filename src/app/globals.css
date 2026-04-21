@@ -60,7 +60,7 @@
   --secondary: oklch(0.96 0.01 155);
   --secondary-foreground: oklch(0.205 0.01 155);
   --muted: oklch(0.96 0.01 155);
-  --muted-foreground: oklch(0.5 0.02 155);
+  --muted-foreground: oklch(0.42 0.02 155);
   --accent: oklch(0.94 0.03 155);
   --accent-foreground: oklch(0.205 0.01 155);
   --destructive: oklch(0.577 0.245 27.325);
@@ -633,10 +633,10 @@
 }
 
 :root .glass-card {
-  background: oklch(1 0 0 / 90%);
+  background: oklch(1 0 0 / 95%);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid oklch(0.9 0.01 155);
+  border: 1px solid oklch(0.85 0.01 155);
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 60%),
     0 0 0 1px oklch(0.508 0.164 155 / 5%),
@@ -717,4 +717,420 @@
 
 .hover-pulse:hover {
   animation: pulseHover 1.5s ease-in-out infinite;
+}
+
+/* Button micro-interaction: scale-down on press */
+.btn-press {
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* Orange status glow for warnings/P1 */
+.status-glow-orange {
+  box-shadow: 0 0 6px oklch(0.828 0.189 84.429 / 30%), 0 0 12px oklch(0.828 0.189 84.429 / 15%);
+}
+
+:root .status-glow-orange {
+  box-shadow: 0 0 6px oklch(0.828 0.189 84.429 / 20%), 0 0 12px oklch(0.828 0.189 84.429 / 10%);
+}
+
+/* Blue status glow for info */
+.status-glow-blue {
+  box-shadow: 0 0 6px oklch(0.6094 0.1262 257.42 / 30%), 0 0 12px oklch(0.6094 0.1262 257.42 / 15%);
+}
+
+:root .status-glow-blue {
+  box-shadow: 0 0 6px oklch(0.6094 0.1262 257.42 / 20%), 0 0 12px oklch(0.6094 0.1262 257.42 / 10%);
+}
+
+/* VAP chain flowing animation for connector lines */
+@keyframes vapChainFlow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 20px;
+  }
+}
+
+.vap-chain-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    oklch(0.65 0.2 155 / 40%) 0px,
+    oklch(0.65 0.2 155 / 40%) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  background-size: 2px 8px;
+  animation: vapChainFlow 1.5s linear infinite;
+}
+
+:root .vap-chain-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    oklch(0.508 0.164 155 / 30%) 0px,
+    oklch(0.508 0.164 155 / 30%) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  background-size: 2px 8px;
+  animation: vapChainFlow 1.5s linear infinite;
+}
+
+/* Hash verification success animation */
+@keyframes hashVerifyPulse {
+  0% { box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 40%); }
+  50% { box-shadow: 0 0 12px oklch(0.65 0.2 155 / 30%); }
+  100% { box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 0%); }
+}
+
+.hash-verify-success {
+  animation: hashVerifyPulse 0.8s ease-out 2;
+  border-color: oklch(0.65 0.2 155 / 40%) !important;
+}
+
+/* Budget alert pulse for warning states */
+@keyframes budgetAlertPulse {
+  0%, 100% { border-color: oklch(0.828 0.189 84.429 / 20%); }
+  50% { border-color: oklch(0.828 0.189 84.429 / 50%); box-shadow: 0 0 8px oklch(0.828 0.189 84.429 / 15%); }
+}
+
+.budget-alert-pulse {
+  animation: budgetAlertPulse 2.5s ease-in-out infinite;
+}
+
+/* Token consumption flow animation */
+@keyframes tokenFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.token-flow-bar {
+  background: linear-gradient(90deg, oklch(0.65 0.2 155 / 60%), oklch(0.65 0.2 155 / 30%), oklch(0.65 0.2 155 / 60%), oklch(0.65 0.2 155 / 30%));
+  background-size: 200% 100%;
+  animation: tokenFlow 2s linear infinite;
+}
+
+/* Pipeline progress animation */
+@keyframes pipelineStep {
+  0% { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.pipeline-step-animate {
+  animation: pipelineStep 0.4s ease-out forwards;
+}
+
+/* Relevance bar animated fill */
+@keyframes relevanceFill {
+  from { width: 0%; }
+}
+
+.relevance-bar-animate {
+  animation: relevanceFill 0.8s ease-out forwards;
+}
+
+/* Shimmer skeleton for loading states */
+.shimmer-skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.2 0.015 155 / 0%) 0%,
+    oklch(0.3 0.03 155 / 20%) 50%,
+    oklch(0.2 0.015 155 / 0%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+:root .shimmer-skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.01 155 / 0%) 0%,
+    oklch(0.88 0.02 155 / 20%) 50%,
+    oklch(0.96 0.01 155 / 0%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Focus ring enhancement for accessibility */
+.focus-ring-enhanced:focus-visible {
+  outline: 2px solid oklch(0.65 0.2 155 / 60%);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+:root .focus-ring-enhanced:focus-visible {
+  outline: 2px solid oklch(0.508 0.164 155 / 60%);
+  outline-offset: 2px;
+}
+
+/* Budget over-80% warning indicator pulse */
+@keyframes budgetOverPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.577 0.245 27.325 / 30%);
+    border-color: oklch(0.577 0.245 27.325 / 30%);
+  }
+  50% {
+    box-shadow: 0 0 12px oklch(0.577 0.245 27.325 / 20%);
+    border-color: oklch(0.577 0.245 27.325 / 60%);
+  }
+}
+
+.budget-over-pulse {
+  animation: budgetOverPulse 2s ease-in-out infinite;
+}
+
+:root .budget-over-pulse {
+  animation: budgetOverPulse 2s ease-in-out infinite;
+}
+
+/* Animated token counter — digit flip effect */
+@keyframes tokenCountFlip {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-token-count {
+  animation: tokenCountFlip 400ms ease-out forwards;
+}
+
+/* VAP chain block entrance animation */
+@keyframes vapBlockSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.vap-block-animate {
+  animation: vapBlockSlideIn 0.35s ease-out forwards;
+}
+
+/* Priority tier P0 glow — intensified */
+@keyframes priorityP0Glow {
+  0%, 100% { box-shadow: 0 0 8px oklch(0.577 0.245 27.325 / 25%); }
+  50% { box-shadow: 0 0 16px oklch(0.577 0.245 27.325 / 45%); }
+}
+
+.priority-p0-glow {
+  animation: priorityP0Glow 2.5s ease-in-out infinite;
+}
+
+/* Priority tier P1 glow — orange */
+@keyframes priorityP1Glow {
+  0%, 100% { box-shadow: 0 0 6px oklch(0.828 0.189 84.429 / 20%); }
+  50% { box-shadow: 0 0 12px oklch(0.828 0.189 84.429 / 35%); }
+}
+
+.priority-p1-glow {
+  animation: priorityP1Glow 2.5s ease-in-out infinite;
+}
+
+/* Track-type glow utilities for vault entries */
+.status-glow-purple {
+  box-shadow: 0 0 6px oklch(0.627 0.265 303.9 / 30%), 0 0 12px oklch(0.627 0.265 303.9 / 15%);
+}
+
+:root .status-glow-purple {
+  box-shadow: 0 0 6px oklch(0.627 0.265 303.9 / 20%), 0 0 12px oklch(0.627 0.265 303.9 / 10%);
+}
+
+/* Chart area glow enhancement */
+.chart-glow-emerald {
+  filter: drop-shadow(0 0 4px oklch(0.65 0.2 155 / 20%));
+}
+
+:root .chart-glow-emerald {
+  filter: drop-shadow(0 0 4px oklch(0.508 0.164 155 / 15%));
+}
+
+/* Vetting status indicator — animated checkmark */
+@keyframes vettingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.vetting-indicator {
+  animation: vettingPulse 1.5s ease-in-out infinite;
+}
+
+/* ── Ripple Effect for Button Click Feedback ────────────────────── */
+@keyframes rippleEffect {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  margin-left: -10px;
+  border-radius: 50%;
+  background: oklch(0.65 0.2 155 / 30%);
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ripple-effect:active::after {
+  animation: rippleEffect 0.6s ease-out;
+}
+
+:root .ripple-effect::after {
+  background: oklch(0.508 0.164 155 / 20%);
+}
+
+/* ── Skeleton Pulse for Loading Placeholders ────────────────────── */
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.skeleton-pulse {
+  background: oklch(0.22 0.015 155 / 30%);
+  border-radius: 6px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+:root .skeleton-pulse {
+  background: oklch(0.88 0.01 155 / 40%);
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-pulse-text {
+  background: oklch(0.22 0.015 155 / 20%);
+  border-radius: 4px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+:root .skeleton-pulse-text {
+  background: oklch(0.88 0.01 155 / 30%);
+}
+
+/* ── Data Flow Line with Animated Dash Pattern ──────────────────── */
+@keyframes dataFlowDash {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.data-flow-line {
+  stroke-dasharray: 6 4;
+  animation: dataFlowDash 1s linear infinite;
+}
+
+.data-flow-line-h {
+  background: repeating-linear-gradient(
+    90deg,
+    oklch(0.65 0.2 155 / 50%) 0px,
+    oklch(0.65 0.2 155 / 50%) 6px,
+    transparent 6px,
+    transparent 10px
+  );
+  background-size: 10px 100%;
+  animation: dataFlowDashH 0.8s linear infinite;
+}
+
+@keyframes dataFlowDashH {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 10px 0;
+  }
+}
+
+:root .data-flow-line-h {
+  background: repeating-linear-gradient(
+    90deg,
+    oklch(0.508 0.164 155 / 40%) 0px,
+    oklch(0.508 0.164 155 / 40%) 6px,
+    transparent 6px,
+    transparent 10px
+  );
+  background-size: 10px 100%;
+}
+
+/* ── Quick Action Icon Hover Animation ──────────────────────────── */
+@keyframes iconBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.quick-action-icon-hover:hover svg {
+  animation: iconBounce 0.4s ease-in-out;
+}
+
+/* ── Throughput Bar Animation ───────────────────────────────────── */
+@keyframes throughputSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.throughput-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.throughput-animated::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(0.65 0.2 155 / 30%),
+    transparent
+  );
+  animation: throughputSlide 2s ease-in-out infinite;
+}
+
+:root .throughput-animated::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(0.508 0.164 155 / 20%),
+    transparent
+  );
 }

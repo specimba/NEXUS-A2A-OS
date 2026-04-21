@@ -7,8 +7,26 @@ import { TabContent } from '@/components/nexus/tab-content'
 import { NexusAssistant } from '@/components/nexus/ai-assistant'
 import { NexusCommandPalette } from '@/components/nexus/command-palette'
 import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
+import { KeyboardShortcuts } from '@/components/nexus/keyboard-shortcuts'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  // ? key to open keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+        e.preventDefault()
+        setShortcutsOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar (desktop: inline, mobile: sheet) */}
@@ -35,6 +53,9 @@ export default function Home() {
 
       {/* Quick Stats Floating Widget (desktop only) */}
       <QuickStatsWidget />
+
+      {/* Keyboard Shortcuts Panel (triggered by ? key) */}
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )
 }

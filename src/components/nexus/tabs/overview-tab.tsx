@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton, downloadFile } from '@/components/nexus/export-button'
 import { SystemArchitecture } from '@/components/nexus/system-architecture'
@@ -21,6 +22,7 @@ import {
   Activity,
   Settings,
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -34,10 +36,18 @@ import {
   CircleDot,
   X,
   Loader2,
+  Pause,
+  Play,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Wifi,
+  HardDrive,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
+import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
 
 // ── AnimatedCounter ──────────────────────────────────────────────
 function AnimatedCounter({ value, duration = 1200, className = '' }: { value: number; duration?: number; className?: string }) {
@@ -247,9 +257,9 @@ function LiveActivityFeed() {
             i === 0 ? 'bg-emerald-600/5' : ''
           }`}
         >
-          {item.type === 'success' && <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />}
-          {item.type === 'info' && <Radio className="mt-0.5 h-3 w-3 shrink-0 text-blue-400" />}
-          {item.type === 'warning' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-400" />}
+          {item.type === 'success' && <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+          {item.type === 'info' && <Radio className="mt-0.5 h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />}
+          {item.type === 'warning' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-600 dark:text-orange-400" />}
           <span className="flex-1 text-muted-foreground">{item.event}</span>
           <span className="shrink-0 text-[10px] text-muted-foreground/50 tabular-nums">{item.time}</span>
         </div>
@@ -272,7 +282,7 @@ function SystemHealthTimeline() {
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4 text-emerald-400" />
+            <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             24h Health Timeline
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -338,25 +348,25 @@ function SystemUptimeCard() {
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">System Uptime</p>
             <div className="mt-1 flex items-baseline gap-0.5">
-              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{uptime.days}</span>
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{uptime.days}</span>
               <span className="text-[11px] text-muted-foreground mr-1">d</span>
-              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{String(uptime.hours).padStart(2, '0')}</span>
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{String(uptime.hours).padStart(2, '0')}</span>
               <span className="text-[11px] text-muted-foreground mr-1">h</span>
-              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{String(uptime.minutes).padStart(2, '0')}</span>
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{String(uptime.minutes).padStart(2, '0')}</span>
               <span className="text-[11px] text-muted-foreground mr-1">m</span>
-              <span className="text-lg font-bold text-emerald-400/70 tabular-nums">{String(uptime.seconds).padStart(2, '0')}</span>
+              <span className="text-lg font-bold text-emerald-600/70 dark:text-emerald-400/70 tabular-nums">{String(uptime.seconds).padStart(2, '0')}</span>
               <span className="text-[11px] text-muted-foreground">s</span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">Continuous operation</p>
           </div>
           <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-            <Clock className="h-5 w-5 text-emerald-400" />
+            <Clock className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             <span className="absolute h-3 w-3 animate-ping rounded-full bg-emerald-400/30" />
           </div>
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse status-glow-green" />
-          <span className="text-[10px] text-emerald-400 font-medium">99.94% availability</span>
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">99.94% availability</span>
           <span className="text-[10px] text-muted-foreground ml-2">|</span>
           <span className="text-[10px] text-muted-foreground ml-2">Last restart: 3d 14h ago</span>
         </div>
@@ -487,7 +497,7 @@ export function OverviewTab() {
                 </div>
               </div>
               <div className="hidden sm:flex items-center gap-2">
-                <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
+                <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse status-glow-green" />
                   All Systems Go
                 </Badge>
@@ -496,9 +506,9 @@ export function OverviewTab() {
             </div>
             {/* Server count indicator */}
             <div className="relative mt-3 flex items-center gap-4 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><Server className="h-3 w-3 text-emerald-400" /> 3 nodes active</span>
-              <span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-400" /> 8/8 pillars online</span>
-              <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-400" /> 73,450 tokens left</span>
+              <span className="flex items-center gap-1"><Server className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> 3 nodes active</span>
+              <span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-600 dark:text-blue-400" /> 8/8 pillars online</span>
+              <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-600 dark:text-orange-400" /> 73,450 tokens left</span>
             </div>
           </div>
         </div>
@@ -518,13 +528,13 @@ export function OverviewTab() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Token Budget</p>
-                  <p className="mt-1 text-3xl font-bold text-emerald-400 tabular-nums">
+                  <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                     <AnimatedCounter value={73450} />
                   </p>
                   <p className="text-[10px] text-muted-foreground">of 100,000 remaining</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-                  <Activity className="h-5 w-5 text-emerald-400" />
+                  <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
               <div className="mt-3">
@@ -550,12 +560,12 @@ export function OverviewTab() {
                   <p className="text-[10px] text-muted-foreground">of 5 max concurrent</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
-                  <Bug className="h-5 w-5 text-blue-400" />
+                  <Bug className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div className="rounded-md bg-emerald-600/10 px-2 py-1 text-center">
-                  <p className="text-xs font-bold text-emerald-400">2</p>
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">2</p>
                   <p className="text-[9px] text-muted-foreground">busy</p>
                 </div>
                 <div className="rounded-md bg-muted px-2 py-1 text-center">
@@ -563,7 +573,7 @@ export function OverviewTab() {
                   <p className="text-[9px] text-muted-foreground">idle</p>
                 </div>
                 <div className="rounded-md bg-red-600/10 px-2 py-1 text-center">
-                  <p className="text-xs font-bold text-red-400">1</p>
+                  <p className="text-xs font-bold text-red-600 dark:text-red-400">1</p>
                   <p className="text-[9px] text-muted-foreground">error</p>
                 </div>
               </div>
@@ -584,7 +594,7 @@ export function OverviewTab() {
                   <p className="text-[10px] text-muted-foreground">12 templates tested</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
-                  <FlaskConical className="h-5 w-5 text-orange-400" />
+                  <FlaskConical className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
               <div className="mt-3">
@@ -613,18 +623,18 @@ export function OverviewTab() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Collapse Rate</p>
-                  <p className="mt-1 text-3xl font-bold text-red-400 tabular-nums">
+                  <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">
                     <AnimatedCounter value={23} duration={1000} /><span className="text-lg">.4%</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground">↓ from 95.3% baseline</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
-                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <Progress value={23.4} className="h-2 flex-1 bg-red-900/20" />
-                <span className="text-[10px] text-emerald-400 font-medium">-72pp</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">-72pp</span>
               </div>
               {/* Collapse Rate Trend Sparkline */}
               <div className="mt-2">
@@ -654,7 +664,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 transition-all duration-200"
                   onClick={() => handleQuickAction('diagnostic')}
                 >
                   <Wrench className="h-4 w-4" />
@@ -663,7 +673,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 transition-all duration-200"
                   onClick={() => handleQuickAction('export')}
                 >
                   <FileDown className="h-4 w-4" />
@@ -672,7 +682,7 @@ export function OverviewTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-400 transition-all duration-200"
+                  className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-600 dark:text-orange-400 transition-all duration-200"
                   onClick={() => handleQuickAction('clear')}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -719,9 +729,9 @@ export function OverviewTab() {
                       'bg-yellow-600/10'
                     }`}>
                       <p.icon className={`h-4 w-4 ${
-                        p.health === 100 ? 'text-emerald-400' :
+                        p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
                         p.health >= 95 ? 'text-emerald-500' :
-                        'text-yellow-400'
+                        'text-yellow-600 dark:text-yellow-400'
                       }`} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -730,9 +740,9 @@ export function OverviewTab() {
                         <Badge
                           variant="secondary"
                           className={`h-5 text-[10px] border-0 ${
-                            p.health === 100 ? 'bg-emerald-600/15 text-emerald-400 badge-glow-emerald' :
+                            p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 badge-glow-emerald' :
                             p.health >= 95 ? 'bg-emerald-600/10 text-emerald-500' :
-                            'bg-yellow-600/15 text-yellow-400 badge-glow-red'
+                            'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 badge-glow-red'
                           }`}
                         >
                           {p.health}%
@@ -746,13 +756,13 @@ export function OverviewTab() {
                       {p.health < 95 && (
                         <div className="mt-1 flex items-center gap-1">
                           <span className="h-1 w-1 rounded-full bg-yellow-400 animate-pulse status-glow-yellow" />
-                          <span className="text-[9px] text-yellow-400">Below threshold</span>
+                          <span className="text-[9px] text-yellow-600 dark:text-yellow-400">Below threshold</span>
                         </div>
                       )}
                       {p.health === 100 && (
                         <div className="mt-1 flex items-center gap-1">
                           <span className="h-1 w-1 rounded-full bg-emerald-400 status-glow-green" />
-                          <span className="text-[9px] text-emerald-400">Nominal</span>
+                          <span className="text-[9px] text-emerald-600 dark:text-emerald-400">Nominal</span>
                         </div>
                       )}
                     </div>
@@ -832,7 +842,7 @@ export function OverviewTab() {
             <CardHeader className="relative pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Shield className="h-3.5 w-3.5 text-red-400" />
+                  <Shield className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                   Recent Decisions
                 </CardTitle>
                 <Badge variant="outline" className="text-[9px]">Governor</Badge>
@@ -843,16 +853,16 @@ export function OverviewTab() {
                 {recentDecisions.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
                     <Badge className={`shrink-0 border-0 text-[9px] px-1.5 py-0 ${
-                      d.action === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-400' :
-                      d.action === 'DENY' ? 'bg-red-600/15 text-red-400' :
-                      'bg-yellow-600/15 text-yellow-400'
+                      d.action === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                      d.action === 'DENY' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                      'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
                     }`}>
                       {d.action}
                     </Badge>
                     <Badge variant="outline" className={`shrink-0 text-[8px] px-1 py-0 ${
-                      d.scope === 'CRIT' ? 'border-red-600/30 text-red-400' :
-                      d.scope === 'CROSS' ? 'border-yellow-600/30 text-yellow-400' :
-                      'border-blue-600/30 text-blue-400'
+                      d.scope === 'CRIT' ? 'border-red-600/30 text-red-600 dark:text-red-400' :
+                      d.scope === 'CROSS' ? 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400' :
+                      'border-blue-600/30 text-blue-600 dark:text-blue-400'
                     }`}>
                       {d.scope}
                     </Badge>
@@ -871,7 +881,7 @@ export function OverviewTab() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Radio className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+                  <Radio className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
                   Live Activity Feed
                 </CardTitle>
                 <Badge variant="outline" className="text-[9px]">real-time</Badge>
@@ -894,37 +904,37 @@ export function OverviewTab() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Governor Decisions (24h)</span>
                   <div className="flex gap-1.5">
-                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 hover:bg-emerald-600/20 text-[10px]">ALLOW 847</Badge>
-                    <Badge className="bg-red-600/15 text-red-400 border-0 hover:bg-red-600/20 text-[10px]">DENY 23</Badge>
-                    <Badge className="bg-yellow-600/15 text-yellow-400 border-0 hover:bg-yellow-600/20 text-[10px]">HOLD 5</Badge>
+                    <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 hover:bg-emerald-600/20 text-[10px]">ALLOW 847</Badge>
+                    <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 hover:bg-red-600/20 text-[10px]">DENY 23</Badge>
+                    <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 hover:bg-yellow-600/20 text-[10px]">HOLD 5</Badge>
                   </div>
                 </div>
                 <Separator className="bg-border/50" />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
-                      <TrendingUp className="h-3 w-3 text-emerald-400" />
+                      <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                       <span className="text-[10px] text-muted-foreground">Trust Avg</span>
                     </div>
-                    <p className="mt-1 text-sm font-bold text-emerald-400">0.73</p>
+                    <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">0.73</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
-                      <Database className="h-3 w-3 text-blue-400" />
+                      <Database className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                       <span className="text-[10px] text-muted-foreground">VAP Chain</span>
                     </div>
                     <p className="mt-1 text-sm font-bold">1,247</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
-                      <Cpu className="h-3 w-3 text-orange-400" />
+                      <Cpu className="h-3 w-3 text-orange-600 dark:text-orange-400" />
                       <span className="text-[10px] text-muted-foreground">API Calls</span>
                     </div>
                     <p className="mt-1 text-sm font-bold">12 <span className="text-[10px] text-muted-foreground font-normal">/ 20</span></p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
-                      <MemoryStick className="h-3 w-3 text-purple-400" />
+                      <MemoryStick className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                       <span className="text-[10px] text-muted-foreground">Writes</span>
                     </div>
                     <p className="mt-1 text-sm font-bold">8 <span className="text-[10px] text-muted-foreground font-normal">/ 30</span></p>
@@ -941,9 +951,9 @@ export function OverviewTab() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-emerald-400" />
+              <Wrench className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               System Diagnostic
-              {diagnosticRunning && <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />}
+              {diagnosticRunning && <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -967,9 +977,9 @@ export function OverviewTab() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{r.pillar}</span>
                     <Badge variant="outline" className={`text-[9px] ${
-                      r.status === 'healthy' ? 'border-emerald-600/30 text-emerald-400' :
-                      r.status === 'degraded' ? 'border-yellow-600/30 text-yellow-400' :
-                      'border-red-600/30 text-red-400'
+                      r.status === 'healthy' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' :
+                      r.status === 'degraded' ? 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400' :
+                      'border-red-600/30 text-red-600 dark:text-red-400'
                     }`}>
                       {r.status.toUpperCase()}
                     </Badge>
@@ -978,27 +988,27 @@ export function OverviewTab() {
                   <p className="text-[11px] text-muted-foreground truncate">{r.details}</p>
                 </div>
                 <span className={`text-sm font-bold tabular-nums ${
-                  r.health === 100 ? 'text-emerald-400' :
+                  r.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
                   r.health >= 95 ? 'text-emerald-500' :
-                  r.health >= 85 ? 'text-yellow-400' :
-                  'text-red-400'
+                  r.health >= 85 ? 'text-yellow-600 dark:text-yellow-400' :
+                  'text-red-600 dark:text-red-400'
                 }`}>{r.health}%</span>
               </div>
             ))}
             {diagnosticSummary && (
               <div className="mt-4 rounded-lg border border-emerald-600/20 bg-emerald-600/5 p-3">
-                <p className="text-xs font-medium text-emerald-400 mb-2">Diagnostic Summary</p>
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-2">Diagnostic Summary</p>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>
-                    <p className="text-lg font-bold text-emerald-400 tabular-nums">{diagnosticSummary.healthy}</p>
+                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{diagnosticSummary.healthy}</p>
                     <p className="text-[9px] text-muted-foreground">Healthy</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-yellow-400 tabular-nums">{diagnosticSummary.degraded}</p>
+                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400 tabular-nums">{diagnosticSummary.degraded}</p>
                     <p className="text-[9px] text-muted-foreground">Degraded</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-red-400 tabular-nums">{diagnosticSummary.error}</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">{diagnosticSummary.error}</p>
                     <p className="text-[9px] text-muted-foreground">Error</p>
                   </div>
                   <div>

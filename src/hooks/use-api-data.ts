@@ -15,16 +15,22 @@ interface SystemData {
 export function useSystemData(refreshInterval = 30000) {
   const [data, setData] = useState<SystemData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null)
       const res = await globalThis.fetch('/api/system')
       if (res.ok) {
         const json = await res.json()
         setData(json)
+      } else {
+        const errText = await res.text().catch(() => 'Unknown error')
+        setError(`System API error: ${res.status} ${errText}`)
       }
     } catch (e) {
-      console.error('System data fetch error:', e)
+      const msg = e instanceof Error ? e.message : 'Network error'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -36,22 +42,28 @@ export function useSystemData(refreshInterval = 30000) {
     return () => clearInterval(interval)
   }, [fetchData, refreshInterval])
 
-  return { data, loading, refetch: fetchData }
+  return { data, loading, error, refetch: fetchData }
 }
 
 export function useApiData<T = Record<string, unknown>>(url: string, refreshInterval = 30000) {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null)
       const res = await globalThis.fetch(url)
       if (res.ok) {
         const json = await res.json()
         setData(json)
+      } else {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        setError(errData.error || `API error: ${res.status}`)
       }
     } catch (e) {
-      console.error(`API fetch error (${url}):`, e)
+      const msg = e instanceof Error ? e.message : 'Network error — check your connection'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -63,5 +75,5 @@ export function useApiData<T = Record<string, unknown>>(url: string, refreshInte
     return () => clearInterval(interval)
   }, [fetchData, refreshInterval])
 
-  return { data, loading, refetch: fetchData }
+  return { data, loading, error, refetch: fetchData }
 }
