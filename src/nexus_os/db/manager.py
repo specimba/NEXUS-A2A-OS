@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class DBAdapter(Protocol):
     def execute(self, query: str, params: tuple = ()) -> Any: ...
     def executemany(self, query: str, params_list: list) -> Any: ...
+    def executescript(self, sql_script: str) -> Any: ...
     def fetchone(self, cursor: Any) -> Optional[tuple]: ...
     def fetchall(self, cursor: Any) -> List[tuple]: ...
     def commit(self) -> None: ...
@@ -40,6 +41,9 @@ class StandardAdapter:
 
     def executemany(self, query: str, params_list: list) -> sqlite3.Cursor:
         return self.conn.executemany(query, params_list)
+
+    def executescript(self, sql_script: str) -> sqlite3.Cursor:
+        return self.conn.executescript(sql_script)
 
     def fetchone(self, cursor: sqlite3.Cursor) -> Optional[tuple]:
         return cursor.fetchone()
@@ -77,6 +81,9 @@ class EncryptedAdapter:
 
     def executemany(self, query: str, params_list: list) -> Any:
         return self.conn.executemany(query, params_list)
+
+    def executescript(self, sql_script: str) -> Any:
+        return self.conn.executescript(sql_script)
 
     def fetchone(self, cursor: Any) -> Optional[tuple]:
         return cursor.fetchone()
@@ -139,12 +146,12 @@ class DatabaseManager:
                     adapter = EncryptedAdapter(
                         self.config.db_path, self.config.passphrase
                     )
-                except ImportError as e:
+                except ImportError:
                     if not self.config.allow_unencrypted:
-                        raise e
+                        raise
                     logger.warning(
-                        "pysqlcipher3 missing. Falling back to StandardAdapter (UNENCRYPTED). "
-                        "This is a SECURITY RISK in production."
+                        "pysqlcipher3 missing. Falling back to StandardAdapter "
+                        "(UNENCRYPTED) because allow_unencrypted=True."
                     )
                     adapter = StandardAdapter(self.config.db_path)
             else:
@@ -210,13 +217,15 @@ class DatabaseManager:
                 task_id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL,
                 agent_id TEXT,
-                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'failed', 'blocked')),
+                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'failed', 'blocked', 'cancelled')),
                 dependencies TEXT,
                 description TEXT,
-                context TEXT,
+                priority INTEGER DEFAULT 5,
+                context TEXT DEFAULT '{}',
                 heartbeat TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at TIMESTAMP
+                completed_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -243,11 +252,39 @@ class DatabaseManager:
             )
         """)
 
+        adapter.execute("""
+            CREATE TABLE IF NOT EXISTS task_dependencies (
+                parent_task_id TEXT NOT NULL,
+                child_task_id TEXT NOT NULL,
+                PRIMARY KEY (parent_task_id, child_task_id),
+                FOREIGN KEY (parent_task_id) REFERENCES tasks(task_id),
+                FOREIGN KEY (child_task_id) REFERENCES tasks(task_id)
+            )
+        """)
+
+        try:
+            adapter.execute(
+                "CREATE INDEX IF NOT EXISTS idx_tasks_project_status ON tasks(project_id, status)"
+            )
+        except Exception:
+            pass
+
         # Migration: add content column if missing (for databases created before this column existed)
         try:
             adapter.execute("ALTER TABLE memory_records ADD COLUMN content TEXT")
         except Exception:
-            pass  # Column already exists or table doesn't exist yet
+            pass
+
+        # Migration: add priority/context/updated_at columns to tasks if missing
+        for col_ddl in [
+            "ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 5",
+            "ALTER TABLE tasks ADD COLUMN context TEXT DEFAULT '{}'",
+            "ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        ]:
+            try:
+                adapter.execute(col_ddl)
+            except Exception:
+                pass  # Column already exists or table doesn't exist yet
 
         adapter.commit()
         return True

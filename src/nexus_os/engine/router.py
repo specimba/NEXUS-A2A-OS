@@ -85,9 +85,18 @@ class EngineRouter:
         """
         Register a new task with optional dependencies.
         Returns True if the task was created successfully.
+        Raises ValueError if adding dependencies would create a cycle.
         """
         import json
         conn = self.db.get_connection()
+
+        if dependencies:
+            deps = [d for d in dependencies if d]
+            if self._would_create_cycle(task_id, deps, conn):
+                raise ValueError(
+                    f"Circular dependency detected: adding {task_id} with deps {deps} would create a cycle"
+                )
+
         try:
             conn.execute(
                 "INSERT INTO tasks (task_id, project_id, description, priority, context) "
@@ -97,17 +106,56 @@ class EngineRouter:
             )
             if dependencies:
                 for dep_id in dependencies:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO task_dependencies (parent_task_id, child_task_id) "
-                        "VALUES (?, ?)",
-                        (dep_id, task_id),
-                    )
+                    if dep_id:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO task_dependencies (parent_task_id, child_task_id) "
+                            "VALUES (?, ?)",
+                            (dep_id, task_id),
+                        )
             conn.commit()
             logger.debug("Task registered: %s (deps=%s)", task_id, dependencies)
             return True
         except sqlite3.IntegrityError as e:
             logger.warning("Failed to register task %s: %s", task_id, e)
             return False
+
+    def _would_create_cycle(
+        self, new_task_id: str, dependencies: List[str], conn
+    ) -> bool:
+        """
+        DFS-based cycle detection.
+        Adding new_task_id with given dependencies creates a cycle if
+        any dependency can reach new_task_id through the existing graph.
+        """
+        visited: set = set()
+        stack: set = set()
+
+        def _dfs(tid: str) -> bool:
+            if tid in stack:
+                return True
+            if tid in visited:
+                return False
+            visited.add(tid)
+            stack.add(tid)
+
+            rows = conn.execute(
+                "SELECT parent_task_id FROM task_dependencies WHERE child_task_id = ?",
+                (tid,),
+            ).fetchall()
+            for row in rows:
+                if _dfs(row[0]):
+                    stack.remove(tid)
+                    return True
+
+            stack.remove(tid)
+            return False
+
+        for dep_id in dependencies:
+            if dep_id == new_task_id:
+                return True
+            if _dfs(dep_id):
+                return True
+        return False
 
     def get_ready_tasks(self, project_id: str) -> List[Dict[str, Any]]:
         """
