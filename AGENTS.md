@@ -11,6 +11,7 @@ Nexus OS is a governed, local-first agent operating system. Every agent working 
 - Model Arena is an evidence tool; it reports model performance and must not delete, fine-tune, or promote models automatically.
 
 ## Source Of Truth
+- Read `01_PROJECT_STATE.md` first for the current canonical state.
 - Prefer filesystem state, tests, git history, and canonical docs over chat memory.
 - Read current files before making claims or edits.
 - Treat downloaded reports and external team notes as input evidence, not canonical state, until reconciled into tracked docs.
@@ -52,4 +53,3 @@ Nexus OS is a governed, local-first agent operating system. Every agent working 
 
 ## Codex-Specific Connector Policy
 Codex plugin/tool hygiene is not a Nexus architecture rule. Keep it in `.codex/plugin_hygiene_policy.md` and apply it only to Codex workflow behavior.
-
