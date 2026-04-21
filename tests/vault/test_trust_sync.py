@@ -1,3 +1,4 @@
+import pytest
 """tests/vault/test_trust_sync.py — DB Sync & Decay Diagnostics"""
 import pytest
 import time
@@ -6,8 +7,22 @@ from nexus_os.vault.trust_store import TrustStore
 from nexus_os.vault.decay_worker import MiraDecayWorker
 
 @pytest.fixture
-def vault():
-    return VaultManager()
+def vault(tmp_path):
+    vault = VaultManager(str(tmp_path / "trust_sync.db"))
+    vault.conn.execute("""
+        CREATE TABLE IF NOT EXISTS agent_memory_tracks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id TEXT NOT NULL,
+            lane TEXT NOT NULL,
+            track_type TEXT,
+            key TEXT NOT NULL,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(agent_id, lane, track_type, key)
+        )
+    """)
+    vault.conn.commit()
+    return vault
 
 def test_trust_store_loads_defaults(vault):
     store = TrustStore(vault)

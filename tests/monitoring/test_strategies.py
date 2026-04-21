@@ -4,8 +4,6 @@ import time
 from nexus_os.monitoring.strategies import hot_path, warm_path, SemanticCache
 
 def test_hot_path_blocks_async():
-    import asyncio
-    
     @hot_path
     async def bad_function():
         pass

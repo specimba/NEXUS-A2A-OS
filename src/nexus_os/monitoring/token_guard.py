@@ -530,6 +530,8 @@ class TokenGuard:
         return self.remaining(agent_id)
     def _get_budget_key(self, agent_id: str) -> str:
         """Map agent_id to budget category."""
+        if agent_id in self._budgets:
+            return agent_id
         if 'skill' in agent_id.lower():
             return 'skill'
         if 'swarm' in agent_id.lower() or 'foreman' in agent_id.lower():

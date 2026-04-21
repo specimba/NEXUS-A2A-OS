@@ -20,7 +20,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from cron.agent_cycle import AgentCycleRunner, CycleResult
+from nexus_os.cron.agent_cycle import AgentCycleRunner, CycleResult
 
 
 @pytest.fixture
@@ -283,7 +283,7 @@ class TestCLIMain:
         """CLI should exit 0 when tests pass."""
         with patch("sys.argv", ["agent_cycle.py", "--root", str(temp_project), "--no-git"]):
             with pytest.raises(SystemExit) as exc_info:
-                from cron.agent_cycle import main
+                from nexus_os.cron.agent_cycle import main
                 main()
             assert exc_info.value.code == 0
 
@@ -294,6 +294,6 @@ def test_fail(): assert False
 """)
         with patch("sys.argv", ["agent_cycle.py", "--root", str(temp_project), "--no-git"]):
             with pytest.raises(SystemExit) as exc_info:
-                from cron.agent_cycle import main
+                from nexus_os.cron.agent_cycle import main
                 main()
             assert exc_info.value.code == 1

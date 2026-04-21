@@ -764,13 +764,11 @@ class TeamCoordinator:
             from nexus_os.engine.hermes import TaskClassifier
             classifier = TaskClassifier()
             domain, complexity = classifier.classify(description, context)
+            domain_val = domain.value if hasattr(domain, "value") else domain
             return RoutingDecision(
-                task_id=task_id,
-                selected_model=DOMAIN_WORKER_MAP.get(domain.value, "glm5-worker-1"),
-                complexity=complexity,
+                selected_model=DOMAIN_WORKER_MAP.get(domain_val, "glm5-worker-1"),
+                fallback_models=[],
                 domain=domain,
-                score=0.3,
-                cost_estimate=0.0,
                 reason="Fallback routing (Hermes unavailable)",
             )
 

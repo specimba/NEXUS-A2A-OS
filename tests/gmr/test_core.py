@@ -1,3 +1,4 @@
+import pytest
 """tests/gmr/test_core.py — GMR Core Diagnostics"""
 import pytest
 from nexus_os.gmr.telemetry import ModelTelemetry
@@ -10,16 +11,24 @@ class MockTelemetryIngest:
             "Trinity Large Preview": ModelTelemetry("Trinity Large Preview", "opencode", 97, 1707, 1.0, "up", "now"),
             "Devstral 2 123B": ModelTelemetry("Devstral 2 123B", "nvidia", 86, 542, 1.0, "up", "now")
         }
-    def fetch(self): pass
+    def fetch(self):
+        return self.cache
+
+
+def make_gmr():
+    gmr = GeniusModelRotator()
+    gmr.telemetry = MockTelemetryIngest()
+    gmr._sync_profiles()
+    return gmr
 
 def test_gmr_select_code_domain():
-    gmr = GeniusModelRotator(MockTelemetryIngest())
+    gmr = make_gmr()
     sel = gmr.select("code", budget_remaining=100000)
     assert sel.primary == "osman-coder"
     assert "Devstral 2 123B" in sel.fallbacks
 
 def test_gmr_budget_fallback():
-    gmr = GeniusModelRotator(MockTelemetryIngest())
+    gmr = make_gmr()
     # A low budget (10k) forces the engine to bypass Trinity (Tier 97) and drop to local Tier 40
     sel = gmr.select("reasoning", budget_remaining=10000)
     assert sel.primary == "osman-reasoning"

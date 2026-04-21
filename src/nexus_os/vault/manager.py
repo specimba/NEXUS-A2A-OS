@@ -10,6 +10,7 @@ class VaultManager:
     Tracks: 'event', 'trust', 'capability', 'failure_pattern', 'governance'
     """
     def __init__(self, db_path: str = ":memory:"):
+        self._uri = db_path.startswith("file:")
         self.db_path = db_path
         self._local = threading.local()
         self._init_db()
@@ -17,7 +18,12 @@ class VaultManager:
     @property
     def conn(self) -> sqlite3.Connection:
         if not hasattr(self._local, "conn"):
-            self._local.conn = sqlite3.connect(self.db_path)
+            self._local.conn = sqlite3.connect(
+                self.db_path,
+                uri=self._uri,
+                check_same_thread=False,
+                timeout=30,
+            )
             self._local.conn.row_factory = sqlite3.Row
         return self._local.conn
 
@@ -25,13 +31,14 @@ class VaultManager:
         with self.conn:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS agent_memory_tracks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     agent_id TEXT NOT NULL,
                     lane TEXT NOT NULL,
                     track_type TEXT CHECK(track_type IN ('event', 'trust', 'capability', 'failure_pattern', 'governance')),
                     key TEXT NOT NULL,
                     value TEXT,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (agent_id, lane, track_type, key)
+                    UNIQUE(agent_id, lane, track_type, key)
                 )
             """)
 
@@ -71,10 +78,6 @@ class VaultManager:
             results[row['track_type']][row['key']] = json.loads(row['value'])
             
         return results
-
-
-# Minimal stub for test collection
-class PoisoningError(Exception): pass
 
 
 # Minimal stub for test collection

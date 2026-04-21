@@ -69,6 +69,7 @@ class AgentCard:
     hold_state: bool = False
     evidence_count: int = 0
     capability_profile: dict = field(default_factory=dict)
+    capabilities: List[str] = field(default_factory=list)  # A2A v1.1 Negotiation
     capabilities: list = field(default_factory=list)  # A2A v1.1
     failure_patterns: dict = field(default_factory=dict)
     governance_flags: list = field(default_factory=list)
@@ -240,3 +241,18 @@ class TrustScoringGate:
             "reason_primary": ReasonCode.AVAILABILITY_REFUSAL.value,
         })
     def reset(self): self.memory = MemoryTracks()
+
+import math
+import time
+
+def apply_logistic_scaling(raw_score: float) -> float:
+    t_val = raw_score * 100.0
+    logistic_val = 1.0 / (1.0 + math.exp(-(t_val - 50.0) / 10.0))
+    return round(logistic_val, 4)
+
+def apply_temporal_decay(score: float, last_active_ts: float, decay_rate: float = 0.05) -> float:
+    if not last_active_ts:
+        return score
+    hours_passed = (time.time() - last_active_ts) / 3600.0
+    decayed_score = score * math.exp(-decay_rate * hours_passed)
+    return round(decayed_score, 4)

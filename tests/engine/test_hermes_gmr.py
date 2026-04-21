@@ -1,7 +1,17 @@
+import pytest
 """tests/engine/test_hermes_gmr.py — Phase 2 Integration Tests"""
 import pytest
 from nexus_os.engine.hermes import HermesRouter
 from nexus_os.monitoring.token_guard import TokenGuard
+
+
+@pytest.fixture(autouse=True)
+def mock_gmr_telemetry(monkeypatch):
+    monkeypatch.setattr("nexus_os.gmr.rotator.TelemetryIngest.fetch", lambda self: self.cache)
+
+
+def _domain_value(decision):
+    return decision.domain.value if hasattr(decision.domain, "value") else decision.domain
 
 def test_hermes_classification_and_routing():
     guard = TokenGuard(budgets={"test-agent": 150000})
@@ -9,7 +19,7 @@ def test_hermes_classification_and_routing():
     
     # Test code routing
     decision = router.route("task-1", "Write a python script to sort a list securely", {"agent_id": "test-agent"})
-    assert decision.domain == "code"
+    assert _domain_value(decision) == "code"
     assert decision.selected_model is not None
     assert isinstance(decision.fallback_models, list)
     assert len(decision.fallback_models) > 0
@@ -22,7 +32,7 @@ def test_hermes_budget_awareness():
     decision = router.route("task-2", "Analyze this complex architecture deeply", {"agent_id": "broke-agent"})
     
     # Should correctly classify as reasoning
-    assert decision.domain == "reasoning"
+    assert _domain_value(decision) == "reasoning"
     
     # Because budget < 50000, GMR restricts selection to Tier <= 50 (Local models)
     # Based on our domain_mapping, the local fallback for reasoning is osman-reasoning

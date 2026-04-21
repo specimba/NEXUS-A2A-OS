@@ -36,6 +36,9 @@ wheels/
 
 # NEXUS OS Specific
 .pytest_cache/
+tests_tmp/
+tmp_pytest_*/
+.nexus_pytest_tmp/
 venv/
 *.db
 legacy/

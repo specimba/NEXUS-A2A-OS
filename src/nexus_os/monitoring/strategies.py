@@ -1,7 +1,7 @@
 """monitoring/strategies.py — Execution Boundaries & Caching"""
-import asyncio
-import threading
 import hashlib
+import inspect
+import threading
 from typing import List, Dict, Any, Optional
 
 # ── Execution Path Decorators ──
@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 def hot_path(func):
     """Enforces <20ms synchronous execution. Blocks async functions."""
     def wrapper(*args, **kwargs):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             raise RuntimeError(f"Hot path violation: {func.__name__} cannot be async")
         return func(*args, **kwargs)
     return wrapper

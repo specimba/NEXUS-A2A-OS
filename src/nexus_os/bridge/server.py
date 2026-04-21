@@ -289,7 +289,25 @@ class BridgeServer:
             "trust_band": "COMMUNITY_VERIFIED",
             "status": "active"
         }
-
+        
+    def get_agent_card(self, agent_id: str) -> Dict[str, Any]:
+        """A2A v1.1 Endpoint: Expose capabilities and trust score to external swarms."""
+        # In production, this queries the Vault/Governor for dynamic, verified capabilities.
+        return {
+            "agent_id": agent_id,
+            "protocol": "A2A-v1.1",
+            "capabilities": [
+                "code_generation", 
+                "governance_audit", 
+                "swarm_orchestration"
+            ],
+            "negotiation_policies": {
+                "fallback_behavior": "adaptive",
+                "timeout_ms": 30000
+            },
+            "status": "active"
+        }
+    
     def handle_request(
         self,
         method: str,
