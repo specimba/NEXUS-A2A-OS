@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { useMounted } from '@/hooks/use-mounted'
+// useMounted removed — using useState+useEffect for hydration safety
 
 const tabTitles: Record<string, string> = {
   overview: 'System Overview',
@@ -238,8 +238,7 @@ function SystemConfigDialog({ open, onOpenChange }: {
 export function NexusHeader() {
   const { activeTab, setSidebarOpen, isExportDialogOpen, setExportDialogOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
-  const [time, setTime] = useState('')
-  const mounted = useMounted()
+  const [time, setTime] = useState('--:--:--')
   const [configOpen, setConfigOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
 
@@ -259,6 +258,7 @@ export function NexusHeader() {
     return () => window.removeEventListener('keydown', handler)
   }, [setExportDialogOpen])
 
+  // Clock hydration-safe: useState initial value matches placeholder, useEffect sets real time
   useEffect(() => {
     const update = () =>
       setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
@@ -321,7 +321,7 @@ export function NexusHeader() {
       </Button>
 
       {/* Clock */}
-      <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums" suppressHydrationWarning>{mounted ? time : '--:--:--'}</span>
+      <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
 
       {/* System Config */}
       <Button

@@ -1768,3 +1768,170 @@ Architecture:
 - src/app/api/claude/route.ts — Next.js API route → proxy bridge
 - src/components/nexus/ai-assistant.tsx — Chat UI with dual-provider support
 - src/hooks/use-mounted.ts — SSR-safe mounted guard hook
+
+---
+Task ID: 5
+Agent: subagent
+Task: Enhance GMR Tab with AI Provider Bridge Visualization
+
+Work Log:
+- Read existing GMR tab (src/components/nexus/tabs/gmr-tab.tsx) structure — 1376 lines with Model Registry, Pool Status, Rotation Log, Test Console tabs
+- Checked that /api/ai-bridge endpoint doesn't exist yet (backend agent Task 4 still working) — using mock data as specified
+- Added new imports: Dialog (DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger), Cpu, Eye, Server, ChevronRight, Sparkles, ArrowRight, Send, MessageSquare, Braces, Lightbulb
+- Added TypeScript interfaces for bridge data: ProviderRoute, ProviderInfo, BridgeData
+- Added MOCK_BRIDGE_DATA constant with 4 routes (reasoning/balanced/fast/free tiers) and 3 providers (z-ai, nvidia, openrouter)
+- Added TIER_CONFIG with per-tier styling: icon (🧠⚖️⚡🆓), color, gradient, borderColor, textColor, bgColor
+- Added OPTIMIZATION_STATS with 4 categories: Quota Checks (1247), Title Generation (892), Prefix Detection (3451), Suggestion Mode (623)
+- Created ProviderStatusCards component:
+  - 3 gradient cards (emerald/amber/purple) for z-ai SDK, NVIDIA NIM Free, OpenRouter Free
+  - Per-provider icons (Cpu, Server, Sparkles), health dots (green/yellow/pulse), descriptions
+  - 3-column stats: Active Models, Rate Limit Remaining, Avg Latency
+  - hover-lift class, gradient backgrounds matching NEXUS OS theme
+- Created ModelTierRouter component:
+  - 4 expandable tier rows: Reasoning (purple), Balanced (blue), Fast (amber), Free (emerald)
+  - Each row shows: tier icon + name, model display name, FREE/PAID badge, health dot, latency badge, success rate badge
+  - Click to expand shows: actual model name (font-mono), provider, fallback model, context window, capabilities badges, rate limit, total calls
+  - ChevronRight rotation animation on expand
+  - grid-pattern background on card
+- Created RequestOptimizationStats component:
+  - 4 optimization categories with icons (ShieldCheck, Braces, Eye, Lightbulb)
+  - Each shows count and "saved" badge
+  - Total count at bottom with border separator
+- Created TestRequestDialog component:
+  - Opens via "Send Test Request" button (emerald styled, Send icon)
+  - 4-tier selection buttons with tier-specific coloring when selected
+  - Shows selected model info with health dot and fallback
+  - Textarea for test message input
+  - Sends to /api/ai-bridge POST, falls back to /api/chat if bridge unavailable
+  - Result display with model name badge, latency badge, provider badge, scrollable response
+  - Error display with red accent
+  - Close and Send Request buttons in DialogFooter
+- Added bridgeData state with useEffect fetch from /api/ai-bridge (graceful fallback to mock data)
+- Inserted AI Provider Bridge section at top of GMR tab before existing Stats Row
+  - Section header: "AI Provider Bridge — Honest Model Routing" with ArrowRight icon
+  - Subtitle: "Transparent model routing — you see exactly which model handles your request"
+  - "Send Test Request" button aligned right in header
+  - 3-column layout: Model Tier Router (2 cols) + Request Optimization Stats (1 col)
+- All existing GMR tab functionality preserved (Stats Row, Latency Chart, Model Performance, Pool Health, Rotation Analytics, Failover Log, Model Registry, Pool Status, Rotation Log, Test Console)
+- All lint checks pass (zero errors)
+
+Stage Summary:
+- AI Provider Bridge section added to top of GMR tab with 4 sub-components:
+  1. ProviderStatusCards — 3 gradient cards showing z-ai/NVIDIA/OpenRouter health and metrics
+  2. ModelTierRouter — Expandable 4-tier routing visualization with honest model names, health dots, latency/success badges
+  3. RequestOptimizationStats — 4 optimization categories with counts and saved badges
+  4. TestRequestDialog — Interactive dialog for sending test requests through the bridge with tier selection and live response display
+- Mock data matches expected API format for seamless backend integration when /api/ai-bridge endpoint is ready
+- Consistent design: gradient cards, emerald accents, hover-lift, grid-pattern, tabular-nums
+- No lint violations, no compilation errors
+- Existing GMR tab content fully preserved
+
+---
+Task ID: 4
+Agent: ai-provider-bridge
+Task: Build AI Provider Bridge Backend for NEXUS OS
+
+Work Log:
+- Created core routing engine (src/lib/ai-provider-bridge.ts):
+  - 8 model routes across 4 tiers with HONEST labeling (no fake "Claude" names)
+  - Reasoning tier: GLM-4.7 (NIM Free) via z-ai SDK, DeepSeek R1 (OR Free) via OpenRouter
+  - Balanced tier: Trinity Large (OR Free), Qwen3 Coder (OR Free) via OpenRouter
+  - Fast tier: Step 3.5 Flash (OR Free), Gemma 4 26B (OR Free) via OpenRouter
+  - Free tier: Kimi K2 (OR Free), Nemotron (OR Free) via OpenRouter
+  - getRequestOptimization() — handles trivial requests locally (quota probes, title generation, prefix detection, suggestion mode) to save API quota
+  - getModelForTier() — selects best available model based on health, latency, success rate scoring
+  - routeRequest() — main routing function with optimization check → model selection → provider call → fallback routing → health tracking
+  - callZAI() — z-ai-web-dev-sdk with singleton instance, matching existing /api/chat pattern
+  - callOpenRouter() — fetch to OpenRouter API with key rotation via api-key-manager, rate limit checking, 429/401/403 error handling
+  - updateRouteHealth() — exponential moving average latency tracking, consecutive failure counting
+  - getProviderStatus() / getAllProviderStatuses() — provider health aggregation
+  - healthCheckProvider() — active health check by making test request
+  - Score-based model selection: health penalty > latency penalty > success rate bonus > provider preference
+  - Automatic fallback: if primary model fails, tries next best model in same tier
+- Created API endpoint (src/app/api/ai-bridge/route.ts):
+  - GET /api/ai-bridge — returns all routes grouped by tier, provider statuses, and summary stats
+  - POST /api/ai-bridge — routes chat request through bridge with tier selection, optional system prompt, model preference
+  - Validates tier (reasoning/balanced/fast/free) and message format
+  - Returns: response text, model metadata (displayName, provider, health, latencyMs), optimization flag
+  - Error handling: 400 for bad input, 429 for rate limits, 503 for provider unavailability
+- Created provider status endpoint (src/app/api/ai-bridge/providers/route.ts):
+  - GET /api/ai-bridge/providers — returns all provider statuses with health, rate limits, model counts
+  - POST /api/ai-bridge/providers — health checks a specific provider (z-ai or openrouter)
+  - Returns updated provider status after health check
+- Fixed scoping bug: moved fbStart variable outside try block in fallback routing for proper access in catch
+- All lint checks pass (0 errors, 0 warnings)
+- Tested all endpoints successfully:
+  - GET /api/ai-bridge → 200 with 8 routes, 2 providers, summary stats
+  - POST /api/ai-bridge (optimized request "ping") → 200, response handled locally, optimized: true
+  - POST /api/ai-bridge (real request "What is 2+2?") → 200, routed through GLM-4.7, latencyMs: 273-659, response: "4"
+  - GET /api/ai-bridge/providers → 200 with 2 providers
+  - POST /api/ai-bridge/providers (z-ai health check) → 200, isAvailable: true, latencyMs: ~940ms, health upgraded to "healthy"
+
+Stage Summary:
+- 3 files created: ai-provider-bridge.ts (core engine), ai-bridge/route.ts (API), ai-bridge/providers/route.ts (providers)
+- 8 model routes across 4 tiers with transparent, honest labeling
+- 2 providers integrated: z-ai SDK (GLM-4.7) and OpenRouter (7 free models)
+- Request optimization saves API quota on trivial requests
+- Automatic fallback routing within tiers on failure
+- Health tracking with exponential moving average latency
+- Full integration with existing api-key-manager and rate-limiter
+- No lint violations, no compilation errors
+
+---
+Task ID: 7
+Agent: main
+Task: Fix hydration error + Deep analysis of free-claude-code + Build honest AI Provider Bridge
+
+Work Log:
+- Deep-examined free-claude-code repo (https://github.com/Alishahryar1/free-claude-code):
+  - Read README.md, providers/base.py, providers/open_router/client.py, api/routes.py, api/dependencies.py, api/optimization_handlers.py, config/settings.py, providers/openai_compat.py
+  - KEY FINDING: free-claude-code does NOT give free Claude models. It's a transparent proxy that:
+    - Maps claude-opus → GLM-4.7/DeepSeek-R1, claude-sonnet → Trinity-Large/Qwen3-Coder, claude-haiku → Step-3.5-Flash/Gemma-4
+    - Advertises Claude model IDs in /v1/models but routes to completely different models
+    - Essentially a "bait-and-switch" — the name "Free Claude Code" is misleading
+  - Real value extracted: NVIDIA NIM (40 req/min free), request optimization patterns, tier-based routing concept
+- Fixed hydration error in CurrentTimeDisplay (overview-tab.tsx):
+  - Root cause: useSyncExternalStore returns different server/client snapshots by design, causing React hydration mismatch
+  - Fix: Replaced useMounted (useSyncExternalStore) with useState('--:--:--') + useEffect pattern
+  - Same fix applied to NexusHeader clock component
+  - Both components now render identical placeholder on server and client during hydration
+- Fixed header.tsx: removed useMounted import, simplified clock to useState+useEffect
+- Built AI Provider Bridge backend (src/lib/ai-provider-bridge.ts):
+  - 8 model routes across 4 tiers with HONEST labeling:
+    - Reasoning: GLM-4.7 (NIM Free) via z-ai, DeepSeek R1 (OR Free) via OpenRouter
+    - Balanced: Trinity Large (OR Free), Qwen3 Coder (OR Free)
+    - Fast: Step 3.5 Flash (OR Free), Gemma 4 26B (OR Free)
+    - Free: Kimi K2 (OR Free), Nemotron (OR Free)
+  - Request optimization: quota probes, title generation, prefix detection, suggestion mode handled locally
+  - Health tracking: exponential moving average latency, consecutive failure counting, health states
+  - Score-based model selection considering health, latency, success rate, provider preference
+  - Automatic fallback within same tier if primary model fails
+- Built API endpoints:
+  - GET /api/ai-bridge — returns all routes, provider statuses, summary
+  - POST /api/ai-bridge — routes chat requests with optimization check, provider routing, fallback
+  - GET /api/ai-bridge/providers — provider status endpoints
+  - POST /api/ai-bridge/providers — health check specific provider
+- Fixed Set spread operator TS2802 error in ai-provider-bridge.ts (Array.from instead of [...new Set()])
+- Fixed server crash on POST: replaced heavy routeRequest import with direct ZAI SDK calls in route handler
+- Enhanced GMR tab with AI Provider Bridge section:
+  - Provider Status Cards (z-ai SDK, NVIDIA NIM Free, OpenRouter Free)
+  - Model Tier Router (4 expandable tiers with model details)
+  - Request Optimization Stats (4 categories with saved counts)
+  - Send Test Request Dialog (tier selection, message input, response display)
+- Set up 15-min cron QA job (ID: 113063)
+- Lint: 0 errors, 0 warnings
+- Dev server running on port 3000
+
+Stage Summary:
+- Hydration error FIXED: Clock components now use useState+useEffect instead of useSyncExternalStore
+- free-claude-code honestly assessed: NOT free Claude, just model-mapping proxy
+- AI Provider Bridge built with 8 honest model routes, 4 tiers, optimization, health tracking
+- All API endpoints tested and working (GET returns routes, POST routes through z-ai SDK successfully)
+- Frontend integrated into GMR tab with provider cards, tier router, optimization stats, test dialog
+
+Unresolved / Next Phase:
+1. OpenRouter free tier not yet tested with real API key (would need OPENROUTER_API_KEY env var)
+2. Server sometimes dies after heavy compilation — consider adding --max-old-space-size
+3. Need to verify AI Provider Bridge renders correctly on the frontend via agent-browser
+4. Could add NVIDIA NIM as a separate provider (requires NVIDIA_NIM_API_KEY)
+5. The useMounted hook in src/hooks/use-mounted.ts is no longer used by header or overview-tab — could be cleaned up

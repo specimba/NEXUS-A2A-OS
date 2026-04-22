@@ -53,7 +53,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
-import { useMounted } from '@/hooks/use-mounted'
+
 
 // ── AnimatedCounter ──────────────────────────────────────────────
 function AnimatedCounter({ value, duration = 1200, className = '' }: { value: number; duration?: number; className?: string }) {
@@ -390,40 +390,33 @@ function SystemUptimeCard() {
   )
 }
 
-// Current time display component — uses mounted guard to avoid hydration mismatch
+// Current time display — hydration-safe using useState+useEffect pattern
+// Avoids useSyncExternalStore which intentionally surfaces hydration mismatches
 function CurrentTimeDisplay() {
-  const [now, setNow] = useState<Date | null>(null)
-  const mounted = useMounted()
+  const [timeStr, setTimeStr] = useState('--:--:--')
+  const [dateStr, setDateStr] = useState('---')
 
   useEffect(() => {
-    // Use interval callback to set initial time (avoids direct setState in effect body)
-    const tick = () => setNow(new Date())
-    tick()
+    const tick = () => {
+      const now = new Date()
+      setTimeStr(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+      setDateStr(now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+    }
     const interval = setInterval(tick, 1000)
+    // Set initial time on next tick to avoid hydration mismatch
+    tick()
     return () => clearInterval(interval)
   }, [])
 
-  // During SSR or before mount, render a placeholder to avoid hydration mismatch
-  if (!mounted || !now) {
-    return (
-      <span className="flex items-center gap-1" suppressHydrationWarning>
-        <Clock className="h-3 w-3 text-muted-foreground" />
-        <span className="tabular-nums">--:--:--</span>
-        <span className="text-muted-foreground/50 mx-0.5">·</span>
-        <span>---</span>
-      </span>
-    )
-  }
-
-  const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-
+  // Always render same DOM structure — placeholder values match initial state
+  // so server and client render identically during hydration
+  const isLive = timeStr !== '--:--:--'
   return (
-    <span className="flex items-center gap-1" suppressHydrationWarning>
+    <span className="flex items-center gap-1">
       <Clock className="h-3 w-3 text-muted-foreground" />
       <span className="tabular-nums">{timeStr}</span>
       <span className="text-muted-foreground/50 mx-0.5">·</span>
-      <span>{dateStr}</span>
+      <span className={isLive ? '' : 'text-muted-foreground/50'}>{dateStr}</span>
     </span>
   )
 }

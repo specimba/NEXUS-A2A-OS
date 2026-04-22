@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
-import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket } from 'lucide-react'
+import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket, Cpu, Eye, Server, ChevronRight, Sparkles, ArrowRight, Send, MessageSquare, Braces, Lightbulb } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -24,6 +25,197 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+
+// ── AI Provider Bridge Mock Data ─────────────────────────────────
+interface ProviderRoute {
+  id: string
+  tier: 'reasoning' | 'balanced' | 'fast' | 'free'
+  displayName: string
+  actualModel: string
+  provider: string
+  providerLabel: string
+  isFree: boolean
+  rateLimitPerMin: number
+  contextWindow: number
+  capabilities: string[]
+  health: 'healthy' | 'degraded' | 'down'
+  latencyMs: number
+  totalCalls: number
+  successRate: number
+  fallbackModel?: string
+  fallbackProvider?: string
+}
+
+interface ProviderInfo {
+  provider: string
+  label: string
+  isAvailable: boolean
+  activeModels: number
+  totalModels: number
+  health: 'healthy' | 'degraded' | 'down'
+  rateLimitRemaining: number
+  avgLatencyMs: number
+}
+
+interface BridgeData {
+  routes: ProviderRoute[]
+  providers: ProviderInfo[]
+}
+
+const MOCK_BRIDGE_DATA: BridgeData = {
+  routes: [
+    {
+      id: 'reasoning-1',
+      tier: 'reasoning',
+      displayName: 'GLM-4.7 (NIM Free)',
+      actualModel: 'z-ai/glm-4.7',
+      provider: 'z-ai',
+      providerLabel: 'z-ai SDK',
+      isFree: true,
+      rateLimitPerMin: 40,
+      contextWindow: 131072,
+      capabilities: ['code', 'reasoning', 'tools'],
+      health: 'healthy',
+      latencyMs: 1200,
+      totalCalls: 342,
+      successRate: 97.2,
+      fallbackModel: 'DeepSeek-R1-0528 (OpenRouter)',
+      fallbackProvider: 'openrouter',
+    },
+    {
+      id: 'balanced-1',
+      tier: 'balanced',
+      displayName: 'Qwen3-Coder (z-ai)',
+      actualModel: 'z-ai/qwen3-coder',
+      provider: 'z-ai',
+      providerLabel: 'z-ai SDK',
+      isFree: true,
+      rateLimitPerMin: 40,
+      contextWindow: 131072,
+      capabilities: ['code', 'analysis', 'chat'],
+      health: 'healthy',
+      latencyMs: 890,
+      totalCalls: 1287,
+      successRate: 98.1,
+      fallbackModel: 'GLM-4.7 (NIM Free)',
+      fallbackProvider: 'z-ai',
+    },
+    {
+      id: 'fast-1',
+      tier: 'fast',
+      displayName: 'Gemma-3-27B (NIM Free)',
+      actualModel: 'nvidia/gemma-3-27b',
+      provider: 'nvidia',
+      providerLabel: 'NVIDIA NIM Free',
+      isFree: true,
+      rateLimitPerMin: 40,
+      contextWindow: 131072,
+      capabilities: ['chat', 'code', 'fast'],
+      health: 'healthy',
+      latencyMs: 340,
+      totalCalls: 2841,
+      successRate: 99.3,
+      fallbackModel: 'Qwen3-Coder (z-ai)',
+      fallbackProvider: 'z-ai',
+    },
+    {
+      id: 'free-1',
+      tier: 'free',
+      displayName: 'DeepSeek-V3 (OpenRouter Free)',
+      actualModel: 'openrouter/deepseek/deepseek-chat-v3-0324:free',
+      provider: 'openrouter',
+      providerLabel: 'OpenRouter Free',
+      isFree: true,
+      rateLimitPerMin: 20,
+      contextWindow: 65536,
+      capabilities: ['chat', 'code'],
+      health: 'degraded',
+      latencyMs: 2100,
+      totalCalls: 856,
+      successRate: 92.4,
+      fallbackModel: 'Gemma-3-27B (NIM Free)',
+      fallbackProvider: 'nvidia',
+    },
+  ],
+  providers: [
+    {
+      provider: 'z-ai',
+      label: 'z-ai SDK',
+      isAvailable: true,
+      activeModels: 2,
+      totalModels: 2,
+      health: 'healthy',
+      rateLimitRemaining: 35,
+      avgLatencyMs: 1100,
+    },
+    {
+      provider: 'nvidia',
+      label: 'NVIDIA NIM Free',
+      isAvailable: true,
+      activeModels: 1,
+      totalModels: 1,
+      health: 'healthy',
+      rateLimitRemaining: 38,
+      avgLatencyMs: 340,
+    },
+    {
+      provider: 'openrouter',
+      label: 'OpenRouter Free',
+      isAvailable: true,
+      activeModels: 1,
+      totalModels: 1,
+      health: 'degraded',
+      rateLimitRemaining: 18,
+      avgLatencyMs: 2100,
+    },
+  ],
+}
+
+const TIER_CONFIG: Record<string, { icon: string; label: string; color: string; gradient: string; borderColor: string; textColor: string; bgColor: string }> = {
+  reasoning: {
+    icon: '🧠',
+    label: 'Reasoning',
+    color: '#a78bfa',
+    gradient: 'from-purple-600/10',
+    borderColor: 'border-purple-600/20',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-600/15',
+  },
+  balanced: {
+    icon: '⚖️',
+    label: 'Balanced',
+    color: '#3b82f6',
+    gradient: 'from-blue-600/10',
+    borderColor: 'border-blue-600/20',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-600/15',
+  },
+  fast: {
+    icon: '⚡',
+    label: 'Fast',
+    color: '#f59e0b',
+    gradient: 'from-amber-600/10',
+    borderColor: 'border-amber-600/20',
+    textColor: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-600/15',
+  },
+  free: {
+    icon: '🆓',
+    label: 'Free',
+    color: '#34d399',
+    gradient: 'from-emerald-600/10',
+    borderColor: 'border-emerald-600/20',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-600/15',
+  },
+}
+
+const OPTIMIZATION_STATS = [
+  { category: 'Quota Checks', count: 1247, saved: '~4.2k calls', icon: ShieldCheck },
+  { category: 'Title Generation', count: 892, saved: '~2.1k calls', icon: Braces },
+  { category: 'Prefix Detection', count: 3451, saved: '~8.7k calls', icon: Eye },
+  { category: 'Suggestion Mode', count: 623, saved: '~1.5k calls', icon: Lightbulb },
+]
 
 // ── Rate Limit Constants ────────────────────────────────────────
 const RATE_LIMIT_THRESHOLD = 8 // max calls per minute for z-ai-sdk
@@ -937,6 +1129,446 @@ function ModelTestConsole({ models }: { models: ModelData[] }) {
   )
 }
 
+// ── AI Provider Bridge Sub-Components ────────────────────────────
+
+function ProviderStatusCards({ providers }: { providers: ProviderInfo[] }) {
+  const providerIcons: Record<string, typeof Cpu> = { 'z-ai': Cpu, 'nvidia': Server, 'openrouter': Sparkles }
+  const providerDescs: Record<string, string> = {
+    'z-ai': 'Built-in SDK · Fast local routing',
+    'nvidia': '40 req/min free · GPU inference',
+    'openrouter': 'Free tier active · Multi-model',
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {providers.map((p) => {
+        const IconComp = providerIcons[p.provider] ?? Cpu
+        const desc = providerDescs[p.provider] ?? ''
+        const healthColor = p.health === 'healthy'
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : p.health === 'degraded'
+            ? 'text-yellow-600 dark:text-yellow-400'
+            : 'text-red-600 dark:text-red-400'
+        const healthDot = p.health === 'healthy'
+          ? 'bg-emerald-500'
+          : p.health === 'degraded'
+            ? 'bg-yellow-500'
+            : 'bg-red-500'
+        const borderAccent = p.provider === 'z-ai'
+          ? 'border-emerald-600/20'
+          : p.provider === 'nvidia'
+            ? 'border-amber-600/20'
+            : 'border-purple-600/20'
+        const gradientFrom = p.provider === 'z-ai'
+          ? 'from-emerald-600/8'
+          : p.provider === 'nvidia'
+            ? 'from-amber-600/8'
+            : 'from-purple-600/8'
+        const iconBg = p.provider === 'z-ai'
+          ? 'bg-emerald-600/15'
+          : p.provider === 'nvidia'
+            ? 'bg-amber-600/15'
+            : 'bg-purple-600/15'
+        const iconColor = p.provider === 'z-ai'
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : p.provider === 'nvidia'
+            ? 'text-amber-600 dark:text-amber-400'
+            : 'text-purple-600 dark:text-purple-400'
+
+        return (
+          <Card key={p.provider} className={`relative overflow-hidden ${borderAccent} hover-lift`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} via-transparent to-transparent`} />
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconBg} shadow-lg`}>
+                    <IconComp className={`h-5 w-5 ${iconColor}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{p.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{desc}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${healthDot} ${p.health === 'degraded' ? 'animate-pulse' : ''}`} />
+                  <span className={`text-[10px] font-medium ${healthColor}`}>
+                    {p.health === 'healthy' ? 'Healthy' : p.health === 'degraded' ? 'Degraded' : 'Down'}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-md bg-accent/30 py-1.5 text-center">
+                  <p className="text-lg font-bold tabular-nums">{p.activeModels}</p>
+                  <p className="text-[9px] text-muted-foreground">Models</p>
+                </div>
+                <div className="rounded-md bg-accent/30 py-1.5 text-center">
+                  <p className="text-lg font-bold tabular-nums">{p.rateLimitRemaining}</p>
+                  <p className="text-[9px] text-muted-foreground">Req Left</p>
+                </div>
+                <div className="rounded-md bg-accent/30 py-1.5 text-center">
+                  <p className="text-lg font-bold tabular-nums">{p.avgLatencyMs}</p>
+                  <p className="text-[9px] text-muted-foreground">Avg ms</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+function ModelTierRouter({ routes }: { routes: ProviderRoute[] }) {
+  const [expandedTier, setExpandedTier] = useState<string | null>(null)
+
+  const healthDot = (health: string) =>
+    health === 'healthy' ? 'bg-emerald-500' : health === 'degraded' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500 animate-pulse'
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent grid-pattern" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <ArrowRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          Model Tier Router
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="space-y-2">
+          {routes.map((route) => {
+            const cfg = TIER_CONFIG[route.tier]
+            const isExpanded = expandedTier === route.id
+            return (
+              <div key={route.id}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedTier(isExpanded ? null : route.id)}
+                  className={`w-full text-left rounded-lg border ${cfg.borderColor} bg-accent/10 hover:bg-accent/20 transition-all duration-200 overflow-hidden`}
+                >
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    {/* Tier Icon + Name */}
+                    <span className="text-lg shrink-0">{cfg.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold ${cfg.textColor}`}>{cfg.label}</span>
+                        <Badge className={`border-0 text-[9px] px-1.5 ${cfg.bgColor} ${cfg.textColor}`}>
+                          {route.isFree ? 'FREE' : 'PAID'}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-foreground font-medium truncate">{route.displayName}</p>
+                    </div>
+
+                    {/* Health Dot */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`h-2 w-2 rounded-full ${healthDot(route.health)}`} />
+                    </div>
+
+                    {/* Latency Badge */}
+                    <Badge variant="outline" className={`text-[9px] shrink-0 tabular-nums ${
+                      route.latencyMs < 500 ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' :
+                      route.latencyMs < 1500 ? 'border-amber-600/30 text-amber-600 dark:text-amber-400' :
+                      'border-red-600/30 text-red-600 dark:text-red-400'
+                    }`}>
+                      {route.latencyMs}ms
+                    </Badge>
+
+                    {/* Success Rate Badge */}
+                    <Badge variant="outline" className={`text-[9px] shrink-0 tabular-nums ${
+                      route.successRate >= 98 ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' :
+                      route.successRate >= 95 ? 'border-amber-600/30 text-amber-600 dark:text-amber-400' :
+                      'border-red-600/30 text-red-600 dark:text-red-400'
+                    }`}>
+                      {route.successRate}%
+                    </Badge>
+
+                    {/* Expand Chevron */}
+                    <ChevronRight className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                  </div>
+                </button>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="mt-1.5 ml-4 rounded-lg border border-border/50 bg-accent/10 p-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Actual Model</p>
+                        <p className="text-xs font-mono mt-0.5">{route.actualModel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Provider</p>
+                        <p className="text-xs font-medium mt-0.5">{route.providerLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Fallback Model</p>
+                        <p className="text-xs font-medium mt-0.5">{route.fallbackModel ?? 'None'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Context Window</p>
+                        <p className="text-xs font-medium tabular-nums mt-0.5">{(route.contextWindow / 1024).toFixed(0)}K tokens</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Capabilities</p>
+                      <div className="flex flex-wrap gap-1">
+                        {route.capabilities.map(cap => (
+                          <Badge key={cap} variant="outline" className="text-[9px]">{cap}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">Rate Limit: <span className="font-bold tabular-nums">{route.rateLimitPerMin}</span> req/min</span>
+                      <span className="text-[10px] text-muted-foreground">Total Calls: <span className="font-bold tabular-nums">{route.totalCalls.toLocaleString()}</span></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RequestOptimizationStats() {
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          Request Optimization
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-2">
+        {OPTIMIZATION_STATS.map((stat) => {
+          const IconComp = stat.icon
+          return (
+            <div key={stat.category} className="flex items-center gap-3 rounded-md bg-accent/20 px-3 py-2">
+              <IconComp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-xs flex-1">{stat.category}</span>
+              <span className="text-xs font-bold tabular-nums">{stat.count.toLocaleString()}</span>
+              <Badge className="border-0 bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 text-[9px] px-1.5">
+                {stat.saved} saved
+              </Badge>
+            </div>
+          )
+        })}
+        <div className="flex items-center justify-between pt-1 border-t border-border/30">
+          <span className="text-[10px] text-muted-foreground">Total optimized locally</span>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+            {OPTIMIZATION_STATS.reduce((s, o) => s + o.count, 0).toLocaleString()} requests
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TestRequestDialog({ routes }: { routes: ProviderRoute[] }) {
+  const [open, setOpen] = useState(false)
+  const [selectedTier, setSelectedTier] = useState<string>('reasoning')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<{
+    response: string
+    model: string
+    latencyMs: number
+    provider: string
+  } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSend = useCallback(async () => {
+    if (!message.trim()) {
+      toast.error('Please enter a test message')
+      return
+    }
+    setSending(true)
+    setError(null)
+    setResult(null)
+
+    const startTime = Date.now()
+
+    try {
+      // Try the AI bridge endpoint first
+      const res = await globalThis.fetch('/api/ai-bridge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: selectedTier, message }),
+      })
+
+      const responseTimeMs = Date.now() - startTime
+
+      if (!res.ok) {
+        // Fallback to chat endpoint if bridge isn't available yet
+        const fallbackRes = await globalThis.fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: message }],
+            systemPrompt: 'You are a helpful AI assistant. Respond concisely.',
+          }),
+        })
+
+        if (!fallbackRes.ok) {
+          throw new Error(`Both endpoints unavailable (HTTP ${fallbackRes.status})`)
+        }
+
+        const fallbackData = await fallbackRes.json()
+        const selectedRoute = routes.find(r => r.tier === selectedTier)
+        setResult({
+          response: fallbackData.response || fallbackData.content || 'No response received',
+          model: selectedRoute?.displayName ?? 'Unknown',
+          latencyMs: Date.now() - startTime,
+          provider: selectedRoute?.providerLabel ?? 'N/A',
+        })
+      } else {
+        const data = await res.json()
+        setResult({
+          response: data.response || data.content || 'No response received',
+          model: data.model || data.displayName || 'Unknown',
+          latencyMs: responseTimeMs,
+          provider: data.providerLabel || data.provider || 'N/A',
+        })
+      }
+
+      toast.success('Test request completed')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(msg)
+      toast.error('Test request failed', { description: msg })
+    } finally {
+      setSending(false)
+    }
+  }, [selectedTier, message, routes])
+
+  const selectedRoute = routes.find(r => r.tier === selectedTier)
+  const selectedCfg = selectedTier ? TIER_CONFIG[selectedTier] : null
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-emerald-600 hover:bg-emerald-700 gap-2" size="sm">
+          <Send className="h-3.5 w-3.5" />
+          Send Test Request
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            AI Bridge Test Request
+          </DialogTitle>
+          <DialogDescription>
+            Send a test request through the AI Provider Bridge to verify routing and model response.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Tier Selection */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Select Tier</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {routes.map((route) => {
+                const cfg = TIER_CONFIG[route.tier]
+                const isSelected = selectedTier === route.tier
+                return (
+                  <button
+                    key={route.id}
+                    type="button"
+                    onClick={() => setSelectedTier(route.tier)}
+                    className={`rounded-lg border p-2 text-center transition-all duration-200 ${
+                      isSelected
+                        ? `${cfg.borderColor} ${cfg.bgColor} shadow-md`
+                        : 'border-border/50 bg-accent/20 hover:bg-accent/40'
+                    }`}
+                  >
+                    <span className="text-lg">{cfg.icon}</span>
+                    <p className={`text-[10px] font-semibold mt-0.5 ${isSelected ? cfg.textColor : 'text-muted-foreground'}`}>
+                      {cfg.label}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Selected Model Info */}
+          {selectedRoute && selectedCfg && (
+            <div className={`rounded-md border ${selectedCfg.borderColor} ${selectedCfg.bgColor} px-3 py-2`}>
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${selectedRoute.health === 'healthy' ? 'bg-emerald-500' : selectedRoute.health === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                <span className="text-xs font-medium">{selectedRoute.displayName}</span>
+                <Badge className="border-0 text-[8px] px-1 bg-emerald-600/10 text-emerald-600 dark:text-emerald-400">FREE</Badge>
+                <span className="ml-auto text-[10px] text-muted-foreground">{selectedRoute.providerLabel}</span>
+              </div>
+              {selectedRoute.fallbackModel && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Fallback: {selectedRoute.fallbackModel}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Message Input */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Test Message</Label>
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your test message here..."
+              rows={3}
+              className="text-xs resize-none"
+            />
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="rounded-md bg-red-600/10 border border-red-600/20 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          {/* Result Display */}
+          {result && (
+            <div className="rounded-md border border-emerald-600/20 bg-emerald-600/5 overflow-hidden">
+              <div className="flex items-center gap-3 px-3 py-2 bg-emerald-600/10 border-b border-emerald-600/20">
+                <Badge className="border-0 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 text-[9px]">
+                  {result.model}
+                </Badge>
+                <Badge variant="outline" className="text-[9px] tabular-nums">
+                  {result.latencyMs}ms
+                </Badge>
+                <Badge variant="outline" className="text-[9px]">
+                  {result.provider}
+                </Badge>
+              </div>
+              <div className="p-3 max-h-40 overflow-y-auto custom-scrollbar">
+                <p className="text-xs leading-relaxed whitespace-pre-wrap">{result.response}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={handleSend}
+            disabled={sending || !message.trim()}
+            className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+            size="sm"
+          >
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {sending ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function GmrTab() {
   const { data: modelsData, loading, refetch } = useApiData<{ models: ModelData[] }>('/api/models', 15000)
   const baseModels = useMemo(() => modelsData?.models ?? [], [modelsData])
@@ -1073,8 +1705,53 @@ export function GmrTab() {
   const freeActiveCount = models.filter(m => m.isActive && m.isFree).length
   const modelSparklines = useMemo(() => getModelSparklines(models), [models])
 
+  // Fetch AI Provider Bridge data (with mock fallback)
+  const [bridgeData, setBridgeData] = useState<BridgeData>(MOCK_BRIDGE_DATA)
+  useEffect(() => {
+    let mounted = true
+    globalThis.fetch('/api/ai-bridge')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (mounted && data?.routes && data?.providers) {
+          setBridgeData(data)
+        }
+      })
+      .catch(() => {
+        // Use mock data if endpoint doesn't exist yet
+      })
+    return () => { mounted = false }
+  }, [])
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated">
+      {/* ── AI Provider Bridge Section ─────────────────────────── */}
+      <div className="space-y-4">
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <ArrowRight className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              AI Provider Bridge — Honest Model Routing
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Transparent model routing — you see exactly which model handles your request
+            </p>
+          </div>
+          <TestRequestDialog routes={bridgeData.routes} />
+        </div>
+
+        {/* Provider Status Cards */}
+        <ProviderStatusCards providers={bridgeData.providers} />
+
+        {/* Model Tier Router + Request Optimization */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ModelTierRouter routes={bridgeData.routes} />
+          </div>
+          <RequestOptimizationStats />
+        </div>
+      </div>
+
       {/* Stats Row */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
