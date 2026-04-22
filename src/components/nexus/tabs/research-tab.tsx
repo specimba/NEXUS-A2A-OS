@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 
@@ -36,6 +36,8 @@ interface PaperItem {
   deliverable?: string
   status?: string
   priority: 'P0' | 'P1' | 'P2'
+  arxivId?: string
+  domain?: string
 }
 
 interface ResearchApiResponse {
@@ -157,6 +159,16 @@ const practiceSteps = [
   { step: '5', name: 'DELIVER', desc: 'Save manifest + queue, provide download, log to VAP chain', time: '2 min' },
 ]
 
+const domainOptions = [
+  { value: 'ai-ml', label: 'AI / Machine Learning' },
+  { value: 'safety', label: 'Safety & Alignment' },
+  { value: 'systems', label: 'Systems & Infrastructure' },
+  { value: 'architecture', label: 'Architecture & Design' },
+  { value: 'security', label: 'Security & Cryptography' },
+  { value: 'nlp', label: 'NLP & Language Models' },
+  { value: 'other', label: 'Other' },
+]
+
 function AddToQueueDialog({ open, onOpenChange, onAdd }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -164,8 +176,10 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
 }) {
   const [title, setTitle] = useState('')
   const [paperId, setPaperId] = useState('')
+  const [arxivId, setArxivId] = useState('')
   const [taskDesc, setTaskDesc] = useState('')
   const [priority, setPriority] = useState('')
+  const [domain, setDomain] = useState('')
   const [relevance, setRelevance] = useState([75])
 
   const handleAdd = () => {
@@ -180,11 +194,15 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
       task: taskDesc,
       priority: priority as 'P0' | 'P1' | 'P2',
       status: 'pending',
+      arxivId: arxivId || undefined,
+      domain: domain || undefined,
     })
     setTitle('')
     setPaperId('')
+    setArxivId('')
     setTaskDesc('')
     setPriority('')
+    setDomain('')
     setRelevance([75])
     onOpenChange(false)
   }
@@ -219,6 +237,30 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
               onChange={(e) => setPaperId(e.target.value)}
               className="h-9 text-xs font-mono"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium">arXiv ID</label>
+            <Input
+              placeholder="e.g. 2605.12345"
+              value={arxivId}
+              onChange={(e) => setArxivId(e.target.value)}
+              className="h-9 text-xs font-mono"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Domain</label>
+            <Select value={domain} onValueChange={setDomain}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Select domain..." />
+              </SelectTrigger>
+              <SelectContent>
+                {domainOptions.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -291,6 +333,142 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function DailyPracticeTimerCard() {
+  const TOTAL_SECONDS = 32 * 60 // 32 min total practice session
+  const [elapsed, setElapsed] = useState(0)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const remaining = Math.max(TOTAL_SECONDS - elapsed, 0)
+  const progressPct = Math.min((elapsed / TOTAL_SECONDS) * 100, 100)
+  const isLowTime = remaining < 5 * 60 && remaining > 0
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  const handleStart = useCallback(() => {
+    setIsRunning(true)
+  }, [])
+
+  const handlePause = useCallback(() => {
+    setIsRunning(false)
+  }, [])
+
+  const handleReset = useCallback(() => {
+    setIsRunning(false)
+    setElapsed(0)
+  }, [])
+
+  useEffect(() => {
+    if (isRunning) {
+      intervalRef.current = setInterval(() => {
+        setElapsed((prev) => {
+          if (prev >= TOTAL_SECONDS) {
+            setIsRunning(false)
+            toast.success('Practice session complete!', {
+              description: '32 minutes elapsed — great work!',
+            })
+            return TOTAL_SECONDS
+          }
+          return prev + 1
+        })
+      }, 1000)
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [isRunning])
+
+  return (
+    <Card className={`relative overflow-hidden shadow-lg hover-lift transition-colors ${isLowTime ? 'border-red-500/40 shadow-red-500/10' : 'border-emerald-600/20 shadow-emerald-600/5'}`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${isLowTime ? 'from-red-600/10 via-transparent to-red-600/5' : 'from-emerald-600/5 via-transparent to-transparent'}`} />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Timer className={`h-4 w-4 ${isLowTime ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`} /> Daily Practice Timer
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0 space-y-4">
+        {/* Timer Display */}
+        <div className="flex items-center justify-center gap-6">
+          <div className="text-center">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Elapsed</p>
+            <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatTime(elapsed)}</p>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <div className={`flex h-16 w-16 items-center justify-center rounded-full border-2 ${isLowTime ? 'border-red-500/40 bg-red-500/10' : 'border-emerald-600/30 bg-emerald-600/10'}`}>
+              <Clock className={`h-7 w-7 ${isLowTime ? 'text-red-500 animate-pulse' : 'text-emerald-600 dark:text-emerald-400'}`} />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Remaining</p>
+            <p className={`text-2xl font-bold tabular-nums ${isLowTime ? 'text-red-600 dark:text-red-400' : remaining === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{formatTime(remaining)}</p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>0:00</span>
+            <span>32:00</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${isLowTime ? 'bg-red-500' : 'bg-emerald-500'}`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center justify-center gap-2">
+          {!isRunning ? (
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleStart}
+              disabled={remaining === 0}
+            >
+              <Play className="h-3.5 w-3.5" />
+              {elapsed === 0 ? 'Start' : 'Resume'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs"
+              onClick={handlePause}
+            >
+              <Pause className="h-3.5 w-3.5" />
+              Pause
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1.5 text-xs"
+            onClick={handleReset}
+            disabled={elapsed === 0 && !isRunning}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </Button>
+        </div>
+
+        {/* Low time warning */}
+        {isLowTime && isRunning && (
+          <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2">
+            <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
+            <span className="text-xs text-red-600 dark:text-red-400">Less than 5 minutes remaining!</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -634,6 +812,56 @@ export function ResearchTab() {
           </div>
         </CardContent>
       </Card>
+      </div>
+
+      {/* Research Progress Card */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0 space-y-3">
+            {(() => {
+              const allPapers = [...allP0, ...allP1, ...allP2]
+              const notStarted = allPapers.filter(p => !p.status || p.status === 'pending').length
+              const inProgress = allPapers.filter(p => p.status === 'in_progress').length
+              const completed = allPapers.filter(p => p.status === 'completed').length
+              const blocked = allPapers.filter(p => p.status === 'blocked').length
+              const total = allPapers.length || 1
+              const statuses = [
+                { label: 'Not Started', count: notStarted, color: 'bg-zinc-400', textColor: 'text-zinc-500 dark:text-zinc-400', pct: Math.round((notStarted / total) * 100) },
+                { label: 'In Progress', count: inProgress, color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400', pct: Math.round((inProgress / total) * 100) },
+                { label: 'Completed', count: completed, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', pct: Math.round((completed / total) * 100) },
+                { label: 'Blocked', count: blocked, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', pct: Math.round((blocked / total) * 100) },
+              ]
+              return statuses.map((s) => (
+                <div key={s.label} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${s.color}`} />
+                      <span className="text-xs font-medium">{s.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold tabular-nums">{s.count}</span>
+                      <span className={`text-[10px] tabular-nums ${s.textColor}`}>({s.pct}%)</span>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${s.color}`}
+                      style={{ width: `${s.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            })()}
+          </CardContent>
+        </Card>
+
+        <DailyPracticeTimerCard />
       </div>
 
       <Tabs defaultValue="p0" className="space-y-4">

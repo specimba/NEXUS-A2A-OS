@@ -107,7 +107,8 @@ function validateResponse(output: string, domain: string, templateName: string):
   }
 }
 
-let zaiInstance: InstanceType<typeof ZAI> | null = null
+ 
+let zaiInstance: any = null
 
 async function getZAI() {
   if (!zaiInstance) {
@@ -275,7 +276,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const results = []
+       
+      const results: any[] = []
       for (const templateId of templateIds) {
         try {
           const template = await db.testTemplate.findUnique({ where: { id: templateId } })

@@ -275,7 +275,7 @@ function RunTestDialog({ template, onComplete }: { template: UITemplate; onCompl
   const [mode, setMode] = useState('')
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval>>()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
@@ -417,7 +417,7 @@ function BatchRunDialog({ templates, onBatchComplete }: { templates: UITemplate[
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentTemplate, setCurrentTemplate] = useState('')
-  const intervalRef = useRef<ReturnType<typeof setInterval>>()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
@@ -767,7 +767,7 @@ function DomainCoverageSection({ templates }: { templates: UITemplate[] }) {
       domainCounts[key] = (domainCounts[key] || 0) + 1
     })
     const colors: Record<string, string> = {
-      Cyber: COLORS.red, Compbio: COLORS.blue, Compbio: COLORS.blue,
+      Cyber: COLORS.red, Compbio: COLORS.blue,
       Pharmacology: COLORS.purple, Ai_safety: COLORS.orange, 'Ai safety': COLORS.orange,
       Chemistry: COLORS.yellow, Security: COLORS.emerald,
     }

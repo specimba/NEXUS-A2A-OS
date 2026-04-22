@@ -31,7 +31,9 @@ import {
   Radio,
   Wrench,
   FileDown,
+  Download,
   Trash2,
+  RefreshCw,
   Server,
   CircleDot,
   X,
@@ -43,6 +45,9 @@ import {
   ChevronUp,
   Wifi,
   HardDrive,
+  Info,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
@@ -99,14 +104,14 @@ const systemStatusColumnHeaders: Record<string, string> = {
 }
 
 const pillars = [
-  { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%' },
-  { name: 'Engine', icon: Router, status: 'operational', health: 98, desc: 'Hermes intent routing', uptime: '99.94%' },
-  { name: 'Governor', icon: Shield, status: 'operational', health: 95, desc: 'Kaiju + TrustScorer', uptime: '99.87%' },
-  { name: 'Vault', icon: Database, status: 'operational', health: 100, desc: '5-Track memory', uptime: '100%' },
-  { name: 'GMR', icon: Router, status: 'operational', health: 92, desc: 'Model rotation', uptime: '99.71%' },
-  { name: 'Swarm', icon: Bug, status: 'degraded', health: 88, desc: 'Worker pool', uptime: '98.44%' },
-  { name: 'Monitor', icon: Activity, status: 'operational', health: 96, desc: 'Token budget + audit', uptime: '99.92%' },
-  { name: 'Config', icon: Settings, status: 'operational', health: 100, desc: 'Constitution', uptime: '100%' },
+  { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%', trend: 'stable' as const },
+  { name: 'Engine', icon: Router, status: 'operational', health: 98, desc: 'Hermes intent routing', uptime: '99.94%', trend: 'up' as const },
+  { name: 'Governor', icon: Shield, status: 'operational', health: 95, desc: 'Kaiju + TrustScorer', uptime: '99.87%', trend: 'down' as const },
+  { name: 'Vault', icon: Database, status: 'operational', health: 100, desc: '5-Track memory', uptime: '100%', trend: 'stable' as const },
+  { name: 'GMR', icon: Router, status: 'operational', health: 92, desc: 'Model rotation', uptime: '99.71%', trend: 'down' as const },
+  { name: 'Swarm', icon: Bug, status: 'degraded', health: 88, desc: 'Worker pool', uptime: '98.44%', trend: 'down' as const },
+  { name: 'Monitor', icon: Activity, status: 'operational', health: 96, desc: 'Token budget + audit', uptime: '99.92%', trend: 'up' as const },
+  { name: 'Config', icon: Settings, status: 'operational', health: 100, desc: 'Constitution', uptime: '100%', trend: 'stable' as const },
 ]
 
 const tokenHistory = [
@@ -218,6 +223,15 @@ const collapseRateTrend = [
   { name: '18', value: 24.1 },
   { name: '19', value: 23.8 },
   { name: '20', value: 23.4 },
+]
+
+// System Notifications data
+const systemNotificationsData = [
+  { id: 'n1', severity: 'error' as const, message: 'Swarm worker-1 unresponsive — auto-recovery initiated', timestamp: '2m ago' },
+  { id: 'n2', severity: 'warn' as const, message: 'GMR model kimi-k2.5 latency spike detected (>2s)', timestamp: '8m ago' },
+  { id: 'n3', severity: 'info' as const, message: 'Constitution v3.2 patch applied successfully', timestamp: '15m ago' },
+  { id: 'n4', severity: 'warn' as const, message: 'Token budget utilization exceeded 70% threshold', timestamp: '22m ago' },
+  { id: 'n5', severity: 'info' as const, message: 'Vault memory compaction completed — 12% space reclaimed', timestamp: '35m ago' },
 ]
 
 // Recent Governor decisions for mini-table
@@ -375,6 +389,93 @@ function SystemUptimeCard() {
   )
 }
 
+// Current time display component
+function CurrentTimeDisplay() {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  return (
+    <span className="flex items-center gap-1">
+      <Clock className="h-3 w-3 text-muted-foreground" />
+      <span className="tabular-nums">{timeStr}</span>
+      <span className="text-muted-foreground/50 mx-0.5">·</span>
+      <span>{dateStr}</span>
+    </span>
+  )
+}
+
+// System Notifications Card component
+function SystemNotificationsCard() {
+  const [notifications, setNotifications] = useState(systemNotificationsData)
+
+  const markAllRead = useCallback(() => {
+    setNotifications([])
+    toast.success('Notifications cleared', {
+      description: 'All system notifications marked as read',
+      duration: 2000,
+    })
+  }, [])
+
+  return (
+    <Card className="relative overflow-hidden border-orange-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bell className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+            System Notifications
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {notifications.length > 0 && (
+              <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px]">
+                {notifications.length}
+              </Badge>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] text-muted-foreground hover:text-foreground px-2"
+                onClick={markAllRead}
+              >
+                <BellOff className="h-3 w-3 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-3 pt-0">
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+            <CheckCircle2 className="h-6 w-6 mb-1.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs">All caught up — no new notifications</span>
+          </div>
+        ) : (
+          <div className="max-h-56 space-y-1.5 overflow-y-auto custom-scrollbar">
+            {notifications.map((n) => (
+              <div key={n.id} className="flex items-start gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
+                {n.severity === 'error' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-red-600 dark:text-red-400" />}
+                {n.severity === 'warn' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-600 dark:text-orange-400" />}
+                {n.severity === 'info' && <Info className="mt-0.5 h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />}
+                <span className="flex-1 text-muted-foreground">{n.message}</span>
+                <span className="shrink-0 text-[10px] text-muted-foreground/50 tabular-nums">{n.timestamp}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ── Diagnostic Result Types ──────────────────────────────────────
 interface DiagnosticResult {
   pillar: string
@@ -443,6 +544,10 @@ export function OverviewTab() {
     switch (action) {
       case 'diagnostic':
         runDiagnostic()
+        toast.info('Running diagnostic', {
+          description: 'Scanning all 8 system pillars...',
+          duration: 2000,
+        })
         break
       case 'export': {
         const json = JSON.stringify({
@@ -460,13 +565,19 @@ export function OverviewTab() {
         break
       }
       case 'clear': {
-        // Force refetch all API data by triggering a window event
         toast.success('Cache cleared', {
           description: 'All cached data purged. Refreshing from source...',
           duration: 3000,
         })
-        // Force page data refresh
         setTimeout(() => window.location.reload(), 1000)
+        break
+      }
+      case 'refresh': {
+        toast.info('Refreshing data', {
+          description: 'Re-fetching all system metrics from source...',
+          duration: 2000,
+        })
+        setTimeout(() => window.location.reload(), 1500)
         break
       }
     }
@@ -492,23 +603,33 @@ export function OverviewTab() {
                   <Zap className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold">Welcome back, Speci</h2>
-                  <p className="text-xs text-muted-foreground">NEXUS OS v3.0 — All 8 pillars operational · Session active</p>
+                  <h2 className="text-base font-semibold">
+                    Welcome back, Speci —{' '}
+                    <span
+                      className="bg-clip-text text-transparent font-extrabold"
+                      style={{ backgroundImage: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #34d399)', backgroundSize: '200% 100%', animation: 'gradientBorder 3s linear infinite' }}
+                    >
+                      NEXUS OS
+                    </span>
+                  </h2>
+                  <p className="text-xs text-muted-foreground">v3.0 — All 8 pillars operational · Session active</p>
                 </div>
               </div>
               <div className="hidden sm:flex items-center gap-2">
                 <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse status-glow-green" />
-                  All Systems Go
+                  System Status: OPERATIONAL
                 </Badge>
                 <Badge variant="outline" className="text-[10px]">⌘K for commands</Badge>
               </div>
             </div>
-            {/* Server count indicator */}
-            <div className="relative mt-3 flex items-center gap-4 text-[10px] text-muted-foreground">
+            {/* Server count indicator + uptime + current time */}
+            <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><Server className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> 3 nodes active</span>
               <span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-600 dark:text-blue-400" /> 8/8 pillars online</span>
               <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-600 dark:text-orange-400" /> 73,450 tokens left</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Uptime: 3d 14h 27m</span>
+              <CurrentTimeDisplay />
             </div>
           </div>
         </div>
@@ -660,14 +781,14 @@ export function OverviewTab() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Actions</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200"
                   onClick={() => handleQuickAction('diagnostic')}
                 >
-                  <Wrench className="h-4 w-4" />
+                  <Activity className="h-4 w-4" />
                   <span className="text-[11px] font-medium">Run Diagnostic</span>
                 </Button>
                 <Button
@@ -676,7 +797,7 @@ export function OverviewTab() {
                   className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200"
                   onClick={() => handleQuickAction('export')}
                 >
-                  <FileDown className="h-4 w-4" />
+                  <Download className="h-4 w-4" />
                   <span className="text-[11px] font-medium">Export Report</span>
                 </Button>
                 <Button
@@ -687,6 +808,15 @@ export function OverviewTab() {
                 >
                   <Trash2 className="h-4 w-4" />
                   <span className="text-[11px] font-medium">Clear Cache</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-auto flex-col gap-2 py-3 border-purple-600/20 hover:bg-purple-600/10 hover:border-purple-600/30 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 transition-all duration-200"
+                  onClick={() => handleQuickAction('refresh')}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="text-[11px] font-medium">Refresh Data</span>
                 </Button>
               </div>
             </CardContent>
@@ -712,51 +842,72 @@ export function OverviewTab() {
           {pillars.map((p, idx) => (
             <motion.div key={p.name} variants={staggerItem} custom={idx}>
               <Card
-                className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 ${
-                  p.health < 95 ? 'animate-pulse-subtle' : ''
+                className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 cursor-pointer ${
+                  p.health < 90 ? 'animate-pulse-subtle' : ''
                 }`}
+                onClick={() => toast.info(`${p.name} pillar`, { description: `Health: ${p.health}% · ${p.desc} · Uptime: ${p.uptime}`, duration: 3000 })}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${
+                  p.health < 70 ? 'from-red-600/8 via-transparent to-transparent' :
                   p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
-                  p.health >= 95 ? 'from-emerald-600/3 via-transparent to-transparent' :
+                  p.health >= 90 ? 'from-emerald-600/3 via-transparent to-transparent' :
                   'from-yellow-600/5 via-transparent to-transparent'
                 }`} />
                 <CardContent className="relative p-4">
                   <div className="flex items-start gap-3">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                      p.health < 70 ? 'bg-red-600/10' :
                       p.health === 100 ? 'bg-emerald-600/10' :
-                      p.health >= 95 ? 'bg-emerald-600/8' :
+                      p.health >= 90 ? 'bg-emerald-600/8' :
                       'bg-yellow-600/10'
                     }`}>
                       <p.icon className={`h-4 w-4 ${
+                        p.health < 70 ? 'text-red-600 dark:text-red-400' :
                         p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
-                        p.health >= 95 ? 'text-emerald-500 dark:text-emerald-400' :
+                        p.health >= 90 ? 'text-emerald-500 dark:text-emerald-400' :
                         'text-yellow-600 dark:text-yellow-400'
                       }`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{p.name}</span>
-                        <Badge
-                          variant="secondary"
-                          className={`h-5 text-[10px] border-0 ${
-                            p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 badge-glow-emerald' :
-                            p.health >= 95 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
-                            'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 badge-glow-red'
-                          }`}
-                        >
-                          {p.health}%
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {p.trend === 'up' && <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+                          {p.trend === 'down' && <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />}
+                          <Badge
+                            variant="secondary"
+                            className={`h-5 text-[10px] border-0 ${
+                              p.health < 70 ? 'bg-red-600/20 text-red-600 dark:text-red-400 badge-glow-red' :
+                              p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 badge-glow-emerald' :
+                              p.health >= 90 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
+                              'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 badge-glow-red'
+                            }`}
+                          >
+                            {p.health}%
+                          </Badge>
+                        </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">{p.desc}</p>
                       <div className="flex items-center justify-between mt-1">
                         <Progress value={p.health} className="h-1 flex-1" />
                         <span className="text-[9px] text-muted-foreground ml-2">{p.uptime}</span>
                       </div>
-                      {p.health < 95 && (
+                      {p.health < 70 && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="h-1 w-1 rounded-full bg-red-400 animate-pulse status-glow-red" />
+                          <Badge className="bg-red-600/20 text-red-600 dark:text-red-400 border-0 text-[8px] px-1 py-0">CRITICAL</Badge>
+                        </div>
+                      )}
+                      {p.health >= 70 && p.health < 90 && (
                         <div className="mt-1 flex items-center gap-1">
                           <span className="h-1 w-1 rounded-full bg-yellow-400 animate-pulse status-glow-yellow" />
                           <span className="text-[9px] text-yellow-600 dark:text-yellow-400">Below threshold</span>
+                        </div>
+                      )}
+                      {p.health >= 90 && p.health < 100 && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse status-glow-green" />
+                          <span className="text-[9px] text-emerald-600 dark:text-emerald-400">Operational</span>
                         </div>
                       )}
                       {p.health === 100 && (
@@ -828,12 +979,12 @@ export function OverviewTab() {
         <SystemHealthTimeline />
       </motion.div>
 
-      {/* Recent Governor Decisions + Quick Stats */}
+      {/* Recent Governor Decisions + Activity Feed + Notifications + Stats */}
       <motion.div
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="grid gap-4 lg:grid-cols-3"
+        className="grid gap-4 lg:grid-cols-4"
       >
         {/* Recent Governor Decisions */}
         <motion.div variants={staggerItem}>
@@ -891,6 +1042,11 @@ export function OverviewTab() {
               <LiveActivityFeed />
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* System Notifications */}
+        <motion.div variants={staggerItem}>
+          <SystemNotificationsCard />
         </motion.div>
 
         {/* Quick Stats */}

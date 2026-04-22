@@ -1870,7 +1870,7 @@ export function GovernorTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <Eye className="h-4 w-4" /> Decision Log
             </CardTitle>
-            <ExportButton data={decisions} filename="governor-decisions" columnHeaders={governorDecisionsColumnHeaders} />
+            <ExportButton data={decisions as unknown as Record<string, unknown>[]} filename="governor-decisions" columnHeaders={governorDecisionsColumnHeaders} />
           </div>
         </CardHeader>
         <CardContent className="p-0">

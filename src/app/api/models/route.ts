@@ -2,7 +2,8 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
 
-let zaiInstance: InstanceType<typeof ZAI> | null = null
+ 
+let zaiInstance: any = null
 
 async function getZAI() {
   if (!zaiInstance) {
@@ -119,7 +120,8 @@ export async function POST(request: NextRequest) {
     if (action === 'batch_health_check') {
       // Run health check on all active models
       const allModels = await db.modelEntry.findMany({ where: { isActive: true } })
-      const results = []
+       
+      const results: any[] = []
 
       for (const m of allModels) {
         const startTime = Date.now()

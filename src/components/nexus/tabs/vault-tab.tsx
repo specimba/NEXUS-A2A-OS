@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -32,7 +32,9 @@ import {
   Link2,
   ShieldCheck,
   Loader2,
+  Download,
 } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 
@@ -155,8 +157,61 @@ export function VaultTab() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState<VerifyChainResponse | null>(null)
+  const [animatedEntries, setAnimatedEntries] = useState(0)
 
   const vapChainRef = useRef<HTMLDivElement>(null)
+
+  // Animate timeline entries on mount
+  useEffect(() => {
+    if (entries.length > 0) {
+      let count = 0
+      const interval = setInterval(() => {
+        count += 1
+        setAnimatedEntries(count)
+        if (count >= Math.min(entries.length, 5)) clearInterval(interval)
+      }, 100)
+      return () => clearInterval(interval)
+    }
+  }, [entries.length])
+
+  // Pie chart data from track counts
+  const pieData = useMemo(() => {
+    return tracks.map((t) => ({
+      name: t.id,
+      label: t.label,
+      value: trackCounts[t.id] ?? 0,
+      color: t.id === 'EVENT' ? '#059669' : t.id === 'TRUST' ? '#2563eb' : t.id === 'CAP' ? '#ea580c' : t.id === 'FAIL' ? '#dc2626' : '#9333ea',
+    })).filter((d) => d.value > 0)
+  }, [trackCounts])
+
+  // Recent activity (last 5 entries)
+  const recentActivity = useMemo(() => {
+    return entries.slice(0, 5)
+  }, [entries])
+
+  const handleExportCsv = useCallback(() => {
+    const headers = ['ID', 'Track', 'Agent', 'Key', 'Value', 'Score', 'Time']
+    const rows = filteredEntries.map((e) => [
+      e.id,
+      e.track,
+      e.agent,
+      e.key,
+      `"${e.value.replace(/"/g, '""')}"`,
+      e.score.toFixed(2),
+      e.time,
+    ])
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `vault-export-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Vault data exported', {
+      description: `${filteredEntries.length} entries exported as CSV`,
+    })
+  }, [filteredEntries])
 
   const hasFilters = searchQuery !== '' || activeTrack !== null
 
@@ -297,10 +352,22 @@ export function VaultTab() {
               <p className="text-xs text-muted-foreground">{activeTracks} tracks operational · {totalEntries.toLocaleString()} entries · Last verified: {verifyResult ? 'just now' : 'pending'}</p>
             </div>
           </div>
-          <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Operational
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="border-0 text-[10px] gap-1 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Operational
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              onClick={handleExportCsv}
+              disabled={filteredEntries.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -367,6 +434,123 @@ export function VaultTab() {
                 <TrendingUp className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Vault Statistics Pie Chart + Recent Activity Timeline */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Pie Chart */}
+        <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Vault Statistics
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            {pieData.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="h-[180px] w-[180px] shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number, name: string) => {
+                          const item = pieData.find((d) => d.name === name)
+                          const pct = totalEntries > 0 ? Math.round((value / totalEntries) * 100) : 0
+                          return [`${value} entries (${pct}%)`, item?.label ?? name]
+                        }}
+                        contentStyle={{
+                          fontSize: '11px',
+                          borderRadius: '8px',
+                          border: '1px solid hsl(var(--border))',
+                          backgroundColor: 'hsl(var(--card))',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {pieData.map((d) => {
+                    const pct = totalEntries > 0 ? Math.round((d.value / totalEntries) * 100) : 0
+                    return (
+                      <div key={d.name} className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="text-xs font-medium flex-1">{d.label}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{d.value}</span>
+                        <span className="text-[10px] tabular-nums text-muted-foreground">({pct}%)</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground">
+                No vault entries to display
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity Timeline */}
+        <Card className="relative overflow-hidden border-blue-600/20 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Recent Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            {recentActivity.length > 0 ? (
+              <div className="space-y-0">
+                {recentActivity.map((entry, i) => {
+                  const tc = getTrackConfig(entry.track)
+                  const isVisible = i < animatedEntries
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`relative flex items-start gap-3 transition-all duration-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}
+                      style={{ transitionDelay: `${i * 100}ms` }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${tc.bgColor}`}>
+                          <tc.icon className={`h-3 w-3 ${tc.textColor}`} />
+                        </div>
+                        {i < recentActivity.length - 1 && (
+                          <div className="w-px flex-1 min-h-[24px] bg-border" />
+                        )}
+                      </div>
+                      <div className={`flex-1 min-w-0 mb-3 rounded-md border-l-2 ${tc.borderLeftColor} bg-accent/20 px-3 py-2`}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`text-[8px] ${tc.badgeBg} border-0`}>{entry.track}</Badge>
+                          <span className="text-xs font-medium truncate">{entry.key}</span>
+                          <span className="ml-auto text-[9px] text-muted-foreground font-mono shrink-0">{entry.time}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Agent: {entry.agent}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground">
+                No recent activity
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

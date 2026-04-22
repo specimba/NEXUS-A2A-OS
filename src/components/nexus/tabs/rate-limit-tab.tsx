@@ -311,19 +311,19 @@ export function RateLimitTab() {
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Providers', value: `${summary.healthyProviders}/${summary.totalProviders}`, icon: Activity, color: 'emerald', border: 'border-emerald-600/20', gradient: 'from-emerald-600/10' },
-            { label: 'Total Requests', value: summary.totalRequests, icon: Hash, color: 'blue', border: 'border-blue-600/20', gradient: 'from-blue-600/10' },
-            { label: 'Rate Limited', value: summary.rateLimitedCount, icon: AlertTriangle, color: 'red', border: 'border-red-600/20', gradient: 'from-red-600/10' },
-            { label: 'Cached', value: summary.cachedCount, icon: Database, color: 'emerald', border: 'border-emerald-600/20', gradient: 'from-emerald-600/10' },
-            { label: 'Queue', value: summary.totalQueueSize, icon: Clock, color: 'yellow', border: 'border-yellow-600/20', gradient: 'from-yellow-600/10' },
-            { label: 'Hit Rate', value: `${(summary.cacheHitRate * 100).toFixed(0)}%`, icon: Zap, color: 'purple', border: 'border-purple-600/20', gradient: 'from-purple-600/10' },
+            { label: 'Providers', value: `${summary.healthyProviders}/${summary.totalProviders}`, icon: Activity, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Total Requests', value: summary.totalRequests, icon: Hash, border: 'border-blue-600/20', gradient: 'from-blue-600/10 via-blue-600/5 to-transparent', iconBg: 'bg-blue-600/15', iconText: 'text-blue-600 dark:text-blue-400' },
+            { label: 'Rate Limited', value: summary.rateLimitedCount, icon: AlertTriangle, border: 'border-red-600/20', gradient: 'from-red-600/10 via-red-600/5 to-transparent', iconBg: 'bg-red-600/15', iconText: 'text-red-600 dark:text-red-400' },
+            { label: 'Cached', value: summary.cachedCount, icon: Database, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Queue', value: summary.totalQueueSize, icon: Clock, border: 'border-yellow-600/20', gradient: 'from-yellow-600/10 via-yellow-600/5 to-transparent', iconBg: 'bg-yellow-600/15', iconText: 'text-yellow-600 dark:text-yellow-400' },
+            { label: 'Hit Rate', value: `${(summary.cacheHitRate * 100).toFixed(0)}%`, icon: Zap, border: 'border-purple-600/20', gradient: 'from-purple-600/10 via-purple-600/5 to-transparent', iconBg: 'bg-purple-600/15', iconText: 'text-purple-600 dark:text-purple-400' },
           ].map((card) => (
             <Card key={card.label} className={`relative overflow-hidden ${card.border} hover-lift`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} via-${card.color}-600/5 to-transparent`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient}`} />
               <CardContent className="relative p-3">
                 <div className="flex items-center gap-2">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-${card.color}-600/15`}>
-                    <card.icon className={`h-4 w-4 text-${card.color}-600 dark:text-${card.color}-400`} />
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
+                    <card.icon className={`h-4 w-4 ${card.iconText}`} />
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground">{card.label}</p>
@@ -439,15 +439,10 @@ export function RateLimitTab() {
             <NexusBarChart
               data={Object.entries(data.providerStats).map(([provider, stats]) => ({
                 name: provider.charAt(0).toUpperCase() + provider.slice(1),
-                requests: stats.total,
-                cached: stats.cached,
-                errors: stats.errors,
+                value: stats.total,
               }))}
-              bars={[
-                { dataKey: 'requests', color: '#10b981', name: 'Requests' },
-                { dataKey: 'cached', color: '#3b82f6', name: 'Cached' },
-                { dataKey: 'errors', color: '#ef4444', name: 'Errors' },
-              ]}
+              dataKey="value"
+              color="#10b981"
               height={200}
             />
           </CardContent>
