@@ -15,3 +15,5 @@ Thumbs.db
 
 # But track these explicitly:
 !.gitkeep
+*.egg-info/
+uv.lock
