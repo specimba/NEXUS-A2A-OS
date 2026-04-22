@@ -167,7 +167,7 @@ export function NexusFooter() {
 
       {/* Right side: uptime + live */}
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <span>Session: {uptime}</span>
+        <span suppressHydrationWarning>Session: {uptime}</span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse status-pulse-green status-glow-green" />

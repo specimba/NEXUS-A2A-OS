@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
+import { useMounted } from '@/hooks/use-mounted'
 
 // ── AnimatedCounter ──────────────────────────────────────────────
 function AnimatedCounter({ value, duration = 1200, className = '' }: { value: number; duration?: number; className?: string }) {
@@ -389,20 +390,36 @@ function SystemUptimeCard() {
   )
 }
 
-// Current time display component
+// Current time display component — uses mounted guard to avoid hydration mismatch
 function CurrentTimeDisplay() {
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
+  const mounted = useMounted()
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000)
+    // Use interval callback to set initial time (avoids direct setState in effect body)
+    const tick = () => setNow(new Date())
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // During SSR or before mount, render a placeholder to avoid hydration mismatch
+  if (!mounted || !now) {
+    return (
+      <span className="flex items-center gap-1" suppressHydrationWarning>
+        <Clock className="h-3 w-3 text-muted-foreground" />
+        <span className="tabular-nums">--:--:--</span>
+        <span className="text-muted-foreground/50 mx-0.5">·</span>
+        <span>---</span>
+      </span>
+    )
+  }
 
   const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex items-center gap-1" suppressHydrationWarning>
       <Clock className="h-3 w-3 text-muted-foreground" />
       <span className="tabular-nums">{timeStr}</span>
       <span className="text-muted-foreground/50 mx-0.5">·</span>

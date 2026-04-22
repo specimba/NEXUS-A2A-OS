@@ -15,6 +15,7 @@ const QUICK_PROMPTS = [
   'System Status',
   'Run StressLab Test',
   'Show Trust Scores',
+  'Free Claude Models',
 ]
 
 function TypingIndicator() {
@@ -136,23 +137,53 @@ export function NexusAssistant() {
       setIsLoading(true)
 
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [
-              ...currentMessages,
-              { role: 'user', content: trimmed },
-            ],
-          }),
-        })
+        // Try free Claude proxy first (port 8082)
+        let response: Response | null = null
+        let usedEndpoint = ''
+
+        try {
+          response = await fetch('/api/claude', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [
+                ...currentMessages,
+                { role: 'user', content: trimmed },
+              ],
+            }),
+          })
+          if (response.ok) {
+            usedEndpoint = 'claude-proxy'
+          } else {
+            response = null
+          }
+        } catch {
+          // Free Claude proxy not available, fall through
+          response = null
+        }
+
+        // Fallback to z-ai-web-dev-sdk
+        if (!response) {
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [
+                ...currentMessages,
+                { role: 'user', content: trimmed },
+              ],
+            }),
+          })
+          usedEndpoint = 'z-ai-sdk'
+        }
 
         if (!response.ok) {
           throw new Error('Failed to get response')
         }
 
         const data = await response.json()
-        addChatMessage({ role: 'assistant', content: data.response })
+        const modelInfo = data.model ? ` [via ${data.model}]` : usedEndpoint === 'claude-proxy' ? ' [free Claude]' : ''
+        addChatMessage({ role: 'assistant', content: data.response + modelInfo })
       } catch {
         addChatMessage({
           role: 'assistant',

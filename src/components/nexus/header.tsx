@@ -19,8 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
+import { useMounted } from '@/hooks/use-mounted'
 
 const tabTitles: Record<string, string> = {
   overview: 'System Overview',
@@ -238,6 +239,7 @@ export function NexusHeader() {
   const { activeTab, setSidebarOpen, isExportDialogOpen, setExportDialogOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('')
+  const mounted = useMounted()
   const [configOpen, setConfigOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
 
@@ -319,7 +321,7 @@ export function NexusHeader() {
       </Button>
 
       {/* Clock */}
-      <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
+      <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums" suppressHydrationWarning>{mounted ? time : '--:--:--'}</span>
 
       {/* System Config */}
       <Button

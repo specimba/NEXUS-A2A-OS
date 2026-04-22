@@ -1726,3 +1726,45 @@ Unresolved / Next Phase:
 4. Add WebSocket for real-time updates
 5. Consider adding breadcrumb navigation or tab history
 6. Add more export functionality
+
+---
+Task ID: free-claude-integration
+Agent: main
+Task: Integrate free-claude-code proxy, fix hydration error, enhance AI Assistant
+
+Work Log:
+- Fixed hydration mismatch error in CurrentTimeDisplay component (overview-tab.tsx)
+  - Created useMounted hook using useSyncExternalStore (src/hooks/use-mounted.ts)
+  - Replaced direct Date rendering with mounted guard pattern
+  - Added suppressHydrationWarning on time display spans
+- Fixed hydration in header clock (header.tsx) — same useMounted pattern
+- Fixed hydration in footer uptime (footer.tsx) — added suppressHydrationWarning
+- Cloned free-claude-code repo as mini-service (mini-services/claude-proxy/)
+- Installed Python 3.14 + uv dependencies for the proxy
+- Configured .env with OpenRouter free models:
+  - Opus → qwen/qwen3-coder:free (strong reasoning)
+  - Sonnet → arcee-ai/trinity-large-preview:free (balanced)
+  - Haiku → google/gemma-4-26b-a4b-it:free (fast)
+- Created API route /api/claude that connects to proxy (port 8082)
+  - Supports POST (chat) and GET (health check)
+  - Auth token: nexus-os-proxy
+- Updated AI Assistant (ai-assistant.tsx):
+  - Now tries free Claude proxy FIRST (/api/claude)
+  - Falls back to z-ai-web-dev-sdk (/api/chat) if proxy unavailable
+  - Shows model name in response for transparency
+  - Added "Free Claude Models" quick prompt
+- Verified proxy works: 7 Claude models available, chat completions work
+- All lint passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- Free Claude proxy integrated and working on port 8082
+- 3 free model tiers mapped: qwen3-coder, trinity-large, gemma-4
+- AI Assistant uses proxy first, z-ai-sdk as fallback
+- Hydration error FIXED — uses useMounted hook + suppressHydrationWarning
+- Clean lint, clean build
+
+Architecture:
+- mini-services/claude-proxy/ — Python 3.14 uvicorn server (port 8082)
+- src/app/api/claude/route.ts — Next.js API route → proxy bridge
+- src/components/nexus/ai-assistant.tsx — Chat UI with dual-provider support
+- src/hooks/use-mounted.ts — SSR-safe mounted guard hook
