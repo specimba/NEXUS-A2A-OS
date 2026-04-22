@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexus-os"
+version = "3.0.0"
+description = "NEXUS OS v3.0 — governed multi-agent operating system"
+readme = "README.md"
+license = {text = "Apache-2.0 WITH attribution requirement"}
+requires-python = ">=3.10"
+authors = [
+    {name = "specimba", email = "specimba@zo.computer"}
+]
+keywords = ["agent", "governance", "multi-agent", "swarm", "vault", "token-tracking"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[tool.setuptools.packages.find]
+where = ["Skills/nexus-os/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["Skills/nexus-os"]
+python_files = ["NEXUS-TEST.py"]
+python_classes = []
+python_functions = ["run_tests"]
