@@ -164,3 +164,39 @@ model SystemConfig {
   value String // JSON string
   updatedAt DateTime @updatedAt
 }
+
+// ─── Rate Limiting & API Key Management ───
+
+model RateLimitLog {
+  id            String   @id @default(cuid())
+  provider      String   // openrouter, jina, kilocode, cerebras, openai
+  endpoint      String   // API endpoint called
+  method        String   @default("POST")
+  statusCode    Int      @default(200)
+  wasRateLimited Boolean @default(false)
+  wasCached     Boolean  @default(false)
+  wasDeduped    Boolean  @default(false)
+  responseTimeMs Int     @default(0)
+  tokensUsed    Int      @default(0)
+  keyId         String?
+  errorMessage  String?
+  requestBody   String?
+  createdAt     DateTime @default(now())
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  provider      String    // openrouter, jina, kilocode, cerebras, openai
+  keyPrefix     String    // First 8 chars for identification
+  keySuffix     String    // Last 4 chars for identification
+  isActive      Boolean   @default(true)
+  health        String    @default("healthy") // healthy, degraded, rate_limited, error, no_key
+  totalRequests Int       @default(0)
+  total429s     Int       @default(0)
+  successRate   Float     @default(100.0)
+  lastError     String?
+  cooldownUntil DateTime?
+  lastUsed      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

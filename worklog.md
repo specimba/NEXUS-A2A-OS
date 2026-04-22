@@ -1661,3 +1661,23 @@ Unresolved / Next Phase:
 5. Add more ISC-Bench templates (currently 12, target 84)
 6. Light theme styling pass
 7. WebSocket for real-time worker/trust updates
+
+---
+Task ID: session-recovery
+Agent: main
+Task: Fix duplicate React key, rebuild rate limiting infrastructure, add Rate Limits tab
+
+Work Log:
+- Fixed duplicate React key in research-tab.tsx (composite keys with index)
+- Rebuilt 3 missing lib files: api-cache.ts, rate-limiter.ts, api-key-manager.ts
+- Added RateLimitLog + ApiKey models to Prisma schema
+- Created .env.local with OpenRouter key
+- Created /api/proxy and /api/rate-limit/status routes
+- Added Rate Limits as 9th dashboard tab
+- All lint checks pass, dev server running
+
+Stage Summary:
+- 9-tab dashboard functional with rate limiting protection
+- OpenRouter key tracked (20 RPM / 200 RPD limits)
+- Token bucket + queue + dedup + caching + key rotation operational
+- webDevReview cron job created (every 15 min)

@@ -9,6 +9,7 @@ import { VaultTab } from './tabs/vault-tab'
 import { ResearchTab } from './tabs/research-tab'
 import { SwarmTab } from './tabs/swarm-tab'
 import { TokensTab } from './tabs/tokens-tab'
+import { RateLimitTab } from './tabs/rate-limit-tab'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const tabComponents: Record<string, React.ComponentType> = {
@@ -20,6 +21,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   research: ResearchTab,
   swarm: SwarmTab,
   tokens: TokensTab,
+  ratelimit: RateLimitTab,
 }
 
 // Stagger container variants — children will animate in with delay

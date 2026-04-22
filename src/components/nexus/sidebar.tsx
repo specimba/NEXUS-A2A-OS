@@ -10,6 +10,7 @@ import {
   BookOpen,
   Bug,
   Coins,
+  Gauge,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -41,6 +42,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'research', label: 'Research', icon: <BookOpen className="h-4 w-4" />, badge: '20' },
   { id: 'swarm', label: 'Swarm', icon: <Bug className="h-4 w-4" /> },
   { id: 'tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" /> },
+  { id: 'ratelimit', label: 'Rate Limits', icon: <Gauge className="h-4 w-4" /> },
 ]
 
 function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { activeTab: NexusTab; setActiveTab: (t: NexusTab) => void; collapsed: boolean; onNavigate?: () => void }) {
