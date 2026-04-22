@@ -1935,3 +1935,116 @@ Unresolved / Next Phase:
 3. Need to verify AI Provider Bridge renders correctly on the frontend via agent-browser
 4. Could add NVIDIA NIM as a separate provider (requires NVIDIA_NIM_API_KEY)
 5. The useMounted hook in src/hooks/use-mounted.ts is no longer used by header or overview-tab — could be cleaned up
+
+---
+Task ID: 3-a
+Agent: overview-enhancer
+Task: Enhance Overview tab with new features
+
+Work Log:
+- Read worklog.md and current overview-tab.tsx (1202 lines) to understand existing structure
+- Added new lucide-react icon imports: ArrowRight, ArrowUpDown, RotateCw, Eye, Maximize2, Gauge, Signal, Hexagon
+- Added new data constants: pillarDetails (8 pillars with description, recentEvents, keyMetrics), pillarSparklines (6-point per pillar), pillarHealthHistory (8-point per pillar for detail dialog), responseTimeSparkline (6 data points for performance metrics)
+- Created QuickStatsBar component: thin horizontal bar with emerald gradient background showing 4 real-time counters (requests today with incrementing counter, active connections, 30d uptime, last deploy time), separated by dividers, text-xs
+- Created SystemArchitectureMiniMap component: compact CSS/HTML flow diagram showing 8 pillars in 3 rows:
+  - Row 1: Bridge ↔ Engine ↔ Governor (with ArrowRight + ArrowUpDown flow indicators)
+  - Row 2: Vault · GMR (with RotateCw rotation indicator + "model rotation" label) · Swarm
+  - Row 3: Monitor · Config
+  - Vertical connection lines between rows, flow legend at bottom
+  - Color-coded boxes with icons matching pillar colors
+- Created PerformanceMetricsRow component: 3 compact metric cards in a grid:
+  - Avg Response Time (342ms): blue gradient, Gauge icon, MiniAreaChart sparkline (6 points, 280-420ms range)
+  - Error Rate (0.8%): emerald gradient, Shield icon, green indicator badge (<1% threshold), Progress bar
+  - Throughput (247 req/min): purple gradient, Signal icon, TrendingUp arrow (↑ 12% from yesterday)
+- Created PillarDetailDialog component: full pillar details on click:
+  - Pillar icon + name + status badge (OPERATIONAL/DEGRADED/CRITICAL)
+  - Description text
+  - Health History sparkline (8-point MiniAreaChart, 60px height, pillar-specific color)
+  - Key Metrics grid (2x2, 4 metrics per pillar)
+  - Recent Events (4 items with type-specific icons: success/info/warning/error)
+  - "Restart Pillar" button (orange outline, RotateCw icon, shows toast)
+  - "Force Health Check" button (emerald, Activity icon, shows toast)
+- Created ViewAllPillarsDialog component: full-screen dialog (sm:max-w-4xl) showing all 8 pillars side by side:
+  - 4-column grid of compact pillar cards with sparklines
+  - Each card clickable to navigate to individual pillar detail dialog
+  - Cards with health < 95 show animate-pulse-subtle
+- Enhanced Pillar Health Grid:
+  - Added mini sparkline (6-point MiniAreaChart, 20px height) per pillar card with pillar-specific colors
+  - Click on any pillar card opens PillarDetailDialog instead of simple toast
+  - Added "View All" button (Maximize2 icon) in header that opens ViewAllPillarsDialog
+  - Changed pulse animation threshold from health < 90 to health < 95
+  - Added "Eye · Details" hover indicator that appears on mouseover (opacity-0 → opacity-100)
+  - Reduced card padding for more compact layout (p-4 → p-3)
+- Inserted QuickStatsBar between Welcome Banner and stat cards
+- Inserted SystemArchitectureMiniMap between QuickStatsBar and stat cards
+- Inserted PerformanceMetricsRow between stat cards and System Uptime + Quick Actions
+- Added pillar dialog state management (selectedPillar, pillarDialogOpen, viewAllPillarsOpen, handlePillarClick)
+- All existing features preserved: SessionTimeline, Welcome Banner, stat cards, SystemUptimeCard, Quick Actions, SystemArchitecture SVG, Weekly Agent Activity chart, Budget Utilization gauge, SystemHealthTimeline, LiveActivityFeed, SystemNotifications, Recent Decisions, Governance Stats, Diagnostic Modal
+- No lint violations in overview-tab.tsx (only pre-existing error in governor-tab.tsx)
+- Dev server running cleanly with 200 responses
+
+Stage Summary:
+- 4 major new features added to Overview tab:
+  1. Quick Stats Bar — thin horizontal bar with real-time counters and emerald gradient
+  2. System Architecture Mini-Map — compact CSS/HTML flow diagram showing Bridge↔Engine↔Governor flow, Vault/GMR/Swarm connections, Monitor/Config
+  3. Performance Metrics Row — 3 compact gradient cards (Avg Response Time with sparkline, Error Rate with threshold indicator, Throughput with trend arrow)
+  4. Enhanced Pillar Health Grid — interactive cards with sparklines, click-to-open detail dialog with full pillar info, View All dialog, pulse animation for health < 95
+- 2 new dialog components: PillarDetailDialog (full pillar details + actions), ViewAllPillarsDialog (all pillars side by side)
+- 4 new data constants: pillarDetails, pillarSparklines, pillarHealthHistory, responseTimeSparkline
+- All existing functionality preserved, no breaking changes
+- Consistent styling with gradient cards, emerald accents, tabular-nums, hover-lift animations
+---
+Task ID: session-6
+Agent: main
+Task: Dropped free-claude-code repo, fixed lint errors, enhanced Swarm/Tokens/Vault tabs with new features
+
+Work Log:
+- Reviewed user feedback: free-claude-code repo analysis dropped — user confirmed "we have better system at all"
+- Verified hydration fix already in place: CurrentTimeDisplay uses useState('--:--:--') + useEffect pattern
+- Verified header clock also hydration-safe with same pattern
+- Fixed React Compiler lint error in governor-tab.tsx: LiveDecisionFeed self-referencing useCallback → moved scheduleNext inside useEffect with `active` boolean guard
+- Enhanced Swarm tab (swarm-tab.tsx):
+  - Added Swarm Topology Map: CSS/SVG visual diagram showing Foreman node → Worker nodes with connecting lines, color-coded by status (busy/idle/error/offline), pulsing animation on busy workers
+  - Added Worker Performance Comparison: NexusBarChart + detail rows showing tasks completed, avg response time, error rate per worker
+  - Added deterministic workerPerformanceData and workerPerformanceRows constants (no Math.random in render)
+- Enhanced Tokens tab (tokens-tab.tsx):
+  - Added Budget Forecast card: burn rate, time to exhaust, projected remaining, projected usage curve sparkline, "Optimize Remaining Budget" button
+  - Added Session Comparison card: 2-column This Session vs Last Session with metrics comparison (tokens used, avg response, error rate, active models), trend indicators, improvement summary
+- Enhanced Vault tab (vault-tab.tsx):
+  - Added Entry Distribution Donut Chart: recharts PieChart with 5 tracks (EVENT/TRUST/CAP/FAIL/GOV), legend with percentages
+  - Added Recent Activity Timeline: 8-item vertical timeline with color-coded dots, track badges, timestamps
+  - Fixed PieChart/Tooltip import naming: recharts PieChart → RechartsPieChart, Tooltip → RechartsTooltip, added PieChartLucide for lucide icon
+  - Added vaultDistributionData and vaultRecentActivity data constants
+- All lint checks pass (zero errors, zero warnings)
+- Dev server running on port 3000 with 200 responses
+- Set up 15-minute cron webDevReview job (ID: 113185)
+
+Stage Summary:
+- Dropped free-claude-code integration (user decision)
+- 1 lint error fixed: governor-tab.tsx LiveDecisionFeed useCallback self-reference
+- 3 tabs enhanced with new visual features:
+  - Swarm: Topology Map + Worker Performance Comparison
+  - Tokens: Budget Forecast + Session Comparison
+  - Vault: Entry Distribution Donut + Recent Activity Timeline
+- Cron auto-dev review job established
+- No lint violations, no compilation errors, server clean
+
+Current Project Status:
+- All 8 tabs fully functional with extensive features
+- Overview: Quick Stats Bar, Architecture Mini-Map, Performance Metrics, Pillar Detail Dialog, Health Timeline
+- StressLab: Test Results Chart, Compare Models, Domain Coverage, Run History
+- GMR: Model Performance Chart, Pool Health, Rotation Analytics, Failover Log, Interactive Toggle
+- Governor: Decision Timeline, Risk Matrix, Constitution Rules, Live Decision Feed, Threshold Adjustment
+- Vault: Distribution Donut, Activity Timeline, Search/Filter, VAP Proof Chain, Entry Details
+- Research: Search, Paper Detail Dialog, Add to Queue, Research Progress, Daily Practice Timer
+- Swarm: Topology Map, Worker Performance, Worker Detail Dialog, Task Assignment, Sparklines
+- Tokens: Budget Forecast, Session Comparison, Heatmap, Cost Optimization, Per-Model Trends
+- AI Assistant, Command Palette (Ctrl+K), System Logs (Ctrl+L), Notification Center, Export Dialog
+- 15-min auto-dev cron job active
+
+Unresolved / Next Phase:
+1. Light theme styling refinement
+2. Wire more tabs to live API data
+3. Add more ISC-Bench templates
+4. WebSocket for real-time updates
+5. More export functionality

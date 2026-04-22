@@ -24,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays } from 'lucide-react'
+import { MiniAreaChart } from '@/components/nexus/charts'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 
@@ -814,16 +815,16 @@ export function ResearchTab() {
       </Card>
       </div>
 
-      {/* Research Progress Card */}
+      {/* Research Progress Dashboard */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
           <CardHeader className="relative pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Progress
+              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Progress Dashboard
             </CardTitle>
           </CardHeader>
-          <CardContent className="relative p-4 pt-0 space-y-3">
+          <CardContent className="relative p-4 pt-0 space-y-4">
             {(() => {
               const allPapers = [...allP0, ...allP1, ...allP2]
               const notStarted = allPapers.filter(p => !p.status || p.status === 'pending').length
@@ -831,32 +832,77 @@ export function ResearchTab() {
               const completed = allPapers.filter(p => p.status === 'completed').length
               const blocked = allPapers.filter(p => p.status === 'blocked').length
               const total = allPapers.length || 1
+              const completionPct = Math.round((completed / total) * 100)
+
+              // Summary stats row
+              const summaryStats = [
+                { label: 'Total', count: allPapers.length, color: 'text-foreground' },
+                { label: 'Completed', count: completed, color: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'In Progress', count: inProgress, color: 'text-blue-600 dark:text-blue-400' },
+                { label: 'Queued', count: notStarted, color: 'text-yellow-600 dark:text-yellow-400' },
+              ]
+
               const statuses = [
                 { label: 'Not Started', count: notStarted, color: 'bg-zinc-400', textColor: 'text-zinc-500 dark:text-zinc-400', pct: Math.round((notStarted / total) * 100) },
                 { label: 'In Progress', count: inProgress, color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400', pct: Math.round((inProgress / total) * 100) },
                 { label: 'Completed', count: completed, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', pct: Math.round((completed / total) * 100) },
                 { label: 'Blocked', count: blocked, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', pct: Math.round((blocked / total) * 100) },
               ]
-              return statuses.map((s) => (
-                <div key={s.label} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${s.color}`} />
-                      <span className="text-xs font-medium">{s.label}</span>
+
+              return (
+                <>
+                  {/* Summary stats */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {summaryStats.map((s) => (
+                      <div key={s.label} className="rounded-lg bg-accent/30 p-2 text-center">
+                        <p className={`text-xl font-bold tabular-nums ${s.color}`}>{s.count}</p>
+                        <p className="text-[9px] text-muted-foreground">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Circular progress indicator */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
+                      <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
+                        <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
+                        <circle cx="40" cy="40" r="34" fill="none" stroke="#34d399" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${completionPct * 2.136} ${213.6 - completionPct * 2.136}`} className="transition-all duration-700" />
+                      </svg>
+                      <span className="absolute text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{completionPct}%</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold tabular-nums">{s.count}</span>
-                      <span className={`text-[10px] tabular-nums ${s.textColor}`}>({s.pct}%)</span>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Est. completion</span>
+                      </div>
+                      <p className="text-sm font-medium">~2 weeks at current pace</p>
+                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${completionPct}%` }} />
+                      </div>
                     </div>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${s.color}`}
-                      style={{ width: `${s.pct}%` }}
-                    />
-                  </div>
-                </div>
-              ))
+                  {/* Status breakdown bars */}
+                  {statuses.map((s) => (
+                    <div key={s.label} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${s.color}`} />
+                          <span className="text-xs font-medium">{s.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold tabular-nums">{s.count}</span>
+                          <span className={`text-[10px] tabular-nums ${s.textColor}`}>({s.pct}%)</span>
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${s.color}`}
+                          style={{ width: `${s.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )
             })()}
           </CardContent>
         </Card>

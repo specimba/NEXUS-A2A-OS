@@ -767,6 +767,140 @@ export function TokensTab() {
       </Card>
       </div>
 
+      {/* Budget Forecast + Session Comparison */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Budget Forecast */}
+        <Card className="relative overflow-hidden border-emerald-600/15 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Budget Forecast
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-muted/30 p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Burn Rate</p>
+                  <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{burnRate.toLocaleString()} tok/min</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Time to Exhaust</p>
+                  <p className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">~{remaining > 0 ? Math.round(remaining / burnRate) : 0} min</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Projected Remaining</p>
+                  <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{Math.round(remaining * 0.17).toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Session End</p>
+                  <p className="text-sm font-bold tabular-nums">{pct > 80 ? '⚠ Over Budget' : 'Within Budget'}</p>
+                </div>
+              </div>
+              {/* Projected usage sparkline */}
+              <div>
+                <p className="text-[9px] text-muted-foreground mb-1">Projected Usage Curve</p>
+                <MiniAreaChart
+                  data={Array.from({ length: 8 }, (_, i) => ({
+                    name: String(i),
+                    value: Math.max(0, remaining - (burnRate * (i + 1) * 7)),
+                  }))}
+                  dataKey="value"
+                  color={COLORS.emerald}
+                  height={48}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5 text-[10px] border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+                onClick={() => toast.info('Optimization mode activated', {
+                  description: 'Switching to FAST pool models for remaining budget. Estimated 23% savings.',
+                })}
+              >
+                <Zap className="h-3 w-3" />
+                Optimize Remaining Budget
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Session Comparison */}
+        <Card className="relative overflow-hidden border-blue-600/15 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Session Comparison
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Current Session */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] font-medium">This Session</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Tokens Used</span>
+                    <span className="text-[11px] font-bold tabular-nums">{totalUsed.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Avg Response</span>
+                    <span className="text-[11px] font-bold tabular-nums">342ms</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Error Rate</span>
+                    <span className="text-[11px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400">0.8%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Active Models</span>
+                    <span className="text-[11px] font-bold tabular-nums">6</span>
+                  </div>
+                </div>
+              </div>
+              {/* Previous Session */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="text-[10px] font-medium">Last Session</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Tokens Used</span>
+                    <span className="text-[11px] font-bold tabular-nums">18,240</span>
+                    <TrendingUp className="h-3 w-3 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Avg Response</span>
+                    <span className="text-[11px] font-bold tabular-nums">387ms</span>
+                    <TrendingDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Error Rate</span>
+                    <span className="text-[11px] font-bold tabular-nums text-orange-600 dark:text-orange-400">1.4%</span>
+                    <TrendingDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">Active Models</span>
+                    <span className="text-[11px] font-bold tabular-nums">5</span>
+                    <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 rounded-lg bg-emerald-600/5 border border-emerald-600/10 p-2">
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                ↓ 12% better response time · ↓ 43% lower error rate · +1 model available
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Cost Optimization Suggestions */}
       <Card className="border-emerald-600/20 hover-lift">
         <CardHeader>

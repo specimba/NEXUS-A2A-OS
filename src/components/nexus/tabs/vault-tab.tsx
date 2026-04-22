@@ -33,8 +33,9 @@ import {
   ShieldCheck,
   Loader2,
   Download,
+  PieChart as PieChartLucide,
 } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { PieChart as RechartsPieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 
@@ -111,6 +112,27 @@ function formatJsonValue(value: string): string {
     return value
   }
 }
+
+// Vault distribution data for donut chart
+const vaultDistributionData = [
+  { name: 'EVENT', value: 487, pct: 27.1, fill: '#34d399' },
+  { name: 'TRUST', value: 412, pct: 22.9, fill: '#60a5fa' },
+  { name: 'CAP', value: 356, pct: 19.9, fill: '#fb923c' },
+  { name: 'FAIL', value: 289, pct: 16.1, fill: '#ef4444' },
+  { name: 'GOV', value: 248, pct: 13.8, fill: '#a78bfa' },
+]
+
+// Recent vault activity for timeline
+const vaultRecentActivity = [
+  { track: 'EVENT', description: 'Agent worker-3 completed task T-0847', color: '#34d399', time: '2m ago' },
+  { track: 'TRUST', description: 'Trust score updated for agent-alpha: 0.82 → 0.85', color: '#60a5fa', time: '5m ago' },
+  { track: 'CAP', description: 'New skill registered: code-review-v2', color: '#fb923c', time: '8m ago' },
+  { track: 'GOV', description: 'Constitution check passed: agent-beta read file', color: '#a78bfa', time: '12m ago' },
+  { track: 'FAIL', description: 'Worker-1 rate limit error: E-RATE-429', color: '#ef4444', time: '15m ago' },
+  { track: 'EVENT', description: 'GMR model rotation: trinity-large → qwen3-coder', color: '#34d399', time: '18m ago' },
+  { track: 'TRUST', description: 'Trust decay applied: worker-2 0.78 → 0.76', color: '#60a5fa', time: '22m ago' },
+  { track: 'GOV', description: 'Governor denied: worker-2 delete_all (CRIT)', color: '#a78bfa', time: '25m ago' },
+]
 
 export function VaultTab() {
   const { data: apiData, loading, error: apiError, refetch } = useApiData<VaultAPIResponse>('/api/vault', 15000)
@@ -453,7 +475,7 @@ export function VaultTab() {
               <div className="flex items-center gap-4">
                 <div className="h-[180px] w-[180px] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <RechartsPieChart>
                       <Pie
                         data={pieData}
                         cx="50%"
@@ -468,7 +490,7 @@ export function VaultTab() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip
+                      <RechartsTooltip
                         formatter={(value: number, name: string) => {
                           const item = pieData.find((d) => d.name === name)
                           const pct = totalEntries > 0 ? Math.round((value / totalEntries) * 100) : 0
@@ -481,7 +503,7 @@ export function VaultTab() {
                           backgroundColor: 'hsl(var(--card))',
                         }}
                       />
-                    </PieChart>
+                    </RechartsPieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="flex-1 space-y-2">
@@ -551,6 +573,88 @@ export function VaultTab() {
                 No recent activity
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Vault Statistics + Recent Activity */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Entry Distribution Donut Chart */}
+        <Card className="relative overflow-hidden border-emerald-600/15">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <PieChartLucide className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Entry Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <ResponsiveContainer width={120} height={120}>
+              <RechartsPieChart>
+                    <Pie
+                      data={vaultDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={55}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {vaultDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }} />
+              </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2 flex-1">
+                {vaultDistributionData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                    <span className="text-[11px] flex-1">{d.name}</span>
+                    <span className="text-[11px] font-bold tabular-nums">{d.value}</span>
+                    <span className="text-[9px] text-muted-foreground tabular-nums">{d.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity Timeline */}
+        <Card className="relative overflow-hidden border-blue-600/15">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Recent Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="max-h-48 space-y-2 overflow-y-auto custom-scrollbar">
+              {vaultRecentActivity.map((item, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div className="flex flex-col items-center">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    {i < vaultRecentActivity.length - 1 && <span className="w-px flex-1 bg-border/50 min-h-[16px]" />}
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-medium truncate">{item.description}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge className="text-[8px] px-1 py-0 border-0" style={{ backgroundColor: item.color + '20', color: item.color }}>
+                        {item.track}
+                      </Badge>
+                      <span className="text-[9px] text-muted-foreground tabular-nums">{item.time}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

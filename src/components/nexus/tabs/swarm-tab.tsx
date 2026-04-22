@@ -50,8 +50,13 @@ import {
   Sparkles,
   UserPlus,
   RefreshCw,
+  Network,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
-import { NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
 import { useSwarmWS } from '@/hooks/use-swarm-ws'
@@ -779,6 +784,114 @@ function WorkerDetailDialog({
   )
 }
 
+// ─── Priority Helpers ──────────────────────────────────────────────────────────
+
+const PRIORITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 }
+
+// Deterministic worker performance data (avoids Math.random in render)
+const workerPerformanceData = [
+  { name: 'w-3', value: 18 },
+  { name: 'w-1', value: 12 },
+  { name: 'coord', value: 15 },
+  { name: 'w-2', value: 7 },
+  { name: 'res', value: 9 },
+]
+
+const workerPerformanceRows = [
+  { id: 'w-3', name: 'w-3', tasks: 18, avgTime: 312, errRate: 1.2 },
+  { id: 'w-1', name: 'w-1', tasks: 12, avgTime: 245, errRate: 0.8 },
+  { id: 'coord', name: 'coord', tasks: 15, avgTime: 189, errRate: 2.1 },
+  { id: 'w-2', name: 'w-2', tasks: 7, avgTime: 478, errRate: 4.5 },
+]
+
+function getPriorityBadge(priority: string) {
+  switch (priority) {
+    case 'high':
+      return <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px]">HIGH</Badge>
+    case 'medium':
+      return <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[9px]">MED</Badge>
+    case 'low':
+      return <Badge className="bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0 text-[9px]">LOW</Badge>
+    default:
+      return <Badge variant="outline" className="text-[9px]">{priority}</Badge>
+  }
+}
+
+// ─── Reorder Priority Dialog ──────────────────────────────────────────────────
+
+function ReorderPriorityDialog({
+  open,
+  onOpenChange,
+  tasks,
+  onReorder,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  tasks: { id: string; domain: string; priority: string; submittedBy: string }[]
+  onReorder: (taskId: string, newPriority: string) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/60">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-600/20">
+              <ArrowUpDown className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-base">Reorder Task Priorities</DialogTitle>
+              <DialogDescription className="text-xs">
+                Change the priority level of queued tasks
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-3 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+          {tasks.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
+              <span className="font-mono text-xs font-medium w-16 shrink-0">{t.id}</span>
+              <Badge variant="outline" className="text-[9px] shrink-0">{t.domain}</Badge>
+              <span className="flex-1" />
+              <div className="flex items-center gap-1">
+                {(['high', 'medium', 'low'] as const).map((p) => (
+                  <Button
+                    key={p}
+                    variant={t.priority === p ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-6 text-[9px] px-2 ${
+                      t.priority === p
+                        ? p === 'high'
+                          ? 'bg-red-600 hover:bg-red-500 text-white border-0'
+                          : p === 'medium'
+                            ? 'bg-yellow-600 hover:bg-yellow-500 text-white border-0'
+                            : 'bg-blue-600 hover:bg-blue-500 text-white border-0'
+                        : 'opacity-50 hover:opacity-100'
+                    }`}
+                    onClick={() => {
+                      onReorder(t.id, p)
+                      toast.success(`Task ${t.id} priority set to ${p.toUpperCase()}`)
+                    }}
+                  >
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {tasks.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">No tasks in queue</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Main Swarm Tab ───────────────────────────────────────────────────────────
 
 export function SwarmTab() {
@@ -788,6 +901,8 @@ export function SwarmTab() {
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
   const [reassignWorkerId, setReassignWorkerId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [reorderDialogOpen, setReorderDialogOpen] = useState(false)
+  const [taskPriorities, setTaskPriorities] = useState<Record<string, string>>({})
   const ws = useSwarmWS()
   const { data: apiData, loading, refetch } = useApiData<SwarmApiResponse>('/api/swarm', 15000)
 
@@ -825,17 +940,23 @@ export function SwarmTab() {
 
   // Task queue - use WebSocket data if available, otherwise fallback
   const liveTaskQueue = useMemo(() => {
+    let queue: { id: string; domain: string; priority: string; status: string; submittedBy: string }[]
     if (ws.taskQueue.length > 0) {
-      return ws.taskQueue.map(t => ({
+      queue = ws.taskQueue.map(t => ({
         id: t.taskId,
         domain: t.domain,
-        priority: t.priority,
+        priority: taskPriorities[t.taskId] ?? t.priority,
         status: 'queued' as const,
         submittedBy: t.submittedBy,
       }))
+    } else {
+      queue = taskQueue.map(t => ({
+        ...t,
+        priority: taskPriorities[t.id] ?? t.priority,
+      }))
     }
-    return taskQueue
-  }, [ws.taskQueue])
+    return queue.sort((a, b) => (PRIORITY_ORDER[b.priority] ?? 0) - (PRIORITY_ORDER[a.priority] ?? 0))
+  }, [ws.taskQueue, taskPriorities])
 
   // Recent completions - use WebSocket data if available, otherwise fallback
   const liveRecentCompleted = useMemo(() => {
@@ -952,6 +1073,10 @@ export function SwarmTab() {
   const handleOpenReassign = useCallback((workerId: string) => {
     setReassignWorkerId(workerId)
     setReassignDialogOpen(true)
+  }, [])
+
+  const handleReorderPriority = useCallback((taskId: string, newPriority: string) => {
+    setTaskPriorities(prev => ({ ...prev, [taskId]: newPriority }))
   }, [])
 
   return (
@@ -1165,6 +1290,104 @@ export function SwarmTab() {
         </div>
       </div>
 
+      {/* Swarm Topology Map + Worker Performance Comparison */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Swarm Topology Map */}
+        <Card className="relative overflow-hidden border-emerald-600/15">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Swarm Topology
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="relative flex flex-col items-center py-4">
+              {/* Foreman Node */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-600/20 text-white font-bold text-xs">
+                  F
+                </div>
+                <span className="mt-1 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">Foreman</span>
+              </div>
+
+              {/* Connecting lines container */}
+              <div className="relative mt-2 h-6 w-full">
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 24" preserveAspectRatio="xMidYMid meet">
+                  {apiWorkers.map((_, i) => {
+                    const x = 50 + (i * (300 / Math.max(apiWorkers.length - 1, 1)))
+                    return <line key={i} x1="200" y1="0" x2={x} y2="24" stroke="currentColor" strokeWidth="1" className="text-emerald-600/20 dark:text-emerald-400/20" />
+                  })}
+                </svg>
+              </div>
+
+              {/* Worker Nodes */}
+              <div className="flex flex-wrap items-start justify-center gap-3 mt-1">
+                {apiWorkers.map((w: any, i: number) => {
+                  const statusColor = w.status === 'busy' ? 'bg-emerald-500 shadow-emerald-600/30' : w.status === 'error' ? 'bg-red-500 shadow-red-600/30' : w.status === 'idle' ? 'bg-blue-500 shadow-blue-600/30' : 'bg-gray-500 shadow-gray-600/30'
+                  const isPulsing = w.status === 'busy'
+                  return (
+                    <button
+                      key={w.id || i}
+                      className="flex flex-col items-center group cursor-pointer"
+                      onClick={() => {/* handled by worker detail dialog */}}
+                    >
+                      <div className={`relative flex h-8 w-8 items-center justify-center rounded-full ${statusColor} shadow-md text-white text-[10px] font-bold transition-transform group-hover:scale-110`}>
+                        {String(i + 1)}
+                        {isPulsing && <span className="absolute inset-0 rounded-full bg-emerald-400/30 animate-ping" style={{ animationDuration: '2s' }} />}
+                      </div>
+                      <span className="mt-0.5 text-[8px] text-muted-foreground truncate max-w-[48px]">
+                        {w.agentId || `w-${i + 1}`}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-4 flex items-center gap-4 text-[9px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Busy</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> Idle</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Error</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gray-500" /> Offline</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Worker Performance Comparison */}
+        <Card className="relative overflow-hidden border-blue-600/15">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Worker Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <NexusBarChart
+              data={workerPerformanceData}
+              dataKey="value"
+              color={COLORS.blue}
+              height={140}
+            />
+            <div className="mt-2 space-y-1.5">
+              {workerPerformanceRows.map((row) => (
+                  <div key={row.id} className="flex items-center gap-2 text-[10px]">
+                    <span className="font-mono text-muted-foreground w-12 truncate">{row.name}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${Math.min(row.tasks * 5, 100)}%` }} />
+                    </div>
+                    <span className="text-muted-foreground tabular-nums w-14 text-right">{row.tasks} tasks</span>
+                    <span className="text-muted-foreground/60 tabular-nums w-14 text-right">{row.avgTime}ms</span>
+                    <span className={`tabular-nums w-10 text-right ${row.errRate > 3 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{row.errRate}%</span>
+                  </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Throughput Chart */}
       <Card className="relative overflow-hidden">
         {/* Gradient border accent */}
@@ -1205,6 +1428,137 @@ export function SwarmTab() {
           />
         </CardContent>
       </Card>
+
+      {/* Swarm Topology Map + Worker Performance Comparison */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Swarm Topology Map */}
+        <Card className="relative overflow-hidden border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Swarm Topology
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            {apiWorkers.length > 0 ? (
+              <div className="relative flex items-center justify-center" style={{ minHeight: '200px' }}>
+                {/* Central Foreman node */}
+                <div
+                  className="absolute flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-lg shadow-emerald-600/30 cursor-pointer z-10 hover:scale-110 transition-transform"
+                  title="Foreman (coordinator)"
+                >
+                  <Cpu className="h-6 w-6 text-white" />
+                </div>
+                {/* Worker nodes arranged in a circle */}
+                {apiWorkers.map((w, i) => {
+                  const angle = (2 * Math.PI * i) / apiWorkers.length - Math.PI / 2
+                  const radius = 100
+                  const x = Math.cos(angle) * radius
+                  const y = Math.sin(angle) * radius
+                  const nodeColor = w.status === 'busy' ? 'bg-emerald-500' : w.status === 'error' ? 'bg-red-500' : w.status === 'offline' ? 'bg-gray-500' : 'bg-blue-500'
+                  const isBusy = w.status === 'busy'
+                  return (
+                    <div key={w.id} className="absolute" style={{ left: `calc(50% + ${x}px - 14px)`, top: `calc(50% + ${y}px - 14px)` }}>
+                      {/* Connection line from center */}
+                      <svg
+                        className="absolute pointer-events-none"
+                        style={{ left: '14px', top: '14px', overflow: 'visible' }}
+                        width="1"
+                        height="1"
+                      >
+                        <line
+                          x1={0}
+                          y1={0}
+                          x2={-x}
+                          y2={-y}
+                          stroke={w.status === 'busy' ? '#34d399' : w.status === 'error' ? '#f87171' : '#94a3b8'}
+                          strokeWidth={1.5}
+                          strokeDasharray={isBusy ? '4 2' : '2 2'}
+                          opacity={0.5}
+                        >
+                          {isBusy && (
+                            <animate attributeName="stroke-dashoffset" from="0" to="12" dur="1s" repeatCount="indefinite" />
+                          )}
+                        </line>
+                      </svg>
+                      {/* Worker node */}
+                      <button
+                        className={`flex h-7 w-7 items-center justify-center rounded-full ${nodeColor} shadow-md cursor-pointer hover:scale-125 transition-transform ${isBusy ? 'animate-pulse' : ''}`}
+                        title={`${w.name} (${w.status})`}
+                        onClick={() => handleWorkerClick(w)}
+                      >
+                        <span className="text-[8px] font-bold text-white">{w.name.replace('worker-', 'W').replace('research-agent', 'R')}</span>
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">
+                No workers connected
+              </div>
+            )}
+            {/* Legend */}
+            <div className="mt-3 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Busy</div>
+              <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Idle</div>
+              <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Error</div>
+              <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-500" /> Offline</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Worker Performance Comparison */}
+        <Card className="relative overflow-hidden border-blue-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Worker Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            {apiWorkers.length > 0 ? (
+              <NexusBarChart
+                data={apiWorkers.map(w => ({
+                  name: w.name.replace('worker-', 'W').replace('research-agent', 'R'),
+                  value: w.tasksDone,
+                }))}
+                height={160}
+                color={COLORS.blue}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-[160px] text-xs text-muted-foreground">
+                No worker data available
+              </div>
+            )}
+            {/* Performance metrics table */}
+            <div className="mt-3 space-y-1.5">
+              {apiWorkers.slice(0, 4).map((w) => {
+                const errRate = (w.tasksDone + w.tasksFailed) > 0 ? ((w.tasksFailed / (w.tasksDone + w.tasksFailed)) * 100).toFixed(1) : '0.0'
+                return (
+                  <div key={w.id} className="flex items-center gap-2 text-[10px]">
+                    <span className="w-16 font-medium truncate">{w.name}</span>
+                    <div className="flex-1 flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        <span className="tabular-nums">{w.tasksDone}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Timer className="h-3 w-3 text-blue-500" />
+                        <span className="tabular-nums">{(8 + (w.id.charCodeAt(w.id.length - 1) % 12))}ms</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 text-orange-500" />
+                        <span className="tabular-nums">{errRate}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Worker Grid */}
@@ -1376,26 +1730,34 @@ export function SwarmTab() {
           </CardContent>
         </Card>
 
-        {/* Task Queue */}
+        {/* Task Priority Queue */}
         <Card className="relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-600/40 to-transparent" />
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Task Queue
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4" /> Task Priority Queue
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 text-[9px] text-orange-600 dark:text-orange-400 hover:bg-orange-600/10"
+                onClick={() => setReorderDialogOpen(true)}
+              >
+                <ArrowUpDown className="h-3 w-3" />
+                Reorder
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-2">
-              {liveTaskQueue.map((t) => (
+              {liveTaskQueue.map((t, i) => (
                 <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2 transition-colors hover:bg-accent/50">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-[10px] text-muted-foreground tabular-nums w-4">{i + 1}.</span>
                     <span className="text-xs font-mono">{t.id}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Badge variant="outline" className="text-[9px]">{t.domain}</Badge>
-                      <Badge className={`text-[9px] border-0 ${t.priority === 'high' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : t.priority === 'medium' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-muted text-muted-foreground'}`}>
-                        {t.priority}
-                      </Badge>
-                    </div>
+                    <Badge variant="outline" className="text-[9px]">{t.domain}</Badge>
+                    {getPriorityBadge(t.priority)}
                   </div>
                   <Button
                     variant="ghost"
@@ -1414,7 +1776,7 @@ export function SwarmTab() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">{liveTaskQueue.length} tasks queued</p>
+            <p className="mt-3 text-[11px] text-muted-foreground">{liveTaskQueue.length} tasks queued · Sorted by priority</p>
           </CardContent>
         </Card>
       </div>

@@ -48,11 +48,177 @@ import {
   Info,
   Bell,
   BellOff,
+  ArrowRight,
+  ArrowUpDown,
+  RotateCw,
+  Eye,
+  Maximize2,
+  Gauge,
+  Signal,
+  Hexagon,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
+
+// ── Pillar detail data for enhanced pillar dialog ─────────────────
+const pillarDetails: Record<string, {
+  description: string
+  recentEvents: { time: string; event: string; type: 'info' | 'success' | 'warning' | 'error' }[]
+  keyMetrics: { label: string; value: string }[]
+}> = {
+  Bridge: {
+    description: 'HMAC authentication and JSON-RPC communication layer. Handles all inbound/outbound agent requests.',
+    recentEvents: [
+      { time: '2m ago', event: 'HMAC session renewed for worker-3', type: 'success' },
+      { time: '8m ago', event: 'JSON-RPC batch processed (12 calls)', type: 'info' },
+      { time: '15m ago', event: 'New agent registration: research-agent', type: 'success' },
+      { time: '22m ago', event: 'Rate limit warning: agent-beta approaching threshold', type: 'warning' },
+    ],
+    keyMetrics: [
+      { label: 'Active Sessions', value: '7' },
+      { label: 'Avg Latency', value: '12ms' },
+      { label: 'Requests/min', value: '48' },
+      { label: 'Auth Success', value: '99.99%' },
+    ],
+  },
+  Engine: {
+    description: 'Hermes intent routing system. Parses and dispatches agent intents to the correct NEXUS subsystem.',
+    recentEvents: [
+      { time: '1m ago', event: 'Intent routed: stresslab.run_test', type: 'success' },
+      { time: '5m ago', event: 'Intent routed: vault.read_trust', type: 'info' },
+      { time: '12m ago', event: 'Ambiguous intent detected, resolved via context', type: 'warning' },
+      { time: '18m ago', event: 'Batch intent processing completed (8 items)', type: 'success' },
+    ],
+    keyMetrics: [
+      { label: 'Intents Routed', value: '1,247' },
+      { label: 'Avg Parse Time', value: '45ms' },
+      { label: 'Route Accuracy', value: '98.7%' },
+      { label: 'Active Routes', value: '14' },
+    ],
+  },
+  Governor: {
+    description: 'Kaiju governance engine with TrustScorer. Enforces safety rules and trust-based access control.',
+    recentEvents: [
+      { time: '2m ago', event: 'ALLOWED: worker-3 read file (scope: SELF)', type: 'success' },
+      { time: '8m ago', event: 'HELD: research-agent API call (scope: CROSS)', type: 'warning' },
+      { time: '12m ago', event: 'DENIED: worker-2 delete_all (scope: CRIT)', type: 'error' },
+      { time: '15m ago', event: 'Trust score updated: worker-3 → 0.82', type: 'info' },
+    ],
+    keyMetrics: [
+      { label: 'Decisions (24h)', value: '875' },
+      { label: 'Allow Rate', value: '96.9%' },
+      { label: 'Deny Rate', value: '2.6%' },
+      { label: 'Hold Rate', value: '0.5%' },
+    ],
+  },
+  Vault: {
+    description: '5-Track memory system with VAP (Verified Audit Proof) chain. Immutable audit trail for all events.',
+    recentEvents: [
+      { time: '1m ago', event: 'Stored TRUST entry for agent-alpha', type: 'success' },
+      { time: '6m ago', event: 'Stored GOV entry: constitution.check', type: 'success' },
+      { time: '10m ago', event: 'Memory compaction completed (12% reclaimed)', type: 'info' },
+      { time: '20m ago', event: 'VAP chain integrity verified (1,247 blocks)', type: 'success' },
+    ],
+    keyMetrics: [
+      { label: 'Total Entries', value: '1,792' },
+      { label: 'VAP Blocks', value: '1,247' },
+      { label: 'Avg Score', value: '0.73' },
+      { label: 'Storage Used', value: '48%' },
+    ],
+  },
+  GMR: {
+    description: 'Giant Model Router with pool-based rotation. Manages model selection across PREMIUM, MID, FAST, and FREE_RESEARCH tiers.',
+    recentEvents: [
+      { time: '3m ago', event: 'Rotated to trinity-large-preview', type: 'info' },
+      { time: '9m ago', event: 'kimi-k2.5 latency spike detected (>2s)', type: 'warning' },
+      { time: '15m ago', event: 'Pool FAST: all models healthy', type: 'success' },
+      { time: '25m ago', event: 'Model failover: gemma-fast → nemotron-3', type: 'warning' },
+    ],
+    keyMetrics: [
+      { label: 'Active Models', value: '6/8' },
+      { label: 'Rotations (24h)', value: '53' },
+      { label: 'Avg Latency', value: '1.2s' },
+      { label: 'Failover Count', value: '3' },
+    ],
+  },
+  Swarm: {
+    description: 'Worker pool management with foreman coordination. Distributes and monitors parallel task execution.',
+    recentEvents: [
+      { time: '1m ago', event: 'worker-3 completed task T-0847', type: 'success' },
+      { time: '5m ago', event: 'worker-1 status: ERROR → recovering', type: 'error' },
+      { time: '11m ago', event: 'Foreman reassigned task T-0844', type: 'info' },
+      { time: '18m ago', event: 'worker-4 now idle, ready for assignment', type: 'success' },
+    ],
+    keyMetrics: [
+      { label: 'Active Workers', value: '3/5' },
+      { label: 'Tasks Completed', value: '847' },
+      { label: 'Avg Task Time', value: '42s' },
+      { label: 'Error Rate', value: '2.1%' },
+    ],
+  },
+  Monitor: {
+    description: 'Token budget tracking and audit logging. Monitors real-time consumption and enforces session limits.',
+    recentEvents: [
+      { time: '30s ago', event: 'TokenGuard budget check: 73,450 remaining', type: 'info' },
+      { time: '5m ago', event: 'Budget utilization exceeded 70% threshold', type: 'warning' },
+      { time: '12m ago', event: 'Per-agent usage report generated', type: 'info' },
+      { time: '20m ago', event: 'Audit trail synced to Vault', type: 'success' },
+    ],
+    keyMetrics: [
+      { label: 'Tokens Remaining', value: '73,450' },
+      { label: 'Budget Used', value: '73.5%' },
+      { label: 'Burn Rate', value: '124 tok/min' },
+      { label: 'Time Remaining', value: '~9.8h' },
+    ],
+  },
+  Config: {
+    description: 'Constitution management and system configuration. Stores and enforces the NEXUS OS operational rules.',
+    recentEvents: [
+      { time: '15m ago', event: 'Constitution v3.2 patch applied successfully', type: 'success' },
+      { time: '45m ago', event: 'Trust threshold adjusted: research lane → 0.60', type: 'info' },
+      { time: '1h ago', event: 'New ISC template registered: ISC-013', type: 'success' },
+      { time: '2h ago', event: 'System config backup created', type: 'info' },
+    ],
+    keyMetrics: [
+      { label: 'Constitution Ver', value: 'v3.2' },
+      { label: 'Templates', value: '12' },
+      { label: 'Papers Tracked', value: '6' },
+      { label: 'Config Hashes', value: '47' },
+    ],
+  },
+}
+
+// ── Pillar sparkline data (6 points per pillar) ──────────────────
+const pillarSparklines: Record<string, { name: string; value: number }[]> = {
+  Bridge: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }],
+  Engine: [{ name: '1', value: 97 }, { name: '2', value: 99 }, { name: '3', value: 98 }, { name: '4', value: 96 }, { name: '5', value: 99 }, { name: '6', value: 98 }],
+  Governor: [{ name: '1', value: 97 }, { name: '2', value: 96 }, { name: '3', value: 94 }, { name: '4', value: 95 }, { name: '5', value: 96 }, { name: '6', value: 95 }],
+  Vault: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }],
+  GMR: [{ name: '1', value: 94 }, { name: '2', value: 91 }, { name: '3', value: 93 }, { name: '4', value: 89 }, { name: '5', value: 92 }, { name: '6', value: 90 }],
+  Swarm: [{ name: '1', value: 90 }, { name: '2', value: 86 }, { name: '3', value: 88 }, { name: '4', value: 84 }, { name: '5', value: 87 }, { name: '6', value: 88 }],
+  Monitor: [{ name: '1', value: 97 }, { name: '2', value: 95 }, { name: '3', value: 96 }, { name: '4', value: 98 }, { name: '5', value: 95 }, { name: '6', value: 96 }],
+  Config: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }],
+}
+
+// ── Pillar health history (8-point sparkline for detail dialog) ──
+const pillarHealthHistory: Record<string, { name: string; value: number }[]> = {
+  Bridge: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }, { name: '7', value: 100 }, { name: '8', value: 100 }],
+  Engine: [{ name: '1', value: 96 }, { name: '2', value: 99 }, { name: '3', value: 97 }, { name: '4', value: 98 }, { name: '5', value: 95 }, { name: '6', value: 99 }, { name: '7', value: 97 }, { name: '8', value: 98 }],
+  Governor: [{ name: '1', value: 97 }, { name: '2', value: 94 }, { name: '3', value: 96 }, { name: '4', value: 93 }, { name: '5', value: 95 }, { name: '6', value: 94 }, { name: '7', value: 96 }, { name: '8', value: 95 }],
+  Vault: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }, { name: '7', value: 100 }, { name: '8', value: 100 }],
+  GMR: [{ name: '1', value: 94 }, { name: '2', value: 90 }, { name: '3', value: 93 }, { name: '4', value: 88 }, { name: '5', value: 91 }, { name: '6', value: 89 }, { name: '7', value: 92 }, { name: '8', value: 90 }],
+  Swarm: [{ name: '1', value: 91 }, { name: '2', value: 85 }, { name: '3', value: 88 }, { name: '4', value: 82 }, { name: '5', value: 86 }, { name: '6', value: 84 }, { name: '7', value: 87 }, { name: '8', value: 88 }],
+  Monitor: [{ name: '1', value: 97 }, { name: '2', value: 95 }, { name: '3', value: 98 }, { name: '4', value: 94 }, { name: '5', value: 96 }, { name: '6', value: 95 }, { name: '7', value: 97 }, { name: '8', value: 96 }],
+  Config: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }, { name: '7', value: 100 }, { name: '8', value: 100 }],
+}
+
+// ── Performance metrics sparkline data ───────────────────────────
+const responseTimeSparkline = [
+  { name: '1', value: 380 }, { name: '2', value: 320 }, { name: '3', value: 410 },
+  { name: '4', value: 290 }, { name: '5', value: 350 }, { name: '6', value: 342 },
+]
 
 
 // ── AnimatedCounter ──────────────────────────────────────────────
@@ -486,6 +652,430 @@ function SystemNotificationsCard() {
   )
 }
 
+// ── Quick Stats Bar ──────────────────────────────────────────────
+function QuickStatsBar() {
+  const [requestCount, setRequestCount] = useState(1247)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRequestCount((prev) => prev + Math.floor(Math.random() * 3))
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <motion.div variants={staggerItem} initial="hidden" animate="visible">
+      <div className="rounded-lg bg-gradient-to-r from-emerald-600/8 via-emerald-600/4 to-transparent border border-emerald-600/10 px-4 py-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="text-emerald-600 dark:text-emerald-400">⬡</span>
+            <span className="tabular-nums">{requestCount.toLocaleString()}</span> requests today
+          </span>
+          <span className="h-3 w-px bg-border/50" />
+          <span className="flex items-center gap-1.5">
+            <span className="text-blue-600 dark:text-blue-400">⬡</span>
+            <span className="tabular-nums">3</span> active connections
+          </span>
+          <span className="h-3 w-px bg-border/50" />
+          <span className="flex items-center gap-1.5">
+            <span className="text-emerald-600 dark:text-emerald-400">⬡</span>
+            <span className="tabular-nums">99.94%</span> uptime (30d)
+          </span>
+          <span className="h-3 w-px bg-border/50" />
+          <span className="flex items-center gap-1.5">
+            <span className="text-orange-600 dark:text-orange-400">⬡</span>
+            Last deploy: <span className="tabular-nums">2h</span> ago
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── System Architecture Mini-Map ─────────────────────────────────
+function SystemArchitectureMiniMap() {
+  const pillarBoxClass = (colorClass: string, textColorClass: string) =>
+    `flex flex-col items-center justify-center rounded-lg border px-2 py-1.5 text-center transition-all duration-200 hover:scale-105 ${colorClass} ${textColorClass}`
+
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            System Architecture
+          </CardTitle>
+          <Badge variant="outline" className="text-[9px]">Flow Diagram</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="flex flex-col items-center gap-3">
+          {/* Row 1: Bridge ↔ Engine ↔ Governor */}
+          <div className="flex items-center gap-2">
+            <div className={pillarBoxClass('border-emerald-600/30 bg-emerald-600/8', 'text-emerald-600 dark:text-emerald-400')}>
+              <Zap className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Bridge</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+              <ArrowUpDown className="h-3 w-3 text-muted-foreground/30" />
+              <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+            <div className={pillarBoxClass('border-blue-600/30 bg-blue-600/8', 'text-blue-600 dark:text-blue-400')}>
+              <Router className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Engine</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+              <ArrowUpDown className="h-3 w-3 text-muted-foreground/30" />
+              <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+            <div className={pillarBoxClass('border-red-600/30 bg-red-600/8', 'text-red-600 dark:text-red-400')}>
+              <Shield className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Governor</span>
+            </div>
+          </div>
+
+          {/* Connection lines row 1 → row 2 */}
+          <div className="flex items-center justify-center gap-12 text-muted-foreground/30">
+            <span className="text-[8px]">│</span>
+            <span className="text-[8px]">│</span>
+            <span className="text-[8px]">│</span>
+          </div>
+
+          {/* Row 2: Vault · GMR (with rotation) · Swarm */}
+          <div className="flex items-center gap-2">
+            <div className={pillarBoxClass('border-purple-600/30 bg-purple-600/8', 'text-purple-600 dark:text-purple-400')}>
+              <Database className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Vault</span>
+            </div>
+            <div className="flex flex-col items-center mx-3">
+              <div className={pillarBoxClass('border-orange-600/30 bg-orange-600/8', 'text-orange-600 dark:text-orange-400')}>
+                <div className="flex items-center gap-1">
+                  <FlaskConical className="h-3.5 w-3.5" />
+                  <RotateCw className="h-2.5 w-2.5 opacity-50" />
+                </div>
+                <span className="text-[9px] font-semibold mt-0.5">GMR</span>
+              </div>
+              <span className="text-[7px] text-orange-600/50 dark:text-orange-400/50 mt-0.5">model rotation</span>
+            </div>
+            <div className={pillarBoxClass('border-yellow-600/30 bg-yellow-600/8', 'text-yellow-600 dark:text-yellow-400')}>
+              <Bug className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Swarm</span>
+            </div>
+          </div>
+
+          {/* Connection lines row 2 → row 3 */}
+          <div className="flex items-center justify-center gap-12 text-muted-foreground/30">
+            <span className="text-[8px]">│</span>
+            <span className="text-[8px]">│</span>
+          </div>
+
+          {/* Row 3: Monitor · Config */}
+          <div className="flex items-center gap-2">
+            <div className={pillarBoxClass('border-pink-600/30 bg-pink-600/8', 'text-pink-600 dark:text-pink-400')}>
+              <Activity className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Monitor</span>
+            </div>
+            <div className={pillarBoxClass('border-emerald-600/30 bg-emerald-600/8', 'text-emerald-600 dark:text-emerald-400')}>
+              <Settings className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-semibold mt-0.5">Config</span>
+            </div>
+          </div>
+
+          {/* Flow legend */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-1 text-[9px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <ArrowRight className="h-2.5 w-2.5" /> data flow
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowUpDown className="h-2.5 w-2.5" /> bidirectional
+            </span>
+            <span className="flex items-center gap-1">
+              <RotateCw className="h-2.5 w-2.5" /> rotation
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Performance Metrics Row ──────────────────────────────────────
+function PerformanceMetricsRow() {
+  return (
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+      className="grid gap-3 md:grid-cols-3"
+    >
+      {/* Avg Response Time */}
+      <motion.div variants={staggerItem}>
+        <Card className="relative overflow-hidden hover-lift border-blue-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-blue-600/4 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Avg Response Time</p>
+                <div className="mt-1 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">342</span>
+                  <span className="text-xs text-muted-foreground">ms</span>
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/10">
+                <Gauge className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <MiniAreaChart data={responseTimeSparkline} dataKey="value" color={COLORS.blue} height={28} />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Error Rate */}
+      <motion.div variants={staggerItem}>
+        <Card className="relative overflow-hidden hover-lift border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-emerald-600/4 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Error Rate</p>
+                <div className="mt-1 flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">0.8</span>
+                  <span className="text-xs text-muted-foreground">%</span>
+                  <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0 ml-1">
+                    <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> &lt;1%
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600/10">
+                <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <Progress value={0.8} className="h-1.5 bg-emerald-900/20" />
+              <p className="text-[9px] text-muted-foreground mt-1">Threshold: 1.0%</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Throughput */}
+      <motion.div variants={staggerItem}>
+        <Card className="relative overflow-hidden hover-lift border-purple-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/8 via-purple-600/4 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Throughput</p>
+                <div className="mt-1 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 tabular-nums">247</span>
+                  <span className="text-xs text-muted-foreground">req/min</span>
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600/10">
+                <Signal className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">↑ 12%</span>
+              <span className="text-[10px] text-muted-foreground">from yesterday</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ── Pillar Detail Dialog ─────────────────────────────────────────
+function PillarDetailDialog({
+  pillar,
+  open,
+  onOpenChange,
+}: {
+  pillar: typeof pillars[number] | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  if (!pillar) return null
+  const details = pillarDetails[pillar.name]
+  const healthHistory = pillarHealthHistory[pillar.name]
+  const sparkColor = pillarColors[pillar.name] || COLORS.emerald
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <pillar.icon className="h-5 w-5" style={{ color: sparkColor }} />
+            {pillar.name} Pillar
+            <Badge className={`border-0 text-[9px] ml-1 ${
+              pillar.health >= 95 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+              pillar.health >= 85 ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+              'bg-red-600/15 text-red-600 dark:text-red-400'
+            }`}>
+              {pillar.health >= 95 ? 'OPERATIONAL' : pillar.health >= 85 ? 'DEGRADED' : 'CRITICAL'}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Description */}
+          <p className="text-xs text-muted-foreground">{details?.description}</p>
+
+          {/* Health History Sparkline */}
+          <div className="rounded-lg border bg-accent/20 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Health History</span>
+              <span className="text-sm font-bold tabular-nums" style={{ color: sparkColor }}>{pillar.health}%</span>
+            </div>
+            <MiniAreaChart data={healthHistory} dataKey="value" color={sparkColor} height={60} />
+          </div>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 gap-2">
+            {details?.keyMetrics.map((m) => (
+              <div key={m.label} className="rounded-md bg-accent/30 px-2.5 py-2">
+                <p className="text-[9px] text-muted-foreground">{m.label}</p>
+                <p className="text-sm font-bold tabular-nums mt-0.5">{m.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent Events */}
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Recent Events</p>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+              {details?.recentEvents.map((e, i) => (
+                <div key={i} className="flex items-start gap-2 rounded-md bg-accent/20 px-2 py-1.5 text-xs">
+                  {e.type === 'success' && <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                  {e.type === 'info' && <Radio className="mt-0.5 h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />}
+                  {e.type === 'warning' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-600 dark:text-orange-400" />}
+                  {e.type === 'error' && <X className="mt-0.5 h-3 w-3 shrink-0 text-red-600 dark:text-red-400" />}
+                  <span className="flex-1 text-muted-foreground">{e.event}</span>
+                  <span className="shrink-0 text-[9px] text-muted-foreground/50 tabular-nums">{e.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-orange-600/20 text-orange-600 dark:text-orange-400 hover:bg-orange-600/10"
+            onClick={() => {
+              toast.info(`Restarting ${pillar.name} pillar...`, { description: 'This may take a few seconds', duration: 3000 })
+            }}
+          >
+            <RotateCw className="h-3 w-3 mr-1" /> Restart Pillar
+          </Button>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => {
+              toast.success(`Health check initiated for ${pillar.name}`, { description: 'Results will appear in the activity feed', duration: 3000 })
+            }}
+          >
+            <Activity className="h-3 w-3 mr-1" /> Force Health Check
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── View All Pillars Dialog ──────────────────────────────────────
+function ViewAllPillarsDialog({
+  open,
+  onOpenChange,
+  onPillarClick,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onPillarClick: (pillar: typeof pillars[number]) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Hexagon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            All System Pillars
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 py-2">
+          {pillars.map((p) => {
+            const sparkData = pillarSparklines[p.name]
+            const sparkColor = pillarColors[p.name] || COLORS.emerald
+            return (
+              <Card
+                key={p.name}
+                className={`group relative overflow-hidden hover-lift cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  p.health < 95 ? 'animate-pulse-subtle' : ''
+                }`}
+                onClick={() => {
+                  onOpenChange(false)
+                  setTimeout(() => onPillarClick(p), 200)
+                }}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${
+                  p.health < 70 ? 'from-red-600/8 via-transparent to-transparent' :
+                  p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
+                  p.health >= 90 ? 'from-emerald-600/3 via-transparent to-transparent' :
+                  'from-yellow-600/5 via-transparent to-transparent'
+                }`} />
+                <CardContent className="relative p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                      p.health < 70 ? 'bg-red-600/10' :
+                      p.health === 100 ? 'bg-emerald-600/10' :
+                      p.health >= 90 ? 'bg-emerald-600/8' :
+                      'bg-yellow-600/10'
+                    }`}>
+                      <p.icon className={`h-3.5 w-3.5 ${
+                        p.health < 70 ? 'text-red-600 dark:text-red-400' :
+                        p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                        p.health >= 90 ? 'text-emerald-500 dark:text-emerald-400' :
+                        'text-yellow-600 dark:text-yellow-400'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">{p.name}</span>
+                        <Badge
+                          variant="secondary"
+                          className={`h-4 text-[9px] border-0 px-1.5 ${
+                            p.health < 70 ? 'bg-red-600/20 text-red-600 dark:text-red-400' :
+                            p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                            p.health >= 90 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
+                            'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
+                          }`}
+                        >
+                          {p.health}%
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <MiniAreaChart data={sparkData} dataKey="value" color={sparkColor} height={24} />
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <span className="text-[8px] text-muted-foreground">{p.uptime} uptime</span>
+                    <span className="text-[8px] text-muted-foreground">Click for details</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Diagnostic Result Types ──────────────────────────────────────
 interface DiagnosticResult {
   pillar: string
@@ -501,6 +1091,16 @@ export function OverviewTab() {
   const [diagnosticRunning, setDiagnosticRunning] = useState(false)
   const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResult[]>([])
   const [diagnosticSummary, setDiagnosticSummary] = useState<{ healthy: number; degraded: number; error: number; avgHealth: number } | null>(null)
+
+  // ── Pillar Detail Dialog State ─────────────────────────────────
+  const [selectedPillar, setSelectedPillar] = useState<typeof pillars[number] | null>(null)
+  const [pillarDialogOpen, setPillarDialogOpen] = useState(false)
+  const [viewAllPillarsOpen, setViewAllPillarsOpen] = useState(false)
+
+  const handlePillarClick = useCallback((pillar: typeof pillars[number]) => {
+    setSelectedPillar(pillar)
+    setPillarDialogOpen(true)
+  }, [])
 
   const runDiagnostic = useCallback(async () => {
     setDiagnosticOpen(true)
@@ -645,6 +1245,14 @@ export function OverviewTab() {
         </div>
       </motion.div>
 
+      {/* Quick Stats Bar */}
+      <QuickStatsBar />
+
+      {/* System Architecture Mini-Map */}
+      <motion.div variants={staggerItem} initial="hidden" animate="visible">
+        <SystemArchitectureMiniMap />
+      </motion.div>
+
       {/* Top Stats with Gradient Cards + AnimatedCounters */}
       <motion.div
         variants={staggerContainer}
@@ -776,6 +1384,9 @@ export function OverviewTab() {
         </motion.div>
       </motion.div>
 
+      {/* Performance Metrics Row */}
+      <PerformanceMetricsRow />
+
       {/* System Uptime + Quick Actions Row */}
       <motion.div
         variants={staggerContainer}
@@ -834,7 +1445,7 @@ export function OverviewTab() {
         </motion.div>
       </motion.div>
 
-      {/* 8-Pillar Health Grid */}
+      {/* 8-Pillar Health Grid (Enhanced with sparklines + dialogs) */}
       <motion.div
         variants={staggerContainer}
         initial="hidden"
@@ -843,99 +1454,121 @@ export function OverviewTab() {
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">System Pillars</h2>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] border-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10 px-2"
+              onClick={() => setViewAllPillarsOpen(true)}
+            >
+              <Maximize2 className="h-3 w-3 mr-1" /> View All
+            </Button>
             <ExportButton data={systemStatusExport} filename="nexus-system-status" label="Export Status" columnHeaders={systemStatusColumnHeaders} />
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse status-glow-green" />
             <span className="text-[10px] text-muted-foreground">All systems nominal</span>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {pillars.map((p, idx) => (
-            <motion.div key={p.name} variants={staggerItem} custom={idx}>
-              <Card
-                className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 cursor-pointer ${
-                  p.health < 90 ? 'animate-pulse-subtle' : ''
-                }`}
-                onClick={() => toast.info(`${p.name} pillar`, { description: `Health: ${p.health}% · ${p.desc} · Uptime: ${p.uptime}`, duration: 3000 })}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${
-                  p.health < 70 ? 'from-red-600/8 via-transparent to-transparent' :
-                  p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
-                  p.health >= 90 ? 'from-emerald-600/3 via-transparent to-transparent' :
-                  'from-yellow-600/5 via-transparent to-transparent'
-                }`} />
-                <CardContent className="relative p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                      p.health < 70 ? 'bg-red-600/10' :
-                      p.health === 100 ? 'bg-emerald-600/10' :
-                      p.health >= 90 ? 'bg-emerald-600/8' :
-                      'bg-yellow-600/10'
-                    }`}>
-                      <p.icon className={`h-4 w-4 ${
-                        p.health < 70 ? 'text-red-600 dark:text-red-400' :
-                        p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
-                        p.health >= 90 ? 'text-emerald-500 dark:text-emerald-400' :
-                        'text-yellow-600 dark:text-yellow-400'
-                      }`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{p.name}</span>
-                        <div className="flex items-center gap-1">
-                          {p.trend === 'up' && <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
-                          {p.trend === 'down' && <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />}
-                          <Badge
-                            variant="secondary"
-                            className={`h-5 text-[10px] border-0 ${
-                              p.health < 70 ? 'bg-red-600/20 text-red-600 dark:text-red-400 badge-glow-red' :
-                              p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 badge-glow-emerald' :
-                              p.health >= 90 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
-                              'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 badge-glow-red'
-                            }`}
-                          >
-                            {p.health}%
-                          </Badge>
+          {pillars.map((p, idx) => {
+            const sparkData = pillarSparklines[p.name]
+            const sparkColor = pillarColors[p.name] || COLORS.emerald
+            return (
+              <motion.div key={p.name} variants={staggerItem} custom={idx}>
+                <Card
+                  className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 cursor-pointer ${
+                    p.health < 95 ? 'animate-pulse-subtle' : ''
+                  }`}
+                  onClick={() => handlePillarClick(p)}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${
+                    p.health < 70 ? 'from-red-600/8 via-transparent to-transparent' :
+                    p.health === 100 ? 'from-emerald-600/5 via-transparent to-transparent' :
+                    p.health >= 90 ? 'from-emerald-600/3 via-transparent to-transparent' :
+                    'from-yellow-600/5 via-transparent to-transparent'
+                  }`} />
+                  <CardContent className="relative p-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        p.health < 70 ? 'bg-red-600/10' :
+                        p.health === 100 ? 'bg-emerald-600/10' :
+                        p.health >= 90 ? 'bg-emerald-600/8' :
+                        'bg-yellow-600/10'
+                      }`}>
+                        <p.icon className={`h-4 w-4 ${
+                          p.health < 70 ? 'text-red-600 dark:text-red-400' :
+                          p.health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                          p.health >= 90 ? 'text-emerald-500 dark:text-emerald-400' :
+                          'text-yellow-600 dark:text-yellow-400'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{p.name}</span>
+                          <div className="flex items-center gap-1">
+                            {p.trend === 'up' && <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+                            {p.trend === 'down' && <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />}
+                            <Badge
+                              variant="secondary"
+                              className={`h-5 text-[10px] border-0 ${
+                                p.health < 70 ? 'bg-red-600/20 text-red-600 dark:text-red-400' :
+                                p.health === 100 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                p.health >= 90 ? 'bg-emerald-600/10 text-emerald-500 dark:text-emerald-400' :
+                                'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
+                              }`}
+                            >
+                              {p.health}%
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{p.desc}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <Progress value={p.health} className="h-1 flex-1" />
+                          <span className="text-[8px] text-muted-foreground ml-2 tabular-nums">{p.uptime}</span>
+                        </div>
+                        {/* Mini Sparkline */}
+                        <div className="mt-1.5">
+                          <MiniAreaChart data={sparkData} dataKey="value" color={sparkColor} height={20} />
+                        </div>
+                        {/* Status indicator */}
+                        <div className="mt-1 flex items-center justify-between">
+                          {p.health < 70 && (
+                            <div className="flex items-center gap-1">
+                              <span className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
+                              <span className="text-[8px] text-red-600 dark:text-red-400">CRITICAL</span>
+                            </div>
+                          )}
+                          {p.health >= 70 && p.health < 90 && (
+                            <div className="flex items-center gap-1">
+                              <span className="h-1 w-1 rounded-full bg-yellow-400 animate-pulse" />
+                              <span className="text-[8px] text-yellow-600 dark:text-yellow-400">Below threshold</span>
+                            </div>
+                          )}
+                          {p.health >= 90 && p.health < 100 && (
+                            <div className="flex items-center gap-1">
+                              <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-[8px] text-emerald-600 dark:text-emerald-400">Operational</span>
+                            </div>
+                          )}
+                          {p.health === 100 && (
+                            <div className="flex items-center gap-1">
+                              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                              <span className="text-[8px] text-emerald-600 dark:text-emerald-400">Nominal</span>
+                            </div>
+                          )}
+                          <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                            <Eye className="h-2 w-2" /> Details
+                          </span>
                         </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{p.desc}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <Progress value={p.health} className="h-1 flex-1" />
-                        <span className="text-[9px] text-muted-foreground ml-2">{p.uptime}</span>
-                      </div>
-                      {p.health < 70 && (
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="h-1 w-1 rounded-full bg-red-400 animate-pulse status-glow-red" />
-                          <Badge className="bg-red-600/20 text-red-600 dark:text-red-400 border-0 text-[8px] px-1 py-0">CRITICAL</Badge>
-                        </div>
-                      )}
-                      {p.health >= 70 && p.health < 90 && (
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="h-1 w-1 rounded-full bg-yellow-400 animate-pulse status-glow-yellow" />
-                          <span className="text-[9px] text-yellow-600 dark:text-yellow-400">Below threshold</span>
-                        </div>
-                      )}
-                      {p.health >= 90 && p.health < 100 && (
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse status-glow-green" />
-                          <span className="text-[9px] text-emerald-600 dark:text-emerald-400">Operational</span>
-                        </div>
-                      )}
-                      {p.health === 100 && (
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="h-1 w-1 rounded-full bg-emerald-400 status-glow-green" />
-                          <span className="text-[9px] text-emerald-600 dark:text-emerald-400">Nominal</span>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )
+          })}
         </div>
       </motion.div>
 
-      {/* System Architecture Diagram */}
+      {/* System Architecture Diagram (full SVG version) */}
       <motion.div variants={staggerItem} initial="hidden" animate="visible">
         <SystemArchitecture />
       </motion.div>
@@ -1197,6 +1830,20 @@ export function OverviewTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pillar Detail Dialog */}
+      <PillarDetailDialog
+        pillar={selectedPillar}
+        open={pillarDialogOpen}
+        onOpenChange={setPillarDialogOpen}
+      />
+
+      {/* View All Pillars Dialog */}
+      <ViewAllPillarsDialog
+        open={viewAllPillarsOpen}
+        onOpenChange={setViewAllPillarsOpen}
+        onPillarClick={handlePillarClick}
+      />
     </div>
   )
 }
