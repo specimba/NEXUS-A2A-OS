@@ -1,0 +1,49 @@
+# NEXUS OS v3.1 — Cold Start Guide
+
+Goal: Get any new agent or developer fully operational in under 5 minutes with zero context loss.
+
+## Step 1: Environment Setup
+
+# Linux / macOS / Zo Computer
+cd NEXUS
+source venv/bin/activate
+
+# Windows
+cd C:\Users\speci.000\Documents\NEXUS
+.\venv\Scripts\Activate.ps1
+
+## Step 2: Install & Verify
+
+pip install -e . httpx -q
+python scripts/diagnostic.py
+python -m pytest tests/ -q --tb=short
+
+Expected result: 622+ tests passed and ALL CHECKS PASSED.
+
+## Step 3: Start the Governance API
+
+uvicorn nexus_os.api.server:app --host 0.0.0.0 --port 7352
+
+## Step 4: Read Context (Mandatory)
+
+Every agent must read these files in order before doing any work:
+
+1. tasks/owners.md              (team structure v3.2)
+2. tasks/coordination_prompt.md (coordination rules)
+3. docs/agents/AGENT_<YOUR_NAME>.md  (your personal rules)
+4. COLDSTART_BOOT.txt           (this file)
+
+## Step 5: Daily Workflow
+
+Activate environment
+Run python scripts/diagnostic.py
+Check tasks/pending/ for assigned work
+Claim task using: python tasks/task_queue.py claim <id> <AGENT>
+Work → Test → Commit (explicit paths only)
+Update task progress: python tasks/task_queue.py update <id> <progress> [note]
+Complete: python tasks/task_queue.py complete <id> [note]
+
+Never create new tasks or missions independently.
+
+regards,
+speci

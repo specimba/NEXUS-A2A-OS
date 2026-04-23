@@ -1,0 +1,100 @@
+# NEXUS OS v3.1 — COLD START BOOT (Zero Context Loss)
+====================================================
+Date: 2026-04-23 | Verified: 622+ tests passed | API: port 7352
+
+This file gives any agent full operational context in under 2000 tokens.
+No exploration needed. Read once, operate immediately.
+
+────────────────────────────────────────────────────
+1. WHAT IS THIS
+────────────────────────────────────────────────────
+NEXUS OS is a Python/FastAPI multi-agent governance operating system.
+It provides governed execution, trust scoring, memory management, and
+provable audit trails for autonomous agents.
+
+Core Rule: Everything runs through governance. No rogue actions.
+
+Source:     src/nexus_os/          (READ ONLY unless tests pass)
+Tests:      python -m pytest tests/ -q --tb=short
+API Server: uvicorn nexus_os.api.server:app --host 0.0.0.0 --port 7352
+
+────────────────────────────────────────────────────
+2. QUICK START (Linux / macOS / Zo Computer)
+────────────────────────────────────────────────────
+cd NEXUS
+source venv/bin/activate
+pip install -e . httpx -q
+python scripts/diagnostic.py
+
+────────────────────────────────────────────────────
+3. QUICK START (Windows — speci's machine)
+────────────────────────────────────────────────────
+cd C:\Users\speci.000\Documents\NEXUS
+.\venv\Scripts\Activate.ps1
+pip install -e . httpx -q
+python scripts/diagnostic.py
+
+────────────────────────────────────────────────────
+4. VERIFICATION CHECKLIST
+────────────────────────────────────────────────────
+[ ] python -m pytest tests/ -q --tb=short     → 622+ passed
+[ ] python scripts/diagnostic.py              → ALL CHECKS PASSED
+[ ] curl http://127.0.0.1:7352/health         → {"status":"healthy"}
+
+────────────────────────────────────────────────────
+5. FIVE CORE PILLARS (src/nexus_os/)
+────────────────────────────────────────────────────
+Bridge     → JSON-RPC, auth, secrets
+Governor   → KAIJU, compliance, trust gates, RigorLLM guardrail
+Vault      → 8-track memory, encryption, KV compression
+Engine     → Hermes routing, SkillSmith, ToolDiscipline
+Monitoring → TokenGuard, TALE budget estimator, VAP audit
+
+────────────────────────────────────────────────────
+6. KEY SUBSYSTEMS
+────────────────────────────────────────────────────
+GMR Engine      → Speculative model routing + circuit breaker
+Trust Scorer    → Bayesian reputation system (OR-Bench calibrated)
+TokenGuard      → Budget enforcement + 429 handling
+VAP Chain       → SHA-256 immutable audit trail
+OpenClaw        → Agent swarm spawner
+Hermes          → Intent classification + routing
+Memory Tracks   → EVENT / TRUST / CAP / FAIL / GOV / TEMPORAL_CAUSAL / ONTOLOGICAL / WORKING
+
+────────────────────────────────────────────────────
+7. CANONICAL PORTS
+────────────────────────────────────────────────────
+7352 → Governance API (PRIMARY)
+7353 → TWAVE wrapper (read-only)
+7354 → Mock / fallback (dev only)
+
+────────────────────────────────────────────────────
+8. LOCAL MODELS (Ollama — Zero Cost)
+────────────────────────────────────────────────────
+Primary:   qwen2.5-coder:7b, gemma4:e2b, nemotron-3-nano:4b
+Special:   deepseek-r1:8b (reasoning), osman-fast (hot path)
+Strategy:  Local-first. Cloud only when tier demands it.
+
+────────────────────────────────────────────────────
+9. GOLDEN RULES (AGENTS.md)
+────────────────────────────────────────────────────
+• Never run `git add .` — always stage explicit paths
+• All core changes require passing tests first
+• Never modify TWAVE core algorithms
+• Model Arena = reporting only (no auto-promotion)
+• All agents must follow their AGENT.md file
+• Task queue is the only source of work — never create missions independently
+
+────────────────────────────────────────────────────
+10. MUST-READ FILES (in order)
+────────────────────────────────────────────────────
+1. tasks/owners.md           (team structure v3.2)
+2. tasks/coordination_prompt.md
+3. docs/agents/AGENT_<YOUR_NAME>.md  (your personal rules)
+4. COLDSTART_GUIDE.md        (detailed setup)
+5. coldstart_install.py       (first-run installer)
+
+Total context: ~8500 tokens. Any modern agent can handle it.
+
+regards,
+speci
