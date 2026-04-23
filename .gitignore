@@ -34,6 +34,16 @@ wheels/
 .env.local
 .env.*
 
+# Generated/Run-time artifacts (never commit these)
+arena_results.jsonl
+arena_report.md
+test_scan_report.json
+api_scan_report.json
+test_grok.py
+test_api_direct.py
+monitor_a2a.py
+*.task.md
+
 # NEXUS OS Specific
 .pytest_cache/
 .pytest_tmp/
