@@ -1,11 +1,10 @@
 {
   "id": "TASK-005",
-  "title": "Unify canonical-617 across all machines (Windows + Zo)",
-  "owner": "SPECI",
+  "title": "Integrate OPUSman v6.2 with NEXUS modules + health monitoring + degradation detection",
+  "owner": "NEO",
   "priority": "critical",
-  "description": "Ensure NEXUS-A2A-OS and nexusalpha repos are on the same commit (5599214) with clean working trees on both Windows and Zo. Verify no divergent branches. After fixing tasks 001-004, push corrected canonical-617 to both remotes.",
+  "description": "Make OPUSman load NEXUS modules (VaultManager, SuperLocalMemory, TrustScorer, VAP). Add /agent/health endpoint and degradation risk detection. Remove remaining standalone limitations.",
   "status": "pending",
-  "created": "2026-04-23T21:10:00Z",
-  "progress": 0,
-  "labels": ["git", "canonical", "sync"]
+  "created": "2026-04-23T22:55:00Z",
+  "progress": 0
 }

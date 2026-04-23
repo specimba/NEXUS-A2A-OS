@@ -1,0 +1,10 @@
+{
+  "id": "TASK-008",
+  "title": "Wire Agent Health Monitor and Model Arena Status to real NEXUS API data",
+  "owner": "GLM5.1",
+  "priority": "medium",
+  "description": "Connect dashboard widgets (Health Monitor + Arena Leaderboard) to actual /dashboard/stats and OPUSman health endpoints.",
+  "status": "pending",
+  "created": "2026-04-23T22:55:00Z",
+  "progress": 0
+}

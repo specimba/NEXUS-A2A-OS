@@ -1,0 +1,10 @@
+{
+  "id": "TASK-007",
+  "title": "Standardize all port references to 7352 as primary Governance API",
+  "owner": "CODEX",
+  "priority": "high",
+  "description": "Update mock_api_server.py, monitor_a2a.py, and any other files still pointing to 7353/7354. Align with PORTS.md (7352=governance, 7353=TWAVE, 7354=mock).",
+  "status": "pending",
+  "created": "2026-04-23T22:55:00Z",
+  "progress": 0
+}

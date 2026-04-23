@@ -1,0 +1,10 @@
+{
+  "id": "TASK-006",
+  "title": "Activate and verify pre-commit hook on all machines",
+  "owner": "CODEX",
+  "priority": "high",
+  "description": "Ensure .git/hooks/pre-commit is executable and working. Test it blocks nexus_api.db, arena_results.jsonl, and hardcoded keys (sk-or-v1-, gsk_, 4TdYJmA8).",
+  "status": "pending",
+  "created": "2026-04-23T22:55:00Z",
+  "progress": 0
+}
