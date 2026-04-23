@@ -1,0 +1,11 @@
+{
+  "id": "TASK-005",
+  "title": "Unify canonical-617 across all machines (Windows + Zo)",
+  "owner": "SPECI",
+  "priority": "critical",
+  "description": "Ensure NEXUS-A2A-OS and nexusalpha repos are on the same commit (5599214) with clean working trees on both Windows and Zo. Verify no divergent branches. After fixing tasks 001-004, push corrected canonical-617 to both remotes.",
+  "status": "pending",
+  "created": "2026-04-23T21:10:00Z",
+  "progress": 0,
+  "labels": ["git", "canonical", "sync"]
+}

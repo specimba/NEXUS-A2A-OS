@@ -6,6 +6,8 @@ from pathlib import Path
 from datetime import datetime
 
 ROOT = Path(__file__).parent
+while not (ROOT / "src").exists() and ROOT != ROOT.parent:
+    ROOT = ROOT.parent
 VENV = ROOT / "venv"
 
 def run(cmd):

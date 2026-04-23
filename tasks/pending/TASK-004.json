@@ -1,0 +1,11 @@
+{
+  "id": "TASK-004",
+  "title": "Clean research folder duplication and establish single source of truth",
+  "owner": "META",
+  "priority": "medium",
+  "description": "Audit workspace for duplicate research/teamlogs_reports folders. Keep only one canonical copy. Archive or delete duplicates. Create docs/DECISION_LOG_002.md with only verified decisions from Session Log 002. No speculative claims.",
+  "status": "pending",
+  "created": "2026-04-23T21:10:00Z",
+  "progress": 0,
+  "labels": ["cleanup", "research", "duplication"]
+}

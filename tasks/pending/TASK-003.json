@@ -1,0 +1,11 @@
+{
+  "id": "TASK-003",
+  "title": "Verify actual test count and port configuration",
+  "owner": "CODEX",
+  "priority": "high",
+  "description": "Run: python3 -m pytest tests/ -q --tb=short. Record actual passed/failed count. Check which services are running on 7352/7353/7354. Update COLDSTART_BOOT.txt with only verified numbers. Remove all unverified claims (635+, canonical-617 readiness, etc.).",
+  "status": "pending",
+  "created": "2026-04-23T21:10:00Z",
+  "progress": 0,
+  "labels": ["verification", "tests", "ports"]
+}

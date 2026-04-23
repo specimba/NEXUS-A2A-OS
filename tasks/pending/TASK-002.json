@@ -1,0 +1,11 @@
+{
+  "id": "TASK-002",
+  "title": "Create missing canonical files",
+  "owner": "NEO",
+  "priority": "high",
+  "description": "Create three missing files: (1) docs/PORTS.md — port map for 7352/7353/7354 with service name + purpose; (2) tasks/FINALIZER_PROMPT.md — the mandatory 8-point agent acknowledgment; (3) Verify tasks/coordination_prompt.md is correct. No hardcoded unverified claims.",
+  "status": "pending",
+  "created": "2026-04-23T21:10:00Z",
+  "progress": 0,
+  "labels": ["docs", "missing-files"]
+}

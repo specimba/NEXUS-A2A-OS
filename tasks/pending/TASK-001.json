@@ -1,0 +1,11 @@
+{
+  "id": "TASK-001",
+  "title": "Fix coldstart_install.py ROOT logic for real repo root",
+  "owner": "CODEX",
+  "priority": "critical",
+  "description": "Update coldstart_install.py so it correctly detects the NEXUS repo root (not the research/ folder). ROOT must resolve to the directory containing src/, tests/, pyproject.toml. Test on both Windows and Zo.",
+  "status": "pending",
+  "created": "2026-04-23T21:10:00Z",
+  "progress": 0,
+  "labels": ["bug", "coldstart", "windows", "zo"]
+}
