@@ -19,10 +19,10 @@ import {
 // ─── Model Options (inspired by GLM5 team's model selector) ───
 
 const AI_MODELS = [
-  { id: 'default', label: 'NEXUS AI', description: 'Default model', icon: '⚡' },
-  { id: 'sonnet', label: 'Claude Sonnet', description: 'Balanced speed & quality', icon: '🧠' },
-  { id: 'opus', label: 'Claude Opus', description: 'Highest quality', icon: '✨' },
-  { id: 'haiku', label: 'Claude Haiku', description: 'Fastest responses', icon: '⚡' },
+  { id: 'default', label: 'NEXUS AI', description: 'GLM-4.7 via z-ai SDK', icon: '⚡' },
+  { id: 'reasoning', label: 'DeepSeek R1', description: 'Strong reasoning (OR Free)', icon: '🧠' },
+  { id: 'balanced', label: 'Qwen3 Coder', description: 'Balanced quality (OR Free)', icon: '⚙️' },
+  { id: 'fast', label: 'Gemma 4 26B', description: 'Fast responses (OR Free)', icon: '⚡' },
 ] as const
 
 type AIModel = typeof AI_MODELS[number]['id']
@@ -306,13 +306,14 @@ export function NexusAssistant() {
 
         const data = await response.json()
         const modelLabel = AI_MODELS.find(m => m.id === selectedModel)?.label
+        // Transparently show which model actually generated the response
         const modelInfo = data.model
           ? ` [${data.model}]`
           : selectedModel !== 'default'
             ? ` [${modelLabel}]`
             : usedEndpoint === 'claude-proxy'
-              ? ' [Claude]'
-              : ''
+              ? ' [via OpenRouter]'
+              : ' [GLM-4.7]'
         addChatMessage({ role: 'assistant', content: data.response + modelInfo })
       } catch {
         addChatMessage({

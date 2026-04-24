@@ -2249,3 +2249,35 @@ Unresolved / Next Phase:
 5. Mobile responsiveness pass for dense tab layouts (GMR, Governor)
 6. Add "SIMULATED" badges on widgets with mock data
 7. Light theme styling pass
+
+---
+Task ID: 22
+Agent: main
+Task: Critical bug fixes, AI transparency, security hardening, Alphaxiv integration
+
+Work Log:
+- Fixed duplicate key error in research-tab.tsx: deduplicated merged papers (apiP0/P1/P2 + localPapers) using Set-based id check
+- Fixed notification toasts blocking AI chat panel: moved position from 'bottom-right' to 'top-left' in both Sonner component and notification-center
+- Improved Daily Research Practice visibility: increased opacity from 5%/20% to 15%/30%, added shadow-lg, improved text contrast for light mode
+- Replaced fake Claude model labels with honest names: NEXUS AI (GLM-4.7), DeepSeek R1, Qwen3 Coder, Gemma 4 26B
+- Added transparent model attribution in AI responses: shows [GLM-4.7] or [via OpenRouter] instead of fake [Claude Opus] tags
+- Updated system prompts to enforce honest identity: AI must state it runs on open-source models, never claim to be Claude/Anthropic
+- Removed systemPrompt client override vulnerability from /api/chat and /api/claude routes — client can no longer override the system prompt
+- Added SECURITY directive to system prompts: AI is read-only, must refuse file modification/command execution requests
+- Added Tavily API key (tvly-dev-1AbfHw...) to .env for Alphaxiv research integration
+- Added tavily provider to api-key-manager.ts with proper auth headers
+- Added OpenRouter API key to root .env (was only in claude-proxy/.env before)
+- Created /api/alphaxiv route: GET for searching papers, POST for queuing into pipeline
+- Added Alphaxiv tab to Research tab with search UI, auto-scoring, and Add-to-Queue buttons
+- Added "Fetch Alphaxiv" button next to "Add to Queue" in search bar
+- Updated model routing in /api/claude to map honest model names (reasoning/balanced/fast) to proxy tiers
+- All lint checks pass clean
+
+Stage Summary:
+- Critical runtime bug fixed (duplicate React keys causing component crashes)
+- AI identity is now honest and transparent (no more fake "Claude Opus" claims)
+- Security hardened: no system prompt override, no file modification via chat
+- Notifications no longer block AI chat panel
+- Daily Research Practice visible at a glance in both light and dark mode
+- Alphaxiv integration live with Tavily API search pipeline
+- API key infrastructure expanded to include Tavily provider

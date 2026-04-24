@@ -62,6 +62,7 @@ interface StoredKey {
 
 const ENV_KEY_MAP: Record<string, string[]> = {
   openrouter: ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY_2', 'OPENROUTER_API_KEY_3'],
+  tavily: ['TAVILY_API_KEY'],
   jina: ['JINA_API_KEY', 'JINA_API_KEY_2'],
   kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
   cerebras: ['CEREBRAS_API_KEY', 'CEREBRAS_API_KEY_2'],
@@ -306,6 +307,10 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
         'Authorization': `Bearer ${key}`,
         'HTTP-Referer': 'https://nexus-os.dev',
         'X-Title': 'NEXUS OS v3.0',
+      }
+    case 'tavily':
+      return {
+        'Content-Type': 'application/json',
       }
     case 'jina':
     case 'cerebras':

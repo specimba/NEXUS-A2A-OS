@@ -482,6 +482,9 @@ export function ResearchTab() {
   const [practiceSessionActive, setPracticeSessionActive] = useState(false)
   const [practiceStep, setPracticeStep] = useState(0)
   const [localPapers, setLocalPapers] = useState<PaperItem[]>([])
+  const [alphaxivLoading, setAlphaxivLoading] = useState(false)
+  const [alphaxivResults, setAlphaxivResults] = useState<PaperItem[]>([])
+  const [alphaxivTopic, setAlphaxivTopic] = useState('')
 
   const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
 
@@ -490,10 +493,11 @@ export function ResearchTab() {
   const apiP1: PaperItem[] = (apiData?.p1 || []).map(mapApiPaperToItem)
   const apiP2: PaperItem[] = (apiData?.p2 || []).map(mapApiPaperToItem)
 
-  // Merge local papers (from "Add to Queue") with API papers
-  const allP0 = [...apiP0, ...localPapers.filter(p => p.priority === 'P0')]
-  const allP1 = [...apiP1, ...localPapers.filter(p => p.priority === 'P1')]
-  const allP2 = [...apiP2, ...localPapers.filter(p => p.priority === 'P2')]
+  // Merge local papers (from "Add to Queue") with API papers — deduplicate by id
+  const apiIds = new Set([...apiP0, ...apiP1, ...apiP2].map(p => p.id))
+  const allP0 = [...apiP0, ...localPapers.filter(p => p.priority === 'P0' && !apiIds.has(p.id))]
+  const allP1 = [...apiP1, ...localPapers.filter(p => p.priority === 'P1' && !apiIds.has(p.id))]
+  const allP2 = [...apiP2, ...localPapers.filter(p => p.priority === 'P2' && !apiIds.has(p.id))]
 
   const isSearchActive = searchQuery !== ''
 
@@ -615,6 +619,40 @@ export function ResearchTab() {
     })
   }
 
+  const handleFetchAlphaxiv = async () => {
+    setAlphaxivLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (alphaxivTopic) params.set('topic', alphaxivTopic)
+      params.set('max', '10')
+      const res = await fetch(`/api/alphaxiv?${params.toString()}`)
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error('Alphaxiv fetch failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; title: string; snippet: string; relevanceScore: number; url: string }) => ({
+        id: p.id,
+        title: p.title,
+        relevance: p.relevanceScore ?? 0.5,
+        task: 'Pending review',
+        deliverable: p.url,
+        status: 'pending' as const,
+        priority: (p.relevanceScore ?? 0.5) > 0.7 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.4 ? 'P1' as const : 'P2' as const,
+        domain: 'alphaxiv',
+      }))
+      setAlphaxivResults(mapped)
+      toast.success(`Found ${mapped.length} papers via Alphaxiv`, {
+        description: 'Review and add to queue from the Alphaxiv tab',
+      })
+    } catch {
+      toast.error('Alphaxiv fetch failed', { description: 'Network error' })
+    } finally {
+      setAlphaxivLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Loading state with shimmer skeletons */}
@@ -690,6 +728,16 @@ export function ResearchTab() {
         >
           <Plus className="h-3.5 w-3.5" />
           Add to Queue
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 gap-1.5 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 btn-press focus-ring-enhanced"
+          disabled={alphaxivLoading}
+          onClick={handleFetchAlphaxiv}
+        >
+          {alphaxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Library className="h-3.5 w-3.5" />}
+          Fetch Alphaxiv
         </Button>
       </div>
 
@@ -915,6 +963,7 @@ export function ResearchTab() {
           <TabsTrigger value="p0">P0 — Now</TabsTrigger>
           <TabsTrigger value="p1">P1 — Next</TabsTrigger>
           <TabsTrigger value="p2">P2 — Research</TabsTrigger>
+          <TabsTrigger value="alphaxiv" className="text-blue-600 dark:text-blue-400">α Alphaxiv</TabsTrigger>
           <TabsTrigger value="practice">Daily Practice</TabsTrigger>
         </TabsList>
 
@@ -1090,10 +1139,110 @@ export function ResearchTab() {
           </div>
         </TabsContent>
 
+        {/* Alphaxiv Integration */}
+        <TabsContent value="alphaxiv">
+          <Card className="relative overflow-hidden border-blue-500/30 shadow-lg shadow-blue-500/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-indigo-600/8" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Library className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Alphaxiv Research Feed
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative p-4 pt-0 space-y-4">
+              {/* Search controls */}
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Search topic (e.g., constitutional AI, multi-agent governance)..."
+                  className="h-9 text-xs border-blue-500/30 focus:border-blue-500/50"
+                  value={alphaxivTopic}
+                  onChange={(e) => setAlphaxivTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleFetchAlphaxiv()}
+                />
+                <Button
+                  size="sm"
+                  className="h-9 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white shrink-0 btn-press"
+                  disabled={alphaxivLoading}
+                  onClick={handleFetchAlphaxiv}
+                >
+                  {alphaxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  Search
+                </Button>
+              </div>
+
+              {/* Auto-fetch notice */}
+              <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                  <Zap className="h-3 w-3" /> Automated Pipeline
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Papers are fetched from AlphaXiv via Tavily API, auto-scored by relevance, and assigned to P0/P1/P2 queues.
+                  Review below, then click &quot;Add to Queue&quot; to import into the research pipeline.
+                </p>
+              </div>
+
+              {/* Results */}
+              {alphaxivResults.length > 0 ? (
+                <div className="space-y-3">
+                  {alphaxivResults.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="hover:border-blue-500/30 transition-all cursor-pointer hover-lift border-l-4 border-l-blue-500/60 btn-press shadow-sm shadow-blue-600/5"
+                      onClick={() => openPaperDialog(item)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600/15">
+                            <Library className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                              <Badge className="bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0 text-[9px]">
+                                Relevance: {(item.relevance * 100).toFixed(0)}%
+                              </Badge>
+                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
+                                {item.priority}
+                              </Badge>
+                              <Badge className="bg-blue-500/15 text-blue-500 dark:text-blue-400 border-0 text-[9px]">
+                                ALPHAXIV
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm font-medium leading-snug">{item.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px] shrink-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAddPaper(item)
+                            }}
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> Add
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 mb-3">
+                    <Library className="h-5 w-5 text-blue-500/50" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">No AlphaXiv results yet</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">Enter a topic and click Search to fetch papers</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Daily Practice — Enhanced */}
         <TabsContent value="practice">
-          <Card className="relative overflow-hidden border-emerald-600/20 nexus-gradient-border">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <Card className="relative overflow-hidden border-emerald-500/40 nexus-gradient-border shadow-lg shadow-emerald-500/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/15 via-emerald-500/5 to-emerald-700/10" />
             <CardHeader className="relative pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Daily Research Practice Template
@@ -1103,23 +1252,23 @@ export function ResearchTab() {
               {/* Steps with progression lines and gradient colors */}
               <div className="relative">
                 {/* Connector line behind steps */}
-                <div className="absolute top-5 left-5 right-5 h-0.5 bg-gradient-to-r from-emerald-300/30 via-emerald-500/40 to-emerald-700/50 hidden md:block" />
+                <div className="absolute top-5 left-5 right-5 h-0.5 bg-gradient-to-r from-emerald-300/60 via-emerald-500/70 to-emerald-700/80 hidden md:block" />
 
                 <div className="grid gap-3 md:grid-cols-5 relative">
                   {practiceSteps.map((s, i) => {
                     const emeraldLevels = [
-                      'bg-emerald-300/20 text-emerald-600 dark:text-emerald-300 border-emerald-300/30',
-                      'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400 border-emerald-400/30',
-                      'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-                      'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-emerald-600/30',
-                      'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400 border-emerald-700/30',
+                      'bg-emerald-300/30 text-emerald-700 dark:text-emerald-200 border-emerald-300/50 shadow-sm shadow-emerald-300/20',
+                      'bg-emerald-400/30 text-emerald-700 dark:text-emerald-200 border-emerald-400/50 shadow-sm shadow-emerald-400/20',
+                      'bg-emerald-500/30 text-emerald-700 dark:text-emerald-200 border-emerald-500/50 shadow-sm shadow-emerald-500/20',
+                      'bg-emerald-600/30 text-emerald-700 dark:text-emerald-200 border-emerald-600/50 shadow-sm shadow-emerald-600/20',
+                      'bg-emerald-700/30 text-emerald-700 dark:text-emerald-200 border-emerald-700/50 shadow-sm shadow-emerald-700/20',
                     ]
                     const stepBadgeBg = [
-                      'bg-emerald-300/20 text-emerald-600 dark:text-emerald-300',
-                      'bg-emerald-400/20 text-emerald-600 dark:text-emerald-400',
-                      'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-                      'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400',
-                      'bg-emerald-700/20 text-emerald-600 dark:text-emerald-400',
+                      'bg-emerald-300/40 text-emerald-700 dark:text-emerald-200',
+                      'bg-emerald-400/40 text-emerald-700 dark:text-emerald-200',
+                      'bg-emerald-500/40 text-emerald-700 dark:text-emerald-200',
+                      'bg-emerald-600/40 text-emerald-700 dark:text-emerald-200',
+                      'bg-emerald-700/40 text-emerald-700 dark:text-emerald-200',
                     ]
                     const isActive = practiceSessionActive && i === practiceStep
                     return (

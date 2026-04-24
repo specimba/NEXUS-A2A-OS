@@ -88,7 +88,7 @@ export function NotificationCenter() {
         toast(nextNotif.title, {
           description: nextNotif.message.length > 80 ? nextNotif.message.slice(0, 80) + '...' : nextNotif.message,
           duration: 4000,
-          position: 'bottom-right',
+          position: 'top-left',
         })
         tick()
       }, delay)
