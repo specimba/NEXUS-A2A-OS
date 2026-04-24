@@ -61,6 +61,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
+import { SystemTerminal } from '@/components/nexus/system-terminal'
+import { AgentHealthMonitor } from '@/components/nexus/agent-health-monitor'
 
 // ── Pillar detail data for enhanced pillar dialog ─────────────────
 const pillarDetails: Record<string, {
@@ -484,7 +486,7 @@ function SystemHealthTimeline() {
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
           {pillarNames.map((p) => (
-            <span key={p} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span key={`pillar-legend-${p}`} className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pillarColors[p] }} />
               {p}
             </span>
@@ -939,7 +941,7 @@ function PillarDetailDialog({
           {/* Key Metrics */}
           <div className="grid grid-cols-2 gap-2">
             {details?.keyMetrics.map((m) => (
-              <div key={m.label} className="rounded-md bg-accent/30 px-2.5 py-2">
+              <div key={`metric-${m.label}`} className="rounded-md bg-accent/30 px-2.5 py-2">
                 <p className="text-[9px] text-muted-foreground">{m.label}</p>
                 <p className="text-sm font-bold tabular-nums mt-0.5">{m.value}</p>
               </div>
@@ -1014,7 +1016,7 @@ function ViewAllPillarsDialog({
             const sparkColor = pillarColors[p.name] || COLORS.emerald
             return (
               <Card
-                key={p.name}
+                key={`dialog-pillar-${p.name}`}
                 className={`group relative overflow-hidden hover-lift cursor-pointer transition-all duration-200 hover:shadow-md ${
                   p.health < 95 ? 'animate-pulse-subtle' : ''
                 }`}
@@ -1472,7 +1474,7 @@ export function OverviewTab() {
             const sparkData = pillarSparklines[p.name]
             const sparkColor = pillarColors[p.name] || COLORS.emerald
             return (
-              <motion.div key={p.name} variants={staggerItem} custom={idx}>
+              <motion.div key={`pillar-card-${p.name}`} variants={staggerItem} custom={idx}>
                 <Card
                   className={`group relative overflow-hidden hover-lift hover:border-emerald-600/30 transition-all duration-200 hover:shadow-md hover:shadow-emerald-600/5 cursor-pointer ${
                     p.health < 95 ? 'animate-pulse-subtle' : ''
@@ -1622,6 +1624,11 @@ export function OverviewTab() {
         <SystemHealthTimeline />
       </motion.div>
 
+      {/* Agent Health Monitor */}
+      <motion.div variants={staggerItem} initial="hidden" animate="visible">
+        <AgentHealthMonitor />
+      </motion.div>
+
       {/* Recent Governor Decisions + Activity Feed + Notifications + Stats */}
       <motion.div
         variants={staggerContainer}
@@ -1745,6 +1752,16 @@ export function OverviewTab() {
         </motion.div>
       </motion.div>
 
+      {/* ── System Terminal ───────────────────────────────────── */}
+      <motion.div
+        variants={staggerItem}
+        initial="hidden"
+        animate="visible"
+        className="w-full"
+      >
+        <SystemTerminal />
+      </motion.div>
+
       {/* ── Diagnostic Modal ──────────────────────────────────── */}
       <Dialog open={diagnosticOpen} onOpenChange={setDiagnosticOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -1764,7 +1781,7 @@ export function OverviewTab() {
             )}
             {diagnosticResults.map((r) => (
               <div
-                key={r.pillar}
+                key={`diag-${r.pillar}`}
                 className="flex items-center gap-3 rounded-lg border bg-accent/20 px-3 py-2.5"
               >
                 <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${

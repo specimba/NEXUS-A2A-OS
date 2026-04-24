@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton } from '@/components/nexus/export-button'
 import { useApiData } from '@/hooks/use-api-data'
+import { SecurityPosture } from '@/components/nexus/security-posture'
 
 // Column headers for CSV export
 const governorDecisionsColumnHeaders: Record<string, string> = {
@@ -2067,6 +2068,9 @@ export function GovernorTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Security Posture */}
+      <SecurityPosture />
 
       {/* Decision Detail Dialog */}
       <DecisionDetailDialog

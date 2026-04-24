@@ -211,6 +211,23 @@ export function VaultTab() {
     return entries.slice(0, 5)
   }, [entries])
 
+  const hasFilters = searchQuery !== '' || activeTrack !== null
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter((e) => {
+      if (activeTrack && e.track !== activeTrack) return false
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchesKey = e.key.toLowerCase().includes(q)
+        const matchesAgent = e.agent.toLowerCase().includes(q)
+        const matchesValue = e.value.toLowerCase().includes(q)
+        const matchesId = e.id.toLowerCase().includes(q)
+        if (!matchesKey && !matchesAgent && !matchesValue && !matchesId) return false
+      }
+      return true
+    })
+  }, [searchQuery, activeTrack, entries])
+
   const handleExportCsv = useCallback(() => {
     const headers = ['ID', 'Track', 'Agent', 'Key', 'Value', 'Score', 'Time']
     const rows = filteredEntries.map((e) => [
@@ -234,23 +251,6 @@ export function VaultTab() {
       description: `${filteredEntries.length} entries exported as CSV`,
     })
   }, [filteredEntries])
-
-  const hasFilters = searchQuery !== '' || activeTrack !== null
-
-  const filteredEntries = useMemo(() => {
-    return entries.filter((e) => {
-      if (activeTrack && e.track !== activeTrack) return false
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        const matchesKey = e.key.toLowerCase().includes(q)
-        const matchesAgent = e.agent.toLowerCase().includes(q)
-        const matchesValue = e.value.toLowerCase().includes(q)
-        const matchesId = e.id.toLowerCase().includes(q)
-        if (!matchesKey && !matchesAgent && !matchesValue && !matchesId) return false
-      }
-      return true
-    })
-  }, [searchQuery, activeTrack, entries])
 
   const clearFilters = () => {
     setSearchQuery('')

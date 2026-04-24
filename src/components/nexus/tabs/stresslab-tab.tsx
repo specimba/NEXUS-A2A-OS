@@ -732,7 +732,7 @@ function TestResultsSummaryChart({ runs }: { runs: UIRun[] }) {
           </div>
           <div className="flex-1 space-y-2.5">
             {testResultsSummary.map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
+              <div key={`result-summary-${item.name}`} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <span className="text-xs font-medium">{item.name}</span>
@@ -792,7 +792,7 @@ function DomainCoverageSection({ templates }: { templates: UITemplate[] }) {
       </CardHeader>
       <CardContent className="relative p-4 pt-0 space-y-3">
         {displayCoverage.map((d) => (
-          <div key={d.domain}>
+          <div key={`domain-cov-${d.domain}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium">{d.domain}</span>
               <span className="text-[10px] text-muted-foreground tabular-nums">{d.templates} / {d.total} templates</span>
@@ -953,7 +953,7 @@ function RunHistoryCard({ runs }: { runs: UIRun[] }) {
         <div className="space-y-1.5">
           {last5.map((run) => (
             <div
-              key={run.id}
+              key={`run-history-${run.id}`}
               className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-2 text-xs hover:bg-accent/40 transition-colors"
             >
               <span className="font-mono text-[10px] text-muted-foreground shrink-0">{run.id}</span>
@@ -1306,7 +1306,7 @@ export function StressLabTab() {
                   </thead>
                   <tbody>
                     {runs.map((r) => (
-                      <tr key={r.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
+                      <tr key={`run-table-${r.id}`} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
                         <td className="p-3 font-mono text-xs">{r.id}</td>
                         <td className="p-3 text-xs">{r.template}</td>
                         <td className="p-3 text-xs">{r.model}</td>
@@ -1390,7 +1390,7 @@ export function StressLabTab() {
                   {arenaData.map((m) => {
                     const isWinner = m.pass === Math.max(...arenaData.map(a => a.pass))
                     return (
-                      <div key={m.model} className="flex items-center gap-1.5">
+                      <div key={`arena-model-${m.model}`} className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground">{m.model}</span>
                         {getTierBadge(m.tier)}
                         {isWinner && (

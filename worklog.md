@@ -2126,3 +2126,126 @@ Stage Summary:
 - AI system prompt FIXED: prevents financial hallucinations about Vault, trust, tokens
 - Both chat API routes updated (z-ai-sdk and claude-proxy)
 - No lint violations, no compilation errors
+
+---
+Task ID: 5-a
+Agent: full-stack-developer
+Task: Create Agent Health Monitor component
+
+Work Log:
+- Read worklog.md, project structure, existing hooks (useApiData), API routes (/api/agents), charts component, and overview-tab.tsx to understand the codebase
+- Tested /api/agents endpoint to verify data format (returns flat array of agents with id, name, type, status, domain, trustScore, totalTokens, tasksDone, tasksFailed, etc.)
+- Created AgentHealthMonitor component (src/components/nexus/agent-health-monitor.tsx) with all 4 required features:
+  1. SVG Circular Health Ring: donut chart with animated stroke-dasharray transition, color transitions (emerald >80%, yellow 60-80%, red <60%), framer-motion compatible animation using requestAnimationFrame
+  2. 4 Metric Cards in 2x2 grid: Active Agents (with pulse indicator), Average Trust (Bayesian score), Error Rate (with trend context), Uptime (formatted from agent creation dates)
+  3. Per-Agent Health Bars: agent name + role badge (coordinator/specialist/worker), color-coded health bar (emerald/yellow/red based on trustScore), status dot (online/idle/error), 5-point sparkline using MiniAreaChart showing recent health trend
+  4. Degradation Alerts: auto-appears when any agent has trustScore < 0.7, red accent card with agent name + current health percentage, "Investigate" button with sonner toast notification, AnimatePresence for smooth enter/exit
+- Used useApiData hook from @/hooks/use-api-data for fetching from /api/agents with 15s auto-refresh
+- Used shadcn/ui components: Card, CardContent, CardHeader, CardTitle, Badge, Button, Progress
+- Used Lucide icons: Heart, Activity, AlertTriangle, TrendingUp, TrendingDown, Users, Clock, Shield
+- Used framer-motion for ring animation and alerts appearance (AnimatePresence)
+- Used recharts (via MiniAreaChart from charts.tsx) for sparklines
+- Proper TypeScript interfaces (AgentData), explicit Tailwind classes (no dynamic class names)
+- Custom scrollbar styling with custom-scrollbar class, responsive layout (flex-col on mobile, flex-row on sm+), dark mode support
+- Deduplicates agents by name (API returns duplicates from multiple seed runs)
+- Integrated AgentHealthMonitor into Overview tab (src/components/nexus/tabs/overview-tab.tsx) after SystemHealthTimeline section
+- All lint checks pass (bun run lint — zero errors)
+- Dev server running cleanly on port 3000, /api/agents responding 200
+
+Stage Summary:
+- Created comprehensive AgentHealthMonitor component with SVG circular ring, 4 metric cards, per-agent health bars with sparklines, and degradation alerts
+- Component uses real API data from /api/agents via useApiData hook with auto-refresh
+- Integrated into Overview tab between SystemHealthTimeline and Recent Governor Decisions sections
+- Zero lint errors, zero compilation errors, dev server clean
+
+---
+Task ID: 5-c
+Agent: full-stack-developer
+Task: Create System Terminal component
+
+Work Log:
+- Read worklog.md and overview-tab.tsx to understand project context and existing component structure
+- Examined API routes (/api/agents, /api/vault, /api/models, /api/tokens) to understand data shapes for terminal commands
+- Created src/components/nexus/system-terminal.tsx with full feature set:
+  - macOS-style terminal window with 3 colored dots (red/yellow/green), title "NEXUS Terminal — bash", dark zinc background
+  - Interactive command input with green "nexus@os" prompt, sky-blue "~" path, auto-focused input field
+  - Command history navigation (up/down arrows, max 50 entries in ref)
+  - Tab completion for all available commands
+  - 13 simulated commands: help, status, agents, vault, gmr, governor, tokens, ping, uptime, whoami, ls, cat constitution, clear
+  - API-fetching commands (agents, vault, gmr, tokens) fetch real data from /api endpoints and format as terminal text
+  - Color-coded output: green=success, yellow=warning, red=error, blue=info, muted=output
+  - Auto-scroll to bottom on new output using useRef + scrollToBottom
+  - Max height 400px with overflow-y-auto and custom-scrollbar
+  - Auto-startup boot sequence with staggered 400ms intervals
+  - Framer Motion AnimatePresence for line-by-line typing animation
+  - Footer bar with "bash" badge, "connected" status badge, and line count
+  - Full TypeScript with proper interfaces (TerminalLine, AgentData, VaultData, ModelData, TokenData)
+- Integrated SystemTerminal into Overview tab (src/components/nexus/tabs/overview-tab.tsx):
+  - Added import for SystemTerminal component
+  - Added as full-width section at bottom of overview, before Diagnostic Modal
+  - Wrapped in motion.div with staggerItem animation
+- Ran bun run lint — zero errors
+
+Stage Summary:
+- Created comprehensive SystemTerminal component with macOS-style terminal simulator
+- 13 commands including 4 that fetch live API data (agents, vault, gmr, tokens)
+- Interactive features: command history, tab completion, auto-scroll, boot sequence
+- Color-coded output with framer-motion typing animations
+- Integrated into Overview tab as full-width bottom section
+- Zero lint errors, zero compilation errors, dev server clean
+
+---
+Task ID: 22
+Agent: main
+Task: Bug fixes (system-terminal TypeError, Vault crash, duplicate keys, Claude proxy) + Build GLM5.1 Fusion Pack
+
+Work Log:
+- Fixed CRITICAL system-terminal.tsx TypeError: `a.role.padEnd()` crash when `agents` command is run
+  - Root cause: Prisma Agent model has `type` field, not `role`; API returns `type: "worker"|"coordinator"|"specialist"` but terminal expected `role`
+  - Fixed by making all AgentData interface fields optional and using null coalescing: `a.role ?? a.type ?? 'unknown'`
+  - Also fixed: agentName, trust, tokens null safety; Vault track/key/value null safety; Model name/health/latency null safety; Token budget division-by-zero guard
+- Fixed CRITICAL Vault tab crash: `ReferenceError: Cannot access 'filteredEntries' before initialization`
+  - Root cause: `handleExportCsv` useCallback referenced `filteredEntries` which was declared AFTER it in the component
+  - Fixed by moving `filteredEntries` useMemo and `hasFilters` BEFORE `handleExportCsv` (temporal dead zone fix)
+- Fixed 14 duplicate React key warnings across 3 files:
+  - overview-tab.tsx: 5 keys (pillar-legend, metric, dialog-pillar, pillar-card, diag prefixes)
+  - swarm-tab.tsx: 4 keys (topo-node, topo-canvas, perf-row, worker-card prefixes)
+  - stresslab-tab.tsx: 5 keys (result-summary, domain-cov, run-history, run-table, arena-model prefixes)
+- Fixed AI Assistant Claude proxy delay: reversed fallback order from Claude→z-ai to z-ai→Claude
+  - Root cause: `/api/claude` returns 500 frequently (SSE parsing error), causing 18-47s delay before falling back
+  - Now tries reliable z-ai-web-dev-sdk first, Claude proxy as fallback only
+- Built complete GLM5.1 Fusion Pack per Nexus Intake Checklist:
+  - PACK_MANIFEST.md: Team info, dashboard thesis, changes since last pack, classification
+  - UI_STRUCTURE.md: Full navigation model, 9 tab structures with all widgets, operator flow
+  - WIRED_VS_MOCKED.md: 83 widgets cataloged — 51% wired, 30% hybrid, 17% mocked, 2% external
+  - API_ASSUMPTIONS.md: 23 endpoints documented, polling intervals, WebSocket needs, 7352 mapping
+  - SCREEN_STRENGTHS.md: 3-tier rating (Tier 1-3), strongest/weakest screens, visual vs operational gaps
+  - FUSION_RECOMMENDATIONS.md: 6 demo slices, 6 experimental items, 4 fusion priorities, 5 risks
+  - 9 screenshots (all tabs, post-fix)
+  - 3 optional source files (schema.prisma, nexus-store.ts, use-api-data.ts)
+  - Packaged as nexus-glm5.1-fusion-pack.zip (1.8MB)
+- QA verification via agent-browser: all 9 tabs render correctly, Vault fix confirmed, no crash errors
+- Cron job creation failed (401 auth error) — needs retry when auth service is available
+
+Stage Summary:
+- 3 critical bugs fixed: system-terminal TypeError, Vault temporal dead zone crash, Claude proxy delay
+- 14 React key warnings resolved across 3 files
+- Complete GLM5.1 Fusion Pack built and packaged (6 docs + 9 screenshots + 3 source files)
+- All lint checks pass, all 9 tabs render correctly in QA
+- Fusion pack: /home/z/my-project/nexus-glm5.1-fusion-pack.zip
+
+Current Project Status:
+- All 9 dashboard tabs functional with zero crash errors
+- 51% of widgets wired to real API data, 30% hybrid, 17% mocked
+- Key differentiators: Trust Engine visualization, VAP Proof Chain, AI Bridge routing, Token heatmap
+- AI Assistant reliable (z-ai-web-dev-sdk primary, Claude proxy fallback)
+- Console warnings reduced to near-zero (only ResponsiveContainer info messages)
+
+Unresolved / Next Phase:
+1. Cron job creation — retry when auth service is available
+2. Wire Governor tab to canonical Nexus 7352 governance endpoints
+3. Add WebSocket for real-time feeds (activity, decisions, logs)
+4. Research tab visual improvement (paper cards lack hierarchy)
+5. Mobile responsiveness pass for dense tab layouts (GMR, Governor)
+6. Add "SIMULATED" badges on widgets with mock data
+7. Light theme styling pass

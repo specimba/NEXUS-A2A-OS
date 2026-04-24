@@ -2,25 +2,69 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, X, Send, Trash2, Bot, User, MessageSquare } from 'lucide-react'
+import { Zap, X, Send, Trash2, Bot, User, MessageSquare, ChevronDown, Cpu, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   useNexusStore,
   ChatMessage,
 } from '@/store/nexus-store'
 
+// ─── Model Options (inspired by GLM5 team's model selector) ───
+
+const AI_MODELS = [
+  { id: 'default', label: 'NEXUS AI', description: 'Default model', icon: '⚡' },
+  { id: 'sonnet', label: 'Claude Sonnet', description: 'Balanced speed & quality', icon: '🧠' },
+  { id: 'opus', label: 'Claude Opus', description: 'Highest quality', icon: '✨' },
+  { id: 'haiku', label: 'Claude Haiku', description: 'Fastest responses', icon: '⚡' },
+] as const
+
+type AIModel = typeof AI_MODELS[number]['id']
+
 const QUICK_PROMPTS = [
   'System Status',
   'Run StressLab Test',
   'Show Trust Scores',
-  'Free Claude Models',
+  'Analyze Vault Entries',
+  'Governance Report',
+  'GMR Pool Status',
 ]
+
+// ─── Local Storage Keys ───
+
+const CHAT_STORAGE_KEY = 'nexus-chat-history'
+const MAX_STORED_MESSAGES = 50
+
+function loadStoredMessages(): ChatMessage[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(CHAT_STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(-MAX_STORED_MESSAGES)
+    }
+  } catch { /* ignore */ }
+  return []
+}
+
+function saveMessages(messages: ChatMessage[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)))
+  } catch { /* ignore */ }
+}
+
+// ─── Sub-components ───
 
 function TypingIndicator() {
   return (
-    <div className="flex items-start gap-2 mb-4">
+    <div className="flex items-start gap-2 mb-4 px-1">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
         <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
       </div>
@@ -55,7 +99,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`flex items-start gap-2 mb-4 ${isUser ? 'flex-row-reverse' : ''}`}
+      className={`flex items-start gap-2 mb-3 px-1 ${isUser ? 'flex-row-reverse' : ''}`}
     >
       <div
         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
@@ -71,17 +115,52 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
       </div>
       <div
-        className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+        className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed break-words ${
           isUser
             ? 'rounded-tr-none bg-gradient-to-br from-emerald-500 to-emerald-700 text-white'
             : 'rounded-tl-none bg-muted text-foreground'
         }`}
       >
-        {message.content}
+        {/* Render message with basic formatting */}
+        {message.content.split('\n').map((line, i) => {
+          // Bold text: **text**
+          const boldFormatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          // Code inline: `text`
+          const codeFormatted = boldFormatted.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 text-xs font-mono">$1</code>')
+          return (
+            <span key={i}>
+              {i > 0 && <br />}
+              {codeFormatted.includes('<strong>') || codeFormatted.includes('<code') ? (
+                <span dangerouslySetInnerHTML={{ __html: codeFormatted }} />
+              ) : (
+                line
+              )}
+            </span>
+          )
+        })}
       </div>
     </motion.div>
   )
 }
+
+// ─── Scroll-to-Bottom Button ───
+
+function ScrollToBottom({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      onClick={onClick}
+      className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card border border-border/60 shadow-lg hover:bg-accent transition-colors cursor-pointer"
+      aria-label="Scroll to bottom"
+    >
+      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+    </motion.button>
+  )
+}
+
+// ─── Main Component ───
 
 export function NexusAssistant() {
   const {
@@ -95,35 +174,63 @@ export function NexusAssistant() {
 
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [selectedModel, setSelectedModel] = useState<AIModel>('default')
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [messageCount, setMessageCount] = useState(0)
 
-  const scrollToBottom = useCallback(() => {
-    // Use requestAnimationFrame to ensure DOM has updated before scrolling
-    requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector(
-          '[data-slot="scroll-area-viewport"]'
-        ) as HTMLElement | null
-        if (viewport) {
-          viewport.scrollTo({
-            top: viewport.scrollHeight,
-            behavior: 'smooth',
-          })
-        }
-      }
-    })
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const prevMessageCountRef = useRef(0)
+
+  // ─── Scroll Management ───
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (scrollContainerRef.current) {
+      const el = scrollContainerRef.current
+      el.scrollTo({ top: el.scrollHeight, behavior })
+    }
   }, [])
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [chatMessages, isLoading, scrollToBottom])
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return
+    const el = scrollContainerRef.current
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    setIsAtBottom(distanceFromBottom < 60)
+  }, [])
 
+  // Auto-scroll when new messages arrive (only if already at bottom)
+  useEffect(() => {
+    if (chatMessages.length > prevMessageCountRef.current && isAtBottom) {
+      requestAnimationFrame(() => scrollToBottom('smooth'))
+    }
+    prevMessageCountRef.current = chatMessages.length
+    setMessageCount(chatMessages.length)
+  }, [chatMessages, isAtBottom, scrollToBottom])
+
+  // Focus input when chat opens
   useEffect(() => {
     if (isChatOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 300)
     }
   }, [isChatOpen])
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      saveMessages(chatMessages)
+    }
+  }, [chatMessages])
+
+  // Load stored messages on mount
+  useEffect(() => {
+    const stored = loadStoredMessages()
+    if (stored.length > 0 && chatMessages.length === 0) {
+      stored.forEach((msg) => addChatMessage(msg))
+    }
+  }, [chatMessages.length, addChatMessage])
+
+  // ─── Message Sending ───
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -132,7 +239,7 @@ export function NexusAssistant() {
       const trimmed = content.trim()
       setInput('')
 
-      // Get current messages BEFORE adding the new user message to avoid duplication
+      // Get current messages BEFORE adding the new user message
       const currentMessages = useNexusStore.getState().chatMessages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -143,44 +250,54 @@ export function NexusAssistant() {
       setIsLoading(true)
 
       try {
-        // Try free Claude proxy first (port 8082)
+        // Build request body with model preference
+        const requestBody: Record<string, unknown> = {
+          messages: [
+            ...currentMessages,
+            { role: 'user', content: trimmed },
+          ],
+        }
+
+        // If a specific model is selected, pass it along
+        if (selectedModel !== 'default') {
+          requestBody.model = selectedModel
+        }
+
+        // Try z-ai-web-dev-sdk first (reliable), then Claude proxy as fallback
         let response: Response | null = null
         let usedEndpoint = ''
 
         try {
-          response = await fetch('/api/claude', {
+          response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages: [
-                ...currentMessages,
-                { role: 'user', content: trimmed },
-              ],
-            }),
+            body: JSON.stringify(requestBody),
           })
           if (response.ok) {
-            usedEndpoint = 'claude-proxy'
+            usedEndpoint = 'z-ai-sdk'
           } else {
             response = null
           }
         } catch {
-          // Free Claude proxy not available, fall through
           response = null
         }
 
-        // Fallback to z-ai-web-dev-sdk
+        // Fallback to Claude proxy
         if (!response) {
-          response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages: [
-                ...currentMessages,
-                { role: 'user', content: trimmed },
-              ],
-            }),
-          })
-          usedEndpoint = 'z-ai-sdk'
+          try {
+            response = await fetch('/api/claude', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+            })
+            if (response.ok) {
+              usedEndpoint = 'claude-proxy'
+            } else {
+              response = null
+            }
+          } catch {
+            response = null
+          }
         }
 
         if (!response.ok) {
@@ -188,7 +305,14 @@ export function NexusAssistant() {
         }
 
         const data = await response.json()
-        const modelInfo = data.model ? ` [via ${data.model}]` : usedEndpoint === 'claude-proxy' ? ' [free Claude]' : ''
+        const modelLabel = AI_MODELS.find(m => m.id === selectedModel)?.label
+        const modelInfo = data.model
+          ? ` [${data.model}]`
+          : selectedModel !== 'default'
+            ? ` [${modelLabel}]`
+            : usedEndpoint === 'claude-proxy'
+              ? ' [Claude]'
+              : ''
         addChatMessage({ role: 'assistant', content: data.response + modelInfo })
       } catch {
         addChatMessage({
@@ -200,7 +324,7 @@ export function NexusAssistant() {
         setIsLoading(false)
       }
     },
-    [isLoading, addChatMessage]
+    [isLoading, addChatMessage, selectedModel]
   )
 
   const handleSubmit = useCallback(
@@ -217,6 +341,15 @@ export function NexusAssistant() {
     },
     [sendMessage]
   )
+
+  const handleClearChat = useCallback(() => {
+    clearChatMessages()
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CHAT_STORAGE_KEY)
+    }
+  }, [clearChatMessages])
+
+  const currentModel = AI_MODELS.find(m => m.id === selectedModel) ?? AI_MODELS[0]
 
   return (
     <>
@@ -235,11 +368,17 @@ export function NexusAssistant() {
             aria-label="Open NEXUS AI Assistant"
           >
             <Zap className="h-6 w-6 text-white" />
-            {/* Notification dot */}
-            {chatMessages.length === 0 && (
+            {/* Notification dot when no messages */}
+            {messageCount === 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500" />
+              </span>
+            )}
+            {/* Unread badge when messages exist */}
+            {messageCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
+                {messageCount > 9 ? '9+' : messageCount}
               </span>
             )}
           </motion.button>
@@ -254,10 +393,10 @@ export function NexusAssistant() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full sm:w-[400px] flex-col border-l border-border/60 bg-card/95 backdrop-blur-xl"
+            className="fixed right-0 top-0 z-50 flex h-full w-full sm:w-[420px] flex-col border-l border-border/60 bg-card/95 backdrop-blur-xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700">
                   <Zap className="h-4 w-4 text-white" />
@@ -278,12 +417,44 @@ export function NexusAssistant() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                {/* Model Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-[10px] text-muted-foreground hover:text-foreground px-2"
+                    >
+                      <Cpu className="h-3 w-3" />
+                      <span className="hidden sm:inline max-w-[70px] truncate">{currentModel.icon} {currentModel.label}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {AI_MODELS.map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => setSelectedModel(model.id)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <span className="text-sm">{model.icon}</span>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium">{model.label}</div>
+                          <div className="text-[10px] text-muted-foreground">{model.description}</div>
+                        </div>
+                        {selectedModel === model.id && (
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {chatMessages.length > 0 && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={clearChatMessages}
+                    onClick={handleClearChat}
                     aria-label="Clear chat"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -301,63 +472,82 @@ export function NexusAssistant() {
               </div>
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-            <ScrollArea ref={scrollRef} className="h-full px-4 py-4">
-              {chatMessages.length === 0 && !isLoading && (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-                    <MessageSquare className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            {/* Messages Area — Fixed scrolling with plain overflow-y-auto */}
+            <div className="flex-1 min-h-0 relative">
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="h-full overflow-y-auto custom-scrollbar px-4 py-4 scroll-smooth"
+              >
+                {chatMessages.length === 0 && !isLoading && (
+                  <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+                    <div className="relative">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+                        <Sparkles className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500">
+                        <Zap className="h-3 w-3 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold mb-1">
+                        NEXUS AI Assistant
+                      </h4>
+                      <p className="text-xs text-muted-foreground max-w-[280px]">
+                        Ask about system status, governance, StressLab results,
+                        GMR routing, vault entries, or research pipeline.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 w-full max-w-[300px] mt-2">
+                      {QUICK_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => handleQuickPrompt(prompt)}
+                          className="text-left text-xs rounded-lg border border-border/60 bg-muted/50 px-3 py-2.5 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer"
+                        >
+                          <span className="text-emerald-600 dark:text-emerald-400 mr-1.5">▸</span>
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold mb-1">
-                      NEXUS AI Assistant
-                    </h4>
-                    <p className="text-xs text-muted-foreground max-w-[260px]">
-                      Ask about system status, governance, StressLab results,
-                      GMR routing, vault entries, or research pipeline.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full max-w-[280px] mt-2">
-                    {QUICK_PROMPTS.map((prompt) => (
+                )}
+
+                {chatMessages.map((msg, i) => (
+                  <MessageBubble key={`${msg.timestamp}-${i}`} message={msg} />
+                ))}
+
+                {isLoading && <TypingIndicator />}
+
+                {/* Quick prompts when chat has messages */}
+                {chatMessages.length > 0 && !isLoading && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 mb-2 px-1">
+                    {QUICK_PROMPTS.slice(0, 4).map((prompt) => (
                       <button
                         key={prompt}
                         onClick={() => handleQuickPrompt(prompt)}
-                        className="text-left text-xs rounded-lg border border-border/60 bg-muted/50 px-3 py-2.5 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer"
+                        className="text-[10px] rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer"
                       >
-                        <span className="text-emerald-600 dark:text-emerald-400 mr-1.5">▸</span>
                         {prompt}
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {chatMessages.map((msg, i) => (
-                <MessageBubble key={`${msg.timestamp}-${i}`} message={msg} />
-              ))}
+                {/* Invisible anchor for scroll-to-bottom */}
+                <div ref={messagesEndRef} />
+              </div>
 
-              {isLoading && <TypingIndicator />}
-
-              {/* Quick prompts when chat has messages */}
-              {chatMessages.length > 0 && !isLoading && (
-                <div className="flex flex-wrap gap-1.5 mt-2 mb-2">
-                  {QUICK_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => handleQuickPrompt(prompt)}
-                      className="text-[10px] rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+              {/* Scroll-to-bottom indicator */}
+              <AnimatePresence>
+                {!isAtBottom && chatMessages.length > 0 && (
+                  <ScrollToBottom onClick={() => scrollToBottom('smooth')} />
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-border/60 p-3">
+            <div className="border-t border-border/60 p-3 shrink-0">
               <form onSubmit={handleSubmit} className="flex items-center gap-2">
                 <Input
                   ref={inputRef}
@@ -376,9 +566,14 @@ export function NexusAssistant() {
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
-              <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                NEXUS OS v3.0 · Governance Intelligence Layer
-              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-[10px] text-muted-foreground">
+                  NEXUS OS v3.1 · {currentModel.icon} {currentModel.label}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {messageCount} messages
+                </p>
+              </div>
             </div>
           </motion.div>
         )}

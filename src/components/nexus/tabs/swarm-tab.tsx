@@ -1328,7 +1328,7 @@ export function SwarmTab() {
                   const isPulsing = w.status === 'busy'
                   return (
                     <button
-                      key={w.id || i}
+                      key={`topo-node-${w.id || i}`}
                       className="flex flex-col items-center group cursor-pointer"
                       onClick={() => {/* handled by worker detail dialog */}}
                     >
@@ -1458,7 +1458,7 @@ export function SwarmTab() {
                   const nodeColor = w.status === 'busy' ? 'bg-emerald-500' : w.status === 'error' ? 'bg-red-500' : w.status === 'offline' ? 'bg-gray-500' : 'bg-blue-500'
                   const isBusy = w.status === 'busy'
                   return (
-                    <div key={w.id} className="absolute" style={{ left: `calc(50% + ${x}px - 14px)`, top: `calc(50% + ${y}px - 14px)` }}>
+                    <div key={`topo-canvas-${w.id}`} className="absolute" style={{ left: `calc(50% + ${x}px - 14px)`, top: `calc(50% + ${y}px - 14px)` }}>
                       {/* Connection line from center */}
                       <svg
                         className="absolute pointer-events-none"
@@ -1536,7 +1536,7 @@ export function SwarmTab() {
               {apiWorkers.slice(0, 4).map((w) => {
                 const errRate = (w.tasksDone + w.tasksFailed) > 0 ? ((w.tasksFailed / (w.tasksDone + w.tasksFailed)) * 100).toFixed(1) : '0.0'
                 return (
-                  <div key={w.id} className="flex items-center gap-2 text-[10px]">
+                  <div key={`perf-row-${w.id}`} className="flex items-center gap-2 text-[10px]">
                     <span className="w-16 font-medium truncate">{w.name}</span>
                     <div className="flex-1 flex items-center gap-2">
                       <div className="flex items-center gap-1">
@@ -1596,7 +1596,7 @@ export function SwarmTab() {
                   const StatusIcon = statusDisplay.icon
                   return (
                     <div
-                      key={w.id}
+                      key={`worker-card-${w.id}`}
                       onClick={() => handleWorkerClick(w)}
                       className={`relative rounded-lg border p-3.5 transition-all duration-200 cursor-pointer hover-lift group ${getWorkerCardStyle(w.status)}`}
                     >

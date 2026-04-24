@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── NEXUS OS v3.0 Core Models ───
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // worker, coordinator, specialist
+  status      String   @default("idle") // idle, busy, error, offline
+  domain      String?  // code, reason, research, fast, sec
+  trustScore  Float    @default(0.5)
+  totalTokens Int      @default(0)
+  tasksDone   Int      @default(0)
+  tasksFailed Int      @default(0)
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vaultEntries VaultEntry[]
+  decisions    GovernorDecision[]
+  testRuns     TestRun[]
+}
+
+model VaultEntry {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  track     String   // EVENT, TRUST, CAP, FAIL, GOV
+  category  String
+  key       String
+  value     String   // JSON string
+  score     Float    @default(0.0)
+  createdAt DateTime @default(now())
+}
+
+model GovernorDecision {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  action    String
+  scope     String   // SELF, PROJECT, CROSS, SYSTEM
+  impact    String   // LOW, MED, HIGH, CRIT
+  decision  String   // ALLOW, DENY, HOLD
+  reason    String?
+  trustAtTime Float  @default(0.0)
+  createdAt DateTime @default(now())
+}
+
+// ─── GMR Model Registry ───
+
+model ModelEntry {
+  id          String   @id @default(cuid())
+  name        String
+  provider    String   // opencode, nvidia, groq, cerebras, google
+  tier        Int      @default(50) // quality tier
+  domain      String   // code, reason, research, fast, sec, general
+  health      Float    @default(100.0) // percentage
+  latencyMs   Int      @default(0)
+  costPer1k   Float    @default(0.0) // cost per 1k tokens
+  isFree      Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  totalCalls  Int      @default(0)
+  successRate Float    @default(100.0)
+  lastChecked DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── StressLab ───
+
+model TestTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String   // cyber, compbio, pharmacology, ai_safety, etc.
+  tvdPrompt   String   // the prompt with ??? placeholders
+  validatorCode String // the validator.py content
+  skillGuide  String?  // anchor swap guide
+  difficulty  String   @default("medium") // easy, medium, hard
+  sourceId    String?  // ISC-Bench template ID
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  testRuns    TestRun[]
+}
+
+model TestRun {
+  id            String   @id @default(cuid())
+  templateId    String
+  template      TestTemplate @relation(fields: [templateId], references: [id])
+  agentId       String?
+  agent         Agent?   @relation(fields: [agentId], references: [id])
+  modelName     String
+  mode          String   // single, icl, agentic
+  status        String   @default("pending") // pending, running, passed, failed, error
+  output        String?
+  validatorResult String?
+  tokensUsed    Int      @default(0)
+  durationMs    Int      @default(0)
+  collapseDetected Boolean @default(false)
+  vapProofHash  String?
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+}
+
+// ─── Research Pipeline ───
+
+model Paper {
+  id                String   @id @default(cuid())
+  externalId        String?  // arxiv ID or repo ID
+  type              String   @default("paper") // paper, repo
+  title             String
+  pdfUrl            String?
+  repoUrl           String?
+  abstractSummary   String?
+  conclusionTakeaway String?
+  relevanceScore    Float    @default(0.0)
+  nexusMapping      String?  // JSON array string
+  keyNumbers        String?  // JSON object string
+  priorityTier      String   @default("P2") // P0, P1, P2
+  implementationTask String?
+  deliverable       String?
+  isVetted          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ─── Token Budget & Monitoring ───
+
+model TokenUsageLog {
+  id          String   @id @default(cuid())
+  agentId     String?
+  model       String
+  promptTokens  Int    @default(0)
+  completionTokens Int @default(0)
+  totalTokens  Int     @default(0)
+  cost        Float    @default(0.0)
+  apiEndpoint String?
+  createdAt   DateTime @default(now())
+}
+
+model SessionBudget {
+  id              String   @id @default(cuid())
+  totalBudget     Int      @default(100000)
+  usedBudget      Int      @default(0)
+  remainingBudget Int      @default(100000)
+  isActive        Boolean  @default(true)
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+}
+
+// ─── System Config ───
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String // JSON string
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Rate Limiting & API Key Management ───
+
+model RateLimitLog {
+  id            String   @id @default(cuid())
+  provider      String   // openrouter, jina, kilocode, cerebras, openai
+  endpoint      String   // API endpoint called
+  method        String   @default("POST")
+  statusCode    Int      @default(200)
+  wasRateLimited Boolean @default(false)
+  wasCached     Boolean  @default(false)
+  wasDeduped    Boolean  @default(false)
+  responseTimeMs Int     @default(0)
+  tokensUsed    Int      @default(0)
+  keyId         String?
+  errorMessage  String?
+  requestBody   String?
+  createdAt     DateTime @default(now())
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  provider      String    // openrouter, jina, kilocode, cerebras, openai
+  keyPrefix     String    // First 8 chars for identification
+  keySuffix     String    // Last 4 chars for identification
+  isActive      Boolean   @default(true)
+  health        String    @default("healthy") // healthy, degraded, rate_limited, error, no_key
+  totalRequests Int       @default(0)
+  total429s     Int       @default(0)
+  successRate   Float     @default(100.0)
+  lastError     String?
+  cooldownUntil DateTime?
+  lastUsed      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
