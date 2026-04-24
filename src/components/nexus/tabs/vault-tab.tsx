@@ -42,6 +42,7 @@ import {
 import { PieChart as RechartsPieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // ─── API Response Types ───
 
@@ -559,6 +560,7 @@ export function VaultTab() {
           <CardHeader className="relative pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Vault Statistics
+              <DataSourceBadge source="seed" />
             </CardTitle>
           </CardHeader>
           <CardContent className="relative p-4 pt-0">
@@ -677,6 +679,7 @@ export function VaultTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <PieChartLucide className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Entry Distribution
+              <DataSourceBadge source="mock" />
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
@@ -922,6 +925,7 @@ export function VaultTab() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Database className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> VAP Proof Chain (Immutable Audit Trail)
+                    <DataSourceBadge source="seed" />
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {verifyResult && (

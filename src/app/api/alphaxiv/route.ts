@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveKey } from '@/lib/api-key-manager'
+import { db } from '@/lib/db'
 
 /**
  * Alphaxiv Research Integration API
  *
  * Fetches papers from Alphaxiv (https://www.alphaxiv.org/) using Tavily search
  * with Jina AI as a fallback provider.
- * Supports: trending papers, search by topic, paper details.
+ * NOW: Saves all fetched papers to the database so priority/status changes work.
  *
  * API Keys: TAVILY_API_KEY, JINA_API_KEY (configured in .env)
- * Tavily docs: https://docs.tavily.com/
- * Jina search: https://s.jina.ai/
  */
 
 const TAVILY_API_URL = 'https://api.tavily.com/search'
@@ -34,12 +33,14 @@ interface TavilyResponse {
 
 interface PaperResult {
   id: string
+  dbId: string | null  // Database ID after saving
   title: string
   url: string
   snippet: string
   relevanceScore: number
   source: string
   fetchedAt: string
+  isNew: boolean  // Whether paper was newly saved to DB
 }
 
 // ── Tavily Search ──────────────────────────────────────────────────
@@ -52,7 +53,6 @@ async function searchWithTavily(query: string, searchQuery: string, maxResults: 
       api_key: tavilyKey,
       query: searchQuery,
       max_results: maxResults,
-      // Removed include_domains: ['alphaxiv.org'] — too restrictive for Tavily
       search_depth: 'advanced',
       include_raw_content: false,
       topic: 'research',
@@ -69,12 +69,14 @@ async function searchWithTavily(query: string, searchQuery: string, maxResults: 
 
   return data.results.map((r, i) => ({
     id: `alphaxiv-${Date.now()}-${i}`,
-    title: r.title.replace(/ - AlphaXiv$/, '').trim(),
+    dbId: null,
+    title: r.title.replace(/ - AlphaXiv$/, '').replace(/ - arXiv$/, '').trim(),
     url: r.url,
     snippet: r.snippet || r.content?.slice(0, 200) || '',
     relevanceScore: r.score ?? 0.5,
     source: 'tavily-alphaxiv',
     fetchedAt: new Date().toISOString(),
+    isNew: true,
   }))
 }
 
@@ -96,22 +98,85 @@ async function searchWithJina(query: string, maxResults: number, jinaKey: string
     }
 
     const data = await response.json()
-
-    // Jina returns results in data.data array
     const results = data?.data ?? []
+
     return results.slice(0, maxResults).map((r: { title?: string; url?: string; description?: string; content?: string }, i: number) => ({
       id: `jina-${Date.now()}-${i}`,
-      title: (r.title || 'Untitled Paper').replace(/ - AlphaXiv$/, '').trim(),
+      dbId: null,
+      title: (r.title || 'Untitled Paper').replace(/ - AlphaXiv$/, '').replace(/ - arXiv$/, '').trim(),
       url: r.url || '',
       snippet: r.description || r.content?.slice(0, 200) || '',
-      relevanceScore: 0.4 + Math.random() * 0.3, // Jina doesn't return relevance scores, estimate
+      relevanceScore: 0.4 + Math.random() * 0.3,
       source: 'jina-fallback',
       fetchedAt: new Date().toISOString(),
+      isNew: true,
     }))
   } catch (error) {
     console.error('Jina search error:', error)
     return []
   }
+}
+
+// ── Save papers to database, return with DB IDs ────────────────────
+
+async function savePapersToDb(papers: PaperResult[]): Promise<PaperResult[]> {
+  const saved: PaperResult[] = []
+
+  for (const paper of papers) {
+    try {
+      // Check if paper already exists (by URL or title)
+      const existing = await db.paper.findFirst({
+        where: {
+          OR: [
+            { pdfUrl: paper.url },
+            { repoUrl: paper.url },
+            { title: paper.title },
+          ],
+        },
+      })
+
+      if (existing) {
+        saved.push({
+          ...paper,
+          dbId: existing.id,
+          isNew: false,
+          relevanceScore: existing.relevanceScore,
+        })
+      } else {
+        // Extract arxiv ID from URL if present
+        const arxivMatch = paper.url.match(/(\d{4}\.\d{4,5})/)
+        const externalId = arxivMatch ? `arxiv-${arxivMatch[1]}` : paper.id
+
+        const priorityTier = paper.relevanceScore > 0.7 ? 'P0' : paper.relevanceScore > 0.4 ? 'P1' : 'P2'
+
+        const created = await db.paper.create({
+          data: {
+            externalId,
+            type: 'paper',
+            title: paper.title,
+            pdfUrl: paper.url,
+            abstractSummary: paper.snippet.slice(0, 300),
+            relevanceScore: Math.min(paper.relevanceScore * 1.5, 1.0),
+            priorityTier,
+            implementationTask: 'Pending review',
+            deliverable: paper.url,
+            isVetted: false,
+          },
+        })
+
+        saved.push({
+          ...paper,
+          dbId: created.id,
+          isNew: true,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to save paper to DB:', paper.title, err)
+      saved.push(paper) // Keep the paper even if DB save fails
+    }
+  }
+
+  return saved
 }
 
 // ── GET Handler ────────────────────────────────────────────────────
@@ -133,7 +198,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Build search query — broader than before (no site: restriction)
     const searchQuery = topic
       ? `alphaxiv AI research paper ${topic}`
       : `alphaxiv AI research paper ${query}`
@@ -146,7 +210,6 @@ export async function GET(request: NextRequest) {
       papers = await searchWithTavily(query, searchQuery, maxResults, tavilyKey)
       provider = 'tavily-alphaxiv'
 
-      // Fallback: if Tavily returns 0 results, try a broader query without "alphaxiv"
       if (papers.length === 0) {
         const broaderQuery = topic
           ? `AI governance research paper ${topic}`
@@ -158,7 +221,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback: if Tavily still returns 0, try Jina AI
+    // Fallback: Jina AI
     if (papers.length === 0 && jinaKey) {
       const jinaQuery = topic
         ? `alphaxiv AI research ${topic}`
@@ -180,11 +243,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Save all fetched papers to DB so priority/status changes work
+    const savedPapers = await savePapersToDb(papers)
+
+    const newCount = savedPapers.filter(p => p.isNew).length
+    const existingCount = savedPapers.filter(p => !p.isNew).length
+
     return NextResponse.json({
-      papers,
+      papers: savedPapers,
       query: searchQuery,
-      count: papers.length,
+      count: savedPapers.length,
       provider,
+      savedToDb: {
+        new: newCount,
+        existing: existingCount,
+        total: savedPapers.length,
+      },
     })
   } catch (error) {
     console.error('Alphaxiv API error:', error)
@@ -210,7 +284,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Broader search query (no site: restriction)
     const searchQuery = topic
       ? `alphaxiv AI research paper ${topic}`
       : 'alphaxiv trending AI research papers'
@@ -218,12 +291,10 @@ export async function POST(request: NextRequest) {
     let papers: PaperResult[] = []
     let provider = 'none'
 
-    // Try Tavily first
     if (tavilyKey) {
       papers = await searchWithTavily(topic || 'trending', searchQuery, Math.min(maxResults, 20), tavilyKey)
       provider = 'tavily-alphaxiv'
 
-      // Fallback: broader query without "alphaxiv"
       if (papers.length === 0) {
         const broaderQuery = topic
           ? `AI governance research ${topic}`
@@ -235,7 +306,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback: Jina AI
     if (papers.length === 0 && jinaKey) {
       const jinaQuery = topic
         ? `alphaxiv AI research ${topic}`
@@ -246,8 +316,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Save all papers to DB
+    const savedPapers = await savePapersToDb(papers)
+
     // Format for the research pipeline queue
-    const queuedPapers = papers.map((r) => ({
+    const queuedPapers = savedPapers.map((r) => ({
+      dbId: r.dbId,
       externalId: r.id,
       title: r.title,
       url: r.url,
@@ -255,6 +329,7 @@ export async function POST(request: NextRequest) {
       relevanceScore: Math.min((r.relevanceScore * 1.5), 1.0),
       priorityTier: r.relevanceScore > 0.7 ? 'P0' : r.relevanceScore > 0.4 ? 'P1' : 'P2',
       source: provider,
+      isNew: r.isNew,
     }))
 
     return NextResponse.json({
@@ -262,7 +337,7 @@ export async function POST(request: NextRequest) {
       count: queuedPapers.length,
       topic: topic || 'trending',
       provider,
-      message: `${queuedPapers.length} papers found via ${provider}. Ready to add to research pipeline.`,
+      message: `${queuedPapers.length} papers found via ${provider}. ${queuedPapers.filter(p => p.isNew).length} new papers saved to database.`,
     })
   } catch (error) {
     console.error('Alphaxiv queue error:', error)

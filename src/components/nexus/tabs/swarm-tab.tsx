@@ -61,6 +61,7 @@ import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
 import { useSwarmWS } from '@/hooks/use-swarm-ws'
 import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // Worker status export data with meaningful column names
 const workerStatusColumnHeaders: Record<string, string> = {
@@ -1396,6 +1397,7 @@ export function SwarmTab() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <Cpu className="h-4 w-4" /> Swarm Throughput
+              <DataSourceBadge source="mock" />
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
@@ -1569,6 +1571,7 @@ export function SwarmTab() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" /> Worker Status Grid
+                <DataSourceBadge source="seed" />
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Button
@@ -1737,6 +1740,7 @@ export function SwarmTab() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Clock className="h-4 w-4" /> Task Priority Queue
+                <DataSourceBadge source="seed" />
               </CardTitle>
               <Button
                 variant="ghost"

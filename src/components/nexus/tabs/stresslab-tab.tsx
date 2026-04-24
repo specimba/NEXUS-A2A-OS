@@ -50,6 +50,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { ExportButton } from '@/components/nexus/export-button'
 import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // Column headers for CSV export
 const stresslabRunsColumnHeaders: Record<string, string> = {
@@ -199,6 +200,7 @@ interface RunConversation {
   verdict: string
   promptTokens: number
   completionTokens: number
+  isLive: boolean // true = real output from API, false = mock/simulated
 }
 
 // UI-mapped run type
@@ -344,6 +346,23 @@ function mapRun(r: ApiTestRun): UIRun {
     r.status === 'failed' ? 'FAIL' :
     r.status === 'error' ? 'ERROR' :
     r.status === 'running' ? 'RUNNING' : 'PENDING'
+
+  // Build conversation: prefer real output/validatorResult, fall back to mock
+  const mockConv = generateMockConversation(r)
+  const hasRealOutput = r.output != null && r.output.trim() !== ''
+  const hasRealVerdict = r.validatorResult != null && r.validatorResult.trim() !== ''
+  const isLive = hasRealOutput || hasRealVerdict
+
+  const conversation: RunConversation = {
+    systemPrompt: mockConv.systemPrompt, // system prompt is always from template
+    userPrompt: mockConv.userPrompt,     // user prompt is always from template
+    modelResponse: hasRealOutput ? r.output! : mockConv.modelResponse,
+    verdict: hasRealVerdict ? r.validatorResult! : mockConv.verdict,
+    promptTokens: mockConv.promptTokens,
+    completionTokens: mockConv.completionTokens,
+    isLive,
+  }
+
   return {
     id: r.id.substring(0, 7).toUpperCase(),
     template: r.template?.sourceId || r.template?.name?.substring(0, 7) || r.templateId.substring(0, 7),
@@ -356,7 +375,7 @@ function mapRun(r: ApiTestRun): UIRun {
     status: r.status,
     collapseDetected: r.collapseDetected,
     createdAt: r.createdAt,
-    conversation: generateMockConversation(r),
+    conversation,
   }
 }
 
@@ -680,6 +699,7 @@ function TestHistoryChart() {
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             Collapse Rate Over Recent Runs
+            <DataSourceBadge source="mock" />
           </CardTitle>
           <div className="flex items-center gap-1">
             {(['10', '20', 'all'] as const).map((range) => (
@@ -893,6 +913,7 @@ function DomainCoverageSection({ templates }: { templates: UITemplate[] }) {
         <CardTitle className="text-sm flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           Domain Coverage
+          {liveDomainCoverage.length === 0 && <DataSourceBadge source="mock" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0 space-y-3">
@@ -956,6 +977,7 @@ function CompareModelsDialog() {
         <DialogTitle className="flex items-center gap-2">
           <GitCompare className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Compare Models
+          <DataSourceBadge source="mock" />
         </DialogTitle>
         <DialogDescription>Side-by-side model comparison for StressLab test selection</DialogDescription>
       </DialogHeader>
@@ -1477,6 +1499,7 @@ export function StressLabTab() {
               <CardHeader className="relative">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" /> Commercial vs Heretic (Dual Cascade)
+                  <DataSourceBadge source="mock" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1599,9 +1622,12 @@ export function StressLabTab() {
                     <DialogTitle className="flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
                       Test Run {selectedRun.id} — Conversation Details
+                      <DataSourceBadge source={conv.isLive ? 'live' : 'simulated'} />
                     </DialogTitle>
                     <DialogDescription className="mt-1">
-                      Full ISC-Bench test conversation and evaluation verdict
+                      {conv.isLive
+                        ? 'Real test output from the model endpoint'
+                        : 'Simulated conversation — no real output was captured for this run'}
                     </DialogDescription>
                   </div>
                 </DialogHeader>
@@ -1698,6 +1724,11 @@ export function StressLabTab() {
                       <p className="text-xs font-semibold flex items-center gap-1.5">
                         <MessageSquare className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
                         Model Response
+                        {conv.isLive ? (
+                          <span className="text-[9px] font-bold tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-600/15 px-1.5 py-0.5 rounded">LIVE OUTPUT</span>
+                        ) : (
+                          <span className="text-[9px] font-bold tracking-wider text-yellow-600 dark:text-yellow-400 bg-yellow-600/15 px-1.5 py-0.5 rounded">SIMULATED</span>
+                        )}
                       </p>
                       <Button
                         variant="ghost"
@@ -1729,6 +1760,11 @@ export function StressLabTab() {
                     <p className="text-xs font-semibold mb-1 flex items-center gap-1.5">
                       <Shield className="h-3.5 w-3.5" />
                       Verdict
+                      {conv.isLive ? (
+                        <span className="text-[9px] font-bold tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-600/15 px-1.5 py-0.5 rounded">LIVE</span>
+                      ) : (
+                        <span className="text-[9px] font-bold tracking-wider text-yellow-600 dark:text-yellow-400 bg-yellow-600/15 px-1.5 py-0.5 rounded">SIMULATED</span>
+                      )}
                     </p>
                     <p className="text-[11px] text-foreground leading-relaxed">{conv.verdict}</p>
                   </div>

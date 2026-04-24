@@ -44,6 +44,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltipComponent, Respo
 import { ExportButton } from '@/components/nexus/export-button'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // Column headers for CSV export
 const modelUsageColumnHeaders: Record<string, string> = {
@@ -463,6 +464,7 @@ export function TokensTab() {
         <CardHeader className="relative pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Token Flow
+            <DataSourceBadge source="seed" />
           </CardTitle>
         </CardHeader>
         <CardContent className="relative p-4 pt-0">
@@ -714,7 +716,7 @@ export function TokensTab() {
       <Card className="relative hover-lift">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Per-Model Token Consumption</CardTitle>
+            <CardTitle className="text-sm">Per-Model Token Consumption <DataSourceBadge source="seed" /></CardTitle>
             <ExportButton data={modelUsage.map(({ trend, ...rest }) => rest)} filename="token-usage" columnHeaders={modelUsageColumnHeaders} />
           </div>
         </CardHeader>
@@ -776,6 +778,7 @@ export function TokensTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Budget Forecast
+              <DataSourceBadge source="mock" />
             </CardTitle>
           </CardHeader>
           <CardContent className="relative p-4 pt-0">
@@ -833,6 +836,7 @@ export function TokensTab() {
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               Session Comparison
+              <DataSourceBadge source="mock" />
             </CardTitle>
           </CardHeader>
           <CardContent className="relative p-4 pt-0">

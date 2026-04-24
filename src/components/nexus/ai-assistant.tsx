@@ -370,11 +370,49 @@ export function NexusAssistant() {
 
         const data = await response.json()
         // Determine the actual model name for transparency (stored as metadata, NOT in content)
-        const actualModel = data.model
-          || (usedEndpoint === 'cerebras' ? 'Cerebras'
+        // Normalize: data.model could be a string, an object from ai-bridge, or undefined
+        let actualModel: string
+        if (typeof data.model === 'string') {
+          // Clean up model names: remove provider prefixes, :free suffixes, etc.
+          const raw = data.model
+          // Common patterns: "deepseek/deepseek-r1:free" → "DeepSeek R1"
+          // "google/gemma-4-26b-a4b-it:free" → "Gemma 4"
+          // "qwen/qwen3-coder:free" → "Qwen3 Coder"
+          // "arcee-ai/trinity-large-preview:free" → "Trinity Large"
+          // "glm-4-plus" → "GLM-4 Plus"
+          // "glm-4.7" → "GLM-4.7"
+          // "claude-opus-4" → handled below
+          if (raw.includes('/')) {
+            const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
+            if (name.includes('deepseek-r1')) actualModel = 'DeepSeek R1'
+            else if (name.includes('gemma-4')) actualModel = 'Gemma 4'
+            else if (name.includes('gemma')) actualModel = 'Gemma'
+            else if (name.includes('qwen3-coder')) actualModel = 'Qwen3 Coder'
+            else if (name.includes('qwen')) actualModel = 'Qwen'
+            else if (name.includes('trinity-large')) actualModel = 'Trinity Large'
+            else if (name.includes('trinity')) actualModel = 'Trinity'
+            else if (name.includes('llama')) actualModel = 'Llama'
+            else actualModel = name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          } else if (raw.startsWith('claude-')) {
+            // Map proxy model IDs to actual underlying models
+            if (raw.includes('opus')) actualModel = 'Qwen3 Coder'
+            else if (raw.includes('sonnet')) actualModel = 'Trinity Large'
+            else if (raw.includes('haiku')) actualModel = 'Gemma 4'
+            else actualModel = raw
+          } else {
+            // z-ai SDK models: "glm-4-plus", "glm-4.7", etc.
+            actualModel = raw.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          }
+        } else if (data.model && typeof data.model === 'object' && data.model.displayName) {
+          actualModel = data.model.displayName
+        } else {
+          actualModel = usedEndpoint === 'cerebras' ? 'Cerebras'
             : usedEndpoint === 'openrouter' ? 'OpenRouter'
-            : 'GLM-4.7')
-        addChatMessage({ role: 'assistant', content: data.response, model: actualModel })
+            : 'GLM-4.7'
+        }
+        // Clean the response content — strip any trailing [model] tags the model itself might have added
+        const cleanResponse = data.response.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
+        addChatMessage({ role: 'assistant', content: cleanResponse, model: actualModel })
       } catch {
         addChatMessage({
           role: 'assistant',

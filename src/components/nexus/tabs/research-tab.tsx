@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays } from 'lucide-react'
 import { MiniAreaChart } from '@/components/nexus/charts'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 import { useNexusStore } from '@/store/nexus-store'
@@ -602,11 +603,42 @@ export function ResearchTab() {
     }
   }
 
-  const handleAddPaper = (paper: PaperItem) => {
-    setLocalPapers((prev) => [...prev, paper])
-    toast.success('Paper added to queue', {
-      description: `"${paper.title}" → ${paper.priority} queue`,
-    })
+  const handleAddPaper = async (paper: PaperItem) => {
+    // Save to database first so priority/status changes work
+    try {
+      const res = await fetch('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: paper.title,
+          externalId: paper.id,
+          priorityTier: paper.priority,
+          relevanceScore: paper.relevance,
+          implementationTask: paper.task,
+          deliverable: paper.deliverable,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        // Use the DB ID returned from the server
+        const dbPaper: PaperItem = { ...paper, id: data.paper?.id || paper.id }
+        setLocalPapers((prev) => [...prev, dbPaper])
+        toast.success('Paper saved to database', {
+          description: `"${paper.title}" → ${paper.priority} queue`,
+        })
+      } else {
+        // Fallback to local-only
+        setLocalPapers((prev) => [...prev, paper])
+        toast.success('Paper added to local queue', {
+          description: `"${paper.title}" → ${paper.priority} queue (DB save failed)`,
+        })
+      }
+    } catch {
+      setLocalPapers((prev) => [...prev, paper])
+      toast.success('Paper added to local queue', {
+        description: `"${paper.title}" → ${paper.priority} queue (offline)`,
+      })
+    }
   }
 
   const handleStartPracticeSession = () => {
@@ -649,8 +681,9 @@ export function ResearchTab() {
         return
       }
       const data = await res.json()
-      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; title: string; snippet: string; relevanceScore: number; url: string }) => ({
-        id: p.id,
+      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; snippet: string; relevanceScore: number; url: string; isNew?: boolean }) => ({
+        // Use DB ID if available (so priority/status changes work), fall back to search ID
+        id: p.dbId || p.id,
         title: p.title,
         relevance: p.relevanceScore ?? 0.5,
         task: 'Pending review',
@@ -660,9 +693,12 @@ export function ResearchTab() {
         domain: 'alphaxiv',
       }))
       setAlphaxivResults(mapped)
-      toast.success(`Found ${mapped.length} papers via Alphaxiv`, {
-        description: 'Review and add to queue from the Alphaxiv tab',
+      const savedInfo = data.savedToDb ? ` (${data.savedToDb.new} new, ${data.savedToDb.existing} existing saved to DB)` : ''
+      toast.success(`Found ${mapped.length} papers via Alphaxiv${savedInfo}`, {
+        description: 'Papers saved to database — priority and status changes now work!',
       })
+      // Also refetch the main research list so new papers appear in the queue
+      refetch()
     } catch {
       toast.error('Alphaxiv fetch failed', { description: 'Network error' })
     } finally {
@@ -832,6 +868,7 @@ export function ResearchTab() {
         <CardHeader className="relative pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Pipeline
+              <DataSourceBadge source="computed" />
           </CardTitle>
         </CardHeader>
         <CardContent className="relative p-4 pt-0">
@@ -887,6 +924,7 @@ export function ResearchTab() {
           <CardHeader className="relative pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Progress Dashboard
+              <DataSourceBadge source="seed" />
             </CardTitle>
           </CardHeader>
           <CardContent className="relative p-4 pt-0 space-y-4">
@@ -1163,6 +1201,7 @@ export function ResearchTab() {
             <CardHeader className="relative pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Library className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Alphaxiv Research Feed
+                <DataSourceBadge source="live" />
               </CardTitle>
             </CardHeader>
             <CardContent className="relative p-4 pt-0 space-y-4">
@@ -1263,6 +1302,7 @@ export function ResearchTab() {
             <CardHeader className="relative pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Daily Research Practice Template
+                <DataSourceBadge source="live" />
               </CardTitle>
             </CardHeader>
             <CardContent className="relative p-4 pt-0 space-y-4">

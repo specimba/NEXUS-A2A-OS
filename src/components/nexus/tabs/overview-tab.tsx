@@ -63,6 +63,7 @@ import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
 import { SystemTerminal } from '@/components/nexus/system-terminal'
 import { AgentHealthMonitor } from '@/components/nexus/agent-health-monitor'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // ── Pillar detail data for enhanced pillar dialog ─────────────────
 const pillarDetails: Record<string, {
@@ -467,6 +468,7 @@ function SystemHealthTimeline() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             24h Health Timeline
+            <DataSourceBadge source="mock" />
           </CardTitle>
           <div className="flex items-center gap-1">
             {(['6h', '12h', '24h'] as const).map((range) => (
@@ -529,7 +531,10 @@ function SystemUptimeCard() {
       <CardContent className="relative p-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">System Uptime</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">System Uptime</p>
+              <DataSourceBadge source="mock" />
+            </div>
             <div className="mt-1 flex items-baseline gap-0.5">
               <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{uptime.days}</span>
               <span className="text-[11px] text-muted-foreground mr-1">d</span>
@@ -609,6 +614,7 @@ function SystemNotificationsCard() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Bell className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
             System Notifications
+            <DataSourceBadge source="mock" />
           </CardTitle>
           <div className="flex items-center gap-2">
             {notifications.length > 0 && (
@@ -669,6 +675,7 @@ function QuickStatsBar() {
     <motion.div variants={staggerItem} initial="hidden" animate="visible">
       <div className="rounded-lg bg-gradient-to-r from-emerald-600/8 via-emerald-600/4 to-transparent border border-emerald-600/10 px-4 py-2">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
+          <DataSourceBadge source="mock" />
           <span className="flex items-center gap-1.5">
             <span className="text-emerald-600 dark:text-emerald-400">⬡</span>
             <span className="tabular-nums">{requestCount.toLocaleString()}</span> requests today
@@ -707,6 +714,7 @@ function SystemArchitectureMiniMap() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             System Architecture
+            <DataSourceBadge source="mock" />
           </CardTitle>
           <Badge variant="outline" className="text-[9px]">Flow Diagram</Badge>
         </div>
@@ -807,12 +815,18 @@ function SystemArchitectureMiniMap() {
 // ── Performance Metrics Row ──────────────────────────────────────
 function PerformanceMetricsRow() {
   return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      className="grid gap-3 md:grid-cols-3"
-    >
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <Gauge className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <span className="text-sm font-semibold text-foreground">Performance Metrics</span>
+        <DataSourceBadge source="mock" />
+      </div>
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+        className="grid gap-3 md:grid-cols-3"
+      >
       {/* Avg Response Time */}
       <motion.div variants={staggerItem}>
         <Card className="relative overflow-hidden hover-lift border-blue-600/20">
@@ -891,6 +905,7 @@ function PerformanceMetricsRow() {
         </Card>
       </motion.div>
     </motion.div>
+    </div>
   )
 }
 
@@ -1268,7 +1283,10 @@ export function OverviewTab() {
             <CardContent className="relative p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Token Budget</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Token Budget</p>
+                    <DataSourceBadge source="seed" />
+                  </div>
                   <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                     <AnimatedCounter value={73450} />
                   </p>
@@ -1454,7 +1472,10 @@ export function OverviewTab() {
         animate="visible"
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">System Pillars</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground">8-Pillar System Status</h2>
+            <DataSourceBadge source="mock" />
+          </div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -1645,6 +1666,7 @@ export function OverviewTab() {
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                   Recent Decisions
+                  <DataSourceBadge source="mock" />
                 </CardTitle>
                 <Badge variant="outline" className="text-[9px]">Governor</Badge>
               </div>
@@ -1684,6 +1706,7 @@ export function OverviewTab() {
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Radio className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
                   Live Activity Feed
+                  <DataSourceBadge source="mock" />
                 </CardTitle>
                 <Badge variant="outline" className="text-[9px]">real-time</Badge>
               </div>

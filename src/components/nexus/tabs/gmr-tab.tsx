@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket, Cpu, Eye, Server, ChevronRight, Sparkles, ArrowRight, Send, MessageSquare, Braces, Lightbulb } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
@@ -645,6 +646,7 @@ function PoolHealthOverview({ models }: { models: ModelData[] }) {
         <CardTitle className="text-sm flex items-center gap-2">
           <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           Pool Health Overview
+          <DataSourceBadge source="seed" />
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0 space-y-3">
@@ -803,6 +805,7 @@ function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
         <CardTitle className="text-sm flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           Model Performance Comparison
+          <DataSourceBadge source="seed" />
         </CardTitle>
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
@@ -1826,6 +1829,7 @@ export function GmrTab() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Gauge className="h-4 w-4" /> Model Latency Over Time
+                <DataSourceBadge source="mock" />
               </CardTitle>
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400" /> qwen3-coder</span>
@@ -2020,7 +2024,10 @@ export function GmrTab() {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Hermes Router — Rotation Log</CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  Hermes Router — Rotation Log
+                  <DataSourceBadge source="mock" />
+                </CardTitle>
                 <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => refetch()}>
                   <RefreshCw className="mr-1 h-3 w-3" /> Refresh
                 </Button>

@@ -13,6 +13,50 @@ export async function GET() {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { title, externalId, priorityTier, relevanceScore, implementationTask, deliverable, type, pdfUrl, repoUrl, abstractSummary } = body
+
+    if (!title) {
+      return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 })
+    }
+
+    // Check if paper already exists (by externalId or title)
+    if (externalId) {
+      const existing = await db.paper.findFirst({ where: { externalId } })
+      if (existing) {
+        return NextResponse.json({ paper: existing, alreadyExisted: true })
+      }
+    }
+
+    const existingByTitle = await db.paper.findFirst({ where: { title } })
+    if (existingByTitle) {
+      return NextResponse.json({ paper: existingByTitle, alreadyExisted: true })
+    }
+
+    const paper = await db.paper.create({
+      data: {
+        externalId: externalId || null,
+        type: type || 'paper',
+        title,
+        pdfUrl: pdfUrl || null,
+        repoUrl: repoUrl || null,
+        abstractSummary: abstractSummary || null,
+        relevanceScore: relevanceScore ?? 0.5,
+        priorityTier: priorityTier || 'P2',
+        implementationTask: implementationTask || 'Pending review',
+        deliverable: deliverable || null,
+        isVetted: false,
+      },
+    })
+
+    return NextResponse.json({ paper, alreadyExisted: false })
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()

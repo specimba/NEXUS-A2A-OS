@@ -18,6 +18,7 @@ import {
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { NexusBarChart } from '@/components/nexus/charts'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -430,6 +431,7 @@ export function RateLimitTab() {
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Gauge className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             API Rate Limit Control Center
+            <DataSourceBadge source={isPreviewMode ? 'simulated' : 'live'} />
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">Monitor and manage API rate limits across all providers · Auto-refreshes every 10s</p>
         </div>

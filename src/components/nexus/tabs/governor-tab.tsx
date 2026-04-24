@@ -795,7 +795,7 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
             <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 -rotate-90 text-[8px] text-muted-foreground whitespace-nowrap">Activity Level</div>
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground">Trust Score →</div>
             {/* Agent dots */}
-            {agents.map((a) => {
+            {agents.map((a, idx) => {
               const levelIdx = getLevel(a.decisions)
               const riskColors = getRiskColor(a.trust)
               const size = getDotSize(a.decisions)
@@ -807,7 +807,7 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
               const topPct = topPcts[levelIdx]
               const isHovered = hoveredAgent === a.name
               return (
-                <Tooltip key={a.id}>
+                <Tooltip key={a.id ?? `agent-${idx}`}>
                   <TooltipTrigger asChild>
                     <div
                       className={`absolute z-10 rounded-full ${riskColors.dot} ring-2 ${riskColors.ring} cursor-pointer transition-all duration-200 ${isHovered ? 'scale-150 ring-4 ' + riskColors.shadow + ' shadow-lg' : 'hover:scale-125'}`}
@@ -1463,11 +1463,11 @@ export function GovernorTab() {
   const agents = useMemo<AgentUI[]>(() => {
     if (!apiData?.trustStats) return fallbackAgents
     const mapped = apiData.trustStats.map(apiTrustStatToUI)
-    // Deduplicate by name — keep first agent per unique name
+    // Deduplicate by id — keep first agent per unique id
     const seen = new Set<string>()
     return mapped.filter((a) => {
-      if (seen.has(a.name)) return false
-      seen.add(a.name)
+      if (seen.has(a.id)) return false
+      seen.add(a.id)
       return true
     })
   }, [apiData?.trustStats])
@@ -1738,7 +1738,7 @@ export function GovernorTab() {
             <MiniPieChart data={decisionPie} height={140} />
             <div className="mt-2 flex justify-center gap-4">
               {decisionPie.map((d, idx) => (
-                <div key={`${d.name}-${idx}`} className="flex items-center gap-1.5 text-[10px]">
+                <div key={`dist-${d.name}-${idx}`} className="flex items-center gap-1.5 text-[10px]">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                   <span className="text-muted-foreground">{d.name}</span>
                   <span className="font-medium">{d.value}</span>
@@ -1756,7 +1756,7 @@ export function GovernorTab() {
             <MiniPieChart data={impactDistribution} height={140} />
             <div className="mt-2 flex justify-center gap-3">
               {impactDistribution.map((d, idx) => (
-                <div key={`${d.name}-${idx}`} className="flex items-center gap-1.5 text-[10px]">
+                <div key={`dist-${d.name}-${idx}`} className="flex items-center gap-1.5 text-[10px]">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                   <span className="text-muted-foreground">{d.name}</span>
                   <span className="font-medium">{d.value}</span>
@@ -1810,7 +1810,7 @@ export function GovernorTab() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-4">
-              {agents.map((a) => {
+              {agents.map((a, idx) => {
                 const laneData = laneThresholds.find((l) => l.lane === a.lane)
                 const belowThreshold = laneData ? a.trust < laneData.min : false
                 // Determine gradient fill color based on trust level
@@ -1819,7 +1819,7 @@ export function GovernorTab() {
                 const trustColor = a.trust >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : a.trust >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
 
                 return (
-                  <div key={a.id} className="space-y-1.5">
+                  <div key={a.id ?? `agent-${idx}`} className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{a.name}</span>
@@ -1893,8 +1893,8 @@ export function GovernorTab() {
             </CardHeader>
             <CardContent className="relative p-4 pt-0">
               <div className="space-y-2">
-                {dangerPatterns.map((p) => (
-                  <div key={p.pattern} className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                {dangerPatterns.map((p, idx) => (
+                  <div key={`pattern-${p.pattern}-${idx}`} className={`flex items-center justify-between rounded-lg px-3 py-2 ${
                     p.status === 'blocked' && p.count > 0 ? 'bg-red-600/5 border border-red-600/10' : 'bg-accent/30'
                   }`}>
                     <div>
