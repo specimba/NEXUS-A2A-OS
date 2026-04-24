@@ -20,9 +20,9 @@ import {
 
 const AI_MODELS = [
   { id: 'default', label: 'NEXUS AI', description: 'GLM-4.7 via z-ai SDK', icon: '⚡' },
-  { id: 'reasoning', label: 'DeepSeek R1', description: 'Strong reasoning (OR Free)', icon: '🧠' },
-  { id: 'balanced', label: 'Qwen3 Coder', description: 'Balanced quality (OR Free)', icon: '⚙️' },
-  { id: 'fast', label: 'Gemma 4 26B', description: 'Fast responses (OR Free)', icon: '⚡' },
+  { id: 'reasoning', label: 'Llama 3.3 70B', description: 'Cerebras Free (ultra-fast)', icon: '🧠' },
+  { id: 'balanced', label: 'DeepSeek R1', description: 'Strong reasoning (OR Free)', icon: '⚙️' },
+  { id: 'fast', label: 'Llama 3.1 8B', description: 'Cerebras Free (fastest)', icon: '⚡' },
 ] as const
 
 type AIModel = typeof AI_MODELS[number]['id']
@@ -263,35 +263,26 @@ export function NexusAssistant() {
           requestBody.model = selectedModel
         }
 
-        // Try z-ai-web-dev-sdk first (reliable), then Claude proxy as fallback
+        // Route based on model selection:
+        // - default (NEXUS AI) → z-ai-web-dev-sdk
+        // - reasoning/fast (Cerebras models) → AI Bridge
+        // - balanced (DeepSeek R1) → Claude proxy → OpenRouter
         let response: Response | null = null
         let usedEndpoint = ''
 
-        try {
-          response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-          })
-          if (response.ok) {
-            usedEndpoint = 'z-ai-sdk'
-          } else {
-            response = null
-          }
-        } catch {
-          response = null
-        }
-
-        // Fallback to Claude proxy
-        if (!response) {
+        // For Cerebras models, use the AI bridge directly
+        if (selectedModel === 'reasoning' || selectedModel === 'fast') {
           try {
-            response = await fetch('/api/claude', {
+            response = await fetch('/api/ai-bridge', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
+              body: JSON.stringify({
+                ...requestBody,
+                tier: selectedModel === 'reasoning' ? 'reasoning' : 'fast',
+              }),
             })
             if (response.ok) {
-              usedEndpoint = 'claude-proxy'
+              usedEndpoint = 'cerebras'
             } else {
               response = null
             }
@@ -300,18 +291,72 @@ export function NexusAssistant() {
           }
         }
 
-        if (!response.ok) {
-          throw new Error('Failed to get response')
+        // Default: Try z-ai-web-dev-sdk first (reliable)
+        if (!response && selectedModel === 'default') {
+          try {
+            response = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+            })
+            if (response.ok) {
+              usedEndpoint = 'z-ai-sdk'
+            } else {
+              response = null
+            }
+          } catch {
+            response = null
+          }
+        }
+
+        // Fallback to Claude proxy (OpenRouter)
+        if (!response) {
+          try {
+            response = await fetch('/api/claude', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+            })
+            if (response.ok) {
+              usedEndpoint = 'openrouter'
+            } else {
+              response = null
+            }
+          } catch {
+            response = null
+          }
+        }
+
+        // Last resort: z-ai SDK
+        if (!response) {
+          try {
+            response = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: [...currentMessages, { role: 'user', content: trimmed }] }),
+            })
+            if (response.ok) {
+              usedEndpoint = 'z-ai-sdk'
+            } else {
+              response = null
+            }
+          } catch {
+            response = null
+          }
+        }
+
+        if (!response || !response.ok) {
+          throw new Error('Failed to get response from any provider')
         }
 
         const data = await response.json()
         const modelLabel = AI_MODELS.find(m => m.id === selectedModel)?.label
-        // Transparently show which model actually generated the response
+        // Transparently show which model/provider actually generated the response
         const modelInfo = data.model
           ? ` [${data.model}]`
-          : selectedModel !== 'default'
-            ? ` [${modelLabel}]`
-            : usedEndpoint === 'claude-proxy'
+          : usedEndpoint === 'cerebras'
+            ? ` [Cerebras]`
+            : usedEndpoint === 'openrouter'
               ? ' [via OpenRouter]'
               : ' [GLM-4.7]'
         addChatMessage({ role: 'assistant', content: data.response + modelInfo })

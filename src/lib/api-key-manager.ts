@@ -64,8 +64,9 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   openrouter: ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY_2', 'OPENROUTER_API_KEY_3'],
   tavily: ['TAVILY_API_KEY'],
   jina: ['JINA_API_KEY', 'JINA_API_KEY_2'],
-  kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
   cerebras: ['CEREBRAS_API_KEY', 'CEREBRAS_API_KEY_2'],
+  groq: ['GROQ_API_KEY', 'GROQ_API_KEY_2'],
+  kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
 }
 
@@ -310,6 +311,11 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
       }
     case 'tavily':
       return {
+        'Content-Type': 'application/json',
+      }
+    case 'groq':
+      return {
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
       }
     case 'jina':

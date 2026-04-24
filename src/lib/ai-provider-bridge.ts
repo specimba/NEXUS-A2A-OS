@@ -23,7 +23,7 @@ export interface ModelRoute {
   tier: ModelTier
   displayName: string
   actualModel: string
-  provider: 'z-ai' | 'openrouter'
+  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq'
   providerLabel: string
   isFree: boolean
   rateLimitPerMin: number
@@ -199,6 +199,40 @@ const MODEL_ROUTES: ModelRoute[] = [
     rateLimitPerMin: 20,
     contextWindow: 128000,
     capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── Cerebras — Ultra-fast LLM Inference (CS-3 Wafer) ──
+  {
+    id: 'llama-3.3-70b-cerebras',
+    tier: 'reasoning',
+    displayName: 'Llama 3.3 70B (Cerebras)',
+    actualModel: 'llama-3.3-70b',
+    provider: 'cerebras',
+    providerLabel: 'Cerebras Free',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'llama-3.1-8b-cerebras',
+    tier: 'fast',
+    displayName: 'Llama 3.1 8B (Cerebras)',
+    actualModel: 'llama-3.1-8b',
+    provider: 'cerebras',
+    providerLabel: 'Cerebras Free',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 128000,
+    capabilities: ['code'],
     health: 'unknown',
     latencyMs: 0,
     totalCalls: 0,
@@ -501,6 +535,81 @@ async function callOpenRouter(
   return content
 }
 
+// ── Cerebras API Call ──────────────────────────────────────────────────
+
+async function callCerebras(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('cerebras')
+  if (!apiKey) {
+    throw new Error('No Cerebras API key available. Configure CEREBRAS_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('cerebras', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Cerebras rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('cerebras', retryAfter)
+    recordRateLimitError('cerebras', '429 Too Many Requests')
+    throw new Error(`Cerebras rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('cerebras', `${response.status} Auth Error`)
+    throw new Error(`Cerebras auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('cerebras', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Cerebras API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Cerebras')
+  }
+
+  recordKeySuccess('cerebras')
+  recordSuccess('cerebras')
+  recordRequest('cerebras', '/chat/completions', undefined, data)
+
+  return content
+}
+
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
 async function callZAI(
@@ -578,6 +687,8 @@ export async function routeRequest(
   try {
     if (model.provider === 'z-ai') {
       response = await callZAI(messages, opts)
+    } else if (model.provider === 'cerebras') {
+      response = await callCerebras(model.actualModel, messages, opts)
     } else if (model.provider === 'openrouter') {
       response = await callOpenRouter(model.actualModel, messages, opts)
     } else {
@@ -613,6 +724,8 @@ export async function routeRequest(
 
         if (fallback.provider === 'z-ai') {
           fbResponse = await callZAI(messages, opts)
+        } else if (fallback.provider === 'cerebras') {
+          fbResponse = await callCerebras(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }
@@ -740,7 +853,11 @@ export function getProviderStatus(provider: string): ProviderStatus {
     ? 'z-ai SDK (GLM-4.7)'
     : provider === 'openrouter'
       ? 'OpenRouter Free Tier'
-      : provider
+      : provider === 'cerebras'
+        ? 'Cerebras Free (CS-3 Wafer)'
+        : provider === 'groq'
+          ? 'Groq Free (LPU)'
+          : provider
 
   return {
     provider,
@@ -797,6 +914,12 @@ export async function healthCheckProvider(provider: string): Promise<{
     if (provider === 'z-ai') {
       response = await callZAI(testMessages, {
         systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
+      })
+    } else if (provider === 'cerebras') {
+      response = await callCerebras(testRoute.actualModel, testMessages, {
+        systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
+        maxTokens: 10,
+        temperature: 0,
       })
     } else {
       response = await callOpenRouter(testRoute.actualModel, testMessages, {

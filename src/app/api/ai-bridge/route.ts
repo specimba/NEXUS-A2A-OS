@@ -234,6 +234,71 @@ export async function POST(request: NextRequest) {
             recordKeySuccess('openrouter')
           }
         }
+      } else if (model.provider === 'cerebras') {
+        // Use Cerebras API via fetch
+        const { getActiveKey, recordKeySuccess, recordKeyError } = await import('@/lib/api-key-manager')
+        const apiKey = getActiveKey('cerebras')
+
+        if (!apiKey) {
+          // Fall back to z-ai if no Cerebras key
+          const ZAI = (await import('z-ai-web-dev-sdk')).default
+          const zai = await ZAI.create()
+          const apiMessages = messages.map(m => ({
+            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+            content: m.content,
+          }))
+          const completion = await zai.chat.completions.create({
+            messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...apiMessages],
+            thinking: { type: 'disabled' },
+          })
+          response = completion.choices?.[0]?.message?.content || ''
+        } else {
+          const systemMsg = systemPrompt
+            ? [{ role: 'system' as const, content: systemPrompt }]
+            : []
+          const apiMessages = [
+            ...systemMsg,
+            ...messages.map(m => ({
+              role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+              content: m.content,
+            })),
+          ]
+
+          const cbResponse = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: model.actualModel,
+              messages: apiMessages,
+              max_tokens: maxTokens ?? 4096,
+              temperature: temperature ?? 0.7,
+            }),
+          })
+
+          if (!cbResponse.ok) {
+            const errorBody = await cbResponse.text().catch(() => 'Unknown error')
+            recordKeyError('cerebras', `${cbResponse.status}: ${errorBody.slice(0, 200)}`)
+            // Fall back to z-ai
+            const ZAI = (await import('z-ai-web-dev-sdk')).default
+            const zai = await ZAI.create()
+            const fallbackMessages = messages.map(m => ({
+              role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+              content: m.content,
+            }))
+            const completion = await zai.chat.completions.create({
+              messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...fallbackMessages],
+              thinking: { type: 'disabled' },
+            })
+            response = completion.choices?.[0]?.message?.content || ''
+          } else {
+            const data = await cbResponse.json()
+            response = data.choices?.[0]?.message?.content || ''
+            recordKeySuccess('cerebras')
+          }
+        }
       } else {
         return NextResponse.json({ error: `Unknown provider: ${model.provider}` }, { status: 500 })
       }

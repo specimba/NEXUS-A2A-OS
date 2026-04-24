@@ -2281,3 +2281,37 @@ Stage Summary:
 - Daily Research Practice visible at a glance in both light and dark mode
 - Alphaxiv integration live with Tavily API search pipeline
 - API key infrastructure expanded to include Tavily provider
+
+---
+Task ID: 23
+Agent: main
+Task: Add Jina + Cerebras API keys, wire Cerebras as LLM provider, research free API providers
+
+Work Log:
+- Added Jina API key (jina_39b8d425...) and Cerebras API key (csk-h8hkyh43...) to .env
+- Added groq provider to api-key-manager.ts with auth headers
+- Added Cerebras as a provider in ai-provider-bridge.ts: Llama 3.3 70B (reasoning) + Llama 3.1 8B (fast)
+- Implemented callCerebras() function with full error handling, rate limiting, and key rotation
+- Updated AI bridge POST handler to route Cerebras requests with z-ai fallback
+- Updated AI assistant model selector: NEXUS AI (GLM-4.7), Llama 3.3 70B (Cerebras), DeepSeek R1 (OR), Llama 3.1 8B (Cerebras)
+- Updated routing logic: Cerebras models route through /api/ai-bridge, others through /api/chat and /api/claude
+- Researched 15+ free AI API providers — comprehensive results documented below
+- All lint checks pass clean
+
+Stage Summary:
+- 4 API providers now active: z-ai SDK (GLM-4.7), OpenRouter (8 free models), Cerebras (2 models), Tavily (search)
+- Jina key configured for embeddings/reader (not yet wired to a UI feature)
+- Groq slot added but no key yet (console.groq.com — email-only registration, ~1M tokens/day free)
+- AI assistant now offers 4 honest model choices with transparent provider labels
+- Free provider research complete — top picks: Groq, Google Gemini, SambaNova for more free LLM capacity
+
+Free API Providers Discovered (email-only registration, no credit card):
+- Groq: 1M tokens/day, Llama 3.3 70B, Mixtral, Gemma — https://console.groq.com
+- Google Gemini: 1,500 RPD, Gemini 2.5 Flash/Pro — https://aistudio.google.com
+- Cerebras: 1M tokens/day, Llama 3.3 70B — https://cloud.cerebras.ai (KEY ADDED)
+- SambaNova: 200K TPD, Llama 405B (only free access) — https://cloud.sambanova.ai
+- Mistral: Rate-limited, phone verification needed — https://console.mistral.ai
+- NVIDIA NIM: 40 RPM, 80+ models — https://build.nvidia.com
+- Jina AI: 1B embedding tokens free — https://jina.ai (KEY ADDED)
+- Deepgram: $200 free STT credit — https://deepgram.com
+- ElevenLabs: 10K chars/month TTS — https://elevenlabs.io
