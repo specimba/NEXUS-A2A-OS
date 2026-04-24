@@ -3,6 +3,19 @@ import { NextResponse } from 'next/server'
 
 export async function POST() {
   try {
+    // Clear existing data (in dependency order)
+    await db.governorDecision.deleteMany()
+    await db.rateLimitLog.deleteMany()
+    await db.tokenUsageLog.deleteMany()
+    await db.vaultEntry.deleteMany()
+    await db.paper.deleteMany()
+    await db.testRun.deleteMany()
+    await db.testTemplate.deleteMany()
+    await db.modelEntry.deleteMany()
+    await db.sessionBudget.deleteMany()
+    await db.systemConfig.deleteMany()
+    await db.agent.deleteMany()
+
     // Seed Agents
     const agents = await Promise.all([
       db.agent.create({ data: { name: 'coordinator', type: 'coordinator', status: 'busy', domain: 'general', trustScore: 0.91, totalTokens: 28400, tasksDone: 234, tasksFailed: 4 } }),
@@ -43,6 +56,68 @@ export async function POST() {
       db.paper.create({ data: { externalId: 'shieldgemma-2407.21772', type: 'paper', title: 'ShieldGemma: Generative AI Content Moderation', pdfUrl: 'https://arxiv.org/pdf/2407.21772v2', abstractSummary: 'ShieldGemma suite built on Gemma2. Outperforms Llama Guard by +10.8% AU-PRC.', conclusionTakeaway: 'Provides open moderation models with strong generalization.', relevanceScore: 0.9, priorityTier: 'P1', implementationTask: 'Integrate ShieldGemma-2B as fast moderation adapter.', isVetted: true, nexusMapping: '["Moderation"]' } }),
     ])
 
+    // Seed Governor Decisions (15-20 realistic decisions across all agents)
+    const decisionTemplates = [
+      { action: 'execute_code', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', reason: 'Code execution within trusted domain' },
+      { action: 'access_vault', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', reason: 'Vault read access for active task' },
+      { action: 'spawn_agent', scope: 'SYSTEM', impact: 'HIGH', decision: 'DENY', reason: 'Agent spawn limit reached (max 5)' },
+      { action: 'modify_constitution', scope: 'SYSTEM', impact: 'CRIT', decision: 'DENY', reason: 'Constitution modification blocked by CR-007' },
+      { action: 'api_call_external', scope: 'CROSS', impact: 'MED', decision: 'HOLD', reason: 'Cross-origin API call requires review' },
+      { action: 'write_file', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', reason: 'File write within agent workspace' },
+      { action: 'delete_resource', scope: 'PROJECT', impact: 'HIGH', decision: 'DENY', reason: 'Destructive operation blocked by CR-001' },
+      { action: 'network_request', scope: 'CROSS', impact: 'MED', decision: 'ALLOW', reason: 'Whitelisted endpoint access' },
+      { action: 'privilege_escalation', scope: 'SYSTEM', impact: 'CRIT', decision: 'DENY', reason: 'Privilege escalation attempt detected' },
+      { action: 'read_config', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', reason: 'Configuration read access granted' },
+      { action: 'batch_process', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', reason: 'Batch processing within token budget' },
+      { action: 'export_data', scope: 'CROSS', impact: 'HIGH', decision: 'HOLD', reason: 'Data export pending security review' },
+      { action: 'cache_invalidate', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', reason: 'Cache invalidation for agent workspace' },
+      { action: 'override_limit', scope: 'SYSTEM', impact: 'CRIT', decision: 'DENY', reason: 'Rate limit override blocked by CR-008' },
+      { action: 'research_query', scope: 'SELF', impact: 'LOW', decision: 'ALLOW', reason: 'Research query within free-tier budget' },
+      { action: 'model_switch', scope: 'PROJECT', impact: 'MED', decision: 'ALLOW', reason: 'Model switch within GMR rotation policy' },
+      { action: 'cross_agent_comm', scope: 'CROSS', impact: 'MED', decision: 'ALLOW', reason: 'Inter-agent communication permitted' },
+      { action: 'shutdown_agent', scope: 'SYSTEM', impact: 'HIGH', decision: 'HOLD', reason: 'Agent shutdown requires coordinator approval' },
+    ]
+
+    const governorDecisions = []
+    for (const template of decisionTemplates) {
+      // Assign each decision to a random agent
+      const agent = agents[Math.floor(Math.random() * agents.length)]
+      const decision = await db.governorDecision.create({
+        data: {
+          agentId: agent.id,
+          action: template.action,
+          scope: template.scope,
+          impact: template.impact,
+          decision: template.decision,
+          reason: template.reason,
+          trustAtTime: agent.trustScore,
+          createdAt: new Date(Date.now() - Math.floor(Math.random() * 86400000)), // random time within last 24h
+        },
+      })
+      governorDecisions.push(decision)
+    }
+
+    // Ensure each agent has at least one decision
+    for (const agent of agents) {
+      const hasDecision = governorDecisions.some(d => d.agentId === agent.id)
+      if (!hasDecision) {
+        const template = decisionTemplates[Math.floor(Math.random() * decisionTemplates.length)]
+        const decision = await db.governorDecision.create({
+          data: {
+            agentId: agent.id,
+            action: template.action,
+            scope: template.scope,
+            impact: template.impact,
+            decision: template.decision,
+            reason: template.reason,
+            trustAtTime: agent.trustScore,
+            createdAt: new Date(Date.now() - Math.floor(Math.random() * 86400000)),
+          },
+        })
+        governorDecisions.push(decision)
+      }
+    }
+
     // Seed Session Budget
     const budget = await db.sessionBudget.create({ data: { totalBudget: 100000, usedBudget: 26550, remainingBudget: 73450 } })
 
@@ -57,6 +132,7 @@ export async function POST() {
         models: models.length,
         templates: templates.length,
         papers: papers.length,
+        governorDecisions: governorDecisions.length,
         budget: !!budget,
       }
     })

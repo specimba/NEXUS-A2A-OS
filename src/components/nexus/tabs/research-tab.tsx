@@ -28,6 +28,7 @@ import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCi
 import { MiniAreaChart } from '@/components/nexus/charts'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
+import { useNexusStore } from '@/store/nexus-store'
 
 interface PaperItem {
   id: string
@@ -338,13 +339,50 @@ function AddToQueueDialog({ open, onOpenChange, onAdd }: {
 }
 
 function DailyPracticeTimerCard() {
-  const TOTAL_SECONDS = 32 * 60 // 32 min total practice session
-  const [elapsed, setElapsed] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
+  const {
+    timerStartedAt,
+    timerIsRunning,
+    timerDuration,
+    timerElapsedOnPause,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    setTimerIsRunning,
+  } = useNexusStore()
+
+  const [tick, setTick] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const remaining = Math.max(TOTAL_SECONDS - elapsed, 0)
-  const progressPct = Math.min((elapsed / TOTAL_SECONDS) * 100, 100)
+  // Compute elapsed from store state: paused elapsed + (now - startedAt) if running
+  const elapsed = timerIsRunning && timerStartedAt
+    ? Math.min(timerElapsedOnPause + Math.floor((Date.now() - timerStartedAt) / 1000), timerDuration)
+    : timerElapsedOnPause
+
+  // Force re-render every second while running so the display updates
+  useEffect(() => {
+    if (timerIsRunning) {
+      intervalRef.current = setInterval(() => {
+        setTick((t) => t + 1)
+      }, 1000)
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [timerIsRunning])
+
+  // Check for completion
+  useEffect(() => {
+    if (elapsed >= timerDuration && timerIsRunning) {
+      setTimerIsRunning(false)
+      pauseTimer()
+      toast.success('Practice session complete!', {
+        description: '32 minutes elapsed — great work!',
+      })
+    }
+  }, [elapsed, timerDuration, timerIsRunning, setTimerIsRunning, pauseTimer])
+
+  const remaining = Math.max(timerDuration - elapsed, 0)
+  const progressPct = Math.min((elapsed / timerDuration) * 100, 100)
   const isLowTime = remaining < 5 * 60 && remaining > 0
 
   const formatTime = (secs: number) => {
@@ -354,37 +392,16 @@ function DailyPracticeTimerCard() {
   }
 
   const handleStart = useCallback(() => {
-    setIsRunning(true)
-  }, [])
+    startTimer()
+  }, [startTimer])
 
   const handlePause = useCallback(() => {
-    setIsRunning(false)
-  }, [])
+    pauseTimer()
+  }, [pauseTimer])
 
   const handleReset = useCallback(() => {
-    setIsRunning(false)
-    setElapsed(0)
-  }, [])
-
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setElapsed((prev) => {
-          if (prev >= TOTAL_SECONDS) {
-            setIsRunning(false)
-            toast.success('Practice session complete!', {
-              description: '32 minutes elapsed — great work!',
-            })
-            return TOTAL_SECONDS
-          }
-          return prev + 1
-        })
-      }, 1000)
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [isRunning])
+    resetTimer()
+  }, [resetTimer])
 
   return (
     <Card className={`relative overflow-hidden shadow-lg hover-lift transition-colors ${isLowTime ? 'border-red-500/40 shadow-red-500/10' : 'border-emerald-600/20 shadow-emerald-600/5'}`}>
@@ -428,7 +445,7 @@ function DailyPracticeTimerCard() {
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-2">
-          {!isRunning ? (
+          {!timerIsRunning ? (
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -454,7 +471,7 @@ function DailyPracticeTimerCard() {
             variant="ghost"
             className="h-8 gap-1.5 text-xs"
             onClick={handleReset}
-            disabled={elapsed === 0 && !isRunning}
+            disabled={elapsed === 0 && !timerIsRunning}
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Reset
@@ -462,7 +479,7 @@ function DailyPracticeTimerCard() {
         </div>
 
         {/* Low time warning */}
-        {isLowTime && isRunning && (
+        {isLowTime && timerIsRunning && (
           <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2">
             <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
             <span className="text-xs text-red-600 dark:text-red-400">Less than 5 minutes remaining!</span>

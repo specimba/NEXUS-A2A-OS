@@ -226,6 +226,127 @@ function ProviderCard({ status, keyInfo }: { status: ProviderStatus; keyInfo?: K
   )
 }
 
+// ── Preview / Simulated Data ────────────────────────────────────────
+
+const PREVIEW_SUMMARY: SummaryData = {
+  totalProviders: 5,
+  healthyProviders: 4,
+  rateLimitedProviders: 1,
+  totalRequests: 12,
+  rateLimitedCount: 1,
+  cachedCount: 2,
+  dedupedCount: 1,
+  errorCount: 0,
+  totalQueueSize: 0,
+  cacheHitRate: 0.42,
+  dedupSize: 3,
+}
+
+const PREVIEW_PROVIDERS: ProviderStatus[] = [
+  {
+    provider: 'openrouter',
+    config: { rpm: 20, rpd: 1000, description: 'Primary free LLM gateway', color: '#10b981', baseUrl: 'https://openrouter.ai/api/v1' },
+    rpm: { used: 3, limit: 20, remaining: 17, percentUsed: 15 },
+    rpd: { used: 47, limit: 1000, remaining: 953, percentUsed: 4.7 },
+    isCooldown: false,
+    cooldownUntil: 0,
+    cooldownRemainingMs: 0,
+    consecutive429s: 0,
+    lastError: null,
+    totalRequests: 7,
+    totalRejected: 0,
+    queue: { pending: 0, processing: 0, completed: 7 },
+    dedup: { size: 2, hitRate: 0.28 },
+    cache: { size: 3, hitRate: 0.42, hits: 2, misses: 3 },
+    keyHealth: { hasKey: true, keyMasked: 'sk-or-••••b676b4', lastUsed: Date.now() - 120000 },
+  },
+  {
+    provider: 'jina',
+    config: { rpm: 20, rpd: 2000, description: 'Embeddings, reader, classifier', color: '#3b82f6', baseUrl: 'https://api.jina.ai/v1' },
+    rpm: { used: 0, limit: 20, remaining: 20, percentUsed: 0 },
+    rpd: { used: 5, limit: 2000, remaining: 1995, percentUsed: 0.25 },
+    isCooldown: false,
+    cooldownUntil: 0,
+    cooldownRemainingMs: 0,
+    consecutive429s: 0,
+    lastError: null,
+    totalRequests: 3,
+    totalRejected: 0,
+    queue: { pending: 0, processing: 0, completed: 3 },
+    dedup: { size: 1, hitRate: 0.33 },
+    cache: { size: 1, hitRate: 0.33, hits: 1, misses: 2 },
+    keyHealth: { hasKey: true, keyMasked: 'jina_••••0AU7', lastUsed: Date.now() - 300000 },
+  },
+  {
+    provider: 'cerebras',
+    config: { rpm: 30, rpd: 14400, description: 'Ultra-fast inference', color: '#f59e0b', baseUrl: 'https://api.cerebras.ai/v1' },
+    rpm: { used: 2, limit: 30, remaining: 28, percentUsed: 6.7 },
+    rpd: { used: 23, limit: 14400, remaining: 14377, percentUsed: 0.16 },
+    isCooldown: false,
+    cooldownUntil: 0,
+    cooldownRemainingMs: 0,
+    consecutive429s: 0,
+    lastError: null,
+    totalRequests: 2,
+    totalRejected: 0,
+    queue: { pending: 0, processing: 0, completed: 2 },
+    dedup: { size: 0, hitRate: 0 },
+    cache: { size: 0, hitRate: 0, hits: 0, misses: 2 },
+    keyHealth: { hasKey: true, keyMasked: 'csk-••••rrtr', lastUsed: Date.now() - 180000 },
+  },
+  {
+    provider: 'kilocode',
+    config: { rpm: 10, rpd: 500, description: 'AI proxy with limited free tier', color: '#8b5cf6', baseUrl: 'https://api.kilocode.ai/v1' },
+    rpm: { used: 0, limit: 10, remaining: 10, percentUsed: 0 },
+    rpd: { used: 1, limit: 500, remaining: 499, percentUsed: 0.2 },
+    isCooldown: false,
+    cooldownUntil: 0,
+    cooldownRemainingMs: 0,
+    consecutive429s: 0,
+    lastError: null,
+    totalRequests: 0,
+    totalRejected: 0,
+    queue: { pending: 0, processing: 0, completed: 0 },
+    dedup: { size: 0, hitRate: 0 },
+    cache: { size: 0, hitRate: 0, hits: 0, misses: 0 },
+    keyHealth: { hasKey: true, keyMasked: 'eyJ••••axQ', lastUsed: null },
+  },
+  {
+    provider: 'openai',
+    config: { rpm: 5, rpd: 200, description: 'GPT models (free tier)', color: '#ef4444', baseUrl: 'https://api.openai.com/v1' },
+    rpm: { used: 5, limit: 5, remaining: 0, percentUsed: 100 },
+    rpd: { used: 47, limit: 200, remaining: 153, percentUsed: 23.5 },
+    isCooldown: true,
+    cooldownUntil: Date.now() + 45000,
+    cooldownRemainingMs: 45000,
+    consecutive429s: 1,
+    lastError: '429 Rate limit exceeded',
+    totalRequests: 0,
+    totalRejected: 1,
+    queue: { pending: 1, processing: 0, completed: 0 },
+    dedup: { size: 0, hitRate: 0 },
+    cache: { size: 0, hitRate: 0, hits: 0, misses: 0 },
+    keyHealth: { hasKey: false, keyMasked: '—', lastUsed: null },
+  },
+]
+
+const PREVIEW_KEYS: Record<string, { provider: string; keys: KeyInfo[]; totalKeys: number; healthyKeys: number; hasAvailableKey: boolean }> = {
+  openrouter: { provider: 'openrouter', keys: [{ id: 'k1', provider: 'openrouter', masked: 'sk-or-••••b676b4', isActive: true, health: 'healthy', requestsMade: 7, requestsRemaining: 993, lastError: null, cooldownUntil: 0, lastUsed: Date.now() - 120000, totalRequests: 7, total429s: 0, successRate: 100 }], totalKeys: 1, healthyKeys: 1, hasAvailableKey: true },
+  jina: { provider: 'jina', keys: [{ id: 'k2', provider: 'jina', masked: 'jina_••••0AU7', isActive: true, health: 'healthy', requestsMade: 3, requestsRemaining: 1997, lastError: null, cooldownUntil: 0, lastUsed: Date.now() - 300000, totalRequests: 3, total429s: 0, successRate: 100 }], totalKeys: 1, healthyKeys: 1, hasAvailableKey: true },
+  cerebras: { provider: 'cerebras', keys: [{ id: 'k3', provider: 'cerebras', masked: 'csk-••••rrtr', isActive: true, health: 'healthy', requestsMade: 2, requestsRemaining: 14398, lastError: null, cooldownUntil: 0, lastUsed: Date.now() - 180000, totalRequests: 2, total429s: 0, successRate: 100 }], totalKeys: 1, healthyKeys: 1, hasAvailableKey: true },
+  kilocode: { provider: 'kilocode', keys: [{ id: 'k4', provider: 'kilocode', masked: 'eyJ••••axQ', isActive: true, health: 'healthy', requestsMade: 0, requestsRemaining: 500, lastError: null, cooldownUntil: 0, lastUsed: null, totalRequests: 0, total429s: 0, successRate: 100 }], totalKeys: 1, healthyKeys: 1, hasAvailableKey: true },
+  openai: { provider: 'openai', keys: [{ id: 'k5', provider: 'openai', masked: '—', isActive: false, health: 'no_key', requestsMade: 0, requestsRemaining: 0, lastError: 'No API key configured', cooldownUntil: 0, lastUsed: null, totalRequests: 0, total429s: 0, successRate: 0 }], totalKeys: 1, healthyKeys: 0, hasAvailableKey: false },
+}
+
+const PREVIEW_CACHE = { size: 4, maxSize: 100, hits: 2, misses: 5, hitRate: 0.42, evictions: 0 }
+const PREVIEW_PROVIDER_STATS: Record<string, { total: number; rateLimited: number; cached: number; errors: number; avgResponseTime: number }> = {
+  openrouter: { total: 7, rateLimited: 0, cached: 2, errors: 0, avgResponseTime: 340 },
+  jina: { total: 3, rateLimited: 0, cached: 1, errors: 0, avgResponseTime: 210 },
+  cerebras: { total: 2, rateLimited: 0, cached: 0, errors: 0, avgResponseTime: 85 },
+  kilocode: { total: 0, rateLimited: 0, cached: 0, errors: 0, avgResponseTime: 0 },
+  openai: { total: 0, rateLimited: 1, cached: 0, errors: 1, avgResponseTime: 0 },
+}
+
 // ── Main Rate Limit Tab ────────────────────────────────────────────
 
 export function RateLimitTab() {
@@ -267,6 +388,16 @@ export function RateLimitTab() {
 
   const summary = useMemo(() => data?.summary ?? null, [data])
 
+  // Determine if we should show preview mode (no real data yet)
+  const isPreviewMode = !!(data && summary && summary.totalRequests === 0)
+
+  // Use preview data when no real data exists
+  const displaySummary = isPreviewMode ? PREVIEW_SUMMARY : summary
+  const displayProviders = isPreviewMode ? PREVIEW_PROVIDERS : (data?.providers ?? [])
+  const displayKeys = isPreviewMode ? PREVIEW_KEYS : (data?.keys ?? {})
+  const displayCache = isPreviewMode ? PREVIEW_CACHE : data?.cache
+  const displayProviderStats = isPreviewMode ? PREVIEW_PROVIDER_STATS : data?.providerStats
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -307,16 +438,27 @@ export function RateLimitTab() {
         </Button>
       </div>
 
+      {/* Preview Mode Banner */}
+      {isPreviewMode && (
+        <div className="flex items-center gap-3 rounded-lg border border-yellow-600/30 bg-yellow-600/5 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Preview Mode — No live data yet</p>
+            <p className="text-xs text-muted-foreground">Showing simulated data. Real data will appear once API requests are made through the rate limiter.</p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Stat Cards */}
-      {summary && (
+      {displaySummary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Providers', value: `${summary.healthyProviders}/${summary.totalProviders}`, icon: Activity, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Total Requests', value: summary.totalRequests, icon: Hash, border: 'border-blue-600/20', gradient: 'from-blue-600/10 via-blue-600/5 to-transparent', iconBg: 'bg-blue-600/15', iconText: 'text-blue-600 dark:text-blue-400' },
-            { label: 'Rate Limited', value: summary.rateLimitedCount, icon: AlertTriangle, border: 'border-red-600/20', gradient: 'from-red-600/10 via-red-600/5 to-transparent', iconBg: 'bg-red-600/15', iconText: 'text-red-600 dark:text-red-400' },
-            { label: 'Cached', value: summary.cachedCount, icon: Database, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Queue', value: summary.totalQueueSize, icon: Clock, border: 'border-yellow-600/20', gradient: 'from-yellow-600/10 via-yellow-600/5 to-transparent', iconBg: 'bg-yellow-600/15', iconText: 'text-yellow-600 dark:text-yellow-400' },
-            { label: 'Hit Rate', value: `${(summary.cacheHitRate * 100).toFixed(0)}%`, icon: Zap, border: 'border-purple-600/20', gradient: 'from-purple-600/10 via-purple-600/5 to-transparent', iconBg: 'bg-purple-600/15', iconText: 'text-purple-600 dark:text-purple-400' },
+            { label: 'Providers', value: `${displaySummary.healthyProviders}/${displaySummary.totalProviders}`, icon: Activity, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Total Requests', value: displaySummary.totalRequests, icon: Hash, border: 'border-blue-600/20', gradient: 'from-blue-600/10 via-blue-600/5 to-transparent', iconBg: 'bg-blue-600/15', iconText: 'text-blue-600 dark:text-blue-400' },
+            { label: 'Rate Limited', value: displaySummary.rateLimitedCount, icon: AlertTriangle, border: 'border-red-600/20', gradient: 'from-red-600/10 via-red-600/5 to-transparent', iconBg: 'bg-red-600/15', iconText: 'text-red-600 dark:text-red-400' },
+            { label: 'Cached', value: displaySummary.cachedCount, icon: Database, border: 'border-emerald-600/20', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', iconBg: 'bg-emerald-600/15', iconText: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Queue', value: displaySummary.totalQueueSize, icon: Clock, border: 'border-yellow-600/20', gradient: 'from-yellow-600/10 via-yellow-600/5 to-transparent', iconBg: 'bg-yellow-600/15', iconText: 'text-yellow-600 dark:text-yellow-400' },
+            { label: 'Hit Rate', value: `${(displaySummary.cacheHitRate * 100).toFixed(0)}%`, icon: Zap, border: 'border-purple-600/20', gradient: 'from-purple-600/10 via-purple-600/5 to-transparent', iconBg: 'bg-purple-600/15', iconText: 'text-purple-600 dark:text-purple-400' },
           ].map((card) => (
             <Card key={card.label} className={`relative overflow-hidden ${card.border} hover-lift`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient}`} />
@@ -337,27 +479,27 @@ export function RateLimitTab() {
       )}
 
       {/* Alert Banner */}
-      {summary && summary.rateLimitedProviders > 0 && (
+      {displaySummary && displaySummary.rateLimitedProviders > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-red-600/30 bg-red-600/5 px-4 py-3">
           <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">{summary.rateLimitedProviders} provider(s) currently rate-limited</p>
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">{displaySummary.rateLimitedProviders} provider(s) currently rate-limited</p>
             <p className="text-xs text-muted-foreground">Requests queued until cooldown expires.</p>
           </div>
         </div>
       )}
 
       {/* Provider Cards Grid */}
-      {data && (
+      {displayProviders.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {data.providers.map((provider) => (
-            <ProviderCard key={provider.provider} status={provider} keyInfo={data.keys[provider.provider]?.keys[0]} />
+          {displayProviders.map((provider) => (
+            <ProviderCard key={provider.provider} status={provider} keyInfo={displayKeys[provider.provider]?.keys[0]} />
           ))}
         </div>
       )}
 
       {/* Cache Stats + Key Health */}
-      {data && (
+      {displayCache && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
@@ -367,10 +509,10 @@ export function RateLimitTab() {
             <CardContent className="relative p-4 pt-0">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Hit Rate', value: `${(data.cache.hitRate * 100).toFixed(0)}%`, highlight: true },
-                  { label: 'Cache Size', value: `${data.cache.size}/${data.cache.maxSize}` },
-                  { label: 'Hits', value: data.cache.hits, highlight: true },
-                  { label: 'Misses', value: data.cache.misses },
+                  { label: 'Hit Rate', value: `${(displayCache.hitRate * 100).toFixed(0)}%`, highlight: true },
+                  { label: 'Cache Size', value: `${displayCache.size}/${displayCache.maxSize}` },
+                  { label: 'Hits', value: displayCache.hits, highlight: true },
+                  { label: 'Misses', value: displayCache.misses },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg bg-accent/20 px-3 py-2.5">
                     <p className="text-[10px] text-muted-foreground">{item.label}</p>
@@ -381,12 +523,12 @@ export function RateLimitTab() {
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-muted-foreground">Cache Efficiency</span>
-                  <span className="text-[10px] tabular-nums text-emerald-600 dark:text-emerald-400">{(data.cache.hitRate * 100).toFixed(1)}%</span>
+                  <span className="text-[10px] tabular-nums text-emerald-600 dark:text-emerald-400">{(displayCache.hitRate * 100).toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-muted/50 overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${data.cache.hitRate * 100}%` }} />
+                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${displayCache.hitRate * 100}%` }} />
                 </div>
-                <span className="text-[9px] text-muted-foreground">Evictions: {data.cache.evictions}</span>
+                <span className="text-[9px] text-muted-foreground">Evictions: {displayCache.evictions}</span>
               </div>
             </CardContent>
           </Card>
@@ -398,7 +540,7 @@ export function RateLimitTab() {
             </CardHeader>
             <CardContent className="relative p-4 pt-0">
               <div className="space-y-2">
-                {Object.entries(data.keys).map(([provider, keyData]) => (
+                {Object.entries(displayKeys).map(([provider, keyData]) => (
                   <div key={provider} className="flex items-center gap-3 rounded-lg border bg-accent/20 px-3 py-2 transition-colors hover:bg-accent/30">
                     <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: getProviderColor(provider) }} />
                     <span className="text-xs font-medium capitalize min-w-[80px]">{provider}</span>
@@ -429,7 +571,7 @@ export function RateLimitTab() {
       )}
 
       {/* Provider Usage Chart */}
-      {data?.providerStats && (
+      {displayProviderStats && (
         <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
           <CardHeader className="relative pb-2">
@@ -437,7 +579,7 @@ export function RateLimitTab() {
           </CardHeader>
           <CardContent className="relative p-4 pt-0">
             <NexusBarChart
-              data={Object.entries(data.providerStats).map(([provider, stats]) => ({
+              data={Object.entries(displayProviderStats).map(([provider, stats]) => ({
                 name: provider.charAt(0).toUpperCase() + provider.slice(1),
                 value: stats.total,
               }))}

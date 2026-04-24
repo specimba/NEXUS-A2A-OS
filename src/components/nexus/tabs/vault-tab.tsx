@@ -34,6 +34,10 @@ import {
   Loader2,
   Download,
   PieChart as PieChartLucide,
+  Info,
+  Lightbulb,
+  MousePointerClick,
+  BookOpen,
 } from 'lucide-react'
 import { PieChart as RechartsPieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
@@ -180,6 +184,7 @@ export function VaultTab() {
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState<VerifyChainResponse | null>(null)
   const [animatedEntries, setAnimatedEntries] = useState(0)
+  const [showOnboarding, setShowOnboarding] = useState(true)
 
   const vapChainRef = useRef<HTMLDivElement>(null)
 
@@ -362,6 +367,92 @@ export function VaultTab() {
 
   return (
     <div className="space-y-6 p-6 grid-pattern animate-fade-in">
+      {/* Onboarding / Help Card */}
+      {showOnboarding && (
+        <Card className="relative overflow-hidden border-emerald-600/25 shadow-lg shadow-emerald-600/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-blue-600/3 to-purple-600/5" />
+          <div className="relative p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg shadow-emerald-600/20">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold">Vault — 5-Track Memory Plane</h2>
+                  <p className="text-xs text-muted-foreground">The immutable audit trail for all NEXUS OS state changes and decisions</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowOnboarding(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Track Explanations */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
+              {tracks.map((t) => (
+                <div key={`onboarding-${t.id}`} className={`rounded-lg border ${t.borderColor} bg-gradient-to-br ${t.gradient} p-3`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-md ${t.bgColor}`}>
+                      <t.icon className={`h-3.5 w-3.5 ${t.textColor}`} />
+                    </div>
+                    <span className="text-xs font-semibold">{t.label}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {t.id === 'EVENT' && 'System events and state changes — what happened and when'}
+                    {t.id === 'TRUST' && 'Trust score deltas — why trust went up or down'}
+                    {t.id === 'CAP' && 'Agent capability assessments — what each agent can do'}
+                    {t.id === 'FAIL' && 'Failure patterns and root causes — what went wrong'}
+                    {t.id === 'GOV' && 'Governance decisions and constitutional actions — what was allowed/denied'}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* VAP Chain Explanation + How to Use */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-emerald-600/15 bg-emerald-600/3 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-semibold">VAP Proof Chain</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Every vault entry is cryptographically chained — entries cannot be tampered with or deleted. Click &quot;Verify Chain Integrity&quot; to audit the full chain and confirm no entries have been modified since creation.
+                </p>
+              </div>
+              <div className="rounded-lg border border-blue-600/15 bg-blue-600/3 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs font-semibold">How to Use</span>
+                </div>
+                <ul className="text-[10px] text-muted-foreground space-y-1">
+                  <li className="flex items-start gap-1.5">
+                    <MousePointerClick className="h-3 w-3 mt-0.5 shrink-0 text-blue-500" />
+                    Click a track card to filter entries by type
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Search className="h-3 w-3 mt-0.5 shrink-0 text-blue-500" />
+                    Search across all entries by key, agent, value, or ID
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Info className="h-3 w-3 mt-0.5 shrink-0 text-blue-500" />
+                    Click any entry row for full details and metadata
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <ShieldCheck className="h-3 w-3 mt-0.5 shrink-0 text-blue-500" />
+                    The VAP chain proves data integrity — verify anytime
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Vault Integrity Status Banner */}
       <div className="relative overflow-hidden rounded-xl border border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-blue-600/5 p-4">
         <div className="flex items-center justify-between">

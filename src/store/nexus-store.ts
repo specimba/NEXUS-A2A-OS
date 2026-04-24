@@ -6,6 +6,7 @@ export interface ChatMessage {
   role: string
   content: string
   timestamp: number
+  model?: string
 }
 
 export type NotificationType = 'info' | 'warning' | 'error' | 'success'
@@ -30,7 +31,7 @@ interface NexusState {
   toggleChat: () => void
   setChatOpen: (open: boolean) => void
   chatMessages: ChatMessage[]
-  addChatMessage: (msg: { role: string; content: string }) => void
+  addChatMessage: (msg: { role: string; content: string; model?: string }) => void
   clearChatMessages: () => void
   notifications: Notification[]
   addNotification: (notification: Omit<Notification, 'id' | 'read'>) => void
@@ -45,6 +46,16 @@ interface NexusState {
   isExportDialogOpen: boolean
   toggleExportDialog: () => void
   setExportDialogOpen: (open: boolean) => void
+  // Daily Practice Timer state (persists across tab switches)
+  timerStartedAt: number | null
+  timerIsRunning: boolean
+  timerDuration: number // total seconds (default 1920 = 32 min)
+  timerElapsedOnPause: number // elapsed seconds when last paused
+  startTimer: () => void
+  pauseTimer: () => void
+  resetTimer: () => void
+  setTimerStartedAt: (time: number | null) => void
+  setTimerIsRunning: (running: boolean) => void
 }
 
 const initialNotifications: Notification[] = [
@@ -114,4 +125,29 @@ export const useNexusStore = create<NexusState>((set, get) => ({
   isExportDialogOpen: false,
   toggleExportDialog: () => set((s) => ({ isExportDialogOpen: !s.isExportDialogOpen })),
   setExportDialogOpen: (open: boolean) => set({ isExportDialogOpen: open }),
+  // Daily Practice Timer state
+  timerStartedAt: null,
+  timerIsRunning: false,
+  timerDuration: 1920, // 32 minutes in seconds
+  timerElapsedOnPause: 0,
+  startTimer: () => set((s) => ({
+    timerIsRunning: true,
+    timerStartedAt: s.timerStartedAt ?? Date.now(),
+  })),
+  pauseTimer: () => set((s) => {
+    if (!s.timerStartedAt) return { timerIsRunning: false }
+    const elapsedNow = s.timerElapsedOnPause + Math.floor((Date.now() - s.timerStartedAt) / 1000)
+    return {
+      timerIsRunning: false,
+      timerElapsedOnPause: elapsedNow,
+      timerStartedAt: null,
+    }
+  }),
+  resetTimer: () => set({
+    timerIsRunning: false,
+    timerStartedAt: null,
+    timerElapsedOnPause: 0,
+  }),
+  setTimerStartedAt: (time: number | null) => set({ timerStartedAt: time }),
+  setTimerIsRunning: (running: boolean) => set({ timerIsRunning: running }),
 }))

@@ -47,7 +47,22 @@ function loadStoredMessages(): ChatMessage[] {
     const stored = localStorage.getItem(CHAT_STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(-MAX_STORED_MESSAGES)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Migrate old messages: extract [model] from content → model field
+        return parsed.slice(-MAX_STORED_MESSAGES).map((msg: ChatMessage) => {
+          if (msg.role === 'assistant' && !msg.model) {
+            const match = msg.content.match(/\s*\[([^\]]+)\]\s*$/)
+            if (match) {
+              return {
+                ...msg,
+                content: msg.content.replace(/\s*\[[^\]]+\]\s*$/, ''),
+                model: match[1],
+              }
+            }
+          }
+          return msg
+        })
+      }
     }
   } catch { /* ignore */ }
   return []
@@ -138,6 +153,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             </span>
           )
         })}
+        {/* Model badge — shown as subtle tag below assistant messages */}
+        {!isUser && message.model && (
+          <div className="mt-1.5 text-[9px] text-muted-foreground/40 font-mono">· {message.model}</div>
+        )}
       </div>
     </motion.div>
   )
@@ -350,16 +369,12 @@ export function NexusAssistant() {
         }
 
         const data = await response.json()
-        const modelLabel = AI_MODELS.find(m => m.id === selectedModel)?.label
-        // Transparently show which model/provider actually generated the response
-        const modelInfo = data.model
-          ? ` [${data.model}]`
-          : usedEndpoint === 'cerebras'
-            ? ` [Cerebras]`
-            : usedEndpoint === 'openrouter'
-              ? ' [via OpenRouter]'
-              : ' [GLM-4.7]'
-        addChatMessage({ role: 'assistant', content: data.response + modelInfo })
+        // Determine the actual model name for transparency (stored as metadata, NOT in content)
+        const actualModel = data.model
+          || (usedEndpoint === 'cerebras' ? 'Cerebras'
+            : usedEndpoint === 'openrouter' ? 'OpenRouter'
+            : 'GLM-4.7')
+        addChatMessage({ role: 'assistant', content: data.response, model: actualModel })
       } catch {
         addChatMessage({
           role: 'assistant',
