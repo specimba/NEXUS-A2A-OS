@@ -2091,3 +2091,38 @@ Unresolved / Next Phase:
 3. Sync to clean canonical-617 before benchmarking
 4. Prepare benchmark datasets per CODEX recommendations
 5. Deploy FastAPI governance server wrapping Python backend
+
+---
+Task ID: chat-scroll-fix
+Agent: main
+Task: Fix AI assistant chat panel scrolling + fix Vault financial hallucination in system prompt
+
+Work Log:
+- Diagnosed chat panel scroll issue: ScrollArea with `flex-1` class wasn't constraining height properly
+  - Root cause: CSS flexbox `min-height: auto` default prevents flex children from shrinking below content size
+  - The ScrollArea viewport expanded to fit all messages instead of scrolling
+- Fixed scroll issue by wrapping ScrollArea in a height-constraining div:
+  - Added `<div className="flex-1 min-h-0 overflow-hidden">` wrapper around ScrollArea
+  - Changed ScrollArea class from `flex-1` to `h-full` to take full height of constrained parent
+  - The `min-h-0` allows the flex child to shrink, enabling actual scrolling
+- Enhanced scrollToBottom function:
+  - Added `requestAnimationFrame` wrapper to ensure DOM is updated before scrolling
+  - Changed from `scrollTop = scrollHeight` to `viewport.scrollTo({ top, behavior: 'smooth' })`
+- Added word-wrap to message bubbles: `whitespace-pre-wrap break-words` for long AI responses
+- Fixed AI assistant financial hallucination about Vault:
+  - The AI was describing "Vault: $4.7M assets secured" with DeFi/financial terminology
+  - Root cause: System prompt mentioned "Vault" without clarifying it's a memory system
+  - Updated system prompt in both /api/chat/route.ts and /api/claude/route.ts with explicit clarifications:
+    (1) Vault = 5-track memory plane (event, trust, capability, failure_pattern, governance), NOT financial
+    (2) Trust scores = AI agent reliability (0-1), NOT credit scores
+    (3) Tokens = LLM API usage, NOT cryptocurrency
+    (4) System is AI governance platform, never use financial/DeFi/blockchain terms
+- All lint checks pass (zero errors)
+
+Stage Summary:
+- Chat scroll FIXED: messages area now properly scrolls with constrained height
+- scrollToBottom uses smooth scrolling via requestAnimationFrame
+- Message bubbles wrap long text properly
+- AI system prompt FIXED: prevents financial hallucinations about Vault, trust, tokens
+- Both chat API routes updated (z-ai-sdk and claude-proxy)
+- No lint violations, no compilation errors

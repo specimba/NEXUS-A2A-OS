@@ -71,7 +71,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
       </div>
       <div
-        className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
           isUser
             ? 'rounded-tr-none bg-gradient-to-br from-emerald-500 to-emerald-700 text-white'
             : 'rounded-tl-none bg-muted text-foreground'
@@ -99,14 +99,20 @@ export function NexusAssistant() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector(
-        '[data-slot="scroll-area-viewport"]'
-      )
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight
+    // Use requestAnimationFrame to ensure DOM has updated before scrolling
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        const viewport = scrollRef.current.querySelector(
+          '[data-slot="scroll-area-viewport"]'
+        ) as HTMLElement | null
+        if (viewport) {
+          viewport.scrollTo({
+            top: viewport.scrollHeight,
+            behavior: 'smooth',
+          })
+        }
       }
-    }
+    })
   }, [])
 
   useEffect(() => {
@@ -296,7 +302,8 @@ export function NexusAssistant() {
             </div>
 
             {/* Messages Area */}
-            <ScrollArea ref={scrollRef} className="flex-1 px-4 py-4">
+            <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea ref={scrollRef} className="h-full px-4 py-4">
               {chatMessages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
@@ -347,6 +354,7 @@ export function NexusAssistant() {
                 </div>
               )}
             </ScrollArea>
+            </div>
 
             {/* Input Area */}
             <div className="border-t border-border/60 p-3">
