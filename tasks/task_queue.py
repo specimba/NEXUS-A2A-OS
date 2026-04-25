@@ -1,99 +1,124 @@
 #!/usr/bin/env python3
-"""NEXUS OS Task Queue — CLI for agents.
-
-Usage:
-    python tasks/task_queue.py create <id> <title> <owner> [priority]
-    python tasks/task_queue.py claim <id> <agent>
-    python tasks/task_queue.py update <id> <progress> [note]
-    python tasks/task_queue.py complete <id> [note]
-    python tasks/task_queue.py list [pending|in-progress|done]
-    python tasks/task_queue.py report <id>
 """
-import sys, json, os
+NEXUS Task Queue — CLI for task assignment and ledger reconciliation.
+Usage:
+  python tasks/task_queue.py list [pending|in-progress|done|failed]
+  python tasks/task_queue.py claim <task-id>
+  python tasks/task_queue.py done <task-id>
+  python tasks/task_queue.py reconcile  # fix folder vs JSON drift
+  python tasks/task_queue.py stats
+"""
+import json, sys, time
 from pathlib import Path
-from datetime import datetime
 
-BASE = Path("tasks")
-PENDING = BASE / "pending"
-INPROG  = BASE / "in-progress"
-DONE    = BASE / "done"
+ROOT   = Path(__file__).parent.parent
+TASKS  = ROOT / "tasks"
+QUEUE  = TASKS / "queue.json"
+FIELDS = ["id", "title", "owner", "priority", "status", "created", "updated"]
 
-for d in [PENDING, INPROG, DONE]:
-    d.mkdir(parents=True, exist_ok=True)
+def load_queue():
+    if QUEUE.exists():
+        return json.loads(QUEUE.read_text())
+    return []
 
-def read_task(tid, folder):
-    p = folder / f"{tid}.json"
-    return json.loads(p.read_text()) if p.exists() else None
+def save_queue(q):
+    QUEUE.write_text(json.dumps(q, indent=2))
 
-def write_task(tid, folder, data):
-    (folder / f"{tid}.json").write_text(json.dumps(data, indent=2))
+def task_files(status):
+    dir_map = {"pending": TASKS/"pending", "in-progress": TASKS/"in-progress",
+              "done": TASKS/"done", "failed": TASKS/"failed"}
+    d = dir_map.get(status, TASKS/"pending")
+    return sorted(d.glob("TASK-*.json"), key=lambda p: p.name)
 
-def now():
-    return datetime.now().isoformat()
+def reconcile():
+    """Fix folder vs JSON status drift."""
+    results = []
+    for status, key in [("pending", "pending"), ("in-progress", "in-progress"),
+                         ("done", "completed"), ("failed", "failed")]:
+        for f in task_files(status):
+            try:
+                data = json.loads(f.read_text())
+                s = data.get("status", "unknown")
+                if s != key:
+                    results.append(f"DRIFT: {f.name} folder={status} json={s} → fixed")
+                    data["status"] = key
+                    f.write_text(json.dumps(data, indent=2))
+            except Exception as e:
+                results.append(f"ERROR: {f.name} → {e}")
+    if not results:
+        results.append("No drift detected.")
+    return results
 
-cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
+def list_tasks(filter_status=None):
+    q = load_queue()
+    if filter_status:
+        q = [t for t in q if t.get("status") == filter_status]
+    if not q:
+        print("No tasks found.")
+        return
+    print(f"\n{'ID':<12} {'PRIORITY':<8} {'OWNER':<15} {'STATUS':<12} {'TITLE'}")
+    print("-" * 90)
+    for t in sorted(q, key=lambda x: (-x.get("priority", 0), x["id"])):
+        title = t.get("title", "")[:50]
+        print(f"{t['id']:<12} {t.get('priority',0):<8} {t.get('owner',''):<15} {t.get('status',''):<12} {title}")
 
-if cmd == "create":
-    tid, title, owner = sys.argv[2], sys.argv[3], sys.argv[4]
-    pri = sys.argv[5] if len(sys.argv) > 5 else "medium"
-    data = {"id": tid, "title": title, "owner": owner, "priority": pri,
-            "status": "pending", "created": now(), "updated": now(), "progress": 0}
-    write_task(tid, PENDING, data)
-    print(f"✅ Created: {tid} → {owner}")
+def claim_task(task_id):
+    q = load_queue()
+    for t in q:
+        if t["id"] == task_id and t["status"] == "pending":
+            t["status"] = "in-progress"
+            t["updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+            save_queue(q)
+            print(f"Claimed: {task_id}")
+            return
+    print(f"Task not found or not pending: {task_id}")
 
-elif cmd == "claim":
-    tid, agent = sys.argv[2], sys.argv[3]
-    data = read_task(tid, PENDING)
-    if not data:
-        print(f"❌ {tid} not found in pending"); sys.exit(1)
-    data["status"] = "in-progress"; data["owner"] = agent; data["updated"] = now()
-    write_task(tid, INPROG, data)
-    (PENDING / f"{tid}.json").unlink()
-    print(f"🚀 Claimed: {tid} by {agent}")
+def complete_task(task_id, success=True):
+    q = load_queue()
+    for t in q:
+        if t["id"] == task_id:
+            t["status"] = "completed" if success else "failed"
+            t["updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+            save_queue(q)
+            print(f"Marked {'done' if success else 'failed'}: {task_id}")
+            return
+    print(f"Task not found: {task_id}")
 
-elif cmd == "update":
-    tid, prog = sys.argv[2], int(sys.argv[3])
-    note = sys.argv[4] if len(sys.argv) > 4 else ""
-    for folder in [INPROG, PENDING]:
-        data = read_task(tid, folder)
-        if data:
-            data["progress"] = prog; data["updated"] = now()
-            if note: data["last_note"] = note
-            write_task(tid, folder, data)
-            print(f"📈 {tid} → {prog}%{f' | {note}' if note else ''}")
-            sys.exit(0)
-    print(f"❌ {tid} not found"); sys.exit(1)
+def stats():
+    q = load_queue()
+    total = len(q)
+    by_status = {}
+    for t in q:
+        s = t.get("status", "unknown")
+        by_status[s] = by_status.get(s, 0) + 1
+    print(f"\nTask Stats ({total} total):")
+    for s, n in sorted(by_status.items()):
+        print(f"  {s}: {n}")
 
-elif cmd == "complete":
-    tid = sys.argv[2]
-    note = sys.argv[3] if len(sys.argv) > 3 else ""
-    data = read_task(tid, INPROG)
-    if not data:
-        print(f"❌ {tid} not in progress"); sys.exit(1)
-    data["status"] = "done"; data["completed"] = now(); data["updated"] = now()
-    if note: data["final_note"] = note
-    write_task(tid, DONE, data)
-    (INPROG / f"{tid}.json").unlink()
-    print(f"✅ Completed: {tid}")
+def main():
+    args = sys.argv[1:]
+    if not args:
+        print(__doc__)
+        sys.exit(0)
+    cmd, rest = args[0], args[1:]
 
-elif cmd == "list":
-    state = sys.argv[2] if len(sys.argv) > 2 else "pending"
-    folder = {"pending": PENDING, "in-progress": INPROG, "done": DONE}.get(state, PENDING)
-    tasks = sorted(folder.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not tasks:
-        print(f"No {state} tasks."); sys.exit(0)
-    for p in tasks:
-        d = json.loads(p.read_text())
-        bar = "█" * (d["progress"] // 10) + "░" * (10 - d["progress"] // 10)
-        print(f"[{d['priority']:8}] {d['id']} | {d['owner']:15} | {bar} {d['progress']}% | {d['title']}")
+    if cmd == "list":
+        filter_s = rest[0] if rest else None
+        list_tasks(filter_s)
+    elif cmd == "claim":
+        if not rest: print("Usage: claim <task-id>")
+        else: claim_task(rest[0])
+    elif cmd == "done":
+        complete_task(rest[0], success=True) if rest else None
+    elif cmd == "fail":
+        complete_task(rest[0], success=False) if rest else None
+    elif cmd == "reconcile":
+        for r in reconcile(): print(r)
+    elif cmd == "stats":
+        stats()
+    else:
+        print(f"Unknown: {cmd}")
+        print(__doc__)
 
-elif cmd == "report":
-    tid = sys.argv[2]
-    for folder in [PENDING, INPROG, DONE]:
-        data = read_task(tid, folder)
-        if data:
-            print(json.dumps(data, indent=2)); sys.exit(0)
-    print(f"❌ {tid} not found")
-
-else:
-    print(__doc__)
+if __name__ == "__main__":
+    main()

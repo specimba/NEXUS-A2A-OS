@@ -30,11 +30,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 try:
     from nexus_os.engine.hermes import HermesRouter, ModelProfile
     from nexus_os.engine.skill_adapter import SkillRegistry, SkillDefinition
-    from nexus_os.vault.mem0_adapter import Mem0Adapter
+    from nexus_os.vault.manager import VaultManager
+    from nexus_os.governor.trust_scoring import TrustScoringGate, ScoringInput, AgentStatus, Lane
     from nexus_os.swarm.coordinator import TeamCoordinator
 
     NEXUS_INTEGRATION_AVAILABLE = True
 except ImportError:
+    NEXUS_INTEGRATION_AVAILABLE = False
+    VaultManager = None
+
     NEXUS_INTEGRATION_AVAILABLE = False
     logger = logging.getLogger(__name__)
     logger.warning("NEXUS system modules not found - running in standalone mode")
@@ -189,7 +193,8 @@ class OPUSmanAgent:
         self.nexus_enabled = NEXUS_INTEGRATION_AVAILABLE
         self.hermes = None
         self.skill_registry = None
-        self.mem0 = None
+        self.vault = None
+        self.trust_gate = None
         self.coordinator = None
         self.worker_dir = None
 
@@ -205,8 +210,11 @@ class OPUSmanAgent:
                     is_local=True,
                 )
 
-                # Initialize memory adapter
-                self.mem0 = Mem0Adapter()
+                # Initialize canonical Vault (5-track S-P-E-W) — CORRECT v6.3
+                self.vault = VaultManager()
+
+                # Initialize canonical Trust Scoring Gate (non-linear) — CORRECT v6.3
+                self.trust_gate = TrustScoringGate()
 
                 # Initialize skill registry
                 self.skill_registry = SkillRegistry()
@@ -223,8 +231,10 @@ class OPUSmanAgent:
                 self._patrol_thread = threading.Thread(target=self._openclaw_patrol, daemon=True)
                 self._patrol_thread.start()
 
-                logger.info("OPUSman Agent v6.0 initialized with full NEXUS integration")
-                logger.info(f"OpenClaw worker registered at: {self.worker_dir}")
+                logger.info("OPUSman Agent v6.0 initialized with canonical NEXUS v6.3 integrations")
+                logger.info(f"  vault: VaultManager (5-track S-P-E-W)")
+                logger.info(f"  trust_gate: TrustScoringGate (non-linear tanh)")
+                logger.info(f"  OpenClaw worker: {self.worker_dir}")
 
             except Exception as e:
                 logger.warning(
@@ -423,9 +433,9 @@ Respond in JSON only:
             _, complexity, estimated_tokens = self._classify_task(task, context)
 
         # Memory system hook - recall prior memories before generation
-        if self.mem0:
+        if self.vault:
             try:
-                prior_memories = self.mem0.search_before_generation(task, context)
+                prior_memories = self.vault.search_before_generation(task, context)
                 if prior_memories:
                     logger.debug(f"Retrieved {len(prior_memories)} prior memories for task")
                     context = context or {}
@@ -526,9 +536,9 @@ Respond in JSON only:
                     )
 
                 # Memory system hook - persist memory after response
-                if self.mem0:
+                if self.vault:
                     try:
-                        self.mem0.add_after_response(task, result.summary, result.evidence)
+                        self.vault.add_after_response(task, result.summary, result.evidence)
                     except Exception as e:
                         logger.debug(f"Memory storage failed: {e}")
 
