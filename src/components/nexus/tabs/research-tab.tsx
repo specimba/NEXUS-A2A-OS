@@ -32,7 +32,8 @@ import { useApiData } from '@/hooks/use-api-data'
 import { useNexusStore } from '@/store/nexus-store'
 
 interface PaperItem {
-  id: string
+  id: string          // DB cuid — used for API calls (PUT /api/research)
+  externalId?: string // Human-readable ID (e.g. arxiv-2603.23509) for display
   title: string
   relevance: number
   task: string
@@ -95,7 +96,8 @@ function mapApiPaperToItem(p: ResearchApiResponse['p0'][number]): PaperItem {
   const task = p.implementationTask || 'No task assigned'
   const status = task === 'In progress' ? 'in_progress' : task === 'No task assigned' ? undefined : 'pending'
   return {
-    id: p.externalId || p.id,
+    id: p.id,                    // DB cuid — REQUIRED for PUT /api/research
+    externalId: p.externalId || undefined, // e.g. 'arxiv-2603.23509' for display
     title: p.title,
     relevance: p.relevanceScore,
     task,
@@ -611,7 +613,7 @@ export function ResearchTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: paper.title,
-          externalId: paper.id,
+          externalId: paper.externalId || paper.id,
           priorityTier: paper.priority,
           relevanceScore: paper.relevance,
           implementationTask: paper.task,
@@ -1384,7 +1386,7 @@ export function ResearchTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {selectedPaper && (() => {
           const config = getPriorityConfig(selectedPaper.priority)
-          const arxivUrl = getArxivUrl(selectedPaper.id)
+          const arxivUrl = getArxivUrl(selectedPaper.externalId || selectedPaper.id)
           const PriorityIcon = config.icon
 
           return (
@@ -1412,7 +1414,7 @@ export function ResearchTab() {
                     {selectedPaper.title}
                   </DialogTitle>
                   <DialogDescription className="text-xs font-mono mt-1">
-                    {selectedPaper.id}
+                    {selectedPaper.externalId || selectedPaper.id}
                   </DialogDescription>
                 </DialogHeader>
               </div>

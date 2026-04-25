@@ -805,7 +805,7 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
               // high=0%, medium=33%, low=66%
               const topPcts = [8, 36, 64]
               const topPct = topPcts[levelIdx]
-              const isHovered = hoveredAgent === a.name
+              const isHovered = hoveredAgent === a.id
               return (
                 <Tooltip key={a.id ?? `agent-${idx}`}>
                   <TooltipTrigger asChild>
@@ -818,7 +818,7 @@ function AgentRiskMatrix({ agents }: { agents: AgentUI[] }) {
                         top: `${topPct}%`,
                         transform: 'translate(-50%, -50%)',
                       }}
-                      onMouseEnter={() => setHoveredAgent(a.name)}
+                      onMouseEnter={() => setHoveredAgent(a.id)}
                       onMouseLeave={() => setHoveredAgent(null)}
                     />
                   </TooltipTrigger>
@@ -989,7 +989,7 @@ function DangerGateFlowchart() {
       <CardContent className="relative p-4 pt-0">
         <div className="space-y-1.5">
           {denyFlowPatterns.map((fp, i) => (
-            <div key={i} className="flex items-center gap-2 text-[11px]">
+            <div key={`flow-${fp.from}-${fp.to}-${i}`} className="flex items-center gap-2 text-[11px]">
               <div className="flex items-center gap-1 min-w-0 flex-1">
                 <span
                   className="shrink-0 h-5 px-1.5 rounded text-[9px] font-medium flex items-center"
@@ -1946,7 +1946,7 @@ export function GovernorTab() {
                         const changed = Math.abs(adjusted - originalMin) > 0.001
 
                         return (
-                          <div key={l.lane} className="space-y-2.5">
+                          <div key={`lane-${l.lane}`} className="space-y-2.5">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium capitalize">{l.lane}</span>
@@ -2019,7 +2019,7 @@ export function GovernorTab() {
                 {laneThresholds.map((l) => {
                   const belowCount = agents.filter((a) => a.lane === l.lane && a.trust < l.min).length
                   return (
-                    <div key={l.lane}>
+                    <div key={`lane-${l.lane}`}>
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium capitalize">{l.lane}</span>

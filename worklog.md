@@ -2611,3 +2611,30 @@ Unresolved / Next Phase:
 4. StressLab needs actual test execution (currently simulated)
 5. More ISC-Bench templates (currently 5 seeded, target 84)
 6. WebSocket for real-time updates
+
+---
+Task ID: fusion-pack-session
+Agent: main
+Task: Critical bug fixes + Comprehensive mock/real audit + Fusion pack preparation
+
+Work Log:
+- Performed full codebase audit classifying every component as WIRED/SEED/COMPUTED/MOCK/WS/EXTERNAL
+- Fixed critical research paper ID mapping bug: `mapApiPaperToItem` was using `p.externalId || p.id` as PaperItem.id, but PUT /api/research expects DB cuid. Now uses `p.id` (DB cuid) for API calls and `p.externalId` for display
+- Fixed alphaxiv results mapping to use `p.dbId || p.id` (already correct) and externalId for display
+- Fixed "Add to Queue" handler to pass `externalId` correctly to POST /api/research
+- Fixed governor-tab duplicate React keys: `hoveredAgent === a.name` → `hoveredAgent === a.id`, `setHoveredAgent(a.name)` → `setHoveredAgent(a.id)`, composite keys for flowchart/lanes
+- Fixed spawn worker 403 error: added MAX_WORKERS constant, capacity indicator in spawn dialog, client-side capacity guard, disabled button at max capacity, clear error toast for limit reached
+- Removed decorative system terminal from overview, replaced with Port Map + NEXUS Thesis card showing 8-pillar architecture
+- Prepared comprehensive GLM5 Fusion Pack with 6 structured documents:
+  - PACK_MANIFEST.md: team info, changes, public-safe vs mock status
+  - UI_STRUCTURE.md: complete tab structure with all widgets
+  - WIRED_VS_MOCKED.md: section-by-section classification (84% wired/seed/computed, 16% mock)
+  - API_ASSUMPTIONS.md: all 14 routes with request/response shapes, external integrations, Nexus 7352 gap analysis
+  - SCREEN_STRENGTHS.md: strongest/weakest screens, visually strong but shallow, operationally strong but visually weak
+  - FUSION_RECOMMENDATIONS.md: demo slices, experimental pieces, fusion carry-forward, known risks, backend gaps
+
+Stage Summary:
+- 4 critical bugs fixed: research paper ID, governor duplicate keys, spawn worker limit, terminal cleanup
+- Complete mock vs real audit: 84% of dashboard is connected to real backend data
+- Fusion pack delivered following GLM_FUSION_INTAKE_CHECKLIST structure
+- All lint checks pass, dev server running cleanly

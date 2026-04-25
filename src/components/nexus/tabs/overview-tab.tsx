@@ -61,7 +61,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
-import { SystemTerminal } from '@/components/nexus/system-terminal'
 import { AgentHealthMonitor } from '@/components/nexus/agent-health-monitor'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
@@ -655,6 +654,81 @@ function SystemNotificationsCard() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Port Map & Thesis Card ────────────────────────────────────────
+const pillarPorts = [
+  { name: 'Bridge', port: 7352, desc: 'HMAC auth · JSON-RPC', icon: Zap, color: 'emerald' },
+  { name: 'Engine', port: 7353, desc: 'Hermes intent routing', icon: Router, color: 'blue' },
+  { name: 'Governor', port: 7354, desc: 'Kaiju + TrustScorer', icon: Shield, color: 'red' },
+  { name: 'Vault', port: 7355, desc: '5-Track memory', icon: Database, color: 'purple' },
+  { name: 'GMR', port: 7356, desc: 'Model rotation', icon: FlaskConical, color: 'orange' },
+  { name: 'Swarm', port: 7357, desc: 'Worker pool', icon: Bug, color: 'yellow' },
+  { name: 'Monitor', port: 7358, desc: 'Token budget + audit', icon: Activity, color: 'pink' },
+  { name: 'Config', port: 7359, desc: 'Constitution', icon: Settings, color: 'emerald' },
+] as const
+
+const colorMap: Record<string, { border: string; bg: string; text: string; badge: string }> = {
+  emerald: { border: 'border-emerald-600/30', bg: 'bg-emerald-600/8', text: 'text-emerald-600 dark:text-emerald-400', badge: 'border-emerald-700/40 text-emerald-600 dark:text-emerald-400 bg-emerald-900/20' },
+  blue: { border: 'border-blue-600/30', bg: 'bg-blue-600/8', text: 'text-blue-600 dark:text-blue-400', badge: 'border-blue-700/40 text-blue-600 dark:text-blue-400 bg-blue-900/20' },
+  red: { border: 'border-red-600/30', bg: 'bg-red-600/8', text: 'text-red-600 dark:text-red-400', badge: 'border-red-700/40 text-red-600 dark:text-red-400 bg-red-900/20' },
+  purple: { border: 'border-purple-600/30', bg: 'bg-purple-600/8', text: 'text-purple-600 dark:text-purple-400', badge: 'border-purple-700/40 text-purple-600 dark:text-purple-400 bg-purple-900/20' },
+  orange: { border: 'border-orange-600/30', bg: 'bg-orange-600/8', text: 'text-orange-600 dark:text-orange-400', badge: 'border-orange-700/40 text-orange-600 dark:text-orange-400 bg-orange-900/20' },
+  yellow: { border: 'border-yellow-600/30', bg: 'bg-yellow-600/8', text: 'text-yellow-600 dark:text-yellow-400', badge: 'border-yellow-700/40 text-yellow-600 dark:text-yellow-400 bg-yellow-900/20' },
+  pink: { border: 'border-pink-600/30', bg: 'bg-pink-600/8', text: 'text-pink-600 dark:text-pink-400', badge: 'border-pink-700/40 text-pink-600 dark:text-pink-400 bg-pink-900/20' },
+}
+
+function PortMapThesisCard() {
+  return (
+    <Card className="relative overflow-hidden border-emerald-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Port Map & Thesis
+            <DataSourceBadge source="computed" />
+          </CardTitle>
+          <Badge variant="outline" className="text-[9px]">8 Services</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {pillarPorts.map((p) => {
+            const Icon = p.icon
+            const c = colorMap[p.color]
+            return (
+              <div
+                key={p.name}
+                className={`flex items-center gap-2 rounded-lg border ${c.border} ${c.bg} px-2.5 py-2 transition-all duration-200 hover:scale-[1.03]`}
+              >
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${c.text}`} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-semibold ${c.text}`}>{p.name}</span>
+                    <Badge variant="outline" className={`text-[8px] px-1 py-0 h-3.5 ${c.badge}`}>
+                      :{p.port}
+                    </Badge>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground leading-tight block truncate">{p.desc}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-3 rounded-lg border border-border/50 bg-accent/20 px-3 py-2.5">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">NEXUS Thesis:</span>{' '}
+            A trust-governed multi-agent OS where every request is authenticated (Bridge),
+            routed by intent (Engine), vetted by trust score (Governor), and audit-logged
+            immutably (Vault) — with elastic model supply (GMR), parallel worker execution
+            (Swarm), real-time budget enforcement (Monitor), and constitutional guardrails
+            (Config).
+          </p>
+        </div>
       </CardContent>
     </Card>
   )
@@ -1775,14 +1849,14 @@ export function OverviewTab() {
         </motion.div>
       </motion.div>
 
-      {/* ── System Terminal ───────────────────────────────────── */}
+      {/* ── Port Map & Thesis ──────────────────────────────────── */}
       <motion.div
         variants={staggerItem}
         initial="hidden"
         animate="visible"
         className="w-full"
       >
-        <SystemTerminal />
+        <PortMapThesisCard />
       </motion.div>
 
       {/* ── Diagnostic Modal ──────────────────────────────────── */}

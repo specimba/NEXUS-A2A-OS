@@ -82,6 +82,8 @@ const taskHistoryColumnHeaders: Record<string, string> = {
   tokens: 'Tokens',
 }
 
+const MAX_WORKERS = 5 // Enforced by NEXUS constitution
+
 const WORKER_TYPES = ['foreman', 'researcher', 'coder', 'auditor', 'reviewer']
 const WORKER_DOMAINS = ['code', 'research', 'cyber', 'ai_safety', 'compbio', 'pharmacology', 'general']
 
@@ -209,7 +211,7 @@ function getWorkerCardStyle(status: string): string {
 async function callSwarmApi<T = { message?: string }>(
   action: string,
   payload: Record<string, unknown>,
-): Promise<{ ok: boolean; data?: T; status: number }> {
+): Promise<{ ok: boolean; data?: T; status: number; error?: string }> {
   try {
     const res = await fetch('/api/swarm', {
       method: 'POST',
@@ -231,10 +233,22 @@ async function callSwarmApi<T = { message?: string }>(
     if (res.ok) {
       return { ok: true, data: json as T, status: res.status }
     } else {
-      toast.error(`Action failed: ${action.replace(/_/g, ' ')}`, {
-        description: json.error || 'Unknown error occurred',
-      })
-      return { ok: false, status: res.status }
+      const errorMsg = json.error || 'Unknown error occurred'
+
+      // Special handling for 403 max agent limit
+      if (res.status === 403 && action === 'spawn_worker' && /maximum agent limit/i.test(errorMsg)) {
+        toast.error('Worker limit reached', {
+          description: 'You have reached the maximum number of active workers. Terminate an existing worker before spawning a new one.',
+          duration: 7000,
+          icon: <ShieldAlert className="h-4 w-4" />,
+        })
+      } else {
+        toast.error(`Action failed: ${action.replace(/_/g, ' ')}`, {
+          description: errorMsg,
+        })
+      }
+
+      return { ok: false, status: res.status, error: errorMsg }
     }
   } catch {
     toast.error('Network error', {
@@ -250,19 +264,32 @@ function SpawnWorkerDialog({
   open,
   onOpenChange,
   onSpawned,
+  activeCount,
+  maxWorkers,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSpawned: () => void
+  activeCount: number
+  maxWorkers: number
 }) {
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [domain, setDomain] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const isAtCapacity = activeCount >= maxWorkers
 
   const handleSubmit = async () => {
     if (!name.trim() || !type) {
       toast.error('Missing fields', { description: 'Name and Type are required.' })
+      return
+    }
+    if (isAtCapacity) {
+      toast.error('Worker limit reached', {
+        description: `You already have ${activeCount}/${maxWorkers} active workers. Terminate an existing worker first.`,
+        duration: 7000,
+        icon: <ShieldAlert className="h-4 w-4" />,
+      })
       return
     }
     setSubmitting(true)
@@ -306,6 +333,55 @@ function SpawnWorkerDialog({
         <div className="space-y-4 pt-2">
           {/* Gradient divider */}
           <div className="h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+
+          {/* Capacity indicator */}
+          <div className={`rounded-lg border p-3 ${
+            isAtCapacity
+              ? 'border-red-600/20 bg-red-600/5'
+              : activeCount >= maxWorkers - 1
+                ? 'border-yellow-600/20 bg-yellow-600/5'
+                : 'border-emerald-600/20 bg-emerald-600/5'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className={`h-4 w-4 ${
+                  isAtCapacity
+                    ? 'text-red-600 dark:text-red-400'
+                    : activeCount >= maxWorkers - 1
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                }`} />
+                <span className={`text-xs font-medium ${
+                  isAtCapacity
+                    ? 'text-red-600 dark:text-red-400'
+                    : activeCount >= maxWorkers - 1
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {activeCount} / {maxWorkers} workers active
+                </span>
+              </div>
+              <div className="flex gap-0.5">
+                {Array.from({ length: maxWorkers }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`h-4 w-2 rounded-sm ${
+                      i < activeCount
+                        ? isAtCapacity
+                          ? 'bg-red-500'
+                          : 'bg-emerald-500'
+                        : 'bg-muted-foreground/20'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            {isAtCapacity && (
+              <p className="mt-1.5 text-[10px] text-red-600 dark:text-red-400">
+                Maximum capacity reached — terminate a worker to spawn a new one.
+              </p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="spawn-name" className="text-xs font-medium">Worker Name</Label>
@@ -370,7 +446,7 @@ function SpawnWorkerDialog({
             size="sm"
             className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0"
             onClick={handleSubmit}
-            disabled={submitting || !name.trim() || !type}
+            disabled={submitting || !name.trim() || !type || isAtCapacity}
           >
             {submitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1102,8 +1178,9 @@ export function SwarmTab() {
             {/* Spawn Worker Button */}
             <Button
               size="sm"
-              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0 shadow-lg shadow-emerald-600/10"
+              className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0 shadow-lg shadow-emerald-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => setSpawnDialogOpen(true)}
+              disabled={apiWorkers.length >= MAX_WORKERS}
             >
               <UserPlus className="h-3.5 w-3.5" />
               Spawn Worker
@@ -1847,6 +1924,8 @@ export function SwarmTab() {
         open={spawnDialogOpen}
         onOpenChange={setSpawnDialogOpen}
         onSpawned={refetch}
+        activeCount={apiWorkers.length}
+        maxWorkers={MAX_WORKERS}
       />
 
       {/* Reassign Task Dialog */}
