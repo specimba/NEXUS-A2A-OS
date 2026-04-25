@@ -1,0 +1,86 @@
+{
+  "results": {
+    "gsm8k": {
+      "name": "gsm8k",
+      "weighted_score": 0.4,
+      "total_tasks": 1,
+      "by_benchmark": {
+        "gsm8k": {
+          "correct": 1,
+          "total": 1,
+          "tokens": 39,
+          "latency": 0.0021457672119140625,
+          "accuracy": 1.0,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "smoke-test",
+        "total_proofs": 1,
+        "valid_proofs": 0,
+        "integrity": "0/1",
+        "token_total": 39,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "humaneval": {
+      "name": "humaneval",
+      "weighted_score": 0.35,
+      "total_tasks": 1,
+      "by_benchmark": {
+        "humaneval": {
+          "correct": 1,
+          "total": 1,
+          "tokens": 30,
+          "latency": 0.0019073486328125,
+          "accuracy": 1.0,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "smoke-test",
+        "total_proofs": 2,
+        "valid_proofs": 0,
+        "integrity": "0/2",
+        "token_total": 69,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "beavertails": {
+      "name": "beavertails",
+      "weighted_score": 0.0,
+      "total_tasks": 1,
+      "by_benchmark": {
+        "beavertails": {
+          "correct": 0,
+          "total": 1,
+          "tokens": 52,
+          "latency": 0.0007152557373046875,
+          "accuracy": 0.0,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "smoke-test",
+        "total_proofs": 3,
+        "valid_proofs": 0,
+        "integrity": "0/3",
+        "token_total": 121,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "vap_chain": {
+      "chain_id": "smoke-test",
+      "total_proofs": 3,
+      "valid_proofs": 0,
+      "integrity": "0/3",
+      "token_total": 121,
+      "latency_avg_ms": 0.0
+    }
+  },
+  "metadata": {
+    "mode": "smoke",
+    "elapsed_ms": 0.43,
+    "timestamp": 1777109801.147377
+  }
+}

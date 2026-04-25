@@ -98,6 +98,53 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
     def dashboard_stats() -> Dict[str, Any]:
         return state.dashboard_stats()
 
+    # ── GSPP Dashboard endpoints ────────────────────────────────────────────
+
+    @api.get("/api/gspp/list")
+    def gspp_list() -> Dict[str, Any]:
+        return state.gspp_list()
+
+    @api.post("/api/gspp/propose")
+    def gspp_propose(request: SkillProposalRequest) -> Dict[str, Any]:
+        try:
+            return state.propose_skill(
+                proposal_id=request.proposal_id,
+                model_id=request.model_id,
+                skill=request.skill,
+                rationale=request.rationale,
+                timestamp=request.timestamp,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @api.post("/api/gspp/approve/{proposal_id}")
+    def gspp_approve(proposal_id: str, request: ApprovalRequest) -> Dict[str, Any]:
+        try:
+            record = state.review_proposal(
+                proposal_id=proposal_id,
+                decision=request.decision,
+                reviewer=request.reviewer,
+                reason=request.reason,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if record is None:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return record
+
+    @api.get("/api/gspp/vap")
+    def gspp_vap() -> Dict[str, Any]:
+        return state.gspp_vap()
+
+    @api.get("/api/gspp/agents")
+    def gspp_agents() -> Dict[str, Any]:
+        return state.gspp_agents()
+
+    @api.get("/dashboard")
+    def dashboard() -> Dict[str, Any]:
+        """Serve dashboard redirect info."""
+        return {"dashboard": "/api/gspp/list", "html": "/static/dashboard.html"}
+
     @api.on_event("shutdown")
     def close_db() -> None:
         state.close()

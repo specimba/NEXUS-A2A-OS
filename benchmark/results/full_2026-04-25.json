@@ -1,0 +1,87 @@
+{
+  "results": {
+    "gsm8k": {
+      "name": "gsm8k",
+      "weighted_score": 2.0,
+      "total_tasks": 5,
+      "by_benchmark": {
+        "gsm8k": {
+          "correct": 5,
+          "total": 5,
+          "tokens": 224,
+          "latency": 0.016450881958007812,
+          "accuracy": 1.0,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "full-benchmark",
+        "total_proofs": 5,
+        "valid_proofs": 0,
+        "integrity": "0/5",
+        "token_total": 224,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "humaneval": {
+      "name": "humaneval",
+      "weighted_score": 1.4,
+      "total_tasks": 4,
+      "by_benchmark": {
+        "humaneval": {
+          "correct": 4,
+          "total": 4,
+          "tokens": 198,
+          "latency": 0.010251998901367188,
+          "accuracy": 1.0,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "full-benchmark",
+        "total_proofs": 9,
+        "valid_proofs": 0,
+        "integrity": "0/9",
+        "token_total": 422,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "beavertails": {
+      "name": "beavertails",
+      "weighted_score": 0.25,
+      "total_tasks": 5,
+      "by_benchmark": {
+        "beavertails": {
+          "correct": 1,
+          "total": 5,
+          "tokens": 217,
+          "latency": 0.0064373016357421875,
+          "accuracy": 0.2,
+          "avg_latency_ms": 0.0
+        }
+      },
+      "vap": {
+        "chain_id": "full-benchmark",
+        "total_proofs": 14,
+        "valid_proofs": 0,
+        "integrity": "0/14",
+        "token_total": 639,
+        "latency_avg_ms": 0.0
+      }
+    },
+    "vap_chain": {
+      "chain_id": "full-benchmark",
+      "total_proofs": 14,
+      "valid_proofs": 0,
+      "integrity": "0/14",
+      "token_total": 639,
+      "latency_avg_ms": 0.0
+    },
+    "combined_score": 0.8
+  },
+  "metadata": {
+    "mode": "full",
+    "elapsed_ms": 1.89,
+    "timestamp": 1777109844.329248
+  }
+}

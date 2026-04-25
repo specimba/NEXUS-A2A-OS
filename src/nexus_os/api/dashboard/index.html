@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NEXUS OS — GSPP Dashboard</title>
+<style>
+:root { --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a; --text: #e2e4f0;
+       --accent: #4f9eff; --green: #34d399; --yellow: #fbbf24; --red: #f87171; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+       min-height: 100vh; padding: 24px; }
+h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px;
+     display: flex; align-items: center; gap: 10px; }
+h1 span { color: var(--accent); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 20px; margin-bottom: 16px; }
+.status-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.stat { background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 12px 16px; min-width: 130px; }
+.stat .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+              opacity: 0.6; margin-bottom: 4px; }
+.stat .value { font-size: 1.4rem; font-weight: 700; }
+.green { color: var(--green); }
+.yellow { color: var(--yellow); }
+.red { color: var(--red); }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.875rem; }
+th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+     opacity: 0.5; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 10px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem;
+         font-weight: 600; }
+.badge.approved { background: rgba(52,211,153,0.15); color: var(--green); }
+.badge.pending { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.badge.denied { background: rgba(248,113,113,0.15); color: var(--red); }
+.progress-bar { background: var(--bg); border-radius: 6px; height: 8px; overflow: hidden;
+                border: 1px solid var(--border); }
+.progress-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+.btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;
+       font-size: 0.85rem; transition: all 0.2s; background: var(--card); color: var(--text); }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 0.875rem;
+  font-family: inherit; outline: none; transition: border-color 0.2s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; }
+label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6;
+        display: block; margin-bottom: 4px; }
+#vap-log { max-height: 240px; overflow-y: auto; font-family: 'Courier New', monospace;
+          font-size: 0.75rem; background: var(--bg); border-radius: 6px; padding: 10px;
+          border: 1px solid var(--border); }
+.vap-entry { padding: 4px 0; border-bottom: 1px solid var(--border); }
+.vap-entry:last-child { border-bottom: none; }
+.hidden { display: none; }
+.tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; opacity: 0.5;
+        border: 1px solid transparent; transition: all 0.2s; }
+.tab.active { opacity: 1; background: var(--card); border-color: var(--border); }
+.tab:hover { opacity: 0.8; }
+#toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px;
+         font-size: 0.875rem; font-weight: 500; color: #000; opacity: 0; transition: opacity 0.3s;
+         pointer-events: none; }
+#toast.show { opacity: 1; }
+#toast.success { background: var(--green); }
+#toast.error { background: var(--red); color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>NEXUS OS <span>//</span> GSPP Dashboard</h1>
+
+<!-- Status Row -->
+<div class="status-row" style="margin-bottom:16px">
+  <div class="stat">
+    <div class="label">Total Proposals</div>
+    <div class="value" id="total-count">—</div>
+  </div>
+  <div class="stat">
+    <div class="label">Approved</div>
+    <div class="value green" id="approved-count">—</div>
+  </div>
+  <div class="stat">
+    <div class="label">Pending</div>
+    <div class="value yellow" id="pending-count">—</div>
+  </div>
+  <div class="stat">
+    <div class="label">VAP Chain</div>
+    <div class="value" id="vap-integrity">—</div>
+  </div>
+  <div class="stat">
+    <div class="label">Token Budget</div>
+    <div class="value" id="token-budget">—</div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <div class="tab active" data-tab="proposals">Proposals</div>
+  <div class="tab" data-tab="propose">New Proposal</div>
+  <div class="tab" data-tab="vap">VAP Audit Log</div>
+  <div class="tab" data-tab="agents">Agent Cards</div>
+</div>
+
+<!-- Proposals Tab -->
+<div id="tab-proposals" class="tab-content">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <strong>Governance Proposals</strong>
+      <button class="btn" onclick="load_proposals()">↻ Refresh</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Model</th><th>Skill</th><th>Rationale</th>
+          <th>Status</th><th>Tokens</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="proposals-tbody"><tr><td colspan="7" style="text-align:center;opacity:0.4">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- New Proposal Tab -->
+<div id="tab-propose" class="tab-content hidden">
+  <div class="card">
+    <strong>Submit GSPP Proposal</strong>
+    <form id="proposal-form" onsubmit="submit_proposal(event)">
+      <div class="form-grid" style="margin-top:12px">
+        <div>
+          <label>Proposal ID</label>
+          <input id="f-proposal-id" value="" placeholder="auto-generated" readonly>
+        </div>
+        <div>
+          <label>Model ID</label>
+          <select id="f-model-id">
+            <option value="hermes-local">hermes-local</option>
+            <option value="minimax-m2.7">minimax-m2.7</option>
+            <option value="openrouter">openrouter</option>
+            <option value="groq">groq</option>
+            <option value="cerebras">cerebras</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label>Skill Name</label>
+        <input id="f-skill-name" placeholder="e.g. reasoning, code, fast">
+      </div>
+      <div style="margin-top:12px">
+        <label>Rationale</label>
+        <textarea id="f-rationale" placeholder="Why is this skill needed? What problem does it solve?"></textarea>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button type="submit" class="btn primary">Submit Proposal</button>
+        <button type="reset" class="btn">Clear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- VAP Audit Log Tab -->
+<div id="tab-vap" class="tab-content hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <strong>VAP Proof Chain</strong>
+      <button class="btn" onclick="load_vap()">↻ Refresh</button>
+    </div>
+    <div id="vap-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="vap-log"><div class="vap-entry" style="opacity:0.4">Loading…</div></div>
+  </div>
+</div>
+
+<!-- Agent Cards Tab -->
+<div id="tab-agents" class="tab-content hidden">
+  <div class="card">
+    <strong>A2A Agent Cards</strong>
+    <div id="agent-cards" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const BASE = '';   // served from same origin (FastAPI proxies at /api/gspp/*)
+
+async function api(path, opts = {}) {
+  const r = await fetch(BASE + path, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `${type} show`;
+  setTimeout(() => t.className = type, 2500);
+}
+
+// ── Tab navigation ────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+    if (tab.dataset.tab === 'proposals') load_proposals();
+    if (tab.dataset.tab === 'vap') load_vap();
+    if (tab.dataset.tab === 'agents') load_agents();
+  });
+});
+
+// ── Load proposals ────────────────────────────────────────────────────────
+async function load_proposals() {
+  try {
+    const data = await api('/api/gspp/list');
+    const tb = document.getElementById('proposals-tbody');
+    if (!data.proposals || data.proposals.length === 0) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;opacity:0.4">No proposals yet</td></tr>';
+      return;
+    }
+    tb.innerHTML = data.proposals.map(p => `
+      <tr>
+        <td><code>${esc(p.proposal_id || p.id || '—')}</code></td>
+        <td>${esc(p.model_id || '—')}</td>
+        <td>${esc(p.skill_name || JSON.stringify(p.skill || {}))}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.rationale || '')}</td>
+        <td><span class="badge ${p.status || 'pending'}">${esc(p.status || 'pending')}</span></td>
+        <td>${p.tokens_allocated || p.tokens_estimated || '—'}</td>
+        <td>
+          ${p.status === 'pending' ? `<button class="btn" onclick="approve('${p.proposal_id}')">✓ Approve</button>
+                                       <button class="btn" onclick="deny('${p.proposal_id}')" style="margin-left:4px">✗</button>` : '—'}
+        </td>
+      </tr>`).join('');
+
+    document.getElementById('total-count').textContent = data.proposals.length;
+    document.getElementById('approved-count').textContent = data.proposals.filter(p => p.status === 'approved').length;
+    document.getElementById('pending-count').textContent = data.proposals.filter(p => p.status === 'pending').length;
+  } catch(e) {
+    document.getElementById('proposals-tbody').innerHTML =
+      `<tr><td colspan="7" style="color:var(--red)">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+// ── Submit proposal ───────────────────────────────────────────────────────
+async function submit_proposal(e) {
+  e.preventDefault();
+  const model_id = document.getElementById('f-model-id').value;
+  const skill_name = document.getElementById('f-skill-name').value;
+  const rationale = document.getElementById('f-rationale').value;
+  if (!skill_name || !rationale) { toast('Fill all fields', 'error'); return; }
+  try {
+    await api('/api/gspp/propose', {
+      method: 'POST',
+      body: JSON.stringify({
+        proposal_id: crypto.randomUUID(),
+        model_id,
+        skill: { name: skill_name, domain: model_id },
+        rationale,
+      }),
+    });
+    toast('Proposal submitted ✅');
+    document.getElementById('proposal-form').reset();
+    document.querySelector('[data-tab="proposals"]').click();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── Approve / Deny ────────────────────────────────────────────────────────
+async function approve(id) {
+  try {
+    await api(`/api/gspp/approve/${id}`, { method: 'POST', body: JSON.stringify({ decision: 'approve', reviewer: 'speci' }) });
+    toast('Approved ✅'); load_proposals();
+  } catch(e) { toast(e.message, 'error'); }
+}
+async function deny(id) {
+  try {
+    await api(`/api/gspp/approve/${id}`, { method: 'POST', body: JSON.stringify({ decision: 'deny', reviewer: 'speci' }) });
+    toast('Denied ❌'); load_proposals();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── VAP log ───────────────────────────────────────────────────────────────
+async function load_vap() {
+  try {
+    const data = await api('/api/gspp/vap');
+    const sm = document.getElementById('vap-summary');
+    sm.innerHTML = `<div class="stat"><div class="label">Chain ID</div><div class="value">${esc(data.chain_id || '—')}</div></div>
+                    <div class="stat"><div class="label">Integrity</div><div class="value ${data.valid === data.total ? 'green' : 'red'}">${data.valid}/${data.total}</div></div>
+                    <div class="stat"><div class="label">Tokens Total</div><div class="value">${data.token_total || 0}</div></div>`;
+    const log = document.getElementById('vap-log');
+    if (!data.proofs || data.proofs.length === 0) {
+      log.innerHTML = '<div class="vap-entry" style="opacity:0.4">No proofs yet</div>';
+      return;
+    }
+    log.innerHTML = data.proofs.slice().reverse().map(p => `
+      <div class="vap-entry">
+        <span class="badge ${p.decision === 'correct' ? 'approved' : 'denied'}">${esc(p.decision)}</span>
+        &nbsp;${esc(p.action)}&nbsp;by&nbsp;${esc(p.agent_id)}&nbsp;·&nbsp;
+        score=${p.score != null ? Number(p.score).toFixed(2) : '—'}&nbsp;·&nbsp;
+        t=${p.tokens_in || 0}+${p.tokens_out || 0}&nbsp;·&nbsp;
+        <span style="opacity:0.4">${p.sha_hash || ''}</span>
+      </div>`).join('');
+    document.getElementById('vap-integrity').textContent = `${data.valid}/${data.total}`;
+    document.getElementById('token-budget').textContent = `${data.token_total || 0} tokens`;
+  } catch(e) {
+    document.getElementById('vap-log').innerHTML =
+      `<div class="vap-entry" style="color:var(--red)">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── Agent cards ────────────────────────────────────────────────────────────
+async function load_agents() {
+  try {
+    const data = await api('/api/gspp/agents');
+    const el = document.getElementById('agent-cards');
+    if (!data.agents || data.agents.length === 0) {
+      el.innerHTML = '<p style="opacity:0.4">No agent cards yet</p>'; return;
+    }
+    el.innerHTML = data.agents.map(a => `
+      <div class="card" style="padding:14px">
+        <div style="font-weight:700;margin-bottom:6px">${esc(a.agent_id)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <span class="badge ${a.trust > 0.7 ? 'approved' : a.trust < 0.4 ? 'denied' : 'pending'}">
+            trust=${Number(a.trust || 0).toFixed(2)}
+          </span>
+          <span class="badge" style="background:rgba(79,158,255,0.15);color:var(--accent)">${esc(a.authority_band || 'standard')}</span>
+          <span class="badge ${a.availability === 'available' ? 'approved' : 'denied'}">${esc(a.availability || 'unknown')}</span>
+        </div>
+        <div style="font-size:0.75rem;opacity:0.5">capabilities: ${(a.capabilities || []).join(', ') || 'general_task_execution'}</div>
+      </div>`).join('');
+  } catch(e) { document.getElementById('agent-cards').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
+}
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Init
+load_proposals();
+</script>
+</body>
+</html>
