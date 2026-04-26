@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,9 @@ import {
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  HeartPulse,
+  Send,
+  MessageSquare,
 } from 'lucide-react'
 import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -969,6 +973,320 @@ function ReorderPriorityDialog({
   )
 }
 
+// ─── Foundry Agent Types ──────────────────────────────────────────────────────
+
+interface FoundryAgentData {
+  id: string
+  nexusId: string
+  displayName: string
+  modelRef: string
+  role: string
+  port: number
+  status: string
+  health: number
+  lastHeartbeat: string | null
+  capabilities: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Foundry Invoke Dialog ────────────────────────────────────────────────────
+
+function FoundryInvokeDialog({
+  open,
+  onOpenChange,
+  agent,
+  onInvoked,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  agent: FoundryAgentData | null
+  onInvoked: () => void
+}) {
+  const [prompt, setPrompt] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [response, setResponse] = useState<string | null>(null)
+
+  if (!agent) return null
+
+  const handleSubmit = async () => {
+    if (!prompt.trim()) {
+      toast.error('Please enter a prompt')
+      return
+    }
+    setSubmitting(true)
+    setResponse(null)
+    try {
+      const res = await fetch('/api/foundry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'invoke', nexusId: agent.nexusId, prompt: prompt.trim() }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setResponse(data.response)
+        toast.success('Invocation successful', { description: `${data.responseTimeMs}ms` })
+        onInvoked()
+      } else {
+        toast.error('Invocation failed', { description: data.error || 'Unknown error' })
+      }
+    } catch {
+      toast.error('Network error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg bg-card border-border/60">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-lg shadow-emerald-600/20">
+              <Send className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <DialogTitle className="text-base">Invoke {agent.displayName}</DialogTitle>
+              <DialogDescription className="text-xs">
+                Send a prompt through the {agent.nexusId} Foundry lane
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+            <div className="flex items-center gap-2 text-xs">
+              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">{agent.nexusId}</Badge>
+              <span className="text-muted-foreground">Model:</span>
+              <span className="font-mono">{agent.modelRef}</span>
+              <span className="text-muted-foreground ml-2">Port:</span>
+              <span className="font-mono">{agent.port}</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Prompt</Label>
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={`Enter prompt for ${agent.displayName}...`}
+              rows={3}
+              className="text-xs resize-none"
+            />
+          </div>
+          {response && (
+            <div className="rounded-lg border border-emerald-600/20 bg-emerald-600/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Response</span>
+              </div>
+              <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">{response}</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); setPrompt(''); setResponse(null) }} disabled={submitting}>
+            Close
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white border-0"
+            onClick={handleSubmit}
+            disabled={submitting || !prompt.trim()}
+          >
+            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {submitting ? 'Invoking...' : 'Invoke'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Foundry Joker Lanes Component ────────────────────────────────────────────
+
+function FoundryJokerLanes() {
+  const { data: foundryData, refetch } = useApiData<{ agents: FoundryAgentData[] }>('/api/foundry', 15000)
+  const [invokeAgent, setInvokeAgent] = useState<FoundryAgentData | null>(null)
+  const [invokeDialogOpen, setInvokeDialogOpen] = useState(false)
+  const [heartbeatLoading, setHeartbeatLoading] = useState<string | null>(null)
+
+  const agents = foundryData?.agents ?? []
+
+  const laneConfigs = [
+    { nexusId: 'joker_opus', accentColor: 'emerald', badge: 'High-Judgement', badgeColor: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400', gradientFrom: 'from-emerald-600/10', borderColor: 'border-emerald-600/20', iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600' },
+    { nexusId: 'joker_grok', accentColor: 'sky', badge: 'Fast Synthesis', badgeColor: 'bg-sky-600/15 text-sky-600 dark:text-sky-400', gradientFrom: 'from-sky-600/10', borderColor: 'border-sky-600/20', iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600' },
+    { nexusId: 'governance_orchestrator', accentColor: 'red', badge: 'Governance', badgeColor: 'bg-red-600/15 text-red-600 dark:text-red-400', gradientFrom: 'from-red-600/10', borderColor: 'border-red-600/20', iconBg: 'bg-gradient-to-br from-red-500 to-rose-600' },
+  ]
+
+  const handleHeartbeat = async (nexusId: string) => {
+    setHeartbeatLoading(nexusId)
+    try {
+      const res = await fetch('/api/foundry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'heartbeat', nexusId }),
+      })
+      if (res.ok) {
+        toast.success(`Heartbeat sent to ${nexusId}`)
+        refetch()
+      } else {
+        toast.error(`Heartbeat failed for ${nexusId}`)
+      }
+    } catch {
+      toast.error('Network error')
+    } finally {
+      setHeartbeatLoading(null)
+    }
+  }
+
+  return (
+    <>
+      <Card className="relative overflow-hidden border-emerald-600/15">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-cyan-600/3" />
+        <CardHeader className="relative pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Foundry Joker Lanes
+              <DataSourceBadge source="api" />
+            </CardTitle>
+            <Badge className="border-0 text-[9px] px-2 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+              GLM5 Architecture
+            </Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Dedicated Foundry agents with direct model access — joker lanes bypass standard routing
+          </p>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0">
+          <div className="grid gap-4 md:grid-cols-3">
+            {laneConfigs.map(lane => {
+              const agent = agents.find(a => a.nexusId === lane.nexusId)
+              const statusDisplay = agent?.status === 'online'
+                ? { color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-600/15', label: 'Online' }
+                : agent?.status === 'busy'
+                  ? { color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-600/15', label: 'Busy' }
+                  : { color: 'text-muted-foreground', bg: 'bg-muted', label: 'Offline' }
+
+              const healthPercent = agent ? Math.round(agent.health * 100) : 0
+              const lastHb = agent?.lastHeartbeat
+                ? new Date(agent.lastHeartbeat).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : 'Never'
+
+              return (
+                <div
+                  key={lane.nexusId}
+                  className={`relative rounded-xl border ${lane.borderColor} bg-gradient-to-br ${lane.gradientFrom} via-transparent to-transparent p-4 space-y-3 hover-lift transition-all`}
+                >
+                  {/* Agent Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${lane.iconBg} shadow-lg`}>
+                        <Cpu className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-bold">{agent?.displayName || lane.nexusId}</span>
+                        </div>
+                        <Badge className={`${lane.badgeColor} border-0 text-[8px] px-1.5 py-0`}>
+                          {lane.badge}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Badge className={`${statusDisplay.bg} ${statusDisplay.color} border-0 text-[9px]`}>
+                      {statusDisplay.label}
+                    </Badge>
+                  </div>
+
+                  {/* Agent Info */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Model</span>
+                      <span className="font-mono text-[11px]">{agent?.modelRef || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Port</span>
+                      <span className="font-mono text-[11px]">{agent?.port || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Last Heartbeat</span>
+                      <span className="text-[11px] tabular-nums">{lastHb}</span>
+                    </div>
+                  </div>
+
+                  {/* Health Bar */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <HeartPulse className="h-3 w-3" /> Health
+                      </span>
+                      <span className={`text-[10px] font-bold tabular-nums ${healthPercent >= 80 ? 'text-emerald-600 dark:text-emerald-400' : healthPercent >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {healthPercent}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${healthPercent >= 80 ? 'bg-emerald-500' : healthPercent >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        style={{ width: `${healthPercent}%`, opacity: 0.8 }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`flex-1 h-7 text-[10px] gap-1 ${lane.borderColor}`}
+                      onClick={() => {
+                        setInvokeAgent(agent || null)
+                        setInvokeDialogOpen(true)
+                      }}
+                      disabled={!agent || agent.status === 'offline'}
+                    >
+                      <Send className="h-3 w-3" />
+                      Invoke
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px] gap-1"
+                      onClick={() => handleHeartbeat(lane.nexusId)}
+                      disabled={heartbeatLoading === lane.nexusId || !agent}
+                    >
+                      {heartbeatLoading === lane.nexusId ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <HeartPulse className="h-3 w-3" />
+                      )}
+                      Ping
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {agents.length === 0 && (
+            <div className="mt-4 rounded-lg border border-dashed border-border/50 p-6 text-center">
+              <Zap className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">No Foundry agents registered. Seed the database to initialize.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <FoundryInvokeDialog
+        open={invokeDialogOpen}
+        onOpenChange={setInvokeDialogOpen}
+        agent={invokeAgent}
+        onInvoked={refetch}
+      />
+    </>
+  )
+}
+
 // ─── Main Swarm Tab ───────────────────────────────────────────────────────────
 
 export function SwarmTab() {
@@ -1342,6 +1660,9 @@ export function SwarmTab() {
           </div>
         </div>
       </div>
+
+      {/* Foundry Joker Lanes */}
+      <FoundryJokerLanes />
 
       {/* Swarm Load Progress Bar */}
       <div className="rounded-lg border border-border/50 bg-card p-3">

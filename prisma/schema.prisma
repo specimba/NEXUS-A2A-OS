@@ -200,3 +200,53 @@ model ApiKey {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
+
+// ─── 7352 Governance API ───
+
+model GovernanceTask {
+  id          String    @id @default(cuid())
+  agentId     String
+  taskId      String    @unique
+  type        String
+  status      String    @default("active") // active, completed, failed, held
+  progress    Float     @default(0)
+  message     String?
+  output      String?
+  tokensUsed  Int       @default(0)
+  durationMs  Int       @default(0)
+  riskLevel   String    @default("low")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+}
+
+model GovernanceProposal {
+  id          String    @id @default(cuid())
+  agentId     String
+  type        String
+  title       String
+  description String?
+  riskLevel   String    @default("low")
+  status      String    @default("pending") // pending, approved, rejected, held
+  approver    String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ─── Foundry Agents (GLM5 Architecture) ───
+
+model FoundryAgent {
+  id            String    @id @default(cuid())
+  nexusId       String    @unique  // e.g., "joker_opus", "joker_grok"
+  displayName   String             // e.g., "OSMANclaw4Kimi"
+  modelRef      String             // e.g., "claude-opus-4-7"
+  role          String             // e.g., "High-judgement implementation"
+  port          Int                // e.g., 8013
+  status        String    @default("offline")  // online, offline, busy
+  health        Float    @default(0)
+  lastHeartbeat DateTime?
+  capabilities  String   @default("[]")  // JSON array
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

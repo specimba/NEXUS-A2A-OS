@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
-import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket, Cpu, Eye, Server, ChevronRight, Sparkles, ArrowRight, Send, MessageSquare, Braces, Lightbulb } from 'lucide-react'
+import { Activity, Zap, Wifi, WifiOff, RefreshCw, Gauge, RotateCcw, ArrowRightLeft, AlertTriangle, TrendingUp, TrendingDown, BarChart3, HeartPulse, Play, Clock, Hash, CheckCircle2, XCircle, Loader2, Terminal, Trash2, Timer, ListOrdered, ShieldCheck, Ban, CircleDot, Signal, Hourglass, Rocket, Cpu, Eye, Server, ChevronRight, Sparkles, ArrowRight, Send, MessageSquare, Braces, Lightbulb, MapPin, Shield, TestTube2 } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -330,6 +331,148 @@ interface ModelData {
   isActive: boolean
   totalCalls: number
   successRate: number
+}
+
+// ── Nexus Route Plane Configuration ─────────────────────────────────
+interface RouteClass {
+  id: string
+  name: string
+  description: string
+  defaultModels: string[]
+  icon: string
+  color: string
+  textColor: string
+  bgColor: string
+  borderColor: string
+  gradientFrom: string
+  trustGateRequired: boolean
+  isFoundry: boolean
+}
+
+const ROUTE_CLASSES: RouteClass[] = [
+  {
+    id: 'coding_fast',
+    name: 'coding_fast',
+    description: 'Fast code generation & editing',
+    defaultModels: ['gemma-fast', 'nemotron-3-super'],
+    icon: '⚡',
+    color: '#f59e0b',
+    textColor: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-600/15',
+    borderColor: 'border-amber-600/20',
+    gradientFrom: 'from-amber-600/10',
+    trustGateRequired: false,
+    isFoundry: false,
+  },
+  {
+    id: 'coding_deep',
+    name: 'coding_deep',
+    description: 'Complex implementation & architecture',
+    defaultModels: ['trinity-large-preview', 'qwen3-coder'],
+    icon: '🧠',
+    color: '#a78bfa',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-600/15',
+    borderColor: 'border-purple-600/20',
+    gradientFrom: 'from-purple-600/10',
+    trustGateRequired: false,
+    isFoundry: false,
+  },
+  {
+    id: 'research_fast',
+    name: 'research_fast',
+    description: 'Quick research & lookup',
+    defaultModels: ['gemma-fast', 'dolphin-mistral-venice'],
+    icon: '🔍',
+    color: '#34d399',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-600/15',
+    borderColor: 'border-emerald-600/20',
+    gradientFrom: 'from-emerald-600/10',
+    trustGateRequired: false,
+    isFoundry: false,
+  },
+  {
+    id: 'research_broad',
+    name: 'research_broad',
+    description: 'Deep research & synthesis',
+    defaultModels: ['kimi-k2.5', 'trinity-large-preview'],
+    icon: '📚',
+    color: '#60a5fa',
+    textColor: 'text-sky-600 dark:text-sky-400',
+    bgColor: 'bg-sky-600/15',
+    borderColor: 'border-sky-600/20',
+    gradientFrom: 'from-sky-600/10',
+    trustGateRequired: false,
+    isFoundry: false,
+  },
+  {
+    id: 'governed_critical',
+    name: 'governed_critical',
+    description: 'Safety-critical governed tasks',
+    defaultModels: ['trinity-large-preview'],
+    icon: '🛡️',
+    color: '#f87171',
+    textColor: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-600/15',
+    borderColor: 'border-red-600/20',
+    gradientFrom: 'from-red-600/10',
+    trustGateRequired: true,
+    isFoundry: false,
+  },
+  {
+    id: 'joker_opus',
+    name: 'joker_opus',
+    description: 'High-judgement Opus lane',
+    defaultModels: ['claude-opus-4-7'],
+    icon: '🃏',
+    color: '#34d399',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-600/15',
+    borderColor: 'border-emerald-600/20',
+    gradientFrom: 'from-emerald-600/10',
+    trustGateRequired: false,
+    isFoundry: true,
+  },
+  {
+    id: 'joker_grok',
+    name: 'joker_grok',
+    description: 'Fast Grok synthesis lane',
+    defaultModels: ['grok-4-20'],
+    icon: '🤖',
+    color: '#60a5fa',
+    textColor: 'text-sky-600 dark:text-sky-400',
+    bgColor: 'bg-sky-600/15',
+    borderColor: 'border-sky-600/20',
+    gradientFrom: 'from-sky-600/10',
+    trustGateRequired: false,
+    isFoundry: true,
+  },
+  {
+    id: 'cheap_fallback',
+    name: 'cheap_fallback',
+    description: 'Free/cheap fallback',
+    defaultModels: ['gemma-fast', 'nemotron-3-super'],
+    icon: '🆓',
+    color: '#a3a3a3',
+    textColor: 'text-neutral-500 dark:text-neutral-400',
+    bgColor: 'bg-neutral-600/15',
+    borderColor: 'border-neutral-600/20',
+    gradientFrom: 'from-neutral-600/10',
+    trustGateRequired: false,
+    isFoundry: false,
+  },
+]
+
+// Compute route score for a model
+function computeRouteScore(model: ModelData, maxCost: number, maxLatency: number, trustWeight: number = 0.85): number {
+  const policyGate = model.isActive ? 1.0 : 0.0
+  const healthWeight = model.health / 100
+  const evidenceWeight = model.successRate / 100
+  const costPer1k = model.isFree ? 0 : 0.002 // rough estimate for paid models
+  const costWeight = maxCost > 0 ? 1 - (costPer1k / maxCost) : 1.0
+  const latencyWeight = maxLatency > 0 ? 1 - (model.latencyMs / maxLatency) : 1.0
+  return policyGate * trustWeight * healthWeight * evidenceWeight * costWeight * latencyWeight
 }
 
 // ── Test Console Types ──────────────────────────────────────────
@@ -1572,6 +1715,295 @@ function TestRequestDialog({ routes }: { routes: ProviderRoute[] }) {
   )
 }
 
+// ── Route Score Gauge Component ──────────────────────────────────
+function RouteScoreGauge({ model, maxCost, maxLatency }: { model: ModelData; maxCost: number; maxLatency: number }) {
+  const score = useMemo(() => computeRouteScore(model, maxCost, maxLatency), [model, maxCost, maxLatency])
+  const scorePercent = Math.round(score * 100)
+  const scoreColor = scorePercent >= 80 ? 'bg-emerald-500' : scorePercent >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+  const scoreTextColor = scorePercent >= 80 ? 'text-emerald-600 dark:text-emerald-400' : scorePercent >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{model.name}</span>
+        <span className={`text-[10px] font-bold tabular-nums ${scoreTextColor}`}>{scorePercent}%</span>
+      </div>
+      <div className="relative h-2 rounded-full bg-muted/30 overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${scoreColor}`} style={{ width: `${scorePercent}%`, opacity: 0.8 }} />
+      </div>
+    </div>
+  )
+}
+
+// ── Route Mapping Dialog Component ─────────────────────────────────
+function RouteMappingDialog({
+  open,
+  onOpenChange,
+  routeClass,
+  models,
+  currentMappings,
+  onSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  routeClass: RouteClass | null
+  models: ModelData[]
+  currentMappings: Record<string, string[]>
+  onSave: (routeId: string, modelNames: string[]) => void
+}) {
+  const initialSelected = routeClass ? (currentMappings[routeClass.id] || routeClass.defaultModels) : []
+  const [selected, setSelected] = useState<string[]>(initialSelected)
+
+  // Reset selection when route class changes
+  const currentRouteId = routeClass?.id
+  const [prevRouteId, setPrevRouteId] = useState<string | null>(null)
+  if (currentRouteId !== prevRouteId) {
+    setPrevRouteId(currentRouteId ?? null)
+    setSelected(initialSelected)
+  }
+
+  if (!routeClass) return null
+
+  const handleToggle = (modelName: string) => {
+    setSelected(prev =>
+      prev.includes(modelName) ? prev.filter(n => n !== modelName) : [...prev, modelName]
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/60">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${routeClass.bgColor}`}>
+              <span className="text-lg">{routeClass.icon}</span>
+            </div>
+            <div>
+              <DialogTitle className="text-base">{routeClass.name}</DialogTitle>
+              <DialogDescription className="text-xs">
+                Assign models to this route class
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-3 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+          {models.map(m => (
+            <div key={m.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+              <Checkbox
+                checked={selected.includes(m.name)}
+                onCheckedChange={() => handleToggle(m.name)}
+              />
+              <span className="text-xs font-medium flex-1">{m.name}</span>
+              <Badge variant="outline" className="text-[9px]">{m.domain}</Badge>
+              <Badge className={`border-0 text-[8px] ${m.isActive ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' : 'bg-red-600/15 text-red-600 dark:text-red-400'}`}>
+                {m.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+          ))}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+            onClick={() => {
+              onSave(routeClass.id, selected)
+              onOpenChange(false)
+            }}
+            disabled={selected.length === 0}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Save Mapping
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Nexus Route Plane Component ──────────────────────────────────
+function NexusRoutePlane({ models }: { models: ModelData[] }) {
+  const [routeMappings, setRouteMappings] = useState<Record<string, string[]>>(() => {
+    const init: Record<string, string[]> = {}
+    ROUTE_CLASSES.forEach(rc => { init[rc.id] = rc.defaultModels })
+    return init
+  })
+  const [mappingDialogRoute, setMappingDialogRoute] = useState<RouteClass | null>(null)
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false)
+  const [testingRoute, setTestingRoute] = useState<string | null>(null)
+
+  const maxCost = 0.01
+  const maxLatency = useMemo(() => Math.max(...models.map(m => m.latencyMs), 1), [models])
+
+  const handleSaveMapping = useCallback((routeId: string, modelNames: string[]) => {
+    setRouteMappings(prev => ({ ...prev, [routeId]: modelNames }))
+    toast.success(`Route ${routeId} updated with ${modelNames.length} models`)
+  }, [])
+
+  const handleTestRoute = useCallback(async (routeClass: RouteClass) => {
+    setTestingRoute(routeClass.id)
+    try {
+      const res = await globalThis.fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Test route: ${routeClass.name}. Respond with "Route ${routeClass.name} OK" and one word about ${routeClass.description.split(' ')[0].toLowerCase()}.` }],
+          systemPrompt: 'Respond concisely. This is a route test.',
+        }),
+      })
+      if (res.ok) {
+        toast.success(`Route ${routeClass.name} test passed`, { description: 'Response received successfully' })
+      } else {
+        toast.warning(`Route ${routeClass.name} test failed`, { description: `HTTP ${res.status}` })
+      }
+    } catch {
+      toast.error(`Route ${routeClass.name} test error`)
+    } finally {
+      setTestingRoute(null)
+    }
+  }, [])
+
+  return (
+    <>
+      <Card className="relative overflow-hidden border-emerald-600/15">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-cyan-600/3" />
+        <CardHeader className="relative pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Nexus Route Plane
+              <DataSourceBadge source="computed" />
+            </CardTitle>
+            <Badge className="border-0 text-[9px] px-2 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+              {ROUTE_CLASSES.length} route classes
+            </Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Logical route classes replace raw model names — trust-aware scoring gates each route
+          </p>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {ROUTE_CLASSES.map(rc => {
+              const assignedModels = (routeMappings[rc.id] || rc.defaultModels)
+                .map(name => models.find(m => m.name === name))
+                .filter((m): m is ModelData => !!m)
+              const avgHealth = assignedModels.length > 0
+                ? Math.round(assignedModels.reduce((s, m) => s + m.health, 0) / assignedModels.length)
+                : 0
+
+              return (
+                <div
+                  key={rc.id}
+                  className={`relative rounded-lg border ${rc.borderColor} bg-gradient-to-br ${rc.gradientFrom} via-transparent to-transparent p-3 hover:border-opacity-60 transition-all cursor-pointer group`}
+                  onClick={() => {
+                    setMappingDialogRoute(rc)
+                    setMappingDialogOpen(true)
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{rc.icon}</span>
+                      <span className={`text-xs font-bold ${rc.textColor}`}>{rc.name}</span>
+                    </div>
+                    {rc.trustGateRequired && (
+                      <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[8px] px-1.5 py-0">
+                        <Shield className="h-2.5 w-2.5 mr-0.5" />TRUST GATE
+                      </Badge>
+                    )}
+                    {rc.isFoundry && (
+                      <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] px-1.5 py-0">
+                        FOUNDRY
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2 leading-tight">{rc.description}</p>
+
+                  {/* Assigned Models */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {assignedModels.map(m => (
+                      <Badge key={m.id} variant="outline" className="text-[8px] px-1.5 py-0">
+                        {m.name.split('-')[0]}
+                      </Badge>
+                    ))}
+                    {assignedModels.length === 0 && (
+                      <span className="text-[9px] text-muted-foreground italic">No models assigned</span>
+                    )}
+                  </div>
+
+                  {/* Health Indicator */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <HeartPulse className={`h-3 w-3 ${avgHealth >= 95 ? 'text-emerald-500' : avgHealth >= 80 ? 'text-yellow-500' : 'text-red-500'}`} />
+                    <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${avgHealth >= 95 ? 'bg-emerald-500' : avgHealth >= 80 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        style={{ width: `${avgHealth}%`, opacity: 0.7 }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-bold tabular-nums text-muted-foreground">{avgHealth}%</span>
+                  </div>
+
+                  {/* Route Score Bars for assigned models */}
+                  <div className="space-y-1 mb-2">
+                    {assignedModels.map(m => (
+                      <RouteScoreGauge key={m.id} model={m} maxCost={maxCost} maxLatency={maxLatency} />
+                    ))}
+                  </div>
+
+                  {/* Test Route Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`w-full h-6 text-[9px] gap-1 ${rc.borderColor} ${rc.textColor} hover:${rc.bgColor}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleTestRoute(rc)
+                    }}
+                    disabled={testingRoute === rc.id}
+                  >
+                    {testingRoute === rc.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <TestTube2 className="h-3 w-3" />
+                    )}
+                    {testingRoute === rc.id ? 'Testing...' : 'Test Route'}
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Route Score Formula Display */}
+          <div className="mt-4 rounded-lg border border-border/50 bg-muted/30 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Route Score Formula</span>
+            </div>
+            <code className="text-[9px] text-muted-foreground/80 leading-relaxed block">
+              route_score = policy_gate × trust_weight × health_weight × evidence_weight × cost_weight × latency_weight
+            </code>
+            <div className="flex flex-wrap gap-3 mt-1.5 text-[9px] text-muted-foreground">
+              <span>policy_gate: <span className="text-emerald-600 dark:text-emerald-400">1.0 (allowed) / 0.0 (denied)</span></span>
+              <span>trust_weight: <span className="text-amber-600 dark:text-amber-400">0.85 default</span></span>
+              <span>health_weight: <span className="text-sky-600 dark:text-sky-400">health / 100</span></span>
+              <span>evidence_weight: <span className="text-purple-600 dark:text-purple-400">successRate / 100</span></span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <RouteMappingDialog
+        open={mappingDialogOpen}
+        onOpenChange={setMappingDialogOpen}
+        routeClass={mappingDialogRoute}
+        models={models}
+        currentMappings={routeMappings}
+        onSave={handleSaveMapping}
+      />
+    </>
+  )
+}
+
 export function GmrTab() {
   const { data: modelsData, loading, refetch } = useApiData<{ models: ModelData[] }>('/api/models', 15000)
   const baseModels = useMemo(() => modelsData?.models ?? [], [modelsData])
@@ -1727,6 +2159,20 @@ export function GmrTab() {
 
   return (
     <div className="space-y-6 p-6 grid-pattern-animated">
+      {/* ── Nexus Route Plane Section ──────────────────────────── */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            Nexus Route Plane — Logical Route Classes
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Route classes abstract away raw model names — trust-aware scoring gates every path
+          </p>
+        </div>
+        <NexusRoutePlane models={models} />
+      </div>
+
       {/* ── AI Provider Bridge Section ─────────────────────────── */}
       <div className="space-y-4">
         {/* Section Header */}

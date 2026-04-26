@@ -102,8 +102,8 @@ export async function GET() {
     const budgetPct = totalBudget > 0 ? Math.round((totalTokensUsed / totalBudget) * 10000) / 100 : 0
 
     // Recent decisions for mini-table
-    const recentDecisions = decisions.slice(0, 5).map(d => ({
-      id: d.id.slice(0, 7).toUpperCase(),
+    const recentDecisions = decisions.slice(0, 5).map((d, i) => ({
+      id: d.id.slice(0, 12) + '-' + i,
       agent: d.agent?.name ?? 'unknown',
       action: d.decision,
       scope: d.scope,

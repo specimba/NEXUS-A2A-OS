@@ -14,6 +14,7 @@ export async function POST() {
     await db.modelEntry.deleteMany()
     await db.sessionBudget.deleteMany()
     await db.systemConfig.deleteMany()
+    await db.foundryAgent.deleteMany()
     await db.agent.deleteMany()
 
     // Seed Agents
@@ -125,6 +126,49 @@ export async function POST() {
     await db.systemConfig.create({ data: { key: 'constitution', value: JSON.stringify({ version: '3.0.0', maxAgents: 5, maxApi: 20, maxConcurrent: 2, maxWrites: 30 }) } })
     await db.systemConfig.create({ data: { key: 'nexus_state', value: JSON.stringify({ version: '3.0.0', checkpoint: 4, status: 'operational' }) } })
 
+    // Seed Foundry Agents (GLM5 Architecture)
+    const foundryAgents = await Promise.all([
+      db.foundryAgent.create({
+        data: {
+          nexusId: 'joker_opus',
+          displayName: 'OSMANclaw4Opus',
+          modelRef: 'claude-opus-4-7',
+          role: 'High-judgement implementation',
+          port: 8013,
+          status: 'online',
+          health: 0.95,
+          lastHeartbeat: new Date(),
+          capabilities: JSON.stringify(['code', 'reasoning', 'architecture', 'security-review']),
+        },
+      }),
+      db.foundryAgent.create({
+        data: {
+          nexusId: 'joker_grok',
+          displayName: 'GROKsynth4K',
+          modelRef: 'grok-4-20',
+          role: 'Fast synthesis & rapid prototyping',
+          port: 8012,
+          status: 'online',
+          health: 0.88,
+          lastHeartbeat: new Date(Date.now() - 30000),
+          capabilities: JSON.stringify(['fast-synthesis', 'prototyping', 'chat', 'code']),
+        },
+      }),
+      db.foundryAgent.create({
+        data: {
+          nexusId: 'governance_orchestrator',
+          displayName: 'GovOrchestrator7352',
+          modelRef: 'model-router',
+          role: 'Governance orchestration & policy enforcement',
+          port: 7352,
+          status: 'online',
+          health: 1.0,
+          lastHeartbeat: new Date(),
+          capabilities: JSON.stringify(['governance', 'policy', 'trust-scoring', 'routing', 'heartbeat']),
+        },
+      }),
+    ])
+
     return NextResponse.json({
       success: true,
       seeded: {
@@ -134,6 +178,7 @@ export async function POST() {
         papers: papers.length,
         governorDecisions: governorDecisions.length,
         budget: !!budget,
+        foundryAgents: foundryAgents.length,
       }
     })
   } catch (error) {

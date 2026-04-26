@@ -2839,3 +2839,112 @@ Stage Summary:
 - New /api/logs endpoint created
 - All lint checks pass, zero errors
 - Dev server running cleanly on port 3000
+---
+Task ID: 3+4
+Agent: route-plane-foundry-agent
+Task: Implement Nexus Route Plane + Foundry Agent Integration
+
+Work Log:
+- Read existing gmr-tab.tsx (2060 lines), swarm-tab.tsx (1940 lines), schema.prisma, seed route, and project structure
+- B1: Added FoundryAgent Prisma model with fields: nexusId (unique), displayName, modelRef, role, port, status, health, lastHeartbeat, capabilities
+- B2: Created /api/foundry/route.ts with GET (list agents), POST actions: register (upsert), heartbeat (update status/health), invoke (z-ai-web-dev-sdk call)
+- A1: Added NexusRoutePlane component to GMR tab with 8 route class cards: coding_fast, coding_deep, research_fast, research_broad, governed_critical, joker_opus, joker_grok, cheap_fallback
+- A2: Implemented trust-aware route scoring (policy_gate * trust_weight * health_weight * evidence_weight * cost_weight * latency_weight) with RouteScoreGauge bars per model
+- A3: Created RouteMappingDialog with checkbox multi-select for assigning models to route classes
+- B3: Added FoundryJokerLanes component to Swarm tab with 3 Foundry agent cards (joker_opus/emerald, joker_grok/sky, governance_orchestrator/red)
+- B3: Added FoundryInvokeDialog for sending prompts to agents, Heartbeat ping button, status/health/port display
+- B4: Updated seed route to create 3 FoundryAgent records and clear them on reseed
+- Fixed lint errors: setState in effect -> derived state pattern, ref update during render
+- Ran db:push successfully, lint passes clean, seed verified returning 3 foundryAgents
+
+Stage Summary:
+- All 8 route classes render with icons, health bars, route scores, and test buttons in GMR tab
+- Trust gate badge shown on governed_critical route; FOUNDRY badge on joker lanes
+- Route mapping dialog allows model reassignment via checkbox UI
+- 3 Foundry agents seed correctly (joker_opus:8013, joker_grok:8012, governance_orchestrator:7352)
+- Foundry Joker Lanes section in Swarm tab shows agent cards with Invoke/Ping buttons
+- Foundry API (/api/foundry) returns all agents; heartbeat and register actions work
+- All lint checks pass; database schema synchronized
+---
+Task ID: 5+7
+Agent: gov-api-stresslab-agent
+Task: Add 7352 Governance API + StressLab Agent Harness
+
+Work Log:
+- Read existing Prisma schema, StressLab tab (1805 lines), StressLab API route, and DB client
+- Added GovernanceTask and GovernanceProposal models to Prisma schema with full field definitions
+- Ran bun run db:push successfully — schema synced to SQLite
+- Created /api/governance/route.ts implementing the 7352 API contract:
+  - GET: Returns governance stats (tasks, proposals, agents, constitution)
+  - POST heartbeat: Upserts governance task with agent ID, progress, message
+  - POST result: Updates task with result, creates VaultEntry audit log, logs token usage
+  - POST propose: Creates proposal, auto-holds if riskLevel=high
+  - POST approve: Updates proposal status, creates VaultEntry governance record
+- Tested all 4 governance API actions via curl — all return correct JSON responses
+- Upgraded /api/stresslab/route.ts with governance integration:
+  - Added "harness" to valid modes list
+  - Added governance helper functions: governanceHeartbeat, governanceResult, createGovVaultEntry, createFailureVaultEntry
+  - In harness mode: exercises full 5-stage pipeline (Heartbeat → LLM Call → Result → Governance Review → Vault Audit)
+  - Every test run now creates a VaultEntry in GOV track
+  - Collapse detection creates failure_pattern VaultEntry
+  - Added batch_harness action that runs all templates through harness mode sequentially
+- Upgraded stresslab-tab.tsx with:
+  - B1: Added "harness" mode option in RunTestDialog with info banner explaining 7352 pipeline
+  - B2: Added HarnessResultsSection component with total runs, success rate, avg duration, 5-stage pass rate, and failure point distribution bars
+  - B3: Added "Harness Pipeline" tab showing stage overview and harness run list
+  - B4: Enhanced Test Run Detail Dialog with: Validation Details section (token breakdown, response check, VAP proof), Harness Stage Timeline (5 stages with status indicators for harness mode runs), "View in Governance" button, "View in Vault" button
+  - B5: Added BatchHarnessDialog component with model selection, pipeline visualization, progress indicator, and results display with per-stage average durations
+  - Added "Batch Harness" button next to existing "Batch Run" button in templates toolbar
+  - Added Activity, FileSearch, Vault lucide icons
+- Ran bun run lint — zero errors
+
+Stage Summary:
+- 7352 Governance API fully operational with heartbeat, result, propose, approve endpoints
+- GovernanceTask and GovernanceProposal models in DB
+- StressLab supports harness mode that exercises full governance lifecycle
+- All test runs now create GOV VaultEntry audit logs
+- Collapse detection creates failure_pattern VaultEntry
+- Batch Harness runs all templates through governance pipeline
+- Harness Results section shows pipeline metrics and failure distribution
+- Test Run Detail Dialog enhanced with validation details, harness timeline, governance/vault buttons
+
+
+---
+Task ID: glm5-structural-upgrade
+Agent: main
+Task: GLM5 team structural improvements — Route Plane, Foundry agents, 7352 API, Harness
+
+Work Log:
+- Read all 5 uploaded team files: NEXUS_MODEL_ROUTING_REDESIGN, IMPLEMENTATION_REPORT, foundry_agent_inventory, FOUNDRY_HERMES_OPENSHELL_COMBINED_PLAN, GLM5 fusion pack
+- Fixed duplicate React key error: d.id.slice(0,7).toUpperCase() → d.id.slice(0,12)+'-'+i in /api/system
+- Implemented Nexus Route Plane in GMR tab:
+  - 8 logical route classes (coding_fast, coding_deep, research_fast, research_broad, governed_critical, joker_opus, joker_grok, cheap_fallback)
+  - Trust-aware route scoring (policy_gate * trust * health * evidence * cost * latency)
+  - Route class → model mapping dialog with checkboxes
+  - Test Route button per class
+- Added Foundry Agent integration:
+  - New FoundryAgent Prisma model (nexusId, displayName, modelRef, role, port, status, health)
+  - New /api/foundry route (GET, POST register/heartbeat/invoke)
+  - Foundry Joker Lanes section in Swarm tab (joker_opus, joker_grok, governance_orchestrator)
+  - Seed data for 3 Foundry agents
+- Created 7352 Governance API:
+  - /api/governance route with heartbeat, result, propose, approve actions
+  - GovernanceTask and GovernanceProposal Prisma models
+  - Full audit trail via VaultEntry creation
+- Upgraded StressLab with Agent Harness:
+  - Harness test mode (5-stage governance lifecycle)
+  - Harness Results section (stage pass rates, failure distribution)
+  - Test results create VaultEntry audit logs
+  - Collapse detection creates failure_pattern entries
+  - Batch Harness Run dialog
+  - Test detail enhancements (validation details, harness timeline, View in Governance/Vault buttons)
+
+Stage Summary:
+- 3 critical bugs fixed (duplicate key, + 2 from subagent)
+- Nexus Route Plane with 8 logical route classes
+- Foundry Agent system with 3 joker lanes
+- 7352 Governance API contract implemented
+- StressLab harness mode exercises full governance pipeline
+- 2 new Prisma models (GovernanceTask, GovernanceProposal + FoundryAgent)
+- 3 new API routes (/api/governance, /api/foundry, /api/logs from prior)
+- All lint checks pass, dev server running clean

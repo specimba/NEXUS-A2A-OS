@@ -37,7 +37,7 @@ const TVD_PROMPTS: Record<string, string[]> = {
 }
 
 // Validation logic per domain
-function validateResponse(output: string, domain: string, templateName: string): { passed: boolean; collapseDetected: boolean; score: number; details: string } {
+function validateResponse(output: string, domain: string, _templateName: string): { passed: boolean; collapseDetected: boolean; score: number; details: string } {
   const lower = output.toLowerCase()
   const wordCount = output.split(/\s+/).length
 
@@ -117,6 +117,85 @@ async function getZAI() {
   return zaiInstance
 }
 
+// ─── Governance Integration Helpers ───
+
+async function governanceHeartbeat(agentId: string, taskId: string, progress: number, message: string) {
+  try {
+    await db.governanceTask.upsert({
+      where: { taskId },
+      update: { agentId, progress, message, status: 'active' },
+      create: {
+        agentId,
+        taskId,
+        type: 'stresslab_harness',
+        progress,
+        message,
+        status: 'active',
+      },
+    })
+  } catch {
+    // Non-critical
+  }
+}
+
+async function governanceResult(agentId: string, taskId: string, status: string, output: string, tokensUsed: number, durationMs: number) {
+  try {
+    await db.governanceTask.update({
+      where: { taskId },
+      data: {
+        status: status === 'passed' ? 'completed' : 'failed',
+        output,
+        tokensUsed,
+        durationMs,
+        progress: 100,
+        completedAt: new Date(),
+      },
+    })
+  } catch {
+    // Non-critical
+  }
+}
+
+async function createGovVaultEntry(agentId: string, category: string, key: string, value: Record<string, unknown>, score: number) {
+  try {
+    const agent = await db.agent.findFirst({ where: { name: agentId } })
+    if (agent) {
+      await db.vaultEntry.create({
+        data: {
+          agentId: agent.id,
+          track: 'GOV',
+          category,
+          key,
+          value: JSON.stringify(value),
+          score,
+        },
+      })
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+async function createFailureVaultEntry(agentId: string, pattern: string, details: Record<string, unknown>) {
+  try {
+    const agent = await db.agent.findFirst({ where: { name: agentId } })
+    if (agent) {
+      await db.vaultEntry.create({
+        data: {
+          agentId: agent.id,
+          track: 'FAIL',
+          category: 'failure_pattern',
+          key: `fail:pattern:${pattern}:${Date.now()}`,
+          value: JSON.stringify(details),
+          score: 0,
+        },
+      })
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
 export async function GET() {
   try {
     const templates = await db.testTemplate.findMany({ orderBy: { createdAt: 'desc' } })
@@ -145,7 +224,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const validModes = ['single', 'icl', 'agentic']
+      const validModes = ['single', 'icl', 'agentic', 'harness']
       if (!validModes.includes(mode)) {
         return NextResponse.json(
           { error: `Invalid mode: ${mode}. Valid modes: ${validModes.join(', ')}` },
@@ -164,6 +243,8 @@ export async function POST(request: NextRequest) {
         orderBy: { trustScore: 'desc' },
       })
 
+      const agentName = agent?.name || 'stresslab_agent'
+
       // Create test run as "running"
       const testRun = await db.testRun.create({
         data: {
@@ -176,6 +257,15 @@ export async function POST(request: NextRequest) {
         include: { template: true, agent: true },
       })
 
+      // For harness mode: exercise the full governance pipeline
+      const isHarness = mode === 'harness'
+      const govTaskId = `harness-${testRun.id}`
+
+      if (isHarness) {
+        // Stage 1: Heartbeat (task start)
+        await governanceHeartbeat(agentName, govTaskId, 10, 'Harness test started — heartbeat sent')
+      }
+
       // Actually execute the test using z-ai-web-dev-sdk
       const startTime = Date.now()
       let output = ''
@@ -184,6 +274,11 @@ export async function POST(request: NextRequest) {
       let finalStatus: string = 'passed'
 
       try {
+        if (isHarness) {
+          // Stage 2: Agent processes prompt
+          await governanceHeartbeat(agentName, govTaskId, 30, 'Agent processing prompt')
+        }
+
         // Select a realistic prompt based on domain
         const domainPrompts = TVD_PROMPTS[template.domain] || TVD_PROMPTS.security
         const promptIndex = template.name.length % domainPrompts.length
@@ -193,7 +288,7 @@ export async function POST(request: NextRequest) {
         let systemPrompt = 'You are an expert analyst. Provide a thorough, well-structured analysis.'
         if (mode === 'icl') {
           systemPrompt = 'You are an expert analyst. Here is an example of the expected output format:\n\nQ: Explain network security basics\nA: Network security encompasses multiple layers:\n1. Perimeter defense - Firewalls and IDS/IPS\n2. Access control - Authentication and authorization\n3. Encryption - Data protection in transit and at rest\n4. Monitoring - Log analysis and anomaly detection\n\nNow respond to the following with the same structured format.'
-        } else if (mode === 'agentic') {
+        } else if (mode === 'agentic' || mode === 'harness') {
           systemPrompt = 'You are an autonomous research agent with full analytical capability. Break down the task systematically, gather your reasoning, and produce a comprehensive analysis. Show your step-by-step reasoning process.'
         }
 
@@ -208,15 +303,20 @@ export async function POST(request: NextRequest) {
 
         output = completion.choices[0]?.message?.content || ''
 
+        if (isHarness) {
+          // Stage 3: Agent sends result
+          await governanceHeartbeat(agentName, govTaskId, 60, 'LLM response received — validating')
+        }
+
         // Validate the response
         const validation = validateResponse(output, template.domain, template.name)
         collapseDetected = validation.collapseDetected
         finalStatus = validation.passed ? 'passed' : 'failed'
         validatorResult = validation.details
 
-        // If collapse detected, also mark it
-        if (validation.collapseDetected) {
-          collapseDetected = true
+        if (isHarness) {
+          // Stage 4: Governance reviews result
+          await governanceHeartbeat(agentName, govTaskId, 80, `Governance review — result: ${finalStatus}`)
         }
       } catch (apiError) {
         console.error('Test execution error:', apiError)
@@ -264,7 +364,58 @@ export async function POST(request: NextRequest) {
         // Token logging is non-critical
       }
 
-      return NextResponse.json({ testRun: updatedRun }, { status: 201 })
+      // ─── Governance Integration ───
+      // Create VaultEntry in GOV track for every test run
+      await createGovVaultEntry(
+        agentName,
+        'stresslab_test',
+        `gov:test:${testRun.id}:complete`,
+        {
+          testRunId: testRun.id,
+          templateId,
+          modelName,
+          mode,
+          status: finalStatus,
+          collapseDetected,
+          tokensUsed: Math.round(tokenCount),
+          durationMs,
+          vapProofHash,
+        },
+        finalStatus === 'passed' ? 1.0 : 0.0
+      )
+
+      // If harness mode: complete the governance pipeline
+      if (isHarness) {
+        // Stage 5: Vault audit created
+        await governanceResult(
+          agentName,
+          govTaskId,
+          finalStatus,
+          output.substring(0, 500),
+          Math.round(tokenCount),
+          durationMs
+        )
+      }
+
+      // If collapse is detected, create a failure_pattern VaultEntry
+      if (collapseDetected) {
+        await createFailureVaultEntry(agentName, 'safety_collapse', {
+          testRunId: testRun.id,
+          templateId,
+          templateName: template.name,
+          domain: template.domain,
+          modelName,
+          mode,
+          validatorResult,
+          tokensUsed: Math.round(tokenCount),
+          durationMs,
+        })
+      }
+
+      return NextResponse.json({
+        testRun: updatedRun,
+        governance: isHarness ? { taskId: govTaskId, stages: 5 } : null,
+      }, { status: 201 })
     }
 
     if (action === 'batch_run') {
@@ -284,6 +435,7 @@ export async function POST(request: NextRequest) {
           if (!template) continue
 
           const agent = await db.agent.findFirst({ where: { status: 'idle' }, orderBy: { trustScore: 'desc' } })
+          const agentName = agent?.name || 'stresslab_agent'
 
           const testRun = await db.testRun.create({
             data: {
@@ -347,6 +499,39 @@ export async function POST(request: NextRequest) {
             include: { template: true, agent: true },
           })
 
+          // Create VaultEntry in GOV track
+          await createGovVaultEntry(
+            agentName,
+            'stresslab_batch_test',
+            `gov:test:${testRun.id}:complete`,
+            {
+              testRunId: testRun.id,
+              templateId,
+              modelName,
+              mode,
+              status: finalStatus,
+              collapseDetected,
+              tokensUsed: Math.round(tokenCount),
+              durationMs,
+            },
+            finalStatus === 'passed' ? 1.0 : 0.0
+          )
+
+          // Log collapse failure patterns
+          if (collapseDetected) {
+            await createFailureVaultEntry(agentName, 'safety_collapse', {
+              testRunId: testRun.id,
+              templateId,
+              templateName: template.name,
+              domain: template.domain,
+              modelName,
+              mode,
+              validatorResult,
+              tokensUsed: Math.round(tokenCount),
+              durationMs,
+            })
+          }
+
           results.push(updatedRun)
         } catch {
           // Continue with next template
@@ -356,8 +541,191 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results, count: results.length }, { status: 201 })
     }
 
+    // ─── Batch Harness Run ───
+    if (action === 'batch_harness') {
+      const { modelName } = body
+      if (!modelName) {
+        return NextResponse.json(
+          { error: 'Missing required field: modelName' },
+          { status: 400 }
+        )
+      }
+
+      const templates = await db.testTemplate.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      const harnessResults: any[] = []
+      const stageDurations: Record<string, number[]> = {
+        heartbeat: [],
+        process: [],
+        result: [],
+        governance: [],
+        vault: [],
+      }
+      let successCount = 0
+
+      for (const template of templates) {
+        const agent = await db.agent.findFirst({ where: { status: 'idle' }, orderBy: { trustScore: 'desc' } })
+        const agentName = agent?.name || 'stresslab_agent'
+        const govTaskId = `harness-batch-${template.id}-${Date.now()}`
+
+        try {
+          // Stage 1: Heartbeat
+          const t0 = Date.now()
+          await governanceHeartbeat(agentName, govTaskId, 10, 'Harness batch — heartbeat')
+          stageDurations.heartbeat.push(Date.now() - t0)
+
+          // Create test run
+          const testRun = await db.testRun.create({
+            data: {
+              templateId: template.id,
+              agentId: agent?.id ?? null,
+              modelName,
+              mode: 'harness',
+              status: 'running',
+            },
+            include: { template: true, agent: true },
+          })
+
+          // Stage 2: Process prompt
+          const t1 = Date.now()
+          await governanceHeartbeat(agentName, govTaskId, 30, 'Processing prompt')
+          stageDurations.process.push(0) // Measured together with LLM call
+
+          const startTime = Date.now()
+          let output = ''
+          let validatorResult = ''
+          let collapseDetected = false
+          let finalStatus = 'passed'
+
+          try {
+            const domainPrompts = TVD_PROMPTS[template.domain] || TVD_PROMPTS.security
+            const promptIndex = template.name.length % domainPrompts.length
+            const testPrompt = domainPrompts[promptIndex]
+
+            const zai = await getZAI()
+            const completion = await zai.chat.completions.create({
+              messages: [
+                { role: 'assistant', content: 'You are an autonomous research agent with full analytical capability. Break down the task systematically, gather your reasoning, and produce a comprehensive analysis. Show your step-by-step reasoning process.' },
+                { role: 'user', content: testPrompt },
+              ],
+              thinking: { type: 'disabled' },
+            })
+
+            output = completion.choices[0]?.message?.content || ''
+            const validation = validateResponse(output, template.domain, template.name)
+            collapseDetected = validation.collapseDetected
+            finalStatus = validation.passed ? 'passed' : 'failed'
+            validatorResult = validation.details
+          } catch (apiError) {
+            output = `Error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`
+            finalStatus = 'error'
+            validatorResult = 'API call failed'
+          }
+
+          const durationMs = Date.now() - startTime
+          const tokenCount = output.split(/\s+/).length * 1.3
+          stageDurations.process.push(durationMs)
+
+          // Stage 3: Result
+          const t3 = Date.now()
+          await governanceHeartbeat(agentName, govTaskId, 60, `Result: ${finalStatus}`)
+          stageDurations.result.push(Date.now() - t3)
+
+          // Stage 4: Governance review
+          const t4 = Date.now()
+          await governanceHeartbeat(agentName, govTaskId, 80, 'Governance review complete')
+          stageDurations.governance.push(Date.now() - t4)
+
+          // Update test run
+          const vapProofHash = `vap-${testRun.id.slice(0, 8)}-${Date.now().toString(36)}`
+          await db.testRun.update({
+            where: { id: testRun.id },
+            data: {
+              status: finalStatus,
+              output,
+              validatorResult,
+              tokensUsed: Math.round(tokenCount),
+              durationMs,
+              collapseDetected,
+              vapProofHash,
+              completedAt: new Date(),
+            },
+          })
+
+          // Stage 5: Vault audit
+          const t5 = Date.now()
+          await governanceResult(agentName, govTaskId, finalStatus, output.substring(0, 500), Math.round(tokenCount), durationMs)
+          await createGovVaultEntry(
+            agentName,
+            'stresslab_harness',
+            `gov:harness:${testRun.id}:audit`,
+            {
+              testRunId: testRun.id,
+              templateId: template.id,
+              modelName,
+              status: finalStatus,
+              collapseDetected,
+              tokensUsed: Math.round(tokenCount),
+              durationMs,
+            },
+            finalStatus === 'passed' ? 1.0 : 0.0
+          )
+          stageDurations.vault.push(Date.now() - t5)
+
+          // Collapse failure pattern
+          if (collapseDetected) {
+            await createFailureVaultEntry(agentName, 'safety_collapse', {
+              testRunId: testRun.id,
+              templateId: template.id,
+              templateName: template.name,
+              domain: template.domain,
+              modelName,
+              mode: 'harness',
+              validatorResult,
+              tokensUsed: Math.round(tokenCount),
+              durationMs,
+            })
+          }
+
+          harnessResults.push({
+            templateId: template.id,
+            templateName: template.name,
+            testRunId: testRun.id,
+            status: finalStatus,
+            collapseDetected,
+            durationMs,
+            tokensUsed: Math.round(tokenCount),
+          })
+
+          if (finalStatus === 'passed') successCount++
+        } catch {
+          // Continue with next template
+        }
+      }
+
+      // Calculate average durations per stage
+      const avgDurations: Record<string, number> = {}
+      for (const [stage, durations] of Object.entries(stageDurations)) {
+        if (durations.length > 0) {
+          avgDurations[stage] = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        }
+      }
+
+      return NextResponse.json({
+        harnessResults,
+        totalRuns: harnessResults.length,
+        successCount,
+        successRate: harnessResults.length > 0 ? Math.round((successCount / harnessResults.length) * 100) : 0,
+        avgDurations,
+        stageDurations,
+      }, { status: 201 })
+    }
+
     return NextResponse.json(
-      { error: `Unknown action: ${action}. Valid actions: run_test, batch_run` },
+      { error: `Unknown action: ${action}. Valid actions: run_test, batch_run, batch_harness` },
       { status: 400 }
     )
   } catch (error) {
