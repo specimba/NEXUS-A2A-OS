@@ -11,7 +11,7 @@ import { Database, Wifi, FlaskConical, FileText, Activity } from 'lucide-react'
  * This is critical for user trust — they need to know what's real and what's fake.
  */
 
-export type DataSource = 'live' | 'simulated' | 'seed' | 'mock' | 'computed'
+export type DataSource = 'live' | 'simulated' | 'seed' | 'mock' | 'computed' | 'api'
 
 interface DataSourceBadgeProps {
   source: DataSource
@@ -31,6 +31,12 @@ const SOURCE_CONFIG: Record<DataSource, {
     label: 'LIVE',
     className: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-600/20 live-badge-glow',
     tooltip: 'Data fetched from a live API or real-time source in real-time',
+  },
+  api: {
+    icon: Wifi,
+    label: 'API',
+    className: 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400 border-cyan-600/20',
+    tooltip: 'Data fetched from an external API endpoint. Real-time or near-real-time data.',
   },
   seed: {
     icon: Database,

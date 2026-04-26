@@ -794,18 +794,18 @@ function DifficultyPieChart({ templates }: { templates: UITemplate[] }) {
               </Pie>
               <RechartsTooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   fontSize: '11px',
-                  color: 'hsl(var(--foreground))',
+                  color: 'var(--foreground)',
                 }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                labelStyle={{ color: 'var(--foreground)' }}
+                itemStyle={{ color: 'var(--muted-foreground)' }}
                 formatter={(value: number, name: string) => [`${value} templates`, name]}
               />
               <Legend
-                wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }}
+                wrapperStyle={{ fontSize: '10px', color: 'var(--muted-foreground)' }}
                 iconType="circle"
                 iconSize={8}
               />
@@ -862,14 +862,14 @@ function TestResultsSummaryChart({ runs }: { runs: UIRun[] }) {
                 </Pie>
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    backgroundColor: 'var(--card)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     fontSize: '11px',
-                    color: 'hsl(var(--foreground))',
+                    color: 'var(--foreground)',
                   }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                  labelStyle={{ color: 'var(--foreground)' }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [`${value} tests`, name]}
                 />
               </PieChart>
@@ -1818,19 +1818,19 @@ export function StressLabTab() {
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="model" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} width={95} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="model" tick={{ fontSize: 11, fill: 'var(--foreground)' }} axisLine={false} tickLine={false} width={95} />
                       <RechartsTooltip
                         contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
+                          backgroundColor: 'var(--card)',
+                          border: '1px solid var(--border)',
                           borderRadius: '8px',
                           fontSize: '11px',
-                          color: 'hsl(var(--foreground))',
+                          color: 'var(--foreground)',
                         }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                        labelStyle={{ color: 'var(--foreground)' }}
+                        itemStyle={{ color: 'var(--muted-foreground)' }}
                         formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                       />
                       <Bar dataKey="collapse" name="Collapse" fill="#f87171" fillOpacity={0.7} radius={[0, 2, 2, 0]} stackId="a" />

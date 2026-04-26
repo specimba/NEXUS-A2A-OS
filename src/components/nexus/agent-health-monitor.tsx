@@ -119,7 +119,7 @@ function CircularHealthRing({ percentage }: { percentage: number }) {
       >
         {/* Background ring */}
         <circle
-          stroke="hsl(var(--muted))"
+          stroke="var(--muted)"
           fill="transparent"
           strokeWidth={stroke}
           r={normalizedRadius}

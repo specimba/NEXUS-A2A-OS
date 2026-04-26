@@ -955,22 +955,22 @@ function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
         <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} domain={[0, 100]} />
               <RechartsTooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   fontSize: '11px',
-                  color: 'hsl(var(--foreground))',
+                  color: 'var(--foreground)',
                 }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                labelStyle={{ color: 'var(--foreground)' }}
+                itemStyle={{ color: 'var(--muted-foreground)' }}
                 formatter={(value: number, name: string) => [`${value}%`, name]}
               />
-              <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }} iconType="circle" iconSize={8} />
+              <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--muted-foreground)' }} iconType="circle" iconSize={8} />
               <Bar dataKey="health" name="Health" fill={COLORS.emerald} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
               <Bar dataKey="successRate" name="Success" fill={COLORS.blue} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
               <Bar dataKey="latency" name="Latency Score" fill={COLORS.orange} fillOpacity={0.7} radius={[2, 2, 0, 0]} />
@@ -1751,17 +1751,11 @@ function RouteMappingDialog({
   currentMappings: Record<string, string[]>
   onSave: (routeId: string, modelNames: string[]) => void
 }) {
-  const [selected, setSelected] = useState<string[]>([])
-
-  // Reset selection when route class changes (render-time sync with proper undefined tracking)
-  const prevRouteIdRef = useRef<string | undefined>(undefined)
-  const currentRouteId = routeClass?.id
-  if (currentRouteId !== prevRouteIdRef.current) {
-    prevRouteIdRef.current = currentRouteId
-    if (routeClass) {
-      setSelected(currentMappings[routeClass.id] || routeClass.defaultModels)
-    }
-  }
+  // Initialize selected from current mappings or defaults
+  // Key-based remount (via parent) ensures fresh state when routeClass changes
+  const [selected, setSelected] = useState<string[]>(
+    () => routeClass ? (currentMappings[routeClass.id] || routeClass.defaultModels) : []
+  )
 
   if (!routeClass) return null
 
@@ -1994,6 +1988,7 @@ function NexusRoutePlane({ models }: { models: ModelData[] }) {
       </Card>
 
       <RouteMappingDialog
+        key={mappingDialogRoute?.id ?? 'closed'}
         open={mappingDialogOpen}
         onOpenChange={setMappingDialogOpen}
         routeClass={mappingDialogRoute}

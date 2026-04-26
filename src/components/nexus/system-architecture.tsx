@@ -100,7 +100,7 @@ export function SystemArchitecture() {
                   y1={node.y}
                   x2={next.x}
                   y2={next.y}
-                  stroke="hsl(var(--border))"
+                  stroke="var(--border)"
                   strokeWidth="0.8"
                   strokeOpacity="0.3"
                   strokeDasharray="4 4"
@@ -113,7 +113,7 @@ export function SystemArchitecture() {
               cx={centerX}
               cy={centerY}
               r="36"
-              fill="hsl(var(--card))"
+              fill="var(--card)"
               stroke="#34d399"
               strokeWidth="2"
               strokeOpacity="0.6"
@@ -129,7 +129,7 @@ export function SystemArchitecture() {
               x={centerX}
               y={centerY - 6}
               textAnchor="middle"
-              fill="hsl(var(--foreground))"
+              fill="var(--foreground)"
               fontSize="9"
               fontWeight="bold"
             >
@@ -155,7 +155,7 @@ export function SystemArchitecture() {
                     cx={node.x}
                     cy={node.y}
                     r="24"
-                    fill="hsl(var(--card))"
+                    fill="var(--card)"
                     stroke={node.color}
                     strokeWidth="1.5"
                     strokeOpacity="0.5"
@@ -199,7 +199,7 @@ export function SystemArchitecture() {
                     x={node.x}
                     y={node.y + 34}
                     textAnchor="middle"
-                    fill="hsl(var(--muted-foreground))"
+                    fill="var(--muted-foreground)"
                     fontSize="8"
                     fontWeight="500"
                   >

@@ -29,7 +29,7 @@ type AIModel = typeof AI_MODELS[number]['id']
 
 const QUICK_PROMPTS = [
   'System Status',
-  'Run StressLab Test',
+  'StressLab Results',
   'Show Trust Scores',
   'Analyze Vault Entries',
   'Governance Report',

@@ -969,7 +969,7 @@ export function ResearchTab() {
                   <div className="flex items-center gap-4">
                     <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
                       <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
-                        <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
+                        <circle cx="40" cy="40" r="34" fill="none" stroke="var(--muted)" strokeWidth="6" />
                         <circle cx="40" cy="40" r="34" fill="none" stroke="#34d399" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${completionPct * 2.136} ${213.6 - completionPct * 2.136}`} className="transition-all duration-700" />
                       </svg>
                       <span className="absolute text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{completionPct}%</span>

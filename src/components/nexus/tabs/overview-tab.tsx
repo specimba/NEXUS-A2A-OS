@@ -947,7 +947,7 @@ function PerformanceMetricsRow() {
               </div>
             </div>
             <div className="mt-2">
-              <Progress value={0.8} className="h-1.5 bg-emerald-900/20" />
+              <Progress value={80} className="h-1.5 bg-emerald-900/20" />
               <p className="text-[9px] text-muted-foreground mt-1">Threshold: 1.0%</p>
             </div>
           </CardContent>

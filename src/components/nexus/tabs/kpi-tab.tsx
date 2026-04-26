@@ -347,7 +347,7 @@ export function KpiTab() {
             KPI Dashboard
             <DataSourceBadge source="computed" />
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">AWS CID-inspired optimization tracking · Auto-refreshes every 30s</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Optimization tracking · Auto-refreshes every 30s</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="gap-1.5">
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
@@ -756,7 +756,7 @@ export function KpiTab() {
         {/* Footer */}
         <motion.div variants={staggerItem}>
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground/50 pt-2">
-            <span>AWS CID KPI-Inspired</span><span>·</span>
+            <span>KPI Dashboard</span><span>·</span>
             <span>Unit Economics Tracking</span><span>·</span>
             <span>Anomaly Detection</span><span>·</span>
             <span>CORA Recommendations</span><span>·</span>

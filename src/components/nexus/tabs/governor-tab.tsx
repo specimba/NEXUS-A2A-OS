@@ -289,14 +289,14 @@ function MiniPieChart({ data, height = 120 }: { data: { name: string; value: num
         </Pie>
         <RechartsTooltip
           contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
-            border: '1px solid hsl(var(--border))',
+            backgroundColor: 'var(--card)',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             fontSize: '11px',
-            color: 'hsl(var(--foreground))',
+            color: 'var(--foreground)',
           }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
-          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+          labelStyle={{ color: 'var(--foreground)' }}
+          itemStyle={{ color: 'var(--muted-foreground)' }}
         />
       </PieChart>
     </ResponsiveContainer>
@@ -1219,9 +1219,9 @@ function CDRStageMachine({ data }: { data: TrustEngineAPIResponse | null }) {
                 {i < cdrStages.length - 1 && (
                   <div className="flex items-center justify-center py-0.5">
                     <div className="flex flex-col items-center">
-                      <div className="h-2 w-px" style={{ backgroundColor: isActive ? stage.color + '80' : 'hsl(var(--border))' }} />
+                      <div className="h-2 w-px" style={{ backgroundColor: isActive ? stage.color + '80' : 'var(--border)' }} />
                       <svg width="8" height="6" className="shrink-0">
-                        <polygon points="0,0 8,0 4,6" fill={isActive ? stage.color + '80' : 'hsl(var(--border))'} />
+                        <polygon points="0,0 8,0 4,6" fill={isActive ? stage.color + '80' : 'var(--border)'} />
                       </svg>
                     </div>
                   </div>
@@ -1412,7 +1412,7 @@ function TrustEnginePanel({ data }: { data: TrustEngineAPIResponse | null }) {
                     dataKey="x"
                     type="number"
                     domain={[0, 100]}
-                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 8, fill: 'var(--muted-foreground)' }}
                     axisLine={false}
                     tickLine={false}
                     tickCount={3}
@@ -1421,7 +1421,7 @@ function TrustEnginePanel({ data }: { data: TrustEngineAPIResponse | null }) {
                     dataKey="y"
                     type="number"
                     domain={[0, 1]}
-                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 8, fill: 'var(--muted-foreground)' }}
                     axisLine={false}
                     tickLine={false}
                     tickCount={3}

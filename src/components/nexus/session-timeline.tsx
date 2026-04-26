@@ -34,7 +34,7 @@ const timelineEvents: TimelineEvent[] = [
 
 export function SessionTimeline() {
   return (
-    <Card className="relative overflow-hidden border-blue-600/20">
+    <Card className="relative z-0 overflow-hidden border-blue-600/20">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
@@ -57,7 +57,7 @@ export function SessionTimeline() {
               return (
                 <div key={event.id} className="flex items-center">
                   {/* Event node */}
-                  <div className="flex flex-col items-center">
+                  <div className="relative flex flex-col items-center">
                     {/* Icon + dot */}
                     <div
                       className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all ${

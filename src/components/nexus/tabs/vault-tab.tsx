@@ -592,8 +592,8 @@ export function VaultTab() {
                         contentStyle={{
                           fontSize: '11px',
                           borderRadius: '8px',
-                          border: '1px solid hsl(var(--border))',
-                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--card)',
                         }}
                       />
                     </RechartsPieChart>
@@ -700,7 +700,7 @@ export function VaultTab() {
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }} />
+                    <RechartsTooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} />
               </RechartsPieChart>
                 </ResponsiveContainer>
               </div>

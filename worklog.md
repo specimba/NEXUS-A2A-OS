@@ -1,4 +1,40 @@
-# NEXUS OS v3.0 — Command Center Worklog
+# NEXUS OS v3.1 — Command Center Worklog
+
+---
+Task ID: bugfix-round-6
+Agent: main
+Task: Fix 12 critical and medium bugs reported by user — crash, infinite loop, visibility, branding, data issues
+
+Work Log:
+- **CRITICAL FIX 1**: DataSourceBadge crash in swarm-tab.tsx — `source="api"` was not in the `DataSource` type union. Added `'api'` type with cyan styling to `data-source-badge.tsx`
+- **CRITICAL FIX 2**: Infinite re-render in gmr-tab.tsx RouteMappingDialog — render-time `setState` pattern caused "Too many re-renders" error. Replaced with `useState(() => initializer)` + React `key` prop on the dialog to force remount when route class changes
+- **FIX 3**: Notification bell glitchy white panel — `glass-card` CSS class had hardcoded light background in `:root` selector overriding theme. Replaced with `bg-card` for proper theming
+- **FIX 4**: Chart text visibility (ALL charts broken) — Root cause: CSS variables use `oklch()` format (Tailwind CSS 4), but chart components used `hsl(var(--xxx))` which creates invalid CSS like `hsl(oklch(...))`. Fixed across 8 files: charts.tsx, gmr-tab.tsx, tokens-tab.tsx, stresslab-tab.tsx, governor-tab.tsx, vault-tab.tsx, research-tab.tsx, system-architecture.tsx, agent-health-monitor.tsx. Changed `hsl(var(--xxx))` → `var(--xxx)` everywhere
+- **FIX 5**: Session Timeline z-index overlay — Added `z-0` to root Card and `relative` to event node container to constrain the `absolute`-positioned pulse ring
+- **FIX 6**: AWS CID branding removal — Removed "AWS CID-inspired" from KPI tab subtitle and "AWS CID KPI-Inspired" from footer
+- **FIX 7**: Pool Coverage showing 0% — Added realistic fallback data computed from registered models when no usage logs exist. Shows tier distribution with estimated proportional tokens
+- **FIX 8**: Per-Agent Token Usage naming — Changed model display from separate Badge to inline `(model)` format. Updated bar chart to show full agent name
+- **FIX 9**: AI assistant "Run StressLab Test" prompt — Changed to "StressLab Results" since the AI can't execute tests
+- **FIX 10**: Daily Token Consumption Trend — Added fallback 7-day sample data when no usage logs. Always renders chart now with dynamic DataSourceBadge
+- **FIX 11**: Per-Agent Health graph scale — Fixed Progress value from 0-1 range to 0-100 range in overview-tab
+- **FIX 12**: Overview duplicate React key — Already fixed (uses `${d.id}-${idx}` composite key)
+
+Stage Summary:
+- 2 CRITICAL runtime crashes fixed (swarm tab DataSourceBadge, GMR infinite re-render)
+- Systemic chart visibility fix across 8+ files (oklch CSS variable compatibility)
+- Notification panel theming fixed
+- Pool Coverage now shows realistic data instead of 0%
+- All AWS CID branding removed
+- AI assistant quick prompts made consistent with capabilities
+- All lint checks pass, dev server clean, zero runtime errors
+- All API endpoints returning 200
+
+Unresolved / Next Phase:
+1. Integrate real LLM provider APIs (Groq, Mistral, Cerebras, Fireworks, Scaleway) with quota-aware settings
+2. Transition from mock/simulated data to real API-backed system
+3. Implement glm5 team-style real model testing pipeline
+4. Light theme needs more polish
+5. Add more interactive StressLab test runner with real model execution
 
 ---
 Task ID: 1

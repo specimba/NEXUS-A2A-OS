@@ -29,6 +29,33 @@ const COLORS = {
   pink: '#f472b6',
 }
 
+// NOTE: CSS variables (--foreground, --muted-foreground, etc.) are defined
+// using oklch() format (Tailwind CSS 4). They already contain the full color
+// function, so we use var(--xxx) directly — NOT hsl(var(--xxx)).
+
+// Shared tooltip style for consistent appearance across all charts
+const tooltipContentStyle: React.CSSProperties = {
+  backgroundColor: 'var(--card)',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  fontSize: '11px',
+  color: 'var(--foreground)',
+}
+
+const tooltipLabelStyle: React.CSSProperties = {
+  color: 'var(--foreground)',
+}
+
+const tooltipItemStyle: React.CSSProperties = {
+  color: 'var(--muted-foreground)',
+}
+
+// Axis tick style — uses CSS variable directly for oklch support
+const axisTickStyle = {
+  fontSize: 10,
+  fill: 'var(--muted-foreground)',
+}
+
 // Mini sparkline-style area chart
 export function MiniAreaChart({
   data,
@@ -50,21 +77,15 @@ export function MiniAreaChart({
       <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
         {showAxis && (
           <>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={30} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="name" tick={axisTickStyle} axisLine={false} tickLine={false} />
+            <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} width={30} />
           </>
         )}
         <RechartsTooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '8px',
-            fontSize: '11px',
-            color: 'hsl(var(--foreground))',
-          }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
-          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+          contentStyle={tooltipContentStyle}
+          labelStyle={tooltipLabelStyle}
+          itemStyle={tooltipItemStyle}
         />
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -95,19 +116,13 @@ export function NexusBarChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis dataKey={nameKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey={nameKey} tick={axisTickStyle} axisLine={false} tickLine={false} />
+        <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
         <RechartsTooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '8px',
-            fontSize: '11px',
-            color: 'hsl(var(--foreground))',
-          }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
-          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+          contentStyle={tooltipContentStyle}
+          labelStyle={tooltipLabelStyle}
+          itemStyle={tooltipItemStyle}
         />
         <Bar dataKey={dataKey} fill={color} radius={[3, 3, 0, 0]} />
       </BarChart>
@@ -136,7 +151,7 @@ export function NexusGauge({
     <div className="relative" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadialBarChart innerRadius="70%" outerRadius="100%" data={data} startAngle={180} endAngle={0}>
-          <RadialBar dataKey="value" cornerRadius={6} fill={color} background={{ fill: 'hsl(var(--muted))' }} />
+          <RadialBar dataKey="value" cornerRadius={6} fill={color} background={{ fill: 'var(--muted)' }} />
         </RadialBarChart>
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -171,34 +186,28 @@ export function NexusStackedAreaChart({
             </linearGradient>
           ))}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis
           dataKey={nameKey}
-          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+          tick={axisTickStyle}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+          tick={axisTickStyle}
           axisLine={false}
           tickLine={false}
           width={30}
           domain={['auto', 'auto']}
         />
         <RechartsTooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '8px',
-            fontSize: '11px',
-            color: 'hsl(var(--foreground))',
-          }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
-          itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+          contentStyle={tooltipContentStyle}
+          labelStyle={tooltipLabelStyle}
+          itemStyle={tooltipItemStyle}
           formatter={(value: number, name: string) => [`${value}%`, name]}
         />
         <Legend
-          wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--muted-foreground))' }}
+          wrapperStyle={{ fontSize: '10px', color: 'var(--muted-foreground)' }}
           iconType="circle"
           iconSize={8}
         />
