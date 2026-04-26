@@ -485,11 +485,20 @@ function RunTestDialog({ template, onComplete }: { template: UITemplate; onCompl
               <SelectValue placeholder="Select model..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="qwen3-coder">qwen3-coder (tier 82)</SelectItem>
-              <SelectItem value="trinity-large-preview">trinity-large-preview (tier 97)</SelectItem>
-              <SelectItem value="nemotron-3-super">nemotron-3-super (tier 60)</SelectItem>
-              <SelectItem value="gemma-fast">gemma-fast (tier 50)</SelectItem>
-              <SelectItem value="dolphin-mistral-venice">dolphin-mistral-venice (heretic)</SelectItem>
+              <SelectItem value="glm-4-7-nim">GLM-4.7 (z-ai Free)</SelectItem>
+              <SelectItem value="llama-3.3-70b-groq">Llama 3.3 70B (Groq Free)</SelectItem>
+              <SelectItem value="deepseek-r1-groq">DeepSeek R1 Distill (Groq Free)</SelectItem>
+              <SelectItem value="llama-4-scout-groq">Llama 4 Scout (Groq Free)</SelectItem>
+              <SelectItem value="llama-3.3-70b-cerebras">Llama 3.3 70B (Cerebras Free)</SelectItem>
+              <SelectItem value="llama-3.1-8b-cerebras">Llama 3.1 8B (Cerebras Free)</SelectItem>
+              <SelectItem value="mistral-large-mistral">Mistral Large (Mistral Free)</SelectItem>
+              <SelectItem value="codestral-latest">Codestral (Mistral Code)</SelectItem>
+              <SelectItem value="deepseek-r1-or">DeepSeek R1 (OpenRouter Free)</SelectItem>
+              <SelectItem value="trinity-large-or">Trinity Large (OpenRouter Free)</SelectItem>
+              <SelectItem value="qwen3-coder-or">Qwen3 Coder (OpenRouter Free)</SelectItem>
+              <SelectItem value="kimi-k2-or">Kimi K2 (OpenRouter Free)</SelectItem>
+              <SelectItem value="deepseek-v3-fireworks">DeepSeek V3 (Fireworks ⚠️)</SelectItem>
+              <SelectItem value="llama-3.3-70b-scaleway">Llama 3.3 70B (Scaleway EU ⚠️)</SelectItem>
             </SelectContent>
           </Select>
         </div>

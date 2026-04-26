@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -482,10 +482,10 @@ function ReassignTaskDialog({
   const [newTask, setNewTask] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // Reset form when worker changes
-  const prevWorkerRef = useRef<string | null>(null)
-  if (worker?.id !== prevWorkerRef.current) {
-    prevWorkerRef.current = worker?.id ?? null
+  // Reset form when worker changes (render-time sync with proper undefined tracking)
+  const prevWorkerIdRef = useRef<string | undefined>(undefined)
+  if (worker?.id !== prevWorkerIdRef.current) {
+    prevWorkerIdRef.current = worker?.id
     if (worker) {
       setNewDomain(worker.domain || '')
       setNewTask('')

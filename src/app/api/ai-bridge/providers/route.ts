@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validProviders = ['z-ai', 'openrouter']
+    const validProviders = ['z-ai', 'openrouter', 'cerebras', 'groq', 'mistral', 'codestral', 'fireworks', 'scaleway']
     if (!validProviders.includes(provider)) {
       return NextResponse.json(
         {

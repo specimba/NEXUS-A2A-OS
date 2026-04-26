@@ -1854,8 +1854,8 @@ export function OverviewTab() {
             </CardHeader>
             <CardContent className="relative p-3 pt-0">
               <div className="max-h-56 space-y-1.5 overflow-y-auto custom-scrollbar">
-                {recentDecisions.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
+                {recentDecisions.map((d, idx) => (
+                  <div key={`${d.id}-${idx}`} className="flex items-center gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
                     <Badge className={`shrink-0 border-0 text-[9px] px-1.5 py-0 ${
                       d.action === 'ALLOW' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
                       d.action === 'DENY' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :

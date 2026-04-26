@@ -277,7 +277,7 @@ const poolDefinitions = [
   {
     name: 'PREMIUM',
     desc: 'Tier 90+ · Complex reasoning & security',
-    modelNames: ['trinity-large-preview', 'minimax-m2.5'],
+    modelNames: ['trinity-large-preview', 'minimax-m2.5', 'llama-3.3-70b-groq'],
     tierRange: '90+',
     color: COLORS.emerald,
     gradient: 'from-emerald-600/10',
@@ -285,7 +285,7 @@ const poolDefinitions = [
   {
     name: 'MID',
     desc: 'Tier 60-89 · Code & research',
-    modelNames: ['qwen3-coder', 'kimi-k2.5', 'gpt-oss-120b'],
+    modelNames: ['qwen3-coder', 'kimi-k2.5', 'gpt-oss-120b', 'codestral-latest', 'mistral-large'],
     tierRange: '60-89',
     color: COLORS.blue,
     gradient: 'from-blue-600/10',
@@ -293,15 +293,15 @@ const poolDefinitions = [
   {
     name: 'FAST',
     desc: 'Tier <60 · Quick responses',
-    modelNames: ['gemma-fast', 'nemotron-3-super'],
+    modelNames: ['gemma-fast', 'nemotron-3-super', 'llama-3.1-8b-cerebras'],
     tierRange: '<60',
     color: COLORS.orange,
     gradient: 'from-orange-600/10',
   },
   {
     name: 'FREE_RESEARCH',
-    desc: 'StressLab + heretic control group',
-    modelNames: ['dolphin-mistral-venice', 'qwen3-coder', 'trinity-large-preview'],
+    desc: 'All free-tier models for StressLab + research',
+    modelNames: ['dolphin-mistral-venice', 'qwen3-coder', 'trinity-large-preview', 'deepseek-r1-groq', 'llama-4-scout-groq'],
     tierRange: 'any',
     color: COLORS.purple,
     gradient: 'from-purple-600/10',
@@ -1751,15 +1751,16 @@ function RouteMappingDialog({
   currentMappings: Record<string, string[]>
   onSave: (routeId: string, modelNames: string[]) => void
 }) {
-  const initialSelected = routeClass ? (currentMappings[routeClass.id] || routeClass.defaultModels) : []
-  const [selected, setSelected] = useState<string[]>(initialSelected)
+  const [selected, setSelected] = useState<string[]>([])
 
-  // Reset selection when route class changes
+  // Reset selection when route class changes (render-time sync with proper undefined tracking)
+  const prevRouteIdRef = useRef<string | undefined>(undefined)
   const currentRouteId = routeClass?.id
-  const [prevRouteId, setPrevRouteId] = useState<string | null>(null)
-  if (currentRouteId !== prevRouteId) {
-    setPrevRouteId(currentRouteId ?? null)
-    setSelected(initialSelected)
+  if (currentRouteId !== prevRouteIdRef.current) {
+    prevRouteIdRef.current = currentRouteId
+    if (routeClass) {
+      setSelected(currentMappings[routeClass.id] || routeClass.defaultModels)
+    }
   }
 
   if (!routeClass) return null

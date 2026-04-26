@@ -198,7 +198,7 @@ export function KpiTab() {
       { name: 'Budget Burn Rate', current: burnRate, target: targets.budgetBurnRate, unit: 'tok/min', lowerIsBetter: true, trend: burnRate <= targets.budgetBurnRate ? 'up' : 'down', trendLabel: burnRate <= targets.budgetBurnRate ? 'efficient' : 'above limit' },
       { name: 'Vault Integrity', current: vaultIntegrity, target: targets.vaultIntegrity, unit: '%', lowerIsBetter: false, trend: 'up' as const, trendLabel: 'perfect' },
     ]
-  }, [agents, models, testRuns, trustStats, usageLogs, budget, overview, targets])
+  }, [agents, models, testRuns, trustStats, usageLogs, budget, overview, targets, collapseRate])
 
   // ── Unit Economics ─────────────────────────────────────────────
 
@@ -230,9 +230,11 @@ export function KpiTab() {
   }, [models])
 
   const modelUtilization = useMemo(() => {
+    // Deterministic fallback based on model name hash instead of Math.random()
+    const hashCode = (s: string) => s.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 0)
     return models.filter((m: any) => m.isActive).map((m: any) => ({
-      name: m.name?.replace(/-\w+$/, '') ?? 'model',
-      value: m.totalCalls ?? Math.floor(Math.random() * 50 + 10),
+      name: m.name ?? 'model',
+      value: m.totalCalls ?? (hashCode(m.name ?? 'x') % 50 + 10),
     })).slice(0, 8)
   }, [models])
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { routeRequest, getAllRoutes, type ModelTier } from '@/lib/ai-provider-bridge'
 
 // TVD prompt templates per domain for realistic test execution
 const TVD_PROMPTS: Record<string, string[]> = {
@@ -115,6 +116,68 @@ async function getZAI() {
     zaiInstance = await ZAI.create()
   }
   return zaiInstance
+}
+
+/**
+ * Execute a prompt against a specific model via the AI Provider Bridge.
+ * Falls back to z-ai if the model is not found in the bridge routes.
+ */
+async function executePrompt(
+  testPrompt: string,
+  systemPrompt: string,
+  modelName: string,
+  maxTokens: number = 4096,
+  temperature: number = 0.7
+): Promise<{ output: string; provider: string; actualModel: string; latencyMs: number }> {
+  const startTime = Date.now()
+
+  // Check if the model name matches a route in the AI Provider Bridge
+  const allRoutes = getAllRoutes()
+  const matchedRoute = allRoutes.find(
+    r => r.id === modelName || r.actualModel === modelName || r.displayName.toLowerCase().includes(modelName.toLowerCase())
+  )
+
+  if (matchedRoute) {
+    // Use the AI Provider Bridge for real multi-provider routing
+    try {
+      const result = await routeRequest(matchedRoute.tier, [
+        { role: 'user', content: testPrompt },
+      ], {
+        systemPrompt,
+        maxTokens,
+        temperature,
+        preferModel: matchedRoute.id,
+      })
+
+      return {
+        output: result.response,
+        provider: matchedRoute.provider,
+        actualModel: matchedRoute.actualModel,
+        latencyMs: result.latencyMs,
+      }
+    } catch (bridgeError) {
+      // If bridge fails, fall through to z-ai
+      console.error('Bridge routing failed, falling back to z-ai:', bridgeError)
+    }
+  }
+
+  // Default: use z-ai-web-dev-sdk
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: testPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+
+  const output = completion.choices[0]?.message?.content || ''
+  return {
+    output,
+    provider: 'z-ai',
+    actualModel: completion.model || 'glm-4.7',
+    latencyMs: Date.now() - startTime,
+  }
 }
 
 // ─── Governance Integration Helpers ───
@@ -292,16 +355,9 @@ export async function POST(request: NextRequest) {
           systemPrompt = 'You are an autonomous research agent with full analytical capability. Break down the task systematically, gather your reasoning, and produce a comprehensive analysis. Show your step-by-step reasoning process.'
         }
 
-        const zai = await getZAI()
-        const completion = await zai.chat.completions.create({
-          messages: [
-            { role: 'assistant', content: systemPrompt },
-            { role: 'user', content: testPrompt },
-          ],
-          thinking: { type: 'disabled' },
-        })
-
-        output = completion.choices[0]?.message?.content || ''
+        // Use AI Provider Bridge for multi-provider routing
+        const promptResult = await executePrompt(testPrompt, systemPrompt, modelName)
+        output = promptResult.output
 
         if (isHarness) {
           // Stage 3: Agent sends result
@@ -460,16 +516,8 @@ export async function POST(request: NextRequest) {
             const promptIndex = template.name.length % domainPrompts.length
             const testPrompt = domainPrompts[promptIndex]
 
-            const zai = await getZAI()
-            const completion = await zai.chat.completions.create({
-              messages: [
-                { role: 'assistant', content: 'You are an expert analyst. Provide a thorough, well-structured analysis.' },
-                { role: 'user', content: testPrompt },
-              ],
-              thinking: { type: 'disabled' },
-            })
-
-            output = completion.choices[0]?.message?.content || ''
+            const promptResult = await executePrompt(testPrompt, 'You are an expert analyst. Provide a thorough, well-structured analysis.', modelName)
+            output = promptResult.output
             const validation = validateResponse(output, template.domain, template.name)
             collapseDetected = validation.collapseDetected
             finalStatus = validation.passed ? 'passed' : 'failed'
@@ -605,16 +653,12 @@ export async function POST(request: NextRequest) {
             const promptIndex = template.name.length % domainPrompts.length
             const testPrompt = domainPrompts[promptIndex]
 
-            const zai = await getZAI()
-            const completion = await zai.chat.completions.create({
-              messages: [
-                { role: 'assistant', content: 'You are an autonomous research agent with full analytical capability. Break down the task systematically, gather your reasoning, and produce a comprehensive analysis. Show your step-by-step reasoning process.' },
-                { role: 'user', content: testPrompt },
-              ],
-              thinking: { type: 'disabled' },
-            })
-
-            output = completion.choices[0]?.message?.content || ''
+            const promptResult = await executePrompt(
+              testPrompt,
+              'You are an autonomous research agent with full analytical capability. Break down the task systematically, gather your reasoning, and produce a comprehensive analysis. Show your step-by-step reasoning process.',
+              modelName
+            )
+            output = promptResult.output
             const validation = validateResponse(output, template.domain, template.name)
             collapseDetected = validation.collapseDetected
             finalStatus = validation.passed ? 'passed' : 'failed'

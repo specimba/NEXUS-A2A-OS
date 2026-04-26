@@ -66,6 +66,10 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   jina: ['JINA_API_KEY', 'JINA_API_KEY_2'],
   cerebras: ['CEREBRAS_API_KEY', 'CEREBRAS_API_KEY_2'],
   groq: ['GROQ_API_KEY', 'GROQ_API_KEY_2'],
+  mistral: ['MISTRAL_API_KEY'],
+  codestral: ['CODESTRAL_API_KEY'],
+  fireworks: ['FIREWORKS_API_KEY'],
+  scaleway: ['SCALEWAY_ACCESS_KEY'],
   kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
 }
@@ -307,7 +311,7 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
       return {
         'Authorization': `Bearer ${key}`,
         'HTTP-Referer': 'https://nexus-os.dev',
-        'X-Title': 'NEXUS OS v3.0',
+        'X-Title': 'NEXUS OS v3.1',
       }
     case 'tavily':
       return {
@@ -316,6 +320,23 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
     case 'groq':
       return {
         'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'mistral':
+    case 'codestral':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'fireworks':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'scaleway':
+      return {
+        'Authorization': `Bearer ${process.env.SCALEWAY_SECRET_KEY ?? ''}`,
+        'X-Scaleway-Access-Key': key,
         'Content-Type': 'application/json',
       }
     case 'jina':

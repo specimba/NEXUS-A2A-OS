@@ -23,7 +23,7 @@ export interface ModelRoute {
   tier: ModelTier
   displayName: string
   actualModel: string
-  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq'
+  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway'
   providerLabel: string
   isFree: boolean
   rateLimitPerMin: number
@@ -238,6 +238,160 @@ const MODEL_ROUTES: ModelRoute[] = [
     totalCalls: 0,
     successRate: 100,
   },
+
+  // ── Groq — Ultra-Fast LPU Inference (Free: 30 RPM, unlimited) ──
+  {
+    id: 'llama-3.3-70b-groq',
+    tier: 'reasoning',
+    displayName: 'Llama 3.3 70B (Groq)',
+    actualModel: 'llama-3.3-70b-versatile',
+    provider: 'groq',
+    providerLabel: 'Groq Free (LPU)',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'llama-4-scout-groq',
+    tier: 'fast',
+    displayName: 'Llama 4 Scout (Groq)',
+    actualModel: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    provider: 'groq',
+    providerLabel: 'Groq Free (LPU)',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'deepseek-r1-groq',
+    tier: 'reasoning',
+    displayName: 'DeepSeek R1 Distill (Groq)',
+    actualModel: 'deepseek-r1-distill-llama-70b',
+    provider: 'groq',
+    providerLabel: 'Groq Free (LPU)',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── Mistral — Experiment Plan (Free: 2 RPM, 1B tok/month) ──
+  {
+    id: 'mistral-large-mistral',
+    tier: 'reasoning',
+    displayName: 'Mistral Large (Mistral)',
+    actualModel: 'mistral-large-latest',
+    provider: 'mistral',
+    providerLabel: 'Mistral Free',
+    isFree: true,
+    rateLimitPerMin: 2,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'mistral-small-mistral',
+    tier: 'balanced',
+    displayName: 'Mistral Small (Mistral)',
+    actualModel: 'mistral-small-latest',
+    provider: 'mistral',
+    providerLabel: 'Mistral Free',
+    isFree: true,
+    rateLimitPerMin: 2,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── Codestral — Code Specialist (Free: 30 RPM) ──
+  {
+    id: 'codestral-latest',
+    tier: 'balanced',
+    displayName: 'Codestral (Mistral)',
+    actualModel: 'codestral-latest',
+    provider: 'codestral',
+    providerLabel: 'Codestral Free',
+    isFree: true,
+    rateLimitPerMin: 30,
+    contextWindow: 256000,
+    capabilities: ['code', 'completion', 'fill'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── Fireworks — Free Serverless ($1 credits, USE SPARINGLY) ──
+  {
+    id: 'deepseek-v3-fireworks',
+    tier: 'reasoning',
+    displayName: 'DeepSeek V3 (Fireworks)',
+    actualModel: 'accounts/fireworks/models/deepseek-v3',
+    provider: 'fireworks',
+    providerLabel: 'Fireworks Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-30b-fireworks',
+    tier: 'balanced',
+    displayName: 'Qwen3 30B (Fireworks)',
+    actualModel: 'accounts/fireworks/models/qwen3-vl-30b',
+    provider: 'fireworks',
+    providerLabel: 'Fireworks Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'vision'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── Scaleway — EU-Hosted (1M tok ONE-TIME, USE SPARINGLY) ──
+  {
+    id: 'llama-3.3-70b-scaleway',
+    tier: 'reasoning',
+    displayName: 'Llama 3.3 70B (Scaleway)',
+    actualModel: 'llama-3.3-70b-instruct',
+    provider: 'scaleway',
+    providerLabel: 'Scaleway Free (EU)',
+    isFree: true,
+    rateLimitPerMin: 5,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
 ]
 
 // ── Runtime State ──────────────────────────────────────────────────────
@@ -414,6 +568,17 @@ function scoreRoute(route: ModelRoute): number {
   // Slight preference for z-ai (more reliable, no key needed)
   if (route.provider === 'z-ai') {
     score -= 10
+  }
+  // Groq is fast and free, slight preference
+  if (route.provider === 'groq') {
+    score -= 5
+  }
+  // Demote providers with limited quotas
+  if (route.provider === 'fireworks') {
+    score += 50
+  }
+  if (route.provider === 'scaleway') {
+    score += 100
   }
 
   return score
@@ -610,6 +775,380 @@ async function callCerebras(
   return content
 }
 
+// ── Groq API Call ──────────────────────────────────────────────────
+
+async function callGroq(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('groq')
+  if (!apiKey) {
+    throw new Error('No Groq API key available. Configure GROQ_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('groq', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Groq rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('groq', retryAfter)
+    recordRateLimitError('groq', '429 Too Many Requests')
+    throw new Error(`Groq rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('groq', `${response.status} Auth Error`)
+    throw new Error(`Groq auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('groq', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Groq API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Groq')
+  }
+
+  recordKeySuccess('groq')
+  recordSuccess('groq')
+  recordRequest('groq', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── Mistral API Call ───────────────────────────────────────────────
+
+async function callMistral(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('mistral')
+  if (!apiKey) {
+    throw new Error('No Mistral API key available. Configure MISTRAL_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('mistral', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Mistral rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('mistral', retryAfter)
+    recordRateLimitError('mistral', '429 Too Many Requests')
+    throw new Error(`Mistral rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('mistral', `${response.status} Auth Error`)
+    throw new Error(`Mistral auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('mistral', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Mistral API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Mistral')
+  }
+
+  recordKeySuccess('mistral')
+  recordSuccess('mistral')
+  recordRequest('mistral', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── Codestral API Call ─────────────────────────────────────────────
+
+async function callCodestral(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('codestral')
+  if (!apiKey) {
+    throw new Error('No Codestral API key available. Configure CODESTRAL_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('codestral', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Codestral rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://codestral.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('codestral', retryAfter)
+    recordRateLimitError('codestral', '429 Too Many Requests')
+    throw new Error(`Codestral rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('codestral', `${response.status} Auth Error`)
+    throw new Error(`Codestral auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('codestral', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Codestral API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Codestral')
+  }
+
+  recordKeySuccess('codestral')
+  recordSuccess('codestral')
+  recordRequest('codestral', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── Fireworks API Call ─────────────────────────────────────────────
+
+async function callFireworks(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('fireworks')
+  if (!apiKey) {
+    throw new Error('No Fireworks API key available. Configure FIREWORKS_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('fireworks', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Fireworks rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.fireworks.ai/inference/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('fireworks', retryAfter)
+    recordRateLimitError('fireworks', '429 Too Many Requests')
+    throw new Error(`Fireworks rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('fireworks', `${response.status} Auth Error`)
+    throw new Error(`Fireworks auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('fireworks', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Fireworks API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Fireworks')
+  }
+
+  recordKeySuccess('fireworks')
+  recordSuccess('fireworks')
+  recordRequest('fireworks', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── Scaleway API Call ──────────────────────────────────────────────
+
+async function callScaleway(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const accessKey = getActiveKey('scaleway')
+  const secretKey = process.env.SCALEWAY_SECRET_KEY ?? ''
+  if (!accessKey || !secretKey) {
+    throw new Error('No Scaleway API keys available. Configure SCALEWAY_ACCESS_KEY and SCALEWAY_SECRET_KEY.')
+  }
+
+  const rateCheck = checkRateLimit('scaleway', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`Scaleway rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://generative-ai.saas.scaleway.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    recordRateLimitError('scaleway', '429 Too Many Requests')
+    throw new Error('Scaleway rate limited (429). Please wait before trying again.')
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('scaleway', `${response.status} Auth Error`)
+    throw new Error(`Scaleway auth error (${response.status}). Check API keys.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('scaleway', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`Scaleway API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from Scaleway')
+  }
+
+  recordKeySuccess('scaleway')
+  recordSuccess('scaleway')
+  recordRequest('scaleway', '/chat/completions', undefined, data)
+
+  return content
+}
+
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
 async function callZAI(
@@ -691,6 +1230,16 @@ export async function routeRequest(
       response = await callCerebras(model.actualModel, messages, opts)
     } else if (model.provider === 'openrouter') {
       response = await callOpenRouter(model.actualModel, messages, opts)
+    } else if (model.provider === 'groq') {
+      response = await callGroq(model.actualModel, messages, opts)
+    } else if (model.provider === 'mistral') {
+      response = await callMistral(model.actualModel, messages, opts)
+    } else if (model.provider === 'codestral') {
+      response = await callCodestral(model.actualModel, messages, opts)
+    } else if (model.provider === 'fireworks') {
+      response = await callFireworks(model.actualModel, messages, opts)
+    } else if (model.provider === 'scaleway') {
+      response = await callScaleway(model.actualModel, messages, opts)
     } else {
       throw new Error(`Unknown provider: ${model.provider}`)
     }
@@ -726,6 +1275,16 @@ export async function routeRequest(
           fbResponse = await callZAI(messages, opts)
         } else if (fallback.provider === 'cerebras') {
           fbResponse = await callCerebras(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'groq') {
+          fbResponse = await callGroq(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'mistral') {
+          fbResponse = await callMistral(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'codestral') {
+          fbResponse = await callCodestral(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'fireworks') {
+          fbResponse = await callFireworks(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'scaleway') {
+          fbResponse = await callScaleway(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }
@@ -857,7 +1416,15 @@ export function getProviderStatus(provider: string): ProviderStatus {
         ? 'Cerebras Free (CS-3 Wafer)'
         : provider === 'groq'
           ? 'Groq Free (LPU)'
-          : provider
+          : provider === 'mistral'
+            ? 'Mistral Free (Experiment)'
+            : provider === 'codestral'
+              ? 'Codestral Free (Code)'
+              : provider === 'fireworks'
+                ? 'Fireworks Free (Serverless)'
+                : provider === 'scaleway'
+                  ? 'Scaleway Free (EU)'
+                  : provider
 
   return {
     provider,
@@ -911,22 +1478,28 @@ export async function healthCheckProvider(provider: string): Promise<{
     ]
 
     let response: string
+    const healthCheckOpts = {
+      systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
+      maxTokens: 10,
+      temperature: 0,
+    }
+
     if (provider === 'z-ai') {
-      response = await callZAI(testMessages, {
-        systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
-      })
+      response = await callZAI(testMessages, { systemPrompt: healthCheckOpts.systemPrompt })
     } else if (provider === 'cerebras') {
-      response = await callCerebras(testRoute.actualModel, testMessages, {
-        systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
-        maxTokens: 10,
-        temperature: 0,
-      })
+      response = await callCerebras(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'groq') {
+      response = await callGroq(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'mistral') {
+      response = await callMistral(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'codestral') {
+      response = await callCodestral(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'fireworks') {
+      response = await callFireworks(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'scaleway') {
+      response = await callScaleway(testRoute.actualModel, testMessages, healthCheckOpts)
     } else {
-      response = await callOpenRouter(testRoute.actualModel, testMessages, {
-        systemPrompt: 'You are a health check endpoint. Respond with exactly: OK',
-        maxTokens: 10,
-        temperature: 0,
-      })
+      response = await callOpenRouter(testRoute.actualModel, testMessages, healthCheckOpts)
     }
 
     const latencyMs = Date.now() - startTime
