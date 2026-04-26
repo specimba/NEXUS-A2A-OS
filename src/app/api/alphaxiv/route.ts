@@ -192,8 +192,44 @@ export async function GET(request: NextRequest) {
     const jinaKey = process.env.JINA_API_KEY || ''
 
     if (!tavilyKey && !jinaKey) {
+      // Fallback: redirect to arXiv direct API (no API key needed)
+      const arxivUrl = new URL('/api/arxiv', request.url)
+      if (topic) arxivUrl.searchParams.set('q', topic)
+      if (query) arxivUrl.searchParams.set('q', query)
+      arxivUrl.searchParams.set('max', String(maxResults))
+
+      try {
+        const arxivRes = await fetch(arxivUrl.toString())
+        if (arxivRes.ok) {
+          const arxivData = await arxivRes.json()
+          return NextResponse.json({
+            papers: (arxivData.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; isNew?: boolean }) => ({
+              id: p.id,
+              dbId: p.dbId,
+              title: p.title,
+              url: p.pdfUrl || '',
+              snippet: p.summary?.slice(0, 200) || '',
+              relevanceScore: p.relevanceScore ?? 0.5,
+              source: 'arxiv-fallback',
+              fetchedAt: new Date().toISOString(),
+              isNew: p.isNew ?? true,
+            })),
+            query: topic || query,
+            count: arxivData.count || 0,
+            provider: 'arxiv-fallback',
+            savedToDb: {
+              new: arxivData.newCount || 0,
+              existing: arxivData.existingCount || 0,
+              total: arxivData.count || 0,
+            },
+          })
+        }
+      } catch {
+        // arXiv fallback also failed
+      }
+
       return NextResponse.json(
-        { error: 'No search API keys configured', hint: 'Add TAVILY_API_KEY or JINA_API_KEY to .env' },
+        { error: 'No search API keys configured and arXiv fallback failed', hint: 'Add TAVILY_API_KEY or JINA_API_KEY to .env, or check arXiv API connectivity' },
         { status: 503 }
       )
     }
@@ -240,6 +276,42 @@ export async function GET(request: NextRequest) {
       papers = await searchWithJina(broaderJinaQuery, maxResults, jinaKey)
       if (papers.length > 0) {
         provider = 'jina-broadened'
+      }
+    }
+
+    // If all paid providers returned nothing, fallback to arXiv
+    if (papers.length === 0) {
+      const arxivUrl = new URL('/api/arxiv', request.url)
+      arxivUrl.searchParams.set('q', topic || query)
+      arxivUrl.searchParams.set('max', String(maxResults))
+      try {
+        const arxivRes = await fetch(arxivUrl.toString())
+        if (arxivRes.ok) {
+          const arxivData = await arxivRes.json()
+          return NextResponse.json({
+            papers: (arxivData.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; isNew?: boolean }) => ({
+              id: p.id,
+              dbId: p.dbId,
+              title: p.title,
+              url: p.pdfUrl || '',
+              snippet: p.summary?.slice(0, 200) || '',
+              relevanceScore: p.relevanceScore ?? 0.5,
+              source: 'arxiv-fallback',
+              fetchedAt: new Date().toISOString(),
+              isNew: p.isNew ?? true,
+            })),
+            query: topic || query,
+            count: arxivData.count || 0,
+            provider: 'arxiv-fallback',
+            savedToDb: {
+              new: arxivData.newCount || 0,
+              existing: arxivData.existingCount || 0,
+              total: arxivData.count || 0,
+            },
+          })
+        }
+      } catch {
+        // Continue to return empty results
       }
     }
 

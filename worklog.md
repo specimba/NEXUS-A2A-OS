@@ -3040,3 +3040,68 @@ Unresolved / Next Phase:
 5. Implement agent harness result improvement task mechanism (auto-retry failed tests with different models)
 6. Consider adding model comparison feature (run same prompt through multiple providers)
 7. Light theme styling pass still needed
+
+---
+Task ID: arxiv-crawler-1
+Agent: main
+Task: Build arXiv Paper Crawler — free API, no key needed — from DoppelGround legacy
+
+Work Log:
+- Found legacy `arxiv_adapter_clean.py` from DoppelGround v6.1.5 zip in /home/z/my-project/upload/
+- The Python adapter uses arXiv's free public API (export.arxiv.org) — NO API key required
+- Ported the adapter to TypeScript as `/api/arxiv/route.ts` with enhanced features:
+  - XML parsing (regex-based, no DOM deps) for arXiv Atom feed
+  - Search with category filtering (cs.AI, cs.CL, cs.LG, cs.MA, cs.RO, cs.CY, stat.ML)
+  - Sort by relevance/submittedDate/lastUpdatedDate
+  - Trending endpoint (multi-domain: AI governance, multi-agent, LLM research)
+  - Single paper fetch by arXiv ID
+  - NEXUS relevance scoring engine (category alignment + keyword matching + recency)
+  - NEXUS domain mapping (8 domains: AI Governance, Multi-Agent Systems, LLM Research, etc.)
+  - Auto-save to database with deduplication
+  - Retry with exponential backoff (3 attempts)
+- Updated `/api/alphaxiv/route.ts` to fall back to arXiv when no Tavily/Jina keys configured
+  - Also falls back to arXiv when Tavily/Jina return zero results
+- Added arXiv Crawler tab to Research tab (research-tab.tsx):
+  - New "arXiv Crawler" tab trigger (orange-themed)
+  - Search input with category dropdown (8 categories) and sort selector
+  - "Trending" button for quick access to latest papers
+  - 8 quick-search topic buttons (Multi-Agent Systems, LLM Alignment, Constitutional AI, etc.)
+  - Paper cards with arXiv ID, relevance score, priority badge, ARXIV badge
+  - Add to Queue and PDF link buttons per paper
+  - "NO API KEY NEEDED" badge prominently displayed
+  - Info banner crediting DoppelGround's arxiv_adapter_clean.py
+- Added "arXiv Trending" button in Research tab header
+- Tested all endpoints via curl:
+  - `/api/arxiv?q=multi-agent+systems&max=3` → 3 papers, saved to DB
+  - `/api/arxiv?trending=true&max=5` → 5 trending papers, saved to DB
+  - `/api/alphaxiv?topic=multi-agent+AI&max=3` → falls back to arXiv, returns 3 papers
+- Tested in browser via agent-browser:
+  - Research tab loads with 6 tabs (P0, P1, P2, α Alphaxiv, arXiv Crawler, Daily Practice)
+  - arXiv Crawler tab shows search UI with category/sort dropdowns
+  - Trending button fetches 10+ papers from arXiv API
+  - Alphaxiv search now works via arXiv fallback (no Tavily/Jina keys needed)
+  - Zero console errors
+- All lint checks pass
+
+Stage Summary:
+- arXiv Paper Crawler fully operational — free, no API key, direct to arXiv public API
+- 3 API endpoints: search, trending, fetch-by-id (all auto-save to DB)
+- Alphaxiv route now gracefully falls back to arXiv when no paid API keys configured
+- Research tab has new "arXiv Crawler" tab with full search/browsing capability
+- Based on DoppelGround's arxiv_adapter_clean.py v1.2 legacy code
+- Zero runtime errors, zero lint violations
+
+Current Project Status:
+- NEXUS OS Command Center fully functional with 10+ tabs
+- arXiv Paper Crawler: LIVE, no API key needed
+- Alphaxiv integration: works via arXiv fallback (Tavily/Jina optional)
+- All previous bugs (12 total from bugfix-round-6) remain fixed
+- AI Assistant, Command Palette, Governor thresholds all working
+
+Unresolved / Next Phase:
+1. Integrate real LLM provider APIs with quota-aware routing (Groq, Mistral, Cerebras, Fireworks, Scaleway)
+2. Implement glm5-style real model testing pipeline with StressLab
+3. Wire more tab data to real API endpoints (reduce mock data)
+4. Agent harness result improvement mechanisms (auto-retry with different models)
+5. Light theme styling pass
+6. Add more StressLab templates (target 84 from ISC-Bench)

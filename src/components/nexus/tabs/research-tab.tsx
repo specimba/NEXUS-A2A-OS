@@ -505,6 +505,11 @@ export function ResearchTab() {
   const [alphaxivLoading, setAlphaxivLoading] = useState(false)
   const [alphaxivResults, setAlphaxivResults] = useState<PaperItem[]>([])
   const [alphaxivTopic, setAlphaxivTopic] = useState('')
+  const [arxivLoading, setArxivLoading] = useState(false)
+  const [arxivResults, setArxivResults] = useState<PaperItem[]>([])
+  const [arxivQuery, setArxivQuery] = useState('')
+  const [arxivCategory, setArxivCategory] = useState('all')
+  const [arxivSort, setArxivSort] = useState('relevance')
 
   const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
 
@@ -708,6 +713,81 @@ export function ResearchTab() {
     }
   }
 
+  const handleFetchArxiv = async () => {
+    setArxivLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('q', arxivQuery || 'multi-agent AI systems governance')
+      params.set('max', '10')
+      if (arxivCategory && arxivCategory !== 'all') params.set('category', arxivCategory)
+      if (arxivSort) params.set('sort', arxivSort)
+      const res = await fetch(`/api/arxiv?${params.toString()}`)
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error('arXiv fetch failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
+        id: p.dbId || p.id,
+        externalId: p.id,
+        title: p.title,
+        relevance: p.relevanceScore ?? 0.5,
+        task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
+        deliverable: p.pdfUrl,
+        status: 'pending' as const,
+        priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
+        arxivId: p.arxivId,
+        domain: 'arxiv',
+      }))
+      setArxivResults(mapped)
+      const newCount = data.newCount || 0
+      const existingCount = data.existingCount || 0
+      toast.success(`Found ${mapped.length} papers via arXiv`, {
+        description: `${newCount} new, ${existingCount} existing saved to DB. Provider: ${data.provider}`,
+      })
+      refetch()
+    } catch {
+      toast.error('arXiv fetch failed', { description: 'Network error — check arXiv API connectivity' })
+    } finally {
+      setArxivLoading(false)
+    }
+  }
+
+  const handleFetchArxivTrending = async () => {
+    setArxivLoading(true)
+    try {
+      const res = await fetch('/api/arxiv?trending=true&max=15')
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error('arXiv trending fetch failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
+        id: p.dbId || p.id,
+        externalId: p.id,
+        title: p.title,
+        relevance: p.relevanceScore ?? 0.5,
+        task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
+        deliverable: p.pdfUrl,
+        status: 'pending' as const,
+        priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
+        arxivId: p.arxivId,
+        domain: 'arxiv',
+      }))
+      setArxivResults(mapped)
+      toast.success(`Fetched ${mapped.length} trending arXiv papers`, {
+        description: `Provider: ${data.provider} · ${data.newCount || 0} new papers`,
+      })
+      refetch()
+    } catch {
+      toast.error('arXiv trending fetch failed', { description: 'Network error' })
+    } finally {
+      setArxivLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Loading state with shimmer skeletons */}
@@ -793,6 +873,16 @@ export function ResearchTab() {
         >
           {alphaxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Library className="h-3.5 w-3.5" />}
           Fetch Alphaxiv
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 gap-1.5 text-xs border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press focus-ring-enhanced"
+          disabled={arxivLoading}
+          onClick={handleFetchArxivTrending}
+        >
+          {arxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+          arXiv Trending
         </Button>
       </div>
 
@@ -1021,6 +1111,7 @@ export function ResearchTab() {
           <TabsTrigger value="p1">P1 — Next</TabsTrigger>
           <TabsTrigger value="p2">P2 — Research</TabsTrigger>
           <TabsTrigger value="alphaxiv" className="text-blue-600 dark:text-blue-400">α Alphaxiv</TabsTrigger>
+          <TabsTrigger value="arxiv" className="text-orange-600 dark:text-orange-400">arXiv Crawler</TabsTrigger>
           <TabsTrigger value="practice">Daily Practice</TabsTrigger>
         </TabsList>
 
@@ -1291,6 +1382,213 @@ export function ResearchTab() {
                   </div>
                   <p className="text-sm font-medium text-muted-foreground">No AlphaXiv results yet</p>
                   <p className="text-[11px] text-muted-foreground/60 mt-1">Enter a topic and click Search to fetch papers</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* arXiv Paper Crawler */}
+        <TabsContent value="arxiv">
+          <Card className="relative overflow-hidden border-orange-500/30 shadow-lg shadow-orange-500/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-500/5 to-amber-600/8" />
+            <CardHeader className="relative pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-orange-600 dark:text-orange-400" /> arXiv Paper Crawler
+                  <DataSourceBadge source="live" />
+                  <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">NO API KEY NEEDED</Badge>
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
+                  disabled={arxivLoading}
+                  onClick={handleFetchArxivTrending}
+                >
+                  <Flame className="h-3 w-3 mr-1" /> Trending
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="relative p-4 pt-0 space-y-4">
+              {/* Search controls */}
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Search arXiv (e.g., constitutional AI, multi-agent governance, LLM reasoning)..."
+                  className="h-9 text-xs border-orange-500/30 focus:border-orange-500/50"
+                  value={arxivQuery}
+                  onChange={(e) => setArxivQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleFetchArxiv()}
+                />
+                <Select value={arxivCategory} onValueChange={setArxivCategory}>
+                  <SelectTrigger className="h-9 w-36 text-xs border-orange-500/30">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="cs.AI">cs.AI — AI</SelectItem>
+                    <SelectItem value="cs.CL">cs.CL — NLP</SelectItem>
+                    <SelectItem value="cs.LG">cs.LG — ML</SelectItem>
+                    <SelectItem value="cs.MA">cs.MA — Multi-Agent</SelectItem>
+                    <SelectItem value="cs.RO">cs.RO — Robotics</SelectItem>
+                    <SelectItem value="cs.CY">cs.CY — Safety/Policy</SelectItem>
+                    <SelectItem value="stat.ML">stat.ML — Stat/ML</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={arxivSort} onValueChange={setArxivSort}>
+                  <SelectTrigger className="h-9 w-32 text-xs border-orange-500/30">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Relevance</SelectItem>
+                    <SelectItem value="submittedDate">Newest</SelectItem>
+                    <SelectItem value="lastUpdatedDate">Updated</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="h-9 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white shrink-0 btn-press"
+                  disabled={arxivLoading}
+                  onClick={handleFetchArxiv}
+                >
+                  {arxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  Search
+                </Button>
+              </div>
+
+              {/* Info banner */}
+              <div className="rounded-md border border-orange-500/20 bg-orange-500/5 p-3">
+                <p className="text-xs font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                  <Zap className="h-3 w-3" /> Direct arXiv API — No API Key Required
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Papers are fetched directly from arXiv&apos;s public API, auto-scored by NEXUS relevance engine,
+                  and saved to the database. Based on DoppelGround&apos;s arxiv_adapter_clean.py v1.2.
+                  Use &quot;Trending&quot; for the latest papers across AI/ML/NLP/Multi-Agent domains.
+                </p>
+              </div>
+
+              {/* Quick search topics */}
+              <div className="flex flex-wrap gap-1.5">
+                {['Multi-Agent Systems', 'LLM Alignment', 'Constitutional AI', 'Tool Use', 'RAG', 'Reasoning', 'AI Safety', 'Code Generation'].map(topic => (
+                  <Button
+                    key={topic}
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
+                    onClick={async () => {
+                      setArxivQuery(topic)
+                      // Use the topic directly since state update is async
+                      setArxivLoading(true)
+                      try {
+                        const params = new URLSearchParams()
+                        params.set('q', topic)
+                        params.set('max', '10')
+                        if (arxivCategory && arxivCategory !== 'all') params.set('category', arxivCategory)
+                        const res = await fetch(`/api/arxiv?${params.toString()}`)
+                        if (res.ok) {
+                          const data = await res.json()
+                          const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
+                            id: p.dbId || p.id,
+                            externalId: p.id,
+                            title: p.title,
+                            relevance: p.relevanceScore ?? 0.5,
+                            task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
+                            deliverable: p.pdfUrl,
+                            status: 'pending' as const,
+                            priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
+                            arxivId: p.arxivId,
+                            domain: 'arxiv',
+                          }))
+                          setArxivResults(mapped)
+                          toast.success(`Found ${mapped.length} papers for "${topic}"`, {
+                            description: `${data.newCount || 0} new papers saved to DB`,
+                          })
+                          refetch()
+                        }
+                      } catch {
+                        toast.error('arXiv fetch failed')
+                      } finally {
+                        setArxivLoading(false)
+                      }
+                    }}
+                    disabled={arxivLoading}
+                  >
+                    {topic}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Results */}
+              {arxivResults.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+                  {arxivResults.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="hover:border-orange-500/30 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60 btn-press shadow-sm shadow-orange-600/5"
+                      onClick={() => openPaperDialog(item)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/15">
+                            <BookOpen className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {item.arxivId && (
+                                <span className="text-xs font-mono text-orange-500 dark:text-orange-400">{item.arxivId}</span>
+                              )}
+                              <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px]">
+                                Relevance: {(item.relevance * 100).toFixed(0)}%
+                              </Badge>
+                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
+                                {item.priority}
+                              </Badge>
+                              <Badge className="bg-orange-500/15 text-orange-500 dark:text-orange-400 border-0 text-[9px]">
+                                ARXIV
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm font-medium leading-snug">{item.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
+                          </div>
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAddPaper(item)
+                              }}
+                            >
+                              <Plus className="h-3 w-3 mr-1" /> Add
+                            </Button>
+                            {item.arxivId && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  window.open(`https://arxiv.org/abs/${item.arxivId}`, '_blank', 'noopener,noreferrer')
+                                }}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" /> PDF
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10 mb-3">
+                    <BookOpen className="h-5 w-5 text-orange-500/50" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">No arXiv results yet</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">Enter a query and click Search, or click Trending for latest papers</p>
                 </div>
               )}
             </CardContent>
