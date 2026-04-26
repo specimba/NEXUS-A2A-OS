@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { classifyPaper, CONCEPT_META, ROLE_META, TIER_META } from '@/lib/dg/classification-engine'
+import type { PaperInput } from '@/lib/dg/classification-engine'
 
 /**
  * arXiv Paper Crawler API
@@ -68,6 +70,14 @@ interface PaperResult {
   source: string
   fetchedAt: string
   isNew: boolean
+  // DG Classification
+  admissionTier?: string
+  researchRole?: string
+  conceptIds?: string[]
+  projectFit?: string
+  dgFinalScore?: number
+  promotable?: boolean
+  priorityBand?: string
 }
 
 // ── XML Parsing (no external deps needed) ────────────────────────────
@@ -253,10 +263,17 @@ async function fetchTrending(maxResults: number = 10): Promise<ArxivPaper[]> {
   return allPapers.slice(0, maxResults)
 }
 
-// ── Save papers to database ──────────────────────────────────────────
+// ── Save papers to database (with DG classification) ─────────────────
 
 async function savePapersToDb(papers: ArxivPaper[], query?: string): Promise<PaperResult[]> {
   const saved: PaperResult[] = []
+
+  // Get existing papers for crowding/prior-seen calculation
+  const existingPapers = await db.paper.findMany({
+    select: { title: true, category: true },
+    take: 200,
+    orderBy: { createdAt: 'desc' },
+  })
 
   for (const paper of papers) {
     try {
@@ -290,15 +307,29 @@ async function savePapersToDb(papers: ArxivPaper[], query?: string): Promise<Pap
           source: 'arxiv-existing',
           fetchedAt: new Date().toISOString(),
           isNew: false,
+          // DG classification from DB
+          admissionTier: existing.admissionTier as PaperResult['admissionTier'],
+          researchRole: existing.researchRole as PaperResult['researchRole'],
+          conceptIds: existing.conceptIds ? JSON.parse(existing.conceptIds) : [],
+          projectFit: existing.projectFit as PaperResult['projectFit'],
+          dgFinalScore: existing.dgFinalScore,
+          promotable: existing.promotable,
+          priorityBand: existing.priorityTier as PaperResult['priorityBand'],
         })
       } else {
-        // Compute relevance score based on category match to NEXUS domains
-        const relevanceScore = computeRelevance(paper)
-
-        const priorityTier = relevanceScore > 0.8 ? 'P0' : relevanceScore > 0.5 ? 'P1' : 'P2'
-
-        // Determine NEXUS mapping
-        const nexusMapping = computeNexusMapping(paper)
+        // Run DG classification engine
+        const classification = classifyPaper({
+          title: paper.title,
+          summary: paper.summary,
+          category: paper.category,
+          categories: paper.categories,
+          pdfUrl: paper.pdfUrl,
+          arxivId: paper.arxivId,
+          sourceType: 'paper',
+          sourceSubtype: 'arxiv_pdf',
+          existingPaperCount: existingPapers.length,
+          seenTitles: existingPapers.map(p => p.title),
+        })
 
         const created = await db.paper.create({
           data: {
@@ -307,17 +338,46 @@ async function savePapersToDb(papers: ArxivPaper[], query?: string): Promise<Pap
             title: paper.title,
             pdfUrl: paper.pdfUrl,
             abstractSummary: paper.summary.slice(0, 1000),
-            relevanceScore,
-            nexusMapping: JSON.stringify(nexusMapping),
+            authors: JSON.stringify(paper.authors),
+            publishedDate: paper.published,
+            category: paper.category,
+            categories: JSON.stringify(paper.categories),
+            // DG Classification
+            admissionTier: classification.admissionTier,
+            sourceFamily: classification.sourceFamily,
+            sourceSubtype: classification.sourceSubtype,
+            researchRole: classification.researchRole,
+            conceptIds: JSON.stringify(classification.conceptIds),
+            projectFit: classification.projectFit,
+            // DG Scoring
+            relevanceScore: classification.relevanceScore,
+            dgFinalScore: classification.dgFinalScore,
+            noveltyScore: classification.noveltyScore,
+            evidenceQuality: classification.evidenceQuality,
+            priorSeenHint: classification.priorSeenHint,
+            crowdingPenalty: classification.crowdingPenalty,
+            primaryEvidenceBonus: classification.primaryEvidenceBonus,
+            dossierAlignment: classification.dossierAlignment,
+            // Promotion
+            promotable: classification.promotable,
+            missingFields: JSON.stringify(classification.missingFields),
+            promotionReason: classification.promotionReason,
+            // Priority
+            priorityTier: classification.priorityBand === 'HOLD' ? 'P2' : classification.priorityBand,
+            implementationTask: 'Pending review',
+            deliverable: paper.pdfUrl,
+            isVetted: false,
+            // Provenance
+            nexusMapping: JSON.stringify(classification.conceptIds.map(id => CONCEPT_META[id]?.title || id)),
             keyNumbers: JSON.stringify({
               authors: paper.authors.length,
               categories: paper.categories.length,
               primaryCategory: paper.category,
+              dgScore: classification.dgFinalScore,
+              researchRole: classification.researchRole,
             }),
-            priorityTier,
-            implementationTask: 'Pending review',
-            deliverable: paper.pdfUrl,
-            isVetted: false,
+            traceRef: `arxiv:${new Date().toISOString().replace(/[:.]/g, '')}:${externalId}`,
+            provenanceSource: 'arxiv_api',
           },
         })
 
@@ -333,15 +393,32 @@ async function savePapersToDb(papers: ArxivPaper[], query?: string): Promise<Pap
           authors: paper.authors,
           published: paper.published,
           updated: paper.updated,
-          relevanceScore,
+          relevanceScore: classification.relevanceScore,
           source: 'arxiv-new',
           fetchedAt: new Date().toISOString(),
           isNew: true,
+          // DG Classification
+          admissionTier: classification.admissionTier,
+          researchRole: classification.researchRole,
+          conceptIds: classification.conceptIds,
+          projectFit: classification.projectFit,
+          dgFinalScore: classification.dgFinalScore,
+          promotable: classification.promotable,
+          priorityBand: classification.priorityBand,
         })
       }
     } catch (err) {
       console.error('Failed to save arXiv paper:', paper.arxivId, err)
       // Still include the paper even if DB save fails
+      const classification = classifyPaper({
+        title: paper.title,
+        summary: paper.summary,
+        category: paper.category,
+        arxivId: paper.arxivId,
+        sourceType: 'paper',
+        sourceSubtype: 'arxiv_pdf',
+      })
+
       saved.push({
         id: `arxiv-${paper.arxivId}`,
         dbId: null,
@@ -354,60 +431,22 @@ async function savePapersToDb(papers: ArxivPaper[], query?: string): Promise<Pap
         authors: paper.authors,
         published: paper.published,
         updated: paper.updated,
-        relevanceScore: 0.5,
+        relevanceScore: classification.relevanceScore,
         source: 'arxiv-unsaved',
         fetchedAt: new Date().toISOString(),
         isNew: true,
+        admissionTier: classification.admissionTier,
+        researchRole: classification.researchRole,
+        conceptIds: classification.conceptIds,
+        projectFit: classification.projectFit,
+        dgFinalScore: classification.dgFinalScore,
+        promotable: classification.promotable,
+        priorityBand: classification.priorityBand,
       })
     }
   }
 
   return saved
-}
-
-// ── Relevance Scoring ────────────────────────────────────────────────
-
-function computeRelevance(paper: ArxivPaper): number {
-  let score = 0.4 // Base score
-
-  // Category alignment with NEXUS domains
-  const nexusCategories = Object.values(NEXUS_DOMAINS).flat()
-  const categoryMatch = paper.categories.filter(c => nexusCategories.includes(c)).length
-  score += Math.min(categoryMatch * 0.1, 0.3)
-
-  // Title keywords (weighted heavily)
-  const titleLower = paper.title.toLowerCase()
-  const highValueKeywords = ['multi-agent', 'governance', 'alignment', 'safety', 'llm', 'foundation model', 'reasoning', 'planning']
-  const mediumValueKeywords = ['reinforcement learning', 'benchmark', 'evaluation', 'tool use', 'chain-of-thought', 'retrieval', 'rag']
-
-  for (const kw of highValueKeywords) {
-    if (titleLower.includes(kw)) score += 0.05
-  }
-  for (const kw of mediumValueKeywords) {
-    if (titleLower.includes(kw)) score += 0.02
-  }
-
-  // Recency bonus (papers from last 30 days get a boost)
-  if (paper.published) {
-    const pubDate = new Date(paper.published)
-    const daysSince = (Date.now() - pubDate.getTime()) / (1000 * 60 * 60 * 24)
-    if (daysSince < 30) score += 0.05
-    if (daysSince < 7) score += 0.05
-  }
-
-  return Math.min(score, 1.0)
-}
-
-function computeNexusMapping(paper: ArxivPaper): string[] {
-  const mappings: string[] = []
-
-  for (const [domain, categories] of Object.entries(NEXUS_DOMAINS)) {
-    if (paper.categories.some(c => categories.includes(c))) {
-      mappings.push(domain)
-    }
-  }
-
-  return mappings.length > 0 ? mappings : ['General Research']
 }
 
 // ── GET Handler ──────────────────────────────────────────────────────

@@ -3105,3 +3105,72 @@ Unresolved / Next Phase:
 4. Agent harness result improvement mechanisms (auto-retry with different models)
 5. Light theme styling pass
 6. Add more StressLab templates (target 84 from ISC-Bench)
+
+---
+Task ID: dg-integration-1
+Agent: main
+Task: Port DoppelGround categorization system to NEXUS OS — deep integration
+
+Work Log:
+- Extracted DoppelGround_m0_freeze_current.zip (2864 files) from user upload
+- Read # DoppelGround ReviewGround — Curr.txt (comprehensive position document)
+- Performed deep dive analysis of the full DoppelGround repository:
+  - 7-tier source ontology (SC/SS/WR/SR/OF/Q admission tiers)
+  - Research role taxonomy (10 roles: evaluation/safety/memory/harness/etc.)
+  - Concept taxonomy (7 concepts: agent_memory, bounded_execution_harness, etc.)
+  - Scoring engine (0-15 scale with novelty/evidence/crowding/dossier)
+  - Priority bands (P0/P1/P2/HOLD)
+  - Promotion ledger (source_stub → source_card promotion rules)
+  - Source family/subtype classification system
+  - Dossier keyword rules per project lane
+  - Mission batch V2 format with trace_ref and concept_ids
+- Updated Prisma Paper model with 20+ new DG fields:
+  - admissionTier, sourceFamily, sourceSubtype, researchRole
+  - conceptIds, projectFit
+  - dgFinalScore, noveltyScore, evidenceQuality, priorSeenHint, crowdingPenalty, primaryEvidenceBonus, dossierAlignment
+  - promotable, missingFields, promotionReason
+  - authors, publishedDate, category, categories
+  - traceRef, provenanceSource
+- Created DG Classification Engine library (src/lib/dg/classification-engine.ts):
+  - Full TypeScript port of DoppelGround's classification pipeline
+  - classifyPaper() — one-call full classification pipeline
+  - 7-tier admission class system with promotion rules
+  - Research role detection from title/summary/category keywords
+  - Concept mapping from 7 DoppelGround concepts
+  - Scoring formula (0-15 scale) with DG's exact weights
+  - Priority band determination
+  - Promotion eligibility checking
+  - Exported CONCEPT_META, ROLE_META, TIER_META for UI rendering
+- Updated /api/arxiv route to use DG classification engine:
+  - Every new paper gets full DG classification on fetch
+  - Existing papers return DG fields from DB
+  - All DG scoring saved to database
+  - Crowding penalty uses existing paper count
+  - Prior-seen hint uses existing paper titles
+- Database rebuilt with new schema (fresh SQLite)
+- All lint checks pass
+- Dev server running on port 3000
+
+Stage Summary:
+- DoppelGround categorization engine fully ported to TypeScript
+- Prisma schema extended with 20+ DG classification fields
+- arXiv API automatically classifies papers using DG system
+- Papers now get: admission tier, research role, concept mapping, DG scoring, promotion tracking
+- Based on battle-tested DoppelGround v6.1.5 categorization system
+- Zero lint violations
+
+Current Project Status:
+- NEXUS OS Command Center with 10+ tabs, all functional
+- arXiv Paper Crawler: LIVE with DG classification
+- DoppelGround classification engine: ACTIVE in backend
+- Paper model: 35+ fields including full DG classification
+- Frontend Research tab: still needs UI update for DG fields (Phase 1c)
+
+Unresolved / Next Phase:
+1. PHASE 1c: Update Research tab UI to display DG classification (tier badges, role badges, concept tags, score breakdown)
+2. PHASE 2: Promotion ledger — API endpoint + UI for paper promotion tracking
+3. PHASE 3: Mission batch generation from paper evidence (V2 format)
+4. PHASE 4: Real LLM provider integration with quota-aware routing
+5. PHASE 5: Machine evidence packet export (DG-06 milestone)
+6. CRON: Set up automated 15-min review cycle
+7. BUG TRACKING: Maintain issue count below 20 at all times

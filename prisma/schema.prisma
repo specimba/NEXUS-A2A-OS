@@ -115,19 +115,61 @@ model TestRun {
 model Paper {
   id                String   @id @default(cuid())
   externalId        String?  // arxiv ID or repo ID
-  type              String   @default("paper") // paper, repo
+  type              String   @default("paper") // paper, repo, dataset, docs
+
+  // ─── Core Metadata ───
   title             String
   pdfUrl            String?
   repoUrl           String?
   abstractSummary   String?
   conclusionTakeaway String?
-  relevanceScore    Float    @default(0.0)
-  nexusMapping      String?  // JSON array string
-  keyNumbers        String?  // JSON object string
-  priorityTier      String   @default("P2") // P0, P1, P2
+  authors           String?  // JSON array of author names
+  publishedDate     String?  // ISO date string
+  category          String?  // Primary arXiv category (e.g., cs.AI)
+  categories        String?  // JSON array of all categories
+
+  // ─── DoppelGround Classification Engine ───
+  // Object class: 7-tier source ontology from DG
+  admissionTier     String   @default("source_stub") // source_card, source_stub, web_reference, social_reference, operator_fragment, quarantine, top_attention
+  sourceFamily      String   @default("paper") // paper, repo, dataset, docs, social, unknown
+  sourceSubtype     String?  // arxiv_page, arxiv_pdf, github_repo, hf_paper, openreview_paper, direct_pdf, etc.
+
+  // Research role: what this source contributes to research
+  researchRole      String   @default("context_only") // evaluation, safety, memory, harness, implementation, compression, benchmark, survey, infra, context_only
+
+  // Concept mapping: which research concepts this paper relates to
+  conceptIds        String?  // JSON array of concept IDs (e.g., ["agent_memory", "bounded_execution_harness"])
+
+  // Project fit: which project lane this source serves
+  projectFit        String   @default("general") // doppelground, twave, sequence, general
+
+  // ─── DoppelGround Scoring Engine ───
+  relevanceScore    Float    @default(0.0) // Final computed relevance (0-1 scale)
+  dgFinalScore      Int      @default(0) // DG scoring engine result (0-15 scale)
+  noveltyScore      Int      @default(0)  // 0-2
+  evidenceQuality   Int      @default(0)  // 0-5
+  priorSeenHint     Int      @default(0)  // 0-3
+  crowdingPenalty   Int      @default(0)  // 0-3
+  primaryEvidenceBonus Int   @default(0)  // 0-3
+  dossierAlignment  Int      @default(0)  // 0-5
+
+  // ─── Promotion Tracking ───
+  promotable        Boolean  @default(false) // Whether this paper can be promoted to source_card
+  missingFields     String?  // JSON array of missing fields for promotion
+  promotionReason   String?  // Why promoted or demoted
+
+  // ─── Priority & Task ───
+  priorityTier      String   @default("P2") // P0, P1, P2, HOLD
   implementationTask String?
   deliverable       String?
   isVetted          Boolean  @default(false)
+
+  // ─── Provenance ───
+  nexusMapping      String?  // JSON array string (NEXUS domain mapping)
+  keyNumbers        String?  // JSON object string
+  traceRef          String?  // DG trace reference
+  provenanceSource  String?  // Where this paper was fetched from (arxiv_api, alphaxiv, manual, etc.)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
