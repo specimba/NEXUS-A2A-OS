@@ -114,8 +114,8 @@ export function NexusFooter() {
       
       {/* Left side: NEXUS OS branding + constitution */}
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span className="font-semibold gradient-text">NEXUS OS</span>
-        <span>v3.0</span>
+        <span className="font-semibold gradient-text">NEXUS OS v3.1</span>
+        <span>— Cloud Intelligence Dashboard</span>
         <span className="text-border">|</span>
         <span>Constitution: 5 agents/hr &middot; 20 API/session &middot; 2 concurrent &middot; 30 writes</span>
       </div>
@@ -165,7 +165,7 @@ export function NexusFooter() {
         </div>
       </div>
 
-      {/* Right side: uptime + live */}
+      {/* Right side: uptime + live + powered by */}
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
         <span suppressHydrationWarning>Session: {uptime}</span>
         <span className="text-border">|</span>
@@ -173,6 +173,8 @@ export function NexusFooter() {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse status-pulse-green status-glow-green" />
           Live
         </span>
+        <span className="text-border">|</span>
+        <span className="text-[10px] text-muted-foreground/60">Powered by z-ai</span>
       </div>
     </footer>
   )

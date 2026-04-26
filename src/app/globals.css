@@ -1134,3 +1134,76 @@
     transparent
   );
 }
+
+/* ── AWS CID-inspired Utility Classes ──────────────────────────── */
+
+/* AWS CID-inspired clean card style */
+.cid-card {
+  @apply rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md;
+}
+
+/* Subtle section divider */
+.section-divider {
+  @apply h-px bg-gradient-to-r from-transparent via-border to-transparent my-6;
+}
+
+/* Data freshness indicator */
+.data-fresh {
+  @apply inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400;
+}
+
+.data-fresh::before {
+  content: '';
+  @apply w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse;
+}
+
+/* Professional KPI value */
+.kpi-value {
+  @apply text-3xl font-bold tabular-nums tracking-tight;
+}
+
+/* Subtle gradient section header */
+.section-header {
+  @apply text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4;
+}
+
+/* LIVE badge green glow pulse */
+.live-badge-glow {
+  box-shadow: 0 0 6px oklch(0.65 0.2 155 / 30%), 0 0 12px oklch(0.65 0.2 155 / 15%);
+  animation: liveBadgePulse 2s ease-in-out infinite;
+}
+
+@keyframes liveBadgePulse {
+  0%, 100% { box-shadow: 0 0 4px oklch(0.65 0.2 155 / 20%), 0 0 8px oklch(0.65 0.2 155 / 10%); }
+  50% { box-shadow: 0 0 8px oklch(0.65 0.2 155 / 40%), 0 0 16px oklch(0.65 0.2 155 / 20%); }
+}
+
+:root .live-badge-glow {
+  box-shadow: 0 0 6px oklch(0.508 0.164 155 / 20%), 0 0 12px oklch(0.508 0.164 155 / 10%);
+}
+
+@keyframes liveBadgePulseLight {
+  0%, 100% { box-shadow: 0 0 4px oklch(0.508 0.164 155 / 15%), 0 0 8px oklch(0.508 0.164 155 / 8%); }
+  50% { box-shadow: 0 0 8px oklch(0.508 0.164 155 / 25%), 0 0 16px oklch(0.508 0.164 155 / 12%); }
+}
+
+:root .live-badge-glow {
+  animation: liveBadgePulseLight 2s ease-in-out infinite;
+}
+
+/* DB-sourced log entry left border indicator */
+.log-entry-real {
+  border-left: 3px solid oklch(0.65 0.2 155 / 60%);
+}
+
+:root .log-entry-real {
+  border-left: 3px solid oklch(0.508 0.164 155 / 50%);
+}
+
+.log-entry-simulated {
+  border-left: 3px solid oklch(0.4 0.02 155 / 20%);
+}
+
+:root .log-entry-simulated {
+  border-left: 3px solid oklch(0.7 0.02 155 / 25%);
+}

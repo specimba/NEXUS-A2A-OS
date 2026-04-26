@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'swarm', label: 'Swarm', icon: <Bug className="h-4 w-4" /> },
   { id: 'tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" /> },
   { id: 'ratelimit', label: 'Rate Limits', icon: <Gauge className="h-4 w-4" /> },
+  { id: 'kpi', label: 'KPI Dashboard', icon: <Target className="h-4 w-4" /> },
 ]
 
 function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { activeTab: NexusTab; setActiveTab: (t: NexusTab) => void; collapsed: boolean; onNavigate?: () => void }) {
@@ -112,7 +114,7 @@ export function NexusSidebar() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold tracking-tight">NEXUS OS</span>
-                  <span className="text-[10px] text-muted-foreground">v3.0 — Command Center</span>
+                  <span className="text-[10px] text-muted-foreground">v3.1 — Intelligence Dashboard</span>
                 </div>
               </div>
               <SidebarNav
@@ -155,7 +157,7 @@ export function NexusSidebar() {
           {sidebarOpen && (
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-bold tracking-tight text-foreground">NEXUS OS</span>
-              <span className="text-[10px] text-muted-foreground">v3.0 — Command Center</span>
+              <span className="text-[10px] text-muted-foreground">v3.1 — Intelligence Dashboard</span>
             </div>
           )}
         </div>

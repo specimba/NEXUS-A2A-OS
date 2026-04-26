@@ -2638,3 +2638,204 @@ Stage Summary:
 - Complete mock vs real audit: 84% of dashboard is connected to real backend data
 - Fusion pack delivered following GLM_FUSION_INTAKE_CHECKLIST structure
 - All lint checks pass, dev server running cleanly
+
+---
+Task ID: 2
+Agent: kpi-dashboard-agent
+Task: Create KPI Dashboard tab
+
+Work Log:
+- Read existing codebase files: nexus-store.ts, sidebar.tsx, tab-content.tsx, charts.tsx, use-api-data.ts, overview-tab.tsx, rate-limit-tab.tsx, API routes (system, tokens, stresslab, governor, vault, models)
+- Updated NexusTab type in nexus-store.ts to include 'kpi'
+- Added Target icon import and KPI Dashboard nav item to sidebar.tsx
+- Imported KpiTab and registered it in tab-content.tsx tabComponents map
+- Created comprehensive kpi-tab.tsx component (~470 lines) with all 6 required sections:
+  - A. Executive Summary Row (4 gradient stat cards: System Health Score, Budget Utilization, Trust Index, Collapse Rate)
+  - B. KPI Goals Tracker (8 KPIs with progress bars, status badges, trend indicators, and inline edit dialog)
+  - C. Unit Economics (4 cards: Cost per Decision, Cost per Pass, Tokens/Agent-Hour, Cost per Vault Entry)
+  - D. Model Coverage Analysis (Pool Coverage, Model Utilization bar chart, 7-day Coverage Trend sparklines)
+  - E. Anomaly Detection (computed from real API data - token spikes, trust drops, health degradation, budget alerts)
+  - F. Optimization Recommendations (CORA-inspired with priority/status filters, dismiss/apply buttons)
+- Ran ESLint: no errors
+- Verified dev server is running and API endpoints responding
+
+Stage Summary:
+- Successfully added 10th "KPI Dashboard" tab to NEXUS OS Command Center
+- All 6 sections implemented: Executive Summary, KPI Goals Tracker, Unit Economics, Model Coverage Analysis, Anomaly Detection, Optimization Recommendations
+- Component uses real data from /api/system, /api/tokens, /api/stresslab, /api/governor via useApiData hook with 30s auto-refresh
+- KPI targets are editable via dialog (local state only with toast feedback)
+- Recommendations support dismiss/apply with local state + toast
+- Full dark theme support, responsive layout, stagger animations
+- Lint clean, dev server operational
+
+---
+Task ID: 1
+Agent: overview-wiring-agent
+Task: Wire Overview Tab to /api/system
+
+Work Log:
+- Read useApiData hook API: returns { data, loading, error, refetch } with auto-refresh interval
+- Read data-source-badge.tsx: supports 'live' | 'simulated' | 'seed' | 'mock' | 'computed' sources
+- Read /api/system route: returns overview.pillars, overview.stats, overview.recentDecisions, overview.agentActivity, overview.tokenHistory, overview.healthTimeline, overview.collapseRateTrend, overview.avgTrust, overview.totalVaultEntries
+- Read full overview-tab.tsx (2068 lines) to identify all hardcoded data references
+- Imported useApiData hook from @/hooks/use-api-data
+- Added API data fetch at top of OverviewTab: useApiData<any>('/api/system', 15000)
+- Renamed 7 hardcoded constants with fallback prefix: fallbackPillars, fallbackTokenHistory, fallbackAgentActivity, fallbackCollapseRateTrend, fallbackRecentDecisions, fallbackHealthTimelineData, fallbackPillarSparklines
+- Created computed values merging API data with fallbacks: pillars, tokenHistory, agentActivity, collapseRateTrend, recentDecisions, healthTimeline, avgTrust, totalVaultEntries, tokenBudget, activeAgents, stressLab, collapseRate, pillarSparklines
+- Added pillarIconMap for mapping API pillar names to Lucide icons
+- Added useMemo-based apiPillars transformation converting API pillar data to component format with icon/status/trend
+- Added useMemo-based pillarSparklines derived from healthTimeline (last 6 data points) when available
+- Replaced hardcoded stat card values with API-derived values:
+  - Token Budget: tokenBudget.remaining, tokenBudget.total, tokenBudget.pct
+  - Active Agents: activeAgents.total, activeAgents.busy, activeAgents.idle, activeAgents.error, activeAgents.max
+  - StressLab Runs: stressLab.runs, stressLab.templates
+  - Collapse Rate: collapseRate (dynamic decimal display)
+- Replaced hardcoded NexusGauge values with tokenBudget.used and tokenBudget.total
+- Replaced hardcoded trust avg (0.73) with avgTrust.toFixed(2)
+- Replaced hardcoded vault entries count (1,247) with totalVaultEntries.toLocaleString()
+- Added DataSourceBadge at top of page showing LIVE when systemData exists, FALLBACK otherwise
+- Added loading skeleton when systemLoading is true and no data yet (skeleton cards with pulse animation)
+- Updated SystemHealthTimeline to accept data and dataSource props, passing healthTimeline and dataSource
+- Updated DataSourceBadge instances throughout: Token Budget (seed→dataSource), 8-Pillar Status (mock→dataSource), Recent Decisions (mock→dataSource), Health Timeline (mock→dataSource)
+- Updated ViewAllPillarsDialog to accept pillarsData and sparklinesData props
+- Updated PillarDetailDialog type reference from typeof pillars to typeof fallbackPillars
+- Updated export report summary to use dynamic values from API data
+- Updated welcome banner token count to use tokenBudget.remaining
+- All lint checks pass (bun run lint — zero errors)
+
+Stage Summary:
+- OverviewTab now wired to /api/system with 15-second auto-refresh
+- 7 hardcoded data constants preserved as fallbacks (prefixed with fallback)
+- All stat cards, charts, and tables use real API data when available
+- DataSourceBadge clearly indicates LIVE vs FALLBACK data source
+- Loading skeleton shown during initial API fetch
+- SystemHealthTimeline uses real health timeline data from API
+- Pillar sparklines derived from real healthTimeline when available
+- Recent decisions table shows real GovernorDecision records from DB
+- Zero lint violations, no compilation errors
+
+---
+Task ID: 3
+Agent: tokens-logs-upgrade-agent
+Task: Enhance Tokens tab with AWS CID features + Connect System Logs to real data
+
+Work Log:
+- Read existing source files: tokens-tab.tsx, system-logs.tsx, API routes, DB schema, charts.tsx, use-api-data.ts, data-source-badge.tsx
+- A1: Replaced hardcoded optimizationSuggestions array with dynamically computed useMemo based on real data from /api/tokens and /api/models
+  - Added ModelsApiResponse interface and ModelEntry interface for /api/models data
+  - Added ComputedSuggestion interface with title, detail, estimatedSavings, impact, owner
+  - Added useApiData<ModelsApiResponse>('/api/models') second fetch in TokensTab
+  - Computed 4 types of suggestions: model swap recommendations (by domain), budget burn rate alert, underutilized models (totalCalls < 5), agent efficiency (tokens > 2x avg)
+  - Each suggestion includes title, detail, estimatedSavings (computed %), impact (HIGH/MEDIUM/LOW), owner, and Apply button
+  - Added owner badge and DataSourceBadge source="computed" to section header
+- A2: Added Model Spend Coverage section with:
+  - Horizontal stacked bar chart showing token distribution across PREMIUM/MID/FAST/FREE_RESEARCH tiers
+  - Tier assignment logic: isFree→FREE_RESEARCH, tier≥80→PREMIUM, tier≥50→MID, else FAST
+  - Per-tier detail cards: tokens, % of spend, model count
+  - Coverage Score NexusGauge showing % of tokens handled by cost-efficient tiers (FAST+FREE_RESEARCH)
+  - Contextual text based on coverage score thresholds (≥60% good, ≥30% ok, <30% poor)
+- A3: Added Daily Token Consumption Trend chart:
+  - 7-day AreaChart using data from TokenUsageLog, grouped by day
+  - Blue color scheme with gradient fill, custom tooltip with formatted numbers
+  - Only shown when dailyCostTrend data is available
+- A4: Fixed hardcoded burn rate (was 142 tok/min):
+  - Replaced with useMemo computing: totalUsed / ((now - sessionStartedAt) / 60000)
+  - Falls back to 0 when no session data or no usage
+  - Updated all 3 locations using burnRate (main badge, budget forecast, projected curve) with graceful "—" / "Calculating..." when 0
+- B1: Created /api/logs endpoint (src/app/api/logs/route.ts):
+  - Queries latest 50 VaultEntry records with agent relation
+  - Queries latest 20 RateLimitLog records (try/catch for graceful skip)
+  - Queries latest 20 TokenUsageLog records (>5000 tokens = WARN, else DEBUG, source TOKENS)
+  - Queries latest 10 GovernorDecision records with agent relation
+  - Transform rules: EVENT→INFO/VAULT, TRUST→INFO/GOVERNOR, FAIL→ERROR/VAULT, GOV→WARN/GOVERNOR, DENIED→ERROR/GOVERNOR, HOLD→WARN/GOVERNOR, ALLOW→INFO/GOVERNOR
+  - Returns unified format: { entries: [{ id, level, source, message, timestamp, metadata }] }
+  - Sorted by timestamp descending
+- B2: Updated system-logs.tsx to use real data:
+  - Added useApiData<>/api/logs fetch with 10s auto-refresh
+  - Added LogEntry.isReal flag for distinguishing DB vs simulated entries
+  - Added logMode state: 'real' (DB only) vs 'live' (real + simulated)
+  - Added toggle buttons: "Real Logs" (Database icon) vs "Live Feed" (Wifi icon) in header
+  - Added "DB" badge on real entries for visual distinction
+  - Added "Data Source" indicator in footer: "X DB | Y simulated"
+  - Real entries merged first in live mode, simulated as continuous fallback
+  - TOKENS source added to sourceColors and filter dropdown
+- B3: Enhanced export functionality:
+  - Export now includes [DB] or [SIM] marker per entry
+  - Toast shows count breakdown: "X real, Y simulated"
+- Added NexusGauge import to tokens-tab.tsx from charts.tsx
+- Added useMemo import to system-logs.tsx
+- All lint checks pass (bun run lint — zero errors)
+
+Stage Summary:
+- TokensTab: 4 major upgrades (computed optimization suggestions, model spend coverage with gauge, daily cost trend chart, real burn rate calculation)
+- System Logs: 3 major upgrades (real DB data via /api/logs, Real/Live toggle with data source indicator, enhanced export with DB/SIM markers)
+- New API endpoint: /api/logs serving unified log entries from VaultEntry, RateLimitLog, TokenUsageLog, GovernorDecision
+- No lint violations, no compilation errors
+---
+Task ID: 6
+Agent: visual-polish-agent
+Task: Visual polish — AWS CID-inspired professional dashboard aesthetics
+
+Work Log:
+- Updated sidebar version from "v3.0 — Command Center" to "v3.1 — Intelligence Dashboard" in both mobile and desktop views
+- Updated footer branding from "NEXUS OS v3.0" to "NEXUS OS v3.1 — Cloud Intelligence Dashboard" and added "Powered by z-ai" text on the right side
+- Added "kpi" → "KPI Dashboard" and "ratelimit" → "Rate Limit Control Center" mappings to the header's tabTitles object
+- Enhanced KPI tab with breadcrumb header ("NEXUS OS / Intelligence / KPI Dashboard"), larger executive summary cards (p-5, gap-6), hover:shadow-lg transition, kpi-value class for 3xl font-bold values, and gradient section dividers between all major sections
+- Added LIVE badge green glow pulse (live-badge-glow CSS class) to the DataSourceBadge for "live" source type
+- Added "Last Updated: [timestamp]" with data-fresh indicator next to DataSourceBadge in Overview tab
+- Replaced simple animate-pulse skeleton in Overview loading state with shimmer-skeleton animation
+- Added 6 new CSS utility classes to globals.css: cid-card, section-divider, data-fresh, kpi-value, section-header, plus live-badge-glow animation, log-entry-real and log-entry-simulated left border indicators
+- Enhanced Tokens tab: Cost Optimization and Model Spend Coverage cards now use cid-card + grid-pattern styling, daily cost trend chart height increased from 140 to 256 (h-64 equivalent)
+- Enhanced System Logs panel: Log mode toggle now uses visually distinct active state (bg-emerald-600 text-white with shadow), DB-sourced entries have green left border (log-entry-real), simulated entries have gray left border (log-entry-simulated)
+- Ran `bun run lint` — all checks pass with zero errors
+
+Stage Summary:
+- All 8 polish tasks completed successfully
+- Dashboard now has AWS CID-inspired professional aesthetics with consistent visual hierarchy
+- LIVE data badges glow with subtle green pulse animation
+- Section dividers provide clear visual separation between dashboard sections
+- System Logs panel has clear DB vs simulated entry differentiation
+- No lint errors, dev server running cleanly
+
+---
+Task ID: aws-cid-upgrade
+Agent: main
+Task: AWS Cloud Intelligence Dashboard-inspired major upgrade
+
+Work Log:
+- Researched AWS CID framework: CUDOS, CID, KPI, CORA dashboards
+- Wired Overview Tab to /api/system — biggest gap fixed, now shows LIVE data from real DB
+- Created new KPI Dashboard tab (10th tab) with 6 sections:
+  - Executive Summary (4 gradient stat cards with sparklines)
+  - KPI Goals Tracker (8 trackable KPIs with progress bars, ON TRACK/AT RISK/CRITICAL)
+  - Unit Economics (cost per decision, test, agent-hour, vault entry)
+  - Model Coverage Analysis (pool coverage, utilization, 7-day trends)
+  - Anomaly Detection (token spikes, trust drops, health degradation, budget alerts)
+  - Optimization Recommendations (CORA-inspired with priority/status filters)
+- Enhanced Tokens Tab:
+  - Replaced hardcoded optimization suggestions with real computed ones
+  - Added Model Spend Coverage (AWS RI/SP inspired)
+  - Added Daily Cost Trend chart (7-day area chart)
+  - Fixed hardcoded burn rate (now computed from real data)
+- Connected System Logs to real data:
+  - Created /api/logs endpoint (VaultEntry + RateLimitLog + GovernorDecision + TokenUsageLog)
+  - Added Real Logs / Live Feed toggle
+  - DB entries show with green border, simulated with gray
+  - Enhanced export with DB/SIM markers
+- Visual polish:
+  - Updated branding to "v3.1 — Intelligence Dashboard"
+  - Footer: "Cloud Intelligence Dashboard" + "Powered by z-ai"
+  - Header: dynamic titles for KPI and Rate Limit tabs
+  - New CSS utilities: cid-card, section-divider, data-fresh, kpi-value, section-header, live-badge-glow
+  - KPI tab: breadcrumb header, gradient dividers, hover effects
+  - Overview: green glow on LIVE badge, "Last Updated" timestamp, shimmer skeleton
+  - System Logs: toggle active states, border color indicators
+
+Stage Summary:
+- 10 tabs now (added KPI Dashboard)
+- Overview Tab now shows REAL data from /api/system
+- Tokens Tab has real computed optimizations + coverage analysis
+- System Logs connected to real DB data
+- New /api/logs endpoint created
+- All lint checks pass, zero errors
+- Dev server running cleanly on port 3000

@@ -29,7 +29,7 @@ const SOURCE_CONFIG: Record<DataSource, {
   live: {
     icon: Wifi,
     label: 'LIVE',
-    className: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-600/20',
+    className: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-600/20 live-badge-glow',
     tooltip: 'Data fetched from a live API or real-time source in real-time',
   },
   seed: {

@@ -63,6 +63,7 @@ import { toast } from 'sonner'
 import { DiagnosticsPanel } from '@/components/nexus/diagnostics-panel'
 import { AgentHealthMonitor } from '@/components/nexus/agent-health-monitor'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
+import { useApiData } from '@/hooks/use-api-data'
 
 // ── Pillar detail data for enhanced pillar dialog ─────────────────
 const pillarDetails: Record<string, {
@@ -193,7 +194,7 @@ const pillarDetails: Record<string, {
 }
 
 // ── Pillar sparkline data (6 points per pillar) ──────────────────
-const pillarSparklines: Record<string, { name: string; value: number }[]> = {
+const fallbackPillarSparklines: Record<string, { name: string; value: number }[]> = {
   Bridge: [{ name: '1', value: 100 }, { name: '2', value: 100 }, { name: '3', value: 100 }, { name: '4', value: 100 }, { name: '5', value: 100 }, { name: '6', value: 100 }],
   Engine: [{ name: '1', value: 97 }, { name: '2', value: 99 }, { name: '3', value: 98 }, { name: '4', value: 96 }, { name: '5', value: 99 }, { name: '6', value: 98 }],
   Governor: [{ name: '1', value: 97 }, { name: '2', value: 96 }, { name: '3', value: 94 }, { name: '4', value: 95 }, { name: '5', value: 96 }, { name: '6', value: 95 }],
@@ -272,7 +273,7 @@ const systemStatusColumnHeaders: Record<string, string> = {
   tokenBudgetMax: 'Token Budget Max',
 }
 
-const pillars = [
+const fallbackPillars = [
   { name: 'Bridge', icon: Zap, status: 'operational', health: 100, desc: 'HMAC auth · JSON-RPC', uptime: '99.99%', trend: 'stable' as const },
   { name: 'Engine', icon: Router, status: 'operational', health: 98, desc: 'Hermes intent routing', uptime: '99.94%', trend: 'up' as const },
   { name: 'Governor', icon: Shield, status: 'operational', health: 95, desc: 'Kaiju + TrustScorer', uptime: '99.87%', trend: 'down' as const },
@@ -283,7 +284,7 @@ const pillars = [
   { name: 'Config', icon: Settings, status: 'operational', health: 100, desc: 'Constitution', uptime: '100%', trend: 'stable' as const },
 ]
 
-const tokenHistory = [
+const fallbackTokenHistory = [
   { name: '10m', value: 89000 },
   { name: '8m', value: 86500 },
   { name: '6m', value: 84200 },
@@ -292,7 +293,7 @@ const tokenHistory = [
   { name: 'now', value: 73450 },
 ]
 
-const agentActivity = [
+const fallbackAgentActivity = [
   { name: 'Mon', tasks: 45, errors: 3 },
   { name: 'Tue', tasks: 52, errors: 5 },
   { name: 'Wed', tasks: 38, errors: 2 },
@@ -321,7 +322,7 @@ function seededRandom(seed: number) {
   return x - Math.floor(x)
 }
 
-const healthTimelineData = Array.from({ length: 24 }, (_, i) => {
+const fallbackHealthTimelineData = Array.from({ length: 24 }, (_, i) => {
   const hour = 23 - i
   const label = `${hour.toString().padStart(2, '0')}:00`
   const entry: Record<string, any> = { name: label }
@@ -371,7 +372,7 @@ const newActivities = [
 ]
 
 // Collapse rate trend data (over last 20 runs)
-const collapseRateTrend = [
+const fallbackCollapseRateTrend = [
   { name: '1', value: 95.3 },
   { name: '2', value: 89.1 },
   { name: '3', value: 91.7 },
@@ -404,7 +405,7 @@ const systemNotificationsData = [
 ]
 
 // Recent Governor decisions for mini-table
-const recentDecisions = [
+const fallbackRecentDecisions = [
   { id: 'GOV-3847', agent: 'worker-3', action: 'ALLOW', scope: 'SELF', time: '2m ago', reason: 'Read file — within trust threshold' },
   { id: 'GOV-3846', agent: 'worker-1', action: 'ALLOW', scope: 'SELF', time: '5m ago', reason: 'API call — safe domain' },
   { id: 'GOV-3845', agent: 'research-agent', action: 'HOLD', scope: 'CROSS', time: '8m ago', reason: 'Cross-scope request — pending review' },
@@ -451,13 +452,13 @@ function LiveActivityFeed() {
   )
 }
 
-function SystemHealthTimeline() {
+function SystemHealthTimeline({ data: timelineData, dataSource }: { data: Record<string, any>[]; dataSource: 'live' | 'mock' }) {
   const [timeRange, setTimeRange] = useState<'6h' | '12h' | '24h'>('24h')
 
   const filteredData = useMemo(() => {
     const count = timeRange === '6h' ? 6 : timeRange === '12h' ? 12 : 24
-    return healthTimelineData.slice(0, count)
-  }, [timeRange])
+    return timelineData.slice(0, count)
+  }, [timeRange, timelineData])
 
   return (
     <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
@@ -467,7 +468,7 @@ function SystemHealthTimeline() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             24h Health Timeline
-            <DataSourceBadge source="mock" />
+            <DataSourceBadge source={dataSource} />
           </CardTitle>
           <div className="flex items-center gap-1">
             {(['6h', '12h', '24h'] as const).map((range) => (
@@ -989,7 +990,7 @@ function PillarDetailDialog({
   open,
   onOpenChange,
 }: {
-  pillar: typeof pillars[number] | null
+  pillar: typeof fallbackPillars[number] | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -1085,10 +1086,14 @@ function ViewAllPillarsDialog({
   open,
   onOpenChange,
   onPillarClick,
+  pillarsData,
+  sparklinesData,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onPillarClick: (pillar: typeof pillars[number]) => void
+  onPillarClick: (pillar: typeof fallbackPillars[number]) => void
+  pillarsData: typeof fallbackPillars
+  sparklinesData: Record<string, { name: string; value: number }[]>
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1100,8 +1105,8 @@ function ViewAllPillarsDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 py-2">
-          {pillars.map((p) => {
-            const sparkData = pillarSparklines[p.name]
+          {pillarsData.map((p) => {
+            const sparkData = sparklinesData[p.name]
             const sparkColor = pillarColors[p.name] || COLORS.emerald
             return (
               <Card
@@ -1176,7 +1181,64 @@ interface DiagnosticResult {
   details: string
 }
 
+// ── Icon map for pillar name → Lucide icon ────────────────────────
+const pillarIconMap: Record<string, React.ElementType> = {
+  Bridge: Zap, Engine: Router, Governor: Shield, Vault: Database,
+  GMR: Router, Swarm: Bug, Monitor: Activity, Config: Settings,
+}
+
 export function OverviewTab() {
+  // ── API Data Fetch ────────────────────────────────────────────
+  const { data: systemData, loading: systemLoading } = useApiData<any>('/api/system', 15000)
+
+  // ── Computed data: merge API data with fallbacks ──────────────
+  const apiPillars = useMemo(() => {
+    const raw = systemData?.overview?.pillars
+    if (!raw || !Array.isArray(raw) || raw.length === 0) return null
+    return raw.map((p: any) => ({
+      name: p.name,
+      icon: pillarIconMap[p.name] || Zap,
+      status: p.status ?? 'operational',
+      health: p.health ?? 100,
+      desc: p.desc ?? '',
+      uptime: p.uptime ?? '99.99%',
+      trend: (p.health >= 95 ? 'stable' : p.health >= 85 ? 'down' : 'up') as 'stable' | 'up' | 'down',
+    }))
+  }, [systemData])
+
+  const pillars = apiPillars ?? fallbackPillars
+
+  const tokenHistory = systemData?.overview?.tokenHistory ?? fallbackTokenHistory
+  const agentActivity = systemData?.overview?.agentActivity ?? fallbackAgentActivity
+  const collapseRateTrend = systemData?.overview?.collapseRateTrend ?? fallbackCollapseRateTrend
+  const recentDecisions = systemData?.overview?.recentDecisions ?? fallbackRecentDecisions
+  const healthTimeline = systemData?.overview?.healthTimeline ?? fallbackHealthTimelineData
+  const avgTrust = systemData?.overview?.avgTrust ?? 0.73
+  const totalVaultEntries = systemData?.overview?.totalVaultEntries ?? 1247
+
+  // Stats from API
+  const tokenBudget = systemData?.overview?.stats?.tokenBudget ?? { remaining: 73450, total: 100000, used: 26550, pct: 73.45 }
+  const activeAgents = systemData?.overview?.stats?.activeAgents ?? { total: 3, busy: 2, idle: 1, error: 1, max: 5 }
+  const stressLab = systemData?.overview?.stats?.stressLab ?? { runs: 47, templates: 12, passRate: 76, collapseRate: 23.4 }
+  const collapseRate = systemData?.overview?.stats?.collapseRate ?? 23.4
+
+  // Sparklines: derive from healthTimeline when available
+  const pillarSparklines = useMemo(() => {
+    if (!systemData?.overview?.healthTimeline && !systemData?.overview?.pillars) return fallbackPillarSparklines
+    const timeline = healthTimeline as Record<string, any>[]
+    const result: Record<string, { name: string; value: number }[]> = {}
+    for (const pName of pillarNames) {
+      const last6 = timeline.slice(-6).map((entry: any, i: number) => ({
+        name: String(i + 1),
+        value: typeof entry[pName] === 'number' ? entry[pName] : 100,
+      }))
+      result[pName] = last6.length > 0 ? last6 : fallbackPillarSparklines[pName]
+    }
+    return result
+  }, [systemData, healthTimeline])
+
+  const dataSource: 'live' | 'mock' = systemData ? 'live' : 'mock'
+
   // ── Diagnostic Modal State ────────────────────────────────────
   const [diagnosticOpen, setDiagnosticOpen] = useState(false)
   const [diagnosticRunning, setDiagnosticRunning] = useState(false)
@@ -1184,11 +1246,11 @@ export function OverviewTab() {
   const [diagnosticSummary, setDiagnosticSummary] = useState<{ healthy: number; degraded: number; error: number; avgHealth: number } | null>(null)
 
   // ── Pillar Detail Dialog State ─────────────────────────────────
-  const [selectedPillar, setSelectedPillar] = useState<typeof pillars[number] | null>(null)
+  const [selectedPillar, setSelectedPillar] = useState<typeof fallbackPillars[number] | null>(null)
   const [pillarDialogOpen, setPillarDialogOpen] = useState(false)
   const [viewAllPillarsOpen, setViewAllPillarsOpen] = useState(false)
 
-  const handlePillarClick = useCallback((pillar: typeof pillars[number]) => {
+  const handlePillarClick = useCallback((pillar: typeof fallbackPillars[number]) => {
     setSelectedPillar(pillar)
     setPillarDialogOpen(true)
   }, [])
@@ -1255,7 +1317,7 @@ export function OverviewTab() {
           exportedAt: new Date().toISOString(),
           version: 'NEXUS OS v3.0',
           pillars: systemStatusExport,
-          summary: { totalPillars: 8, operationalPillars: 7, degradedPillars: 1, avgHealth: 96.1, tokenBudget: { remaining: 73450, max: 100000, utilization: '73.45%' } },
+          summary: { totalPillars: 8, operationalPillars: pillars.filter(p => p.health >= 90).length, degradedPillars: pillars.filter(p => p.health < 90).length, avgHealth: Math.round(pillars.reduce((s, p) => s + p.health, 0) / pillars.length * 10) / 10, tokenBudget: { remaining: tokenBudget.remaining, max: tokenBudget.total, utilization: `${tokenBudget.pct}%` } },
           recentDecisions,
         }, null, 2)
         downloadFile(json, 'nexus-system-status.json', 'application/json;charset=utf-8;')
@@ -1284,8 +1346,53 @@ export function OverviewTab() {
     }
   }, [runDiagnostic])
 
+  // ── Loading skeleton ──────────────────────────────────────────
+  if (systemLoading && !systemData) {
+    return (
+      <div className="space-y-6 p-6 grid-pattern-animated">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+          <span className="text-sm text-muted-foreground">Loading system data...</span>
+          <DataSourceBadge source="mock" label="LOADING" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={`skeleton-${i}`}>
+              <CardContent className="p-4">
+                <div className="h-4 w-24 rounded shimmer-skeleton mb-2" />
+                <div className="h-8 w-16 rounded shimmer-skeleton mb-1" />
+                <div className="h-3 w-32 rounded shimmer-skeleton" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={`skeleton2-${i}`}>
+              <CardContent className="p-4">
+                <div className="h-32 rounded shimmer-skeleton" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated">
+      {/* Data Source Indicator */}
+      <div className="flex items-center gap-2">
+        <DataSourceBadge source={dataSource} label={systemData ? 'LIVE' : 'FALLBACK'} />
+        <span className="text-[10px] text-muted-foreground">
+          {systemData ? 'Connected to /api/system — data refreshes every 15s' : 'Using fallback data — API unavailable'}
+        </span>
+        <span className="text-[10px] text-muted-foreground/50">·</span>
+        <span className="data-fresh">
+          Last Updated: {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
+      </div>
+
       {/* Session Timeline */}
       <SessionTimeline />
 
@@ -1328,7 +1435,7 @@ export function OverviewTab() {
             <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><Server className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> 3 nodes active</span>
               <span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-600 dark:text-blue-400" /> 8/8 pillars online</span>
-              <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-600 dark:text-orange-400" /> 73,450 tokens left</span>
+              <span className="flex items-center gap-1"><Activity className="h-3 w-3 text-orange-600 dark:text-orange-400" /> {tokenBudget.remaining.toLocaleString()} tokens left</span>
               <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Uptime: 3d 14h 27m</span>
               <CurrentTimeDisplay />
             </div>
@@ -1359,19 +1466,19 @@ export function OverviewTab() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Token Budget</p>
-                    <DataSourceBadge source="seed" />
+                    <DataSourceBadge source={dataSource} />
                   </div>
                   <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    <AnimatedCounter value={73450} />
+                    <AnimatedCounter value={tokenBudget.remaining} />
                   </p>
-                  <p className="text-[10px] text-muted-foreground">of 100,000 remaining</p>
+                  <p className="text-[10px] text-muted-foreground">of {tokenBudget.total.toLocaleString()} remaining</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
                   <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
               <div className="mt-3">
-                <Progress value={73.45} className="h-2 bg-emerald-900/20" />
+                <Progress value={tokenBudget.pct} className="h-2 bg-emerald-900/20" />
               </div>
               <div className="mt-2">
                 <MiniAreaChart data={tokenHistory} dataKey="value" color={COLORS.emerald} height={32} />
@@ -1388,9 +1495,9 @@ export function OverviewTab() {
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Active Agents</p>
                   <p className="mt-1 text-3xl font-bold tabular-nums">
-                    <AnimatedCounter value={3} duration={800} />
+                    <AnimatedCounter value={activeAgents.total} duration={800} />
                   </p>
-                  <p className="text-[10px] text-muted-foreground">of 5 max concurrent</p>
+                  <p className="text-[10px] text-muted-foreground">of {activeAgents.max} max concurrent</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10">
                   <Bug className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -1398,15 +1505,15 @@ export function OverviewTab() {
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div className="rounded-md bg-emerald-600/10 px-2 py-1 text-center">
-                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">2</p>
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{activeAgents.busy}</p>
                   <p className="text-[9px] text-muted-foreground">busy</p>
                 </div>
                 <div className="rounded-md bg-muted px-2 py-1 text-center">
-                  <p className="text-xs font-bold">1</p>
+                  <p className="text-xs font-bold">{activeAgents.idle}</p>
                   <p className="text-[9px] text-muted-foreground">idle</p>
                 </div>
                 <div className="rounded-md bg-red-600/10 px-2 py-1 text-center">
-                  <p className="text-xs font-bold text-red-600 dark:text-red-400">1</p>
+                  <p className="text-xs font-bold text-red-600 dark:text-red-400">{activeAgents.error}</p>
                   <p className="text-[9px] text-muted-foreground">error</p>
                 </div>
               </div>
@@ -1422,9 +1529,9 @@ export function OverviewTab() {
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">StressLab Runs</p>
                   <p className="mt-1 text-3xl font-bold tabular-nums">
-                    <AnimatedCounter value={47} duration={900} />
+                    <AnimatedCounter value={stressLab.runs} duration={900} />
                   </p>
-                  <p className="text-[10px] text-muted-foreground">12 templates tested</p>
+                  <p className="text-[10px] text-muted-foreground">{stressLab.templates} templates tested</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10">
                   <FlaskConical className="h-5 w-5 text-orange-600 dark:text-orange-400" />
@@ -1457,16 +1564,16 @@ export function OverviewTab() {
                 <div className="flex-1">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Collapse Rate</p>
                   <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">
-                    <AnimatedCounter value={23} duration={1000} /><span className="text-lg">.4%</span>
+                    <AnimatedCounter value={Math.floor(collapseRate)} duration={1000} /><span className="text-lg">.{Math.round((collapseRate % 1) * 10)}%</span>
                   </p>
-                  <p className="text-[10px] text-muted-foreground">↓ from 95.3% baseline</p>
+                  <p className="text-[10px] text-muted-foreground">current collapse rate</p>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10">
                   <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <Progress value={23.4} className="h-2 flex-1 bg-red-900/20" />
+                <Progress value={collapseRate} className="h-2 flex-1 bg-red-900/20" />
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">-72pp</span>
               </div>
               {/* Collapse Rate Trend Sparkline */}
@@ -1548,7 +1655,7 @@ export function OverviewTab() {
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground">8-Pillar System Status</h2>
-            <DataSourceBadge source="mock" />
+            <DataSourceBadge source={dataSource} />
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -1708,7 +1815,7 @@ export function OverviewTab() {
               <CardTitle className="text-sm">Budget Utilization</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <NexusGauge value={73450} max={100000} color={COLORS.emerald} label="tokens used" height={140} />
+              <NexusGauge value={tokenBudget.used} max={tokenBudget.total} color={COLORS.emerald} label="tokens used" height={140} />
             </CardContent>
           </Card>
         </motion.div>
@@ -1716,7 +1823,7 @@ export function OverviewTab() {
 
       {/* System Health Timeline */}
       <motion.div variants={staggerItem} initial="hidden" animate="visible">
-        <SystemHealthTimeline />
+        <SystemHealthTimeline data={healthTimeline} dataSource={dataSource} />
       </motion.div>
 
       {/* Agent Health Monitor */}
@@ -1740,7 +1847,7 @@ export function OverviewTab() {
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                   Recent Decisions
-                  <DataSourceBadge source="mock" />
+                  <DataSourceBadge source={dataSource} />
                 </CardTitle>
                 <Badge variant="outline" className="text-[9px]">Governor</Badge>
               </div>
@@ -1819,14 +1926,14 @@ export function OverviewTab() {
                       <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                       <span className="text-[10px] text-muted-foreground">Trust Avg</span>
                     </div>
-                    <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">0.73</p>
+                    <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">{avgTrust.toFixed(2)}</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
                       <Database className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                       <span className="text-[10px] text-muted-foreground">VAP Chain</span>
                     </div>
-                    <p className="mt-1 text-sm font-bold">1,247</p>
+                    <p className="mt-1 text-sm font-bold">{totalVaultEntries.toLocaleString()}</p>
                   </div>
                   <div className="rounded-lg bg-accent/30 p-2.5">
                     <div className="flex items-center gap-1.5">
@@ -1957,6 +2064,8 @@ export function OverviewTab() {
         open={viewAllPillarsOpen}
         onOpenChange={setViewAllPillarsOpen}
         onPillarClick={handlePillarClick}
+        pillarsData={pillars}
+        sparklinesData={pillarSparklines}
       />
     </div>
   )

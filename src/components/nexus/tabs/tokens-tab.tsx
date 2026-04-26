@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { MiniAreaChart, NexusBarChart, NexusGauge, COLORS } from '@/components/nexus/charts'
 import {
   Coins,
   TrendingDown,
@@ -88,37 +88,35 @@ interface TokensApiResponse {
   agentUsage: AgentUsageEntry[]
 }
 
-// Cost optimization suggestions
-const optimizationSuggestions = [
-  {
-    id: 'opt-1',
-    title: 'Switch gemma-fast calls to nemotron-3',
-    detail: '15% latency reduction for similar quality on non-code tasks',
-    savings: '~2,400 tok/session',
-    impact: 'medium' as const,
-  },
-  {
-    id: 'opt-2',
-    title: 'Batch worker-3 requests',
-    detail: 'Reduce API overhead by ~200 tok/call through request batching',
-    savings: '~1,800 tok/session',
-    impact: 'high' as const,
-  },
-  {
-    id: 'opt-3',
-    title: 'Upgrade to PREMIUM pool for security-domain tasks',
-    detail: 'Cyber and ai_safety domains get lower latency and higher rate limits',
-    savings: '~340ms avg latency',
-    impact: 'medium' as const,
-  },
-  {
-    id: 'opt-4',
-    title: 'Cache repeated kimi-k2.5 research queries',
-    detail: '3 similar research queries detected in the last hour — cache could save tokens',
-    savings: '~800 tok/session',
-    impact: 'low' as const,
-  },
-]
+// Model entry interface for /api/models
+interface ModelEntry {
+  id: string
+  name: string
+  provider: string
+  tier: number
+  domain: string
+  health: number
+  latencyMs: number
+  costPer1k: number
+  isFree: boolean
+  isActive: boolean
+  totalCalls: number
+  successRate: number
+}
+
+interface ModelsApiResponse {
+  models: ModelEntry[]
+}
+
+// Computed optimization suggestion
+interface ComputedSuggestion {
+  id: string
+  title: string
+  detail: string
+  estimatedSavings: string
+  impact: 'high' | 'medium' | 'low'
+  owner: string
+}
 
 function getImpactBadge(impact: 'high' | 'medium' | 'low') {
   if (impact === 'high') return <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">High</Badge>
@@ -128,18 +126,29 @@ function getImpactBadge(impact: 'high' | 'medium' | 'low') {
 
 export function TokensTab() {
   const { data, loading, refetch } = useApiData<TokensApiResponse>('/api/tokens', 30000)
+  const { data: modelsData } = useApiData<ModelsApiResponse>('/api/models', 30000)
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<number>>(new Set())
 
   // Compute derived data from API
   const budget = data?.budget ?? null
   const usageLogs = data?.usageLogs ?? []
   const agentUsageRaw = data?.agentUsage ?? []
+  const models = modelsData?.models ?? []
 
   const totalUsed = budget?.usedBudget ?? 0
   const totalBudget = budget?.totalBudget ?? 100000
   const remaining = budget?.remainingBudget ?? totalBudget
   const pct = totalBudget > 0 ? (totalUsed / totalBudget) * 100 : 0
-  const burnRate = 142 // tokens/min simulated (would need time-series data for real calc)
+
+  // A4: Compute real burn rate from session data
+  const burnRate = useMemo(() => {
+    if (!budget?.startedAt || totalUsed === 0) return 0
+    const sessionStart = new Date(budget.startedAt).getTime()
+    const now = Date.now()
+    const durationMinutes = (now - sessionStart) / 60000
+    if (durationMinutes < 0.5) return totalUsed // Less than 30s — return total used
+    return Math.round(totalUsed / durationMinutes)
+  }, [budget, totalUsed])
 
   // Compute hourly usage from logs
   const hourlyUsage = useMemo(() => {
@@ -286,6 +295,210 @@ export function TokensTab() {
     })
   }
 
+  // A1: Compute real optimization suggestions from model + usage data
+  const optimizationSuggestions = useMemo(() => {
+    const suggestions: ComputedSuggestion[] = []
+    let sugId = 0
+
+    // 1. Model swap recommendations: find expensive models with cheaper alternatives in same domain
+    const activeModels = models.filter(m => m.isActive)
+    const usageByModel: Record<string, { tokens: number; calls: number; cost: number }> = {}
+    for (const log of usageLogs) {
+      if (!usageByModel[log.model]) usageByModel[log.model] = { tokens: 0, calls: 0, cost: 0 }
+      usageByModel[log.model].tokens += log.totalTokens
+      usageByModel[log.model].calls += 1
+      usageByModel[log.model].cost += log.cost
+    }
+
+    // Group models by domain
+    const modelsByDomain: Record<string, ModelEntry[]> = {}
+    for (const m of activeModels) {
+      if (!modelsByDomain[m.domain]) modelsByDomain[m.domain] = []
+      modelsByDomain[m.domain].push(m)
+    }
+
+    for (const [domain, domainModels] of Object.entries(modelsByDomain)) {
+      if (domainModels.length < 2) continue
+      // Sort by cost descending
+      const sorted = [...domainModels].sort((a, b) => b.costPer1k - a.costPer1k)
+      const expensive = sorted[0]
+      const cheaper = sorted[sorted.length - 1]
+      if (expensive.costPer1k > cheaper.costPer1k * 1.2 && cheaper.health >= 90) {
+        const usage = usageByModel[expensive.name]
+        const totalTokensOfExpensive = usage?.tokens ?? expensive.totalCalls * 500
+        if (totalTokensOfExpensive > 0) {
+          const savingsPct = Math.round(((expensive.costPer1k - cheaper.costPer1k) / expensive.costPer1k) * 100)
+          suggestions.push({
+            id: `opt-${++sugId}`,
+            title: `Switch from ${expensive.name} to ${cheaper.name}`,
+            detail: `Both serve "${domain}" domain. ${cheaper.name} has ${cheaper.health.toFixed(0)}% health and costs less per 1k tokens.`,
+            estimatedSavings: `Est. ${savingsPct}% cost savings`,
+            impact: savingsPct > 30 ? 'high' : savingsPct > 15 ? 'medium' : 'low',
+            owner: 'GMR Scheduler',
+          })
+        }
+      }
+    }
+
+    // 2. Budget burn rate alert
+    if (burnRate > 0 && totalBudget > 0) {
+      const minutesRemaining = burnRate > 0 ? remaining / burnRate : Infinity
+      const targetMinutes = 120 // 2 hours target
+      if (minutesRemaining < targetMinutes && totalUsed > 0) {
+        suggestions.push({
+          id: `opt-${++sugId}`,
+          title: 'Budget burn rate exceeds target',
+          detail: `At ${burnRate} tok/min, budget exhausts in ~${Math.round(minutesRemaining)} min. Target is ${targetMinutes} min.`,
+          estimatedSavings: `~${Math.round(burnRate * 0.2)} tok/min reduction needed`,
+          impact: minutesRemaining < 30 ? 'high' : 'medium',
+          owner: 'TokenGuard',
+        })
+      }
+    }
+
+    // 3. Underutilized models
+    for (const m of activeModels) {
+      if (m.totalCalls > 0 && m.totalCalls < 5) {
+        suggestions.push({
+          id: `opt-${++sugId}`,
+          title: `Model ${m.name} has low usage`,
+          detail: `Only ${m.totalCalls} total calls — consider deactivating to reduce pool complexity.`,
+          estimatedSavings: `~${Math.round(m.costPer1k * 100)} tok/1k freed`,
+          impact: m.totalCalls <= 2 ? 'medium' : 'low',
+          owner: 'GMR Pool',
+        })
+      }
+    }
+
+    // 4. Agent efficiency — agents with high token usage but low task completion
+    for (const agent of agentUsageRaw) {
+      const logTokens = usageByModel[agent.name]?.tokens ?? 0
+      const tokens = agent.totalTokens || logTokens
+      // We can't directly get tasksDone from agentUsage — use the token count as a proxy
+      // If an agent has high token count relative to peers, flag it
+      const avgTokens = agentUsageRaw.length > 0
+        ? agentUsageRaw.reduce((s, a) => s + (a.totalTokens || 0), 0) / agentUsageRaw.length
+        : 0
+      if (tokens > avgTokens * 2 && avgTokens > 0) {
+        suggestions.push({
+          id: `opt-${++sugId}`,
+          title: `Agent ${agent.name} consuming excessive tokens`,
+          detail: `${tokens.toLocaleString()} tokens vs avg ${Math.round(avgTokens).toLocaleString()} — investigate efficiency.`,
+          estimatedSavings: `~${Math.round(tokens - avgTokens)} tok potential saving`,
+          impact: tokens > avgTokens * 3 ? 'high' : 'medium',
+          owner: 'Swarm Ops',
+        })
+      }
+    }
+
+    // If no suggestions generated, add a default one
+    if (suggestions.length === 0) {
+      suggestions.push({
+        id: 'opt-default',
+        title: 'No optimizations needed right now',
+        detail: 'All models operating efficiently. Continue monitoring for changes.',
+        estimatedSavings: 'N/A',
+        impact: 'low',
+        owner: 'System',
+      })
+    }
+
+    return suggestions
+  }, [models, usageLogs, agentUsageRaw, burnRate, remaining, totalBudget, totalUsed])
+
+  // A2: Compute Model Spend Coverage data
+  const spendCoverage = useMemo(() => {
+    // Define tiers based on model data
+    type Tier = 'PREMIUM' | 'MID' | 'FAST' | 'FREE_RESEARCH'
+    const tierConfig: Record<Tier, { color: string; label: string }> = {
+      PREMIUM: { color: '#a78bfa', label: 'Premium' },
+      MID: { color: '#60a5fa', label: 'Mid-Tier' },
+      FAST: { color: '#34d399', label: 'Fast' },
+      FREE_RESEARCH: { color: '#facc15', label: 'Free/Research' },
+    }
+
+    // Assign models to tiers based on their properties
+    const tierData: Record<Tier, { tokens: number; models: string[]; cost: number }> = {
+      PREMIUM: { tokens: 0, models: [], cost: 0 },
+      MID: { tokens: 0, models: [], cost: 0 },
+      FAST: { tokens: 0, models: [], cost: 0 },
+      FREE_RESEARCH: { tokens: 0, models: [], cost: 0 },
+    }
+
+    // Build a model name → tier mapping from the models API
+    const modelTierMap: Record<string, Tier> = {}
+    for (const m of models) {
+      let tier: Tier
+      if (m.isFree) {
+        tier = 'FREE_RESEARCH'
+      } else if (m.tier >= 80) {
+        tier = 'PREMIUM'
+      } else if (m.tier >= 50) {
+        tier = 'MID'
+      } else {
+        tier = 'FAST'
+      }
+      modelTierMap[m.name] = tier
+    }
+
+    // Aggregate usage logs by model tier
+    const usageByModel: Record<string, { tokens: number; cost: number }> = {}
+    for (const log of usageLogs) {
+      if (!usageByModel[log.model]) usageByModel[log.model] = { tokens: 0, cost: 0 }
+      usageByModel[log.model].tokens += log.totalTokens
+      usageByModel[log.model].cost += log.cost
+    }
+
+    for (const [modelName, usage] of Object.entries(usageByModel)) {
+      const tier = modelTierMap[modelName] ?? 'MID' // default to MID for unknown models
+      tierData[tier].tokens += usage.tokens
+      tierData[tier].cost += usage.cost
+      if (!tierData[tier].models.includes(modelName)) {
+        tierData[tier].models.push(modelName)
+      }
+    }
+
+    const totalTokens = Object.values(tierData).reduce((s, t) => s + t.tokens, 0) || 1
+    const totalCost = Object.values(tierData).reduce((s, t) => s + t.cost, 0) || 1
+
+    // Coverage score: % of tasks handled by cost-efficient tiers (FAST + FREE_RESEARCH)
+    const efficientTokens = tierData.FAST.tokens + tierData.FREE_RESEARCH.tokens
+    const coverageScore = Math.round((efficientTokens / totalTokens) * 100)
+
+    // Build chart data
+    const chartData = (['PREMIUM', 'MID', 'FAST', 'FREE_RESEARCH'] as Tier[])
+      .filter(t => tierData[t].tokens > 0)
+      .map(tier => ({
+        tier,
+        label: tierConfig[tier].label,
+        tokens: tierData[tier].tokens,
+        pct: Math.round((tierData[tier].tokens / totalTokens) * 1000) / 10,
+        costPct: Math.round((tierData[tier].cost / totalCost) * 1000) / 10,
+        modelCount: tierData[tier].models.length,
+        color: tierConfig[tier].color,
+      }))
+
+    return { chartData, coverageScore, totalTokens, totalCost, tierData, tierConfig }
+  }, [models, usageLogs])
+
+  // A3: Compute 7-day daily cost trend
+  const dailyCostTrend = useMemo(() => {
+    if (usageLogs.length === 0) return []
+    // Group logs by day
+    const dayMap: Record<string, { tokens: number; cost: number }> = {}
+    for (const log of usageLogs) {
+      const date = new Date(log.createdAt)
+      const dayKey = `${date.getMonth() + 1}/${date.getDate()}`
+      if (!dayMap[dayKey]) dayMap[dayKey] = { tokens: 0, cost: 0 }
+      dayMap[dayKey].tokens += log.totalTokens
+      dayMap[dayKey].cost += log.cost
+    }
+    return Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-7)
+      .map(([day, data]) => ({ day, tokens: data.tokens, cost: data.cost }))
+  }, [usageLogs])
+
   const visibleAlerts = budgetAlerts.filter((_, i) => !dismissedAlerts.has(i))
 
   function getHeatmapColor(value: number, max: number): string {
@@ -402,10 +615,10 @@ export function TokensTab() {
           <div className="mt-2 flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] gap-1">
               <TrendingUp className="h-3 w-3 text-red-600 dark:text-red-400" />
-              {burnRate.toLocaleString()} tok/min
+              {burnRate > 0 ? `${burnRate.toLocaleString()} tok/min` : 'Calculating...'}
             </Badge>
             <span className="text-[10px] text-muted-foreground">
-              ~{remaining > 0 ? Math.round(remaining / burnRate) : 0} min remaining at current rate
+              {burnRate > 0 ? `~${remaining > 0 ? Math.round(remaining / burnRate) : 0} min remaining at current rate` : 'Waiting for usage data'}
             </span>
           </div>
           <div className="mt-3 relative">
@@ -786,11 +999,11 @@ export function TokensTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg bg-muted/30 p-2.5">
                   <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Burn Rate</p>
-                  <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{burnRate.toLocaleString()} tok/min</p>
+                  <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{burnRate > 0 ? `${burnRate.toLocaleString()} tok/min` : '—'}</p>
                 </div>
                 <div className="rounded-lg bg-muted/30 p-2.5">
                   <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Time to Exhaust</p>
-                  <p className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">~{remaining > 0 ? Math.round(remaining / burnRate) : 0} min</p>
+                  <p className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">{burnRate > 0 ? `~${remaining > 0 ? Math.round(remaining / burnRate) : 0} min` : '—'}</p>
                 </div>
                 <div className="rounded-lg bg-muted/30 p-2.5">
                   <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Projected Remaining</p>
@@ -906,11 +1119,12 @@ export function TokensTab() {
       </div>
 
       {/* Cost Optimization Suggestions */}
-      <Card className="border-emerald-600/20 hover-lift">
+      <Card className="border-emerald-600/20 hover-lift cid-card grid-pattern">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-yellow-600 dark:text-yellow-400" /> Cost Optimization
+              <DataSourceBadge source="computed" />
             </CardTitle>
             <Badge variant="outline" className="text-[9px]">{optimizationSuggestions.length} suggestions</Badge>
           </div>
@@ -934,9 +1148,10 @@ export function TokensTab() {
                     <div className="mt-2 flex items-center gap-2 ml-5.5">
                       <Badge variant="outline" className="text-[9px] gap-1">
                         <ArrowRight className="h-2.5 w-2.5" />
-                        {s.savings}
+                        {s.estimatedSavings}
                       </Badge>
                       {getImpactBadge(s.impact)}
+                      <Badge variant="outline" className="text-[9px] text-muted-foreground">{s.owner}</Badge>
                     </div>
                   </div>
                   <Button
@@ -954,6 +1169,140 @@ export function TokensTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* A2: Model Spend Coverage */}
+      <Card className="border-emerald-600/20 hover-lift cid-card grid-pattern">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <PieChartIcon className="h-4 w-4" /> Model Spend Coverage
+              <DataSourceBadge source="computed" />
+            </CardTitle>
+            {spendCoverage.chartData.length > 0 && (
+              <Badge variant="outline" className="text-[9px]">{spendCoverage.chartData.length} tiers</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {spendCoverage.chartData.length > 0 ? (
+            <div className="space-y-4">
+              {/* Horizontal stacked bar */}
+              <div className="flex h-8 rounded-lg overflow-hidden border border-border/30">
+                {spendCoverage.chartData.map((tier) => (
+                  <div
+                    key={tier.tier}
+                    className="relative flex items-center justify-center transition-all duration-300 hover:opacity-80"
+                    style={{
+                      width: `${tier.pct}%`,
+                      backgroundColor: tier.color,
+                      minWidth: tier.pct > 0 ? '20px' : '0',
+                    }}
+                  >
+                    {tier.pct >= 10 && (
+                      <span className="text-[9px] font-bold text-white drop-shadow-sm">{tier.pct}%</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Tier details */}
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {spendCoverage.chartData.map((tier) => (
+                  <div key={tier.tier} className="rounded-lg border border-border/50 p-2.5">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: tier.color }} />
+                      <span className="text-[11px] font-medium">{tier.label}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">Tokens</span>
+                        <span className="font-bold tabular-nums">{tier.tokens.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">% of Spend</span>
+                        <span className="font-bold tabular-nums">{tier.costPct}%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">Models</span>
+                        <span className="font-bold tabular-nums">{tier.modelCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Coverage Score Gauge */}
+              <div className="flex items-center gap-6">
+                <div className="w-32">
+                  <NexusGauge
+                    value={spendCoverage.coverageScore}
+                    max={100}
+                    color={spendCoverage.coverageScore >= 60 ? COLORS.emerald : spendCoverage.coverageScore >= 30 ? COLORS.orange : COLORS.red}
+                    label="Efficiency"
+                    height={90}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium mb-1">Coverage Score</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {spendCoverage.coverageScore}% of tokens handled by cost-efficient tiers (FAST + FREE_RESEARCH).
+                    {spendCoverage.coverageScore >= 60
+                      ? ' Good cost efficiency.'
+                      : spendCoverage.coverageScore >= 30
+                      ? ' Consider shifting tasks to faster/free models.'
+                      : ' High dependency on premium models — significant cost savings possible.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-8">No spend coverage data available yet</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* A3: Daily Cost Trend */}
+      {dailyCostTrend.length > 0 && (
+        <Card className="border-emerald-600/20 hover-lift">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Activity className="h-4 w-4" /> Daily Token Consumption Trend
+                <DataSourceBadge source="computed" />
+              </CardTitle>
+              <Badge variant="outline" className="text-[9px]">{dailyCostTrend.length} days</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <ResponsiveContainer width="100%" height={256}>
+              <AreaChart data={dailyCostTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={50} />
+                <RechartsTooltipComponent
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    color: 'hsl(var(--foreground))',
+                  }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                  formatter={(value: number) => [value.toLocaleString(), 'Tokens']}
+                />
+                <defs>
+                  <linearGradient id="dailyTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.blue} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={COLORS.blue} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="tokens" stroke={COLORS.blue} fill="url(#dailyTrendGrad)" strokeWidth={1.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

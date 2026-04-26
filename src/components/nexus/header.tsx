@@ -32,6 +32,8 @@ const tabTitles: Record<string, string> = {
   research: 'Research Pipeline',
   swarm: 'Swarm Monitor',
   tokens: 'Token Budget',
+  kpi: 'KPI Dashboard',
+  ratelimit: 'Rate Limit Control Center',
 }
 
 interface SystemConfig {
