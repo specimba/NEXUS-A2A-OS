@@ -68,7 +68,6 @@ class VaultManager:
             WHERE agent_id=? AND lane=?
         """, (agent_id, lane))
         
-        # Initialize the 5 tracks
         results = {
             'event': {}, 'trust': {}, 'capability': {}, 
             'failure_pattern': {}, 'governance': {}
@@ -78,6 +77,47 @@ class VaultManager:
             results[row['track_type']][row['key']] = json.loads(row['value'])
             
         return results
+
+    # ── OPUSman v6 memory hooks ─────────────────────────────────────────────────
+    def search_before_generation(self, task: str, context: dict) -> list:
+        """
+        OPUSman v6 hook: recall prior memories before generation.
+        Searches event + trust tracks for relevant context.
+        Returns list of prior memory dicts.
+        """
+        if not task:
+            return []
+        agent_id = (context or {}).get("agent_id", "default")
+        lane     = (context or {}).get("lane", "default")
+        task_lower = task.lower()
+        results = []
+        with self.conn:
+            cur = self.conn.execute("""
+                SELECT key, value FROM agent_memory_tracks
+                WHERE agent_id=? AND lane=?
+                ORDER BY updated_at DESC
+                LIMIT 5
+            """, (agent_id, lane))
+            for row in cur.fetchall():
+                key = row["key"]
+                val = json.loads(row["value"])
+                # Lightweight keyword relevance filter
+                if any(w in key.lower() or (isinstance(val, str) and w in val.lower())
+                       for w in task_lower.split()[:5]):
+                    results.append({"key": key, "value": val})
+        return results
+
+    def add_after_response(self, task: str, summary: str, evidence: list):
+        """
+        OPUSman v6 hook: persist memory after response.
+        Stores the generation outcome in the event track.
+        """
+        if not task:
+            return
+        agent_id = "default"
+        lane     = "default"
+        entry = {"task": task[:200], "summary": summary[:500] if summary else "", "evidence": evidence or []}
+        self.store_track(agent_id, lane, "event", f"gen_{int(__import__('time').time())}", entry)
 
 
 # Minimal stub for test collection
