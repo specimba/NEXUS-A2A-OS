@@ -32,12 +32,12 @@ try:
     from nexus_os.engine.skill_adapter import SkillRegistry, SkillDefinition
     from nexus_os.vault.manager import VaultManager
     from nexus_os.governor.trust_scoring import TrustScoringGate, ScoringInput, AgentStatus, Lane
-    from nexus_os.swarm.coordinator import TeamCoordinator
 
     NEXUS_INTEGRATION_AVAILABLE = True
-except ImportError:
-    NEXUS_INTEGRATION_AVAILABLE = False
+except ImportError as exc:
     VaultManager = None
+    HermesRouter = None
+    TrustScoringGate = None
 
     NEXUS_INTEGRATION_AVAILABLE = False
     logger = logging.getLogger(__name__)
