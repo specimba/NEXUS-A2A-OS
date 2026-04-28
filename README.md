@@ -72,7 +72,7 @@ NEXUS OS v3.0 is a production-hardened multi-agent operating system designed for
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourorg/nexus-os.git
+git clone https://github.com/specimba/nexusalpha.git
 cd nexus-os
 
 # Install dependencies (Python 3.10+)
