@@ -75,6 +75,77 @@ function saveMessages(messages: ChatMessage[]) {
   } catch { /* ignore */ }
 }
 
+// ─── SSE Stream Parser ───
+
+interface SSEChunk {
+  content: string
+  model: string
+  error?: boolean | string
+}
+
+/**
+ * Parse an SSE stream from a fetch Response, yielding parsed chunks.
+ * Follows the format:
+ *   data: {"content":"...","model":"..."}
+ *   data: [DONE]
+ */
+async function* parseSSEStream(response: Response): AsyncGenerator<SSEChunk> {
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No readable stream')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+
+    // Split on double newlines (SSE event boundaries)
+    const parts = buffer.split('\n\n')
+    // Keep the last incomplete part in buffer
+    buffer = parts.pop() || ''
+
+    for (const part of parts) {
+      const lines = part.split('\n')
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+
+        const payload = trimmed.slice(5).trim()
+        if (payload === '[DONE]') return
+
+        try {
+          const parsed = JSON.parse(payload) as SSEChunk
+          yield parsed
+        } catch {
+          // Skip unparseable lines
+        }
+      }
+    }
+  }
+
+  // Process any remaining buffer
+  if (buffer.trim()) {
+    const lines = buffer.split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+
+      const payload = trimmed.slice(5).trim()
+      if (payload === '[DONE]') return
+
+      try {
+        const parsed = JSON.parse(payload) as SSEChunk
+        yield parsed
+      } catch {
+        // Skip
+      }
+    }
+  }
+}
+
 // ─── Sub-components ───
 
 function TypingIndicator() {
@@ -103,6 +174,48 @@ function TypingIndicator() {
         </div>
       </div>
     </div>
+  )
+}
+
+function StreamingBubble({ content, model }: { content: string; model?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-start gap-2 mb-3 px-1"
+    >
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+        <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+      </div>
+      <div className="max-w-[80%] rounded-xl rounded-tl-none bg-muted text-foreground px-4 py-2.5 text-sm leading-relaxed break-words">
+        {/* Render streaming content with basic formatting */}
+        {content ? (
+          content.split('\n').map((line, i) => {
+            const boldFormatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            const codeFormatted = boldFormatted.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 text-xs font-mono">$1</code>')
+            return (
+              <span key={i}>
+                {i > 0 && <br />}
+                {codeFormatted.includes('<strong>') || codeFormatted.includes('<code') ? (
+                  <span dangerouslySetInnerHTML={{ __html: codeFormatted }} />
+                ) : (
+                  line
+                )}
+              </span>
+            )
+          })
+        ) : (
+          <span className="inline-block w-0">&nbsp;</span>
+        )}
+        {/* Blinking cursor */}
+        <span className="inline-block w-[2px] h-[14px] bg-emerald-500 ml-0.5 align-middle animate-pulse" />
+        {/* Model badge */}
+        {model && (
+          <div className="mt-1.5 text-[9px] text-muted-foreground/40 font-mono">· {model}</div>
+        )}
+      </div>
+    </motion.div>
   )
 }
 
@@ -197,10 +310,16 @@ export function NexusAssistant() {
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [messageCount, setMessageCount] = useState(0)
 
+  // Streaming state — holds the in-progress assistant message
+  const [streamingContent, setStreamingContent] = useState('')
+  const [streamingModel, setStreamingModel] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const prevMessageCountRef = useRef(0)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // ─── Scroll Management ───
 
@@ -218,7 +337,7 @@ export function NexusAssistant() {
     setIsAtBottom(distanceFromBottom < 60)
   }, [])
 
-  // Auto-scroll when new messages arrive (only if already at bottom)
+  // Auto-scroll when new messages arrive or streaming content updates (only if already at bottom)
   useEffect(() => {
     if (chatMessages.length > prevMessageCountRef.current && isAtBottom) {
       requestAnimationFrame(() => scrollToBottom('smooth'))
@@ -226,6 +345,13 @@ export function NexusAssistant() {
     prevMessageCountRef.current = chatMessages.length
     setMessageCount(chatMessages.length)
   }, [chatMessages, isAtBottom, scrollToBottom])
+
+  // Auto-scroll during streaming
+  useEffect(() => {
+    if (isStreaming && isAtBottom) {
+      requestAnimationFrame(() => scrollToBottom('smooth'))
+    }
+  }, [streamingContent, isStreaming, isAtBottom, scrollToBottom])
 
   // Focus input when chat opens
   useEffect(() => {
@@ -249,7 +375,258 @@ export function NexusAssistant() {
     }
   }, [chatMessages.length, addChatMessage])
 
-  // ─── Message Sending ───
+  // ─── Normalize model name ───
+
+  function normalizeModelName(raw: string, fallbackEndpoint: string): string {
+    if (!raw || typeof raw !== 'string') {
+      return fallbackEndpoint === 'cerebras' ? 'Cerebras'
+        : fallbackEndpoint === 'openrouter' ? 'OpenRouter'
+        : 'GLM-4.7'
+    }
+    if (raw.includes('/')) {
+      const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
+      if (name.includes('deepseek-r1')) return 'DeepSeek R1'
+      else if (name.includes('gemma-4')) return 'Gemma 4'
+      else if (name.includes('gemma')) return 'Gemma'
+      else if (name.includes('qwen3-coder')) return 'Qwen3 Coder'
+      else if (name.includes('qwen')) return 'Qwen'
+      else if (name.includes('trinity-large')) return 'Trinity Large'
+      else if (name.includes('trinity')) return 'Trinity'
+      else if (name.includes('llama')) return 'Llama'
+      else return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    } else if (raw.startsWith('claude-')) {
+      if (raw.includes('opus')) return 'Qwen3 Coder'
+      else if (raw.includes('sonnet')) return 'Trinity Large'
+      else if (raw.includes('haiku')) return 'Gemma 4'
+      else return raw
+    } else {
+      return raw.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    }
+  }
+
+  // ─── Stream-based send (primary path for default model) ───
+
+  const sendWithStream = useCallback(
+    async (trimmed: string, currentMessages: { role: string; content: string }[]) => {
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
+      setIsStreaming(true)
+      setStreamingContent('')
+      setStreamingModel('')
+
+      let accumulatedContent = ''
+      let capturedModel = ''
+
+      try {
+        const response = await fetch('/api/chat?stream=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...currentMessages,
+              { role: 'user', content: trimmed },
+            ],
+          }),
+          signal: abortController.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Stream request failed: ${response.status}`)
+        }
+
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('text/event-stream')) {
+          // Server didn't return SSE — fall back to JSON parsing
+          const data = await response.json()
+          const cleanResponse = (data.response || '').replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
+          const model = normalizeModelName(data.model, 'z-ai-sdk')
+          addChatMessage({ role: 'assistant', content: cleanResponse, model })
+          return
+        }
+
+        // Process SSE stream
+        for await (const chunk of parseSSEStream(response)) {
+          // Check for error
+          if (chunk.error) {
+            const errorMsg = typeof chunk.error === 'string'
+              ? `⚠ Stream error: ${chunk.error}`
+              : '⚠ Stream interrupted.'
+            accumulatedContent = errorMsg
+            break
+          }
+
+          accumulatedContent += chunk.content
+          if (chunk.model) capturedModel = chunk.model
+          setStreamingContent(accumulatedContent)
+          setStreamingModel(capturedModel)
+        }
+
+        // Stream complete — add final message to store
+        if (accumulatedContent) {
+          const cleanResponse = accumulatedContent.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
+          const model = normalizeModelName(capturedModel, 'z-ai-sdk')
+          addChatMessage({ role: 'assistant', content: cleanResponse, model })
+        }
+      } catch (error) {
+        // If we got partial content, save it
+        if (accumulatedContent) {
+          const cleanResponse = accumulatedContent.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
+          const model = normalizeModelName(capturedModel, 'z-ai-sdk')
+          addChatMessage({ role: 'assistant', content: cleanResponse, model })
+        } else if (error instanceof Error && error.name !== 'AbortError') {
+          addChatMessage({
+            role: 'assistant',
+            content: '⚠ Connection error. The NEXUS kernel may be offline. Please try again.',
+          })
+        }
+      } finally {
+        setIsStreaming(false)
+        setStreamingContent('')
+        setStreamingModel('')
+        setIsLoading(false)
+        abortControllerRef.current = null
+      }
+    },
+    [addChatMessage]
+  )
+
+  // ─── Non-stream fallback (for non-default models / fallback) ───
+
+  const sendWithoutStream = useCallback(
+    async (trimmed: string, currentMessages: { role: string; content: string }[]) => {
+      const requestBody: Record<string, unknown> = {
+        messages: [
+          ...currentMessages,
+          { role: 'user', content: trimmed },
+        ],
+      }
+
+      if (selectedModel !== 'default') {
+        requestBody.model = selectedModel
+      }
+
+      let response: Response | null = null
+      let usedEndpoint = ''
+
+      // For Cerebras models, use the AI bridge directly
+      if (selectedModel === 'reasoning' || selectedModel === 'fast') {
+        try {
+          response = await fetch('/api/ai-bridge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...requestBody,
+              tier: selectedModel === 'reasoning' ? 'reasoning' : 'fast',
+            }),
+          })
+          if (response.ok) {
+            usedEndpoint = 'cerebras'
+          } else {
+            response = null
+          }
+        } catch {
+          response = null
+        }
+      }
+
+      // Default: Try z-ai-web-dev-sdk first (reliable)
+      if (!response && selectedModel === 'default') {
+        try {
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          })
+          if (response.ok) {
+            usedEndpoint = 'z-ai-sdk'
+          } else {
+            response = null
+          }
+        } catch {
+          response = null
+        }
+      }
+
+      // Fallback to Claude proxy (OpenRouter)
+      if (!response) {
+        try {
+          response = await fetch('/api/claude', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          })
+          if (response.ok) {
+            usedEndpoint = 'openrouter'
+          } else {
+            response = null
+          }
+        } catch {
+          response = null
+        }
+      }
+
+      // Last resort: z-ai SDK
+      if (!response) {
+        try {
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: [...currentMessages, { role: 'user', content: trimmed }] }),
+          })
+          if (response.ok) {
+            usedEndpoint = 'z-ai-sdk'
+          } else {
+            response = null
+          }
+        } catch {
+          response = null
+        }
+      }
+
+      if (!response || !response.ok) {
+        throw new Error('Failed to get response from any provider')
+      }
+
+      const data = await response.json()
+      let actualModel: string
+
+      if (typeof data.model === 'string') {
+        const raw = data.model
+        if (raw.includes('/')) {
+          const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
+          if (name.includes('deepseek-r1')) actualModel = 'DeepSeek R1'
+          else if (name.includes('gemma-4')) actualModel = 'Gemma 4'
+          else if (name.includes('gemma')) actualModel = 'Gemma'
+          else if (name.includes('qwen3-coder')) actualModel = 'Qwen3 Coder'
+          else if (name.includes('qwen')) actualModel = 'Qwen'
+          else if (name.includes('trinity-large')) actualModel = 'Trinity Large'
+          else if (name.includes('trinity')) actualModel = 'Trinity'
+          else if (name.includes('llama')) actualModel = 'Llama'
+          else actualModel = name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        } else if (raw.startsWith('claude-')) {
+          if (raw.includes('opus')) actualModel = 'Qwen3 Coder'
+          else if (raw.includes('sonnet')) actualModel = 'Trinity Large'
+          else if (raw.includes('haiku')) actualModel = 'Gemma 4'
+          else actualModel = raw
+        } else {
+          actualModel = raw.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        }
+      } else if (data.model && typeof data.model === 'object' && data.model.displayName) {
+        actualModel = data.model.displayName
+      } else {
+        actualModel = usedEndpoint === 'cerebras' ? 'Cerebras'
+          : usedEndpoint === 'openrouter' ? 'OpenRouter'
+          : 'GLM-4.7'
+      }
+
+      const cleanResponse = data.response.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
+      addChatMessage({ role: 'assistant', content: cleanResponse, model: actualModel })
+    },
+    [selectedModel, addChatMessage]
+  )
+
+  // ─── Message Sending (dispatches to stream or non-stream) ───
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -269,161 +646,26 @@ export function NexusAssistant() {
       setIsLoading(true)
 
       try {
-        // Build request body with model preference
-        const requestBody: Record<string, unknown> = {
-          messages: [
-            ...currentMessages,
-            { role: 'user', content: trimmed },
-          ],
-        }
-
-        // If a specific model is selected, pass it along
-        if (selectedModel !== 'default') {
-          requestBody.model = selectedModel
-        }
-
-        // Route based on model selection:
-        // - default (NEXUS AI) → z-ai-web-dev-sdk
-        // - reasoning/fast (Cerebras models) → AI Bridge
-        // - balanced (DeepSeek R1) → Claude proxy → OpenRouter
-        let response: Response | null = null
-        let usedEndpoint = ''
-
-        // For Cerebras models, use the AI bridge directly
-        if (selectedModel === 'reasoning' || selectedModel === 'fast') {
-          try {
-            response = await fetch('/api/ai-bridge', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...requestBody,
-                tier: selectedModel === 'reasoning' ? 'reasoning' : 'fast',
-              }),
-            })
-            if (response.ok) {
-              usedEndpoint = 'cerebras'
-            } else {
-              response = null
-            }
-          } catch {
-            response = null
-          }
-        }
-
-        // Default: Try z-ai-web-dev-sdk first (reliable)
-        if (!response && selectedModel === 'default') {
-          try {
-            response = await fetch('/api/chat', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
-            })
-            if (response.ok) {
-              usedEndpoint = 'z-ai-sdk'
-            } else {
-              response = null
-            }
-          } catch {
-            response = null
-          }
-        }
-
-        // Fallback to Claude proxy (OpenRouter)
-        if (!response) {
-          try {
-            response = await fetch('/api/claude', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
-            })
-            if (response.ok) {
-              usedEndpoint = 'openrouter'
-            } else {
-              response = null
-            }
-          } catch {
-            response = null
-          }
-        }
-
-        // Last resort: z-ai SDK
-        if (!response) {
-          try {
-            response = await fetch('/api/chat', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ messages: [...currentMessages, { role: 'user', content: trimmed }] }),
-            })
-            if (response.ok) {
-              usedEndpoint = 'z-ai-sdk'
-            } else {
-              response = null
-            }
-          } catch {
-            response = null
-          }
-        }
-
-        if (!response || !response.ok) {
-          throw new Error('Failed to get response from any provider')
-        }
-
-        const data = await response.json()
-        // Determine the actual model name for transparency (stored as metadata, NOT in content)
-        // Normalize: data.model could be a string, an object from ai-bridge, or undefined
-        let actualModel: string
-        if (typeof data.model === 'string') {
-          // Clean up model names: remove provider prefixes, :free suffixes, etc.
-          const raw = data.model
-          // Common patterns: "deepseek/deepseek-r1:free" → "DeepSeek R1"
-          // "google/gemma-4-26b-a4b-it:free" → "Gemma 4"
-          // "qwen/qwen3-coder:free" → "Qwen3 Coder"
-          // "arcee-ai/trinity-large-preview:free" → "Trinity Large"
-          // "glm-4-plus" → "GLM-4 Plus"
-          // "glm-4.7" → "GLM-4.7"
-          // "claude-opus-4" → handled below
-          if (raw.includes('/')) {
-            const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
-            if (name.includes('deepseek-r1')) actualModel = 'DeepSeek R1'
-            else if (name.includes('gemma-4')) actualModel = 'Gemma 4'
-            else if (name.includes('gemma')) actualModel = 'Gemma'
-            else if (name.includes('qwen3-coder')) actualModel = 'Qwen3 Coder'
-            else if (name.includes('qwen')) actualModel = 'Qwen'
-            else if (name.includes('trinity-large')) actualModel = 'Trinity Large'
-            else if (name.includes('trinity')) actualModel = 'Trinity'
-            else if (name.includes('llama')) actualModel = 'Llama'
-            else actualModel = name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-          } else if (raw.startsWith('claude-')) {
-            // Map proxy model IDs to actual underlying models
-            if (raw.includes('opus')) actualModel = 'Qwen3 Coder'
-            else if (raw.includes('sonnet')) actualModel = 'Trinity Large'
-            else if (raw.includes('haiku')) actualModel = 'Gemma 4'
-            else actualModel = raw
-          } else {
-            // z-ai SDK models: "glm-4-plus", "glm-4.7", etc.
-            actualModel = raw.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-          }
-        } else if (data.model && typeof data.model === 'object' && data.model.displayName) {
-          actualModel = data.model.displayName
+        // Use streaming for the default (z-ai SDK) model
+        if (selectedModel === 'default') {
+          await sendWithStream(trimmed, currentMessages)
         } else {
-          actualModel = usedEndpoint === 'cerebras' ? 'Cerebras'
-            : usedEndpoint === 'openrouter' ? 'OpenRouter'
-            : 'GLM-4.7'
+          // Non-default models use the existing non-stream path
+          await sendWithoutStream(trimmed, currentMessages)
         }
-        // Clean the response content — strip any trailing [model] tags the model itself might have added
-        const cleanResponse = data.response.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()
-        addChatMessage({ role: 'assistant', content: cleanResponse, model: actualModel })
       } catch {
+        // Final safety net — should not normally reach here
         addChatMessage({
           role: 'assistant',
-          content:
-            '⚠ Connection error. The NEXUS kernel may be offline. Please try again.',
+          content: '⚠ Connection error. The NEXUS kernel may be offline. Please try again.',
         })
-      } finally {
         setIsLoading(false)
+        setIsStreaming(false)
+        setStreamingContent('')
+        setStreamingModel('')
       }
     },
-    [isLoading, addChatMessage, selectedModel]
+    [isLoading, addChatMessage, selectedModel, sendWithStream, sendWithoutStream]
   )
 
   const handleSubmit = useCallback(
@@ -449,6 +691,10 @@ export function NexusAssistant() {
   }, [clearChatMessages])
 
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) ?? AI_MODELS[0]
+
+  // Determine whether to show the typing indicator:
+  // Show it only when loading AND NOT streaming (streaming has its own bubble)
+  const showTypingIndicator = isLoading && !isStreaming
 
   return (
     <>
@@ -510,7 +756,7 @@ export function NexusAssistant() {
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                      Online
+                      {isStreaming ? 'Streaming' : 'Online'}
                     </span>
                   </div>
                 </div>
@@ -616,7 +862,13 @@ export function NexusAssistant() {
                   <MessageBubble key={`${msg.timestamp}-${i}`} message={msg} />
                 ))}
 
-                {isLoading && <TypingIndicator />}
+                {/* Streaming bubble — shows in-progress content */}
+                {isStreaming && (
+                  <StreamingBubble content={streamingContent} model={streamingModel ? normalizeModelName(streamingModel, 'z-ai-sdk') : undefined} />
+                )}
+
+                {/* Traditional typing indicator — only when not streaming */}
+                {showTypingIndicator && <TypingIndicator />}
 
                 {/* Quick prompts when chat has messages */}
                 {chatMessages.length > 0 && !isLoading && (
@@ -668,6 +920,7 @@ export function NexusAssistant() {
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-[10px] text-muted-foreground">
                   NEXUS OS v3.1 · {currentModel.icon} {currentModel.label}
+                  {isStreaming && ' · Streaming'}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   {messageCount} messages

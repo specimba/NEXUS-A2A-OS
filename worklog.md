@@ -3174,3 +3174,164 @@ Unresolved / Next Phase:
 5. PHASE 5: Machine evidence packet export (DG-06 milestone)
 6. CRON: Set up automated 15-min review cycle
 7. BUG TRACKING: Maintain issue count below 20 at all times
+
+---
+Task ID: 3
+Agent: auto-task-builder
+Task: Build Auto-Task Generation API + Unified Tasks System
+
+Work Log:
+- Explored project structure: reviewed Prisma schema, existing API routes (governance, vault), db.ts client setup
+- Analyzed GovernanceTask and Paper models — confirmed all fields needed for auto-generation are present
+- Created /api/tasks/route.ts — Unified Task CRUD API with:
+  - GET: List tasks with filtering (status, type, agentId, riskLevel), pagination (limit/offset), and sorting (sortBy/sortOrder)
+  - POST: Create new task with validation (agentId + type required), duplicate taskId check (409), VaultEntry audit log
+  - PUT: Update task with taskId-based lookup, completed-without-output validation, VaultEntry audit log
+- Created /api/tasks/auto-generate/route.ts — Auto-Task Generation with:
+  - POST: Scans P0/P1 papers, creates GovernanceTask for each without existing task (idempotent via taskId check)
+  - Research role → agent assignment mapping (10 roles: evaluation→specialist, safety→coordinator, implementation→worker, etc.)
+  - Priority tier → risk level mapping (P0→high, P1→medium, P2→low, HOLD→low)
+  - taskId format: paper-{paper.externalId || paper.id.slice(0,8)}
+  - Message built from paper title + implementationTask
+  - VaultEntry audit log for each auto-generated task
+  - Returns summary with generated/skipped/errors arrays
+  - GET: Dry-run preview endpoint showing what would be generated without creating tasks
+- Created /api/tasks/[id]/route.ts — Single Task Operations with:
+  - GET: Find task by cuid or taskId, includes related VaultEntry audit trail
+  - PATCH: Update task with evidence validation (cannot mark 'completed' without output evidence)
+  - Handles status transitions (completed sets completedAt + auto-progress=100, un-completing clears completedAt)
+  - VaultEntry audit log with category based on status change (task_completed/task_failed/task_updated)
+- Ran bun run lint — zero errors
+- Dev server running cleanly on port 3000
+
+Stage Summary:
+- 3 API route files created: /api/tasks/route.ts (CRUD), /api/tasks/auto-generate/route.ts (auto-generation + dry-run), /api/tasks/[id]/route.ts (single task ops)
+- Full idempotent auto-task generation from P0/P1 papers with research role → agent mapping and priority → risk mapping
+- Evidence validation prevents marking tasks as completed without output
+- VaultEntry audit logging on all task creation and update operations
+- Proper HTTP status codes: 200, 201, 400, 404, 409, 500
+- Zero lint errors, dev server clean
+
+---
+Task ID: 4
+Agent: mock-data-replacer
+Task: Replace mock data in System API with real computed data
+
+Work Log:
+- Read and analyzed /home/z/my-project/src/app/api/system/route.ts — identified 4 functions using fake/simulated data
+- Read prisma/schema.prisma to understand available models and fields for real queries
+- Fixed computeAgentActivity(): Changed from synchronous function distributing tasks via sine functions to async function querying VaultEntry from last 7 days, grouping by day of week (Mon-Sun), counting EVENT/GOV as tasks and FAIL as errors
+- Fixed computeTokenHistory(): Removed simulated linear decline when no logs exist (now returns flat line at current remaining). Removed arbitrary `0.1 * usedUpTo` adjustment when logs exist. Now computes accurate cumulative usage with time-bucketed approach: sorts logs chronologically, creates 6 buckets from oldest log to now, computes remaining at each bucket as `remaining + (totalUsed - usedUpToBucket)`. Added `totalUsed` parameter to function signature.
+- Fixed computeHealthTimeline(): Replaced seededRandom()-based fake hourly health data with real computed data. Now async, queries VaultEntry, GovernorDecision, TestRun, TokenUsageLog, and Agent data from last 24 hours. Computes per-hour health from real data: Bridge/Config=always 100, Engine/GMR=from test run pass rate, Governor=from ALLOW/DENY ratio, Vault=from entry scores and fail counts, Swarm=from agent error status, Monitor=from token usage. Falls back to current pillar health when no data exists for a specific hour.
+- Fixed computeCollapseRateTrend(): When runs < 2, now returns empty array [] instead of 20 hardcoded fake data points
+- Updated calling code: Added `await` for computeAgentActivity() and computeHealthTimeline() since they are now async
+- Ran bun run lint — zero errors
+- Verified dev server running cleanly
+
+Stage Summary:
+- All 4 mock data functions replaced with real computed data from database queries
+- computeAgentActivity: now async, queries VaultEntry grouped by day of week
+- computeTokenHistory: no more simulated decline or arbitrary adjustments; uses real cumulative token usage
+- computeHealthTimeline: no more seededRandom; computes from actual VaultEntry, GovernorDecision, TestRun, TokenUsageLog per hour
+- computeCollapseRateTrend: returns empty array instead of 20 fake hardcoded values when insufficient data
+- All functions maintain same return data shapes for frontend compatibility
+- Lint passes with zero errors
+
+---
+Task ID: 5
+Agent: swarm-ws-upgrader
+Task: Connect Swarm WebSocket to Real DB State
+
+Work Log:
+- Read and analyzed current swarm-ws/index.ts: 242 lines of entirely synthetic Socket.io event generation
+- Read all relevant API routes: /api/swarm (GET/POST), /api/vault (GET), /api/agents (GET), /api/governance (GET/POST)
+- Read Prisma schema to understand Agent, VaultEntry, GovernorDecision models
+- Read frontend hook use-swarm-ws.ts to ensure event format compatibility (WorkerUpdate, TaskComplete, TaskQueued, SwarmMetrics, NexusActivity)
+- Rewrote /home/z/my-project/mini-services/swarm-ws/index.ts with real DB state integration:
+  1. Added safeFetch helper with 5s timeout, AbortController, error handling, and synthetic fallback flag
+  2. Real Worker State: polls GET /api/swarm every 3s, emits swarm:worker-update for changed workers, emits initial state on client connect
+  3. Real Task Events: swarm:assign-task handler now calls POST /api/swarm (reassign_task action), falls back to synthetic confirmation on API failure
+  4. Real Metrics: buildMetricsFromReal() computes throughput, avgDuration, successRate, utilization, totalTokens from actual agent data (tasksDone, tasksFailed, totalTokens, trustScore)
+  5. Vault Activity Feed: polls GET /api/vault every 5s, tracks lastSeenVaultEntryId, emits nexus:activity for new entries with track→activity type mapping (FAIL→error, GOV→info, TRUST→success, CAP→warning, EVENT→info)
+  6. Synthetic Fallback: all generators preserved, activated when API calls fail, with warning log on first fallback and recovery log when main app comes back
+- Seeded the database (POST /api/seed) to populate real worker data
+- Verified service starts and loads 5 real workers: "✅ Loaded 5 real workers from DB"
+- Verified WS service polls are hitting the main app API: GET /api/swarm 200, GET /api/vault 200 in dev.log
+- No changes to package.json needed (fetch is built into Bun, no new dependencies)
+- All existing socket.io event formats preserved for frontend compatibility
+
+Stage Summary:
+- Swarm WS service now connected to real database state via main app API endpoints
+- 6 real data sources integrated: worker state, metrics computation, vault activities, task assignment, initial state on connect, worker change detection
+- Synthetic fallback preserved for all 5 event channels when API is unreachable
+- Service successfully loads 5 real workers from DB on startup
+- Port 3003 unchanged, all socket.io event names and payload formats unchanged
+- No new dependencies required (uses Bun built-in fetch)
+
+---
+Task ID: 7
+Agent: snapshot-model-builder
+Task: Add HealthSnapshot + TokenSnapshot Prisma models + Snapshot Recording API
+
+Work Log:
+- Added HealthSnapshot and TokenSnapshot models to prisma/schema.prisma
+- HealthSnapshot: id, pillar, health (0-100), status (operational/degraded/down), metadata (JSON), recordedAt
+- TokenSnapshot: id, totalBudget, usedBudget, remainingBudget, tokensLastHour, burnRate, topModel, topAgent, recordedAt
+- Ran `bun run db:push` successfully to apply migration and generate Prisma Client
+- Created /api/snapshots/route.ts with:
+  - GET handler: supports type=health|token query param, hours=24 default, pillar filter for health snapshots
+  - POST handler: validates required fields, creates HealthSnapshot or TokenSnapshot records
+  - Returns both types when no type param specified
+- Updated /api/system/route.ts:
+  - computeTokenHistory changed from sync to async function
+  - computeTokenHistory now queries TokenSnapshot records first; if found, builds timeline from snapshot remainingBudget values; falls back to raw token usage log computation
+  - computeHealthTimeline now queries HealthSnapshot records first; if found, builds 24-hour per-pillar timeline from snapshot data; falls back to original raw data computation
+  - Existing API contract preserved — same response shape, just better data when snapshots exist
+- Ran `bun run lint` — zero errors
+- Dev server running cleanly with 200 responses
+
+Stage Summary:
+- 2 new Prisma models: HealthSnapshot, TokenSnapshot with full schema and migration applied
+- 1 new API route: /api/snapshots with GET (retrieve) and POST (record) handlers
+- System API enhanced to use snapshot data when available for both health timeline and token history
+- Backward compatible: falls back to original computation when no snapshots exist
+- All lint checks pass, dev server clean
+
+---
+Task ID: 9
+Agent: chat-streaming-builder
+Task: Add streaming support to AI Chat endpoint
+
+Work Log:
+- Read current `/api/chat/route.ts` (non-streaming, returns full JSON response)
+- Read current `ai-assistant.tsx` (uses fetch + response.json(), shows TypingIndicator while waiting)
+- Analyzed `z-ai-web-dev-sdk` source: confirmed `stream: true` option is supported in `CreateChatCompletionBody`, returns `ReadableStream` when streaming
+- Modified `/api/chat/route.ts`:
+  - Added `?stream=true` query parameter detection via `request.nextUrl.searchParams`
+  - Created `createSSEStream()` function: reads upstream ReadableStream from z-ai SDK, parses OpenAI-style SSE chunks, re-emits as our SSE format (`data: {"content":"...","model":"..."}\n\n`)
+  - Created `createSimulatedStream()` function: fallback for when SDK returns full JSON instead of ReadableStream — chunks response by words for natural feel
+  - Streaming path returns `Response` with `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no` headers
+  - Non-streaming path preserved exactly as before (backward compatible)
+  - Error handling: stream errors sent as SSE events with `error` field, non-stream errors return JSON as before
+- Modified `ai-assistant.tsx`:
+  - Created `parseSSEStream()` async generator: reads fetch Response body, parses SSE `data:` lines, yields `{content, model, error?}` chunks
+  - Added streaming state: `streamingContent`, `streamingModel`, `isStreaming`
+  - Created `StreamingBubble` component: renders in-progress assistant message with blinking cursor animation
+  - Created `sendWithStream()`: fetches `/api/chat?stream=true`, iterates SSE chunks via `parseSSEStream()`, updates `streamingContent` incrementally, adds final message to store on completion
+  - Created `sendWithoutStream()`: extracted existing non-stream fetch logic for non-default models
+  - Default model (NEXUS AI / z-ai SDK) now uses streaming path; other models (Cerebras, DeepSeek R1, etc.) use non-stream fallback
+  - Added AbortController ref for future cancel support
+  - Header shows "Streaming" status when actively streaming
+  - Auto-scroll during streaming when user is at bottom
+  - Partial content preserved on stream error (shows what was received)
+  - Non-stream fallback if streaming request fails (content-type check)
+- Extracted `normalizeModelName()` function from inline logic (DRY, reused in both streaming and non-streaming paths)
+- All lint checks pass (zero errors)
+
+Stage Summary:
+- SSE streaming fully implemented for AI Chat endpoint with `?stream=true` query parameter
+- Frontend consumes SSE stream with incremental display (characters appear as they arrive)
+- Blinking cursor animation during streaming for visual feedback
+- Full backward compatibility: non-streaming still works when `stream` param absent
+- Graceful fallback: simulated streaming if SDK returns JSON, partial content preserved on errors
+- No lint violations, no compilation errors

@@ -292,3 +292,26 @@ model FoundryAgent {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
+
+// ─── System Snapshots (for real time-series data) ───
+
+model HealthSnapshot {
+  id          String   @id @default(cuid())
+  pillar      String   // Bridge, Engine, Governor, Vault, GMR, Swarm, Monitor, Config
+  health      Float    // 0-100
+  status      String   // operational, degraded, down
+  metadata    String?  // JSON string with extra context (e.g., model counts, error counts)
+  recordedAt  DateTime @default(now())
+}
+
+model TokenSnapshot {
+  id              String   @id @default(cuid())
+  totalBudget     Int
+  usedBudget      Int
+  remainingBudget Int
+  tokensLastHour  Int      // tokens consumed in the last hour
+  burnRate        Float    // tokens per minute
+  topModel        String?  // model consuming most tokens
+  topAgent        String?  // agent consuming most tokens
+  recordedAt      DateTime @default(now())
+}

@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2 } from 'lucide-react'
 import { MiniAreaChart } from '@/components/nexus/charts'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { toast } from 'sonner'
@@ -510,6 +510,7 @@ export function ResearchTab() {
   const [arxivQuery, setArxivQuery] = useState('')
   const [arxivCategory, setArxivCategory] = useState('all')
   const [arxivSort, setArxivSort] = useState('relevance')
+  const [autoGenLoading, setAutoGenLoading] = useState(false)
 
   const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
 
@@ -788,6 +789,48 @@ export function ResearchTab() {
     }
   }
 
+  const handleAutoGenerateTasks = async () => {
+    setAutoGenLoading(true)
+    try {
+      // First, preview what would be generated
+      const previewRes = await fetch('/api/tasks/auto-generate')
+      if (!previewRes.ok) {
+        const err = await previewRes.json()
+        toast.error('Auto-generate preview failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const preview = await previewRes.json()
+      const eligibleCount = preview.eligiblePapers?.length || 0
+
+      if (eligibleCount === 0) {
+        toast.info('No papers need task generation', {
+          description: 'All P0/P1 papers already have associated tasks.',
+        })
+        return
+      }
+
+      // Now generate the tasks
+      const genRes = await fetch('/api/tasks/auto-generate', { method: 'POST' })
+      if (!genRes.ok) {
+        const err = await genRes.json()
+        toast.error('Auto-generate failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const result = await genRes.json()
+      const generated = result.summary?.generated || 0
+      const skipped = result.summary?.skipped || 0
+
+      toast.success(`Generated ${generated} tasks from research papers`, {
+        description: skipped > 0 ? `${skipped} papers skipped (already have tasks)` : `${eligibleCount} papers processed`,
+      })
+      refetch()
+    } catch {
+      toast.error('Auto-generate failed', { description: 'Network error' })
+    } finally {
+      setAutoGenLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Loading state with shimmer skeletons */}
@@ -883,6 +926,16 @@ export function ResearchTab() {
         >
           {arxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
           arXiv Trending
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 gap-1.5 text-xs border-purple-500/40 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 btn-press focus-ring-enhanced"
+          disabled={autoGenLoading}
+          onClick={handleAutoGenerateTasks}
+        >
+          {autoGenLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          Auto-Gen Tasks
         </Button>
       </div>
 
