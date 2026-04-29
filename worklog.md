@@ -3389,3 +3389,32 @@ Unresolved / Next Phase:
 5. More ISC-Bench templates needed (currently 12, target 84)
 6. Export/download functionality for decision logs and test results
 7. Python backend (nexus_os/) entirely disconnected from Next.js app
+
+---
+Task ID: session-glm51-001-fix
+Agent: main
+Task: Fix Prisma model availability guards and server stability
+
+Work Log:
+- Fixed 500 errors on /api/system and /api/snapshots after adding HealthSnapshot/TokenSnapshot models
+- Root cause: Prisma client singleton persists across HMR, new models not available until full restart
+- Added db.healthSnapshot/db.tokenSnapshot existence checks with graceful fallbacks
+- Extracted computeTokenHistoryFallback() and computeHealthTimelineFallback() as standalone functions
+- Added safety checks in snapshots API for missing Prisma models
+- Server confirmed working: all API endpoints returning 200
+- System API: 8 pillars, 24-point timeline, 7-day activity, 6-point token history
+
+Stage Summary:
+- All 26+ API endpoints functional
+- 6 auto-generated tasks from research papers
+- Real data pipeline replacing mock data
+- Streaming AI chat
+- Swarm WS connected to real DB
+- .env.example created
+- Git: DASHBOARD-GLM51 branch, 2 commits (push blocked by token permissions)
+
+Unresolved:
+1. GitHub push: PAT lacks Contents:Write permission
+2. Cron infrastructure 401 auth issue
+3. Server may crash under heavy concurrent load (memory pressure from parallel Prisma queries)
+4. DataSourceBadge still shows "mock" in some tabs
