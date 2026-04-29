@@ -24,12 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2 } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2, Activity, Shield, Sparkles, TrendingUp } from 'lucide-react'
 import { MiniAreaChart } from '@/components/nexus/charts'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { toast } from 'sonner'
 import { useApiData } from '@/hooks/use-api-data'
 import { useNexusStore } from '@/store/nexus-store'
+import { CONCEPT_META, ROLE_META, TIER_META } from '@/lib/dg/classification-engine'
+import type { ConceptId, ResearchRole, AdmissionTier } from '@/lib/dg/classification-engine'
 
 interface PaperItem {
   id: string          // DB cuid — used for API calls (PUT /api/research)
@@ -42,68 +44,70 @@ interface PaperItem {
   priority: 'P0' | 'P1' | 'P2'
   arxivId?: string
   domain?: string
+  // DG classification fields
+  admissionTier?: string | null
+  researchRole?: string | null
+  conceptIds?: string | null  // JSON string
+  projectFit?: string | null
+  dgFinalScore?: number | null
+  noveltyScore?: number | null
+  evidenceQuality?: number | null
+  promotable?: boolean | null
+  abstractSummary?: string | null
+}
+
+interface DGPaperFields {
+  id: string
+  externalId: string | null
+  type: string
+  title: string
+  relevanceScore: number
+  priorityTier: string
+  implementationTask: string | null
+  deliverable: string | null
+  isVetted: boolean
+  // DG classification fields
+  admissionTier?: string | null
+  researchRole?: string | null
+  conceptIds?: string | null
+  projectFit?: string | null
+  dgFinalScore?: number | null
+  noveltyScore?: number | null
+  evidenceQuality?: number | null
+  promotable?: boolean | null
+  abstractSummary?: string | null
 }
 
 interface ResearchApiResponse {
-  papers: {
-    id: string
-    externalId: string | null
-    type: string
-    title: string
-    relevanceScore: number
-    priorityTier: string
-    implementationTask: string | null
-    deliverable: string | null
-    isVetted: boolean
-  }[]
-  p0: {
-    id: string
-    externalId: string | null
-    type: string
-    title: string
-    relevanceScore: number
-    priorityTier: string
-    implementationTask: string | null
-    deliverable: string | null
-    isVetted: boolean
-  }[]
-  p1: {
-    id: string
-    externalId: string | null
-    type: string
-    title: string
-    relevanceScore: number
-    priorityTier: string
-    implementationTask: string | null
-    deliverable: string | null
-    isVetted: boolean
-  }[]
-  p2: {
-    id: string
-    externalId: string | null
-    type: string
-    title: string
-    relevanceScore: number
-    priorityTier: string
-    implementationTask: string | null
-    deliverable: string | null
-    isVetted: boolean
-  }[]
+  papers: DGPaperFields[]
+  p0: DGPaperFields[]
+  p1: DGPaperFields[]
+  p2: DGPaperFields[]
   total: number
 }
 
-function mapApiPaperToItem(p: ResearchApiResponse['p0'][number]): PaperItem {
+function mapApiPaperToItem(p: DGPaperFields): PaperItem {
   const task = p.implementationTask || 'No task assigned'
   const status = task === 'In progress' ? 'in_progress' : task === 'No task assigned' ? undefined : 'pending'
   return {
-    id: p.id,                    // DB cuid — REQUIRED for PUT /api/research
-    externalId: p.externalId || undefined, // e.g. 'arxiv-2603.23509' for display
+    id: p.id,
+    externalId: p.externalId || undefined,
     title: p.title,
     relevance: p.relevanceScore,
     task,
     deliverable: p.deliverable || undefined,
     status,
     priority: p.priorityTier as 'P0' | 'P1' | 'P2',
+    // DG classification fields
+    admissionTier: p.admissionTier,
+    researchRole: p.researchRole,
+    conceptIds: p.conceptIds,
+    projectFit: p.projectFit,
+    dgFinalScore: p.dgFinalScore,
+    noveltyScore: p.noveltyScore,
+    evidenceQuality: p.evidenceQuality,
+    promotable: p.promotable,
+    abstractSummary: p.abstractSummary,
   }
 }
 
@@ -113,6 +117,114 @@ function getArxivUrl(id: string): string | null {
     return `https://arxiv.org/abs/${match[1]}`
   }
   return null
+}
+
+/** Get color classes for a DG role badge */
+function getRoleBadgeClasses(role: string | null | undefined): string {
+  const meta = ROLE_META[role as ResearchRole]
+  if (!meta) return 'bg-gray-600/15 text-gray-600 dark:text-gray-400 border-0'
+  switch (meta.color) {
+    case 'orange': return 'bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0'
+    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
+    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
+    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
+    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
+    case 'teal': return 'bg-teal-600/15 text-teal-600 dark:text-teal-400 border-0'
+    case 'amber': return 'bg-amber-600/15 text-amber-600 dark:text-amber-400 border-0'
+    case 'cyan': return 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400 border-0'
+    case 'yellow': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0'
+    case 'gray': default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+  }
+}
+
+/** Get color classes for a DG tier badge */
+function getTierBadgeClasses(tier: string | null | undefined): string {
+  const meta = TIER_META[tier as AdmissionTier]
+  if (!meta) return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+  switch (meta.color) {
+    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
+    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
+    case 'yellow': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0'
+    case 'gray': return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
+    case 'muted': return 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-0'
+    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
+    default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+  }
+}
+
+/** Get color classes for a concept badge */
+function getConceptBadgeClasses(conceptId: string): string {
+  const meta = CONCEPT_META[conceptId as ConceptId]
+  if (!meta) return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+  switch (meta.color) {
+    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
+    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
+    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
+    case 'orange': return 'bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0'
+    case 'amber': return 'bg-amber-600/15 text-amber-600 dark:text-amber-400 border-0'
+    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
+    case 'teal': return 'bg-teal-600/15 text-teal-600 dark:text-teal-400 border-0'
+    default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
+  }
+}
+
+/** Parse conceptIds JSON string into an array */
+function parseConceptIds(conceptIds: string | null | undefined): string[] {
+  if (!conceptIds) return []
+  try {
+    const parsed = JSON.parse(conceptIds)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** Render DG mini badges for a paper card (compact inline) */
+function DGMiniBadges({ paper }: { paper: PaperItem }) {
+  const roleMeta = ROLE_META[paper.researchRole as ResearchRole]
+  const tierMeta = TIER_META[paper.admissionTier as AdmissionTier]
+  const concepts = parseConceptIds(paper.conceptIds)
+  const hasDG = paper.dgFinalScore !== null && paper.dgFinalScore !== undefined && paper.dgFinalScore > 0
+
+  if (!hasDG && !roleMeta && !tierMeta) return null
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+      {tierMeta && (
+        <Badge className={`${getTierBadgeClasses(paper.admissionTier)} text-[8px] px-1.5 py-0 h-4`}>
+          {tierMeta.label}
+        </Badge>
+      )}
+      {roleMeta && (
+        <Badge className={`${getRoleBadgeClasses(paper.researchRole)} text-[8px] px-1.5 py-0 h-4`}>
+          {roleMeta.label}
+        </Badge>
+      )}
+      {hasDG && (
+        <div className="flex items-center gap-1">
+          <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${Math.min(((paper.dgFinalScore ?? 0) / 15) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="text-[8px] text-muted-foreground tabular-nums">{paper.dgFinalScore}/15</span>
+        </div>
+      )}
+      {concepts.slice(0, 2).map((cid) => {
+        const cmeta = CONCEPT_META[cid as ConceptId]
+        return cmeta ? (
+          <Badge key={cid} className={`${getConceptBadgeClasses(cid)} text-[7px] px-1 py-0 h-4`}>
+            {cmeta.title}
+          </Badge>
+        ) : null
+      })}
+      {concepts.length > 2 && (
+        <span className="text-[7px] text-muted-foreground">+{concepts.length - 2}</span>
+      )}
+    </div>
+  )
 }
 
 function getPriorityConfig(priority: PaperItem['priority']) {
@@ -511,6 +623,12 @@ export function ResearchTab() {
   const [arxivCategory, setArxivCategory] = useState('all')
   const [arxivSort, setArxivSort] = useState('relevance')
   const [autoGenLoading, setAutoGenLoading] = useState(false)
+  const [pipelineLoading, setPipelineLoading] = useState(false)
+  const [pipelineStatus, setPipelineStatus] = useState<{
+    pipeline: { stages: Record<string, number>; totalPapers: number; throughputRate: number }
+    metrics: { avgDgScore: number; avgRelevance: number; deliveredPapers: number; throughputPercent: number }
+    bottleneck: { stage: string; paperCount: number; percentage: number; recommendation: string }
+  } | null>(null)
 
   const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
 
@@ -534,7 +652,15 @@ export function ResearchTab() {
       (p) =>
         p.title.toLowerCase().includes(q) ||
         p.id.toLowerCase().includes(q) ||
-        p.task.toLowerCase().includes(q)
+        p.task.toLowerCase().includes(q) ||
+        (p.externalId && p.externalId.toLowerCase().includes(q)) ||
+        (p.domain && p.domain.toLowerCase().includes(q)) ||
+        (p.arxivId && p.arxivId.toLowerCase().includes(q)) ||
+        (p.admissionTier && p.admissionTier.toLowerCase().includes(q)) ||
+        (p.researchRole && p.researchRole.toLowerCase().includes(q)) ||
+        (p.projectFit && p.projectFit.toLowerCase().includes(q)) ||
+        (p.conceptIds && p.conceptIds.toLowerCase().includes(q)) ||
+        (p.abstractSummary && p.abstractSummary.toLowerCase().includes(q))
     )
   }
 
@@ -831,6 +957,51 @@ export function ResearchTab() {
     }
   }
 
+  const handleRunAnalysisPipeline = async () => {
+    setPipelineLoading(true)
+    try {
+      const res = await fetch('/api/research/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error('Analysis pipeline failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const stages = data.stages || {}
+      const summary = data.summary || {}
+      const stageSummaries = Object.entries(stages).map(([stageName, r]: [string, any]) =>
+        `${stageName}: ${r.succeeded}/${r.processed}`
+      ).join(' · ')
+
+      toast.success('DG Analysis Pipeline Complete', {
+        description: stageSummaries || `${summary.totalPapers || 0} papers processed`,
+      })
+      refetch()
+      // Also refresh pipeline status
+      fetchPipelineStatus()
+    } catch {
+      toast.error('Analysis pipeline failed', { description: 'Network error' })
+    } finally {
+      setPipelineLoading(false)
+    }
+  }
+
+  const fetchPipelineStatus = async () => {
+    try {
+      const res = await fetch('/api/research/analyze')
+      if (res.ok) {
+        const data = await res.json()
+        setPipelineStatus(data)
+      }
+    } catch {
+      // Silently fail
+    }
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Loading state with shimmer skeletons */}
@@ -1003,7 +1174,7 @@ export function ResearchTab() {
         </Card>
       </div>
 
-      {/* Pipeline Progress Indicator */}
+      {/* Pipeline Progress Indicator — Real Data from /api/research/analyze */}
       <div className="relative overflow-hidden rounded-xl">
         <div className="absolute inset-0 rounded-xl p-[1.5px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #fb923c, #34d399)', backgroundSize: '300% 100%', animation: 'gradientBorder 4s linear infinite' }}>
           <div className="h-full w-full rounded-xl bg-card" />
@@ -1011,53 +1182,93 @@ export function ResearchTab() {
       <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
         <CardHeader className="relative pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Pipeline
-              <DataSourceBadge source="computed" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="relative p-4 pt-0">
-          <div className="flex items-center gap-1">
-            {[
-              { label: 'Intake', count: Math.min(totalAll + 4, 24), color: 'emerald', icon: BookOpen },
-              { label: 'Vetting', count: Math.max(totalAll - 2, 3), color: 'blue', icon: Search, vetting: true },
-              { label: 'Manifest', count: totalAll, color: 'purple', icon: Library },
-              { label: 'Priority', count: totalAll, color: 'orange', icon: Target },
-              { label: 'Delivered', count: filteredP0.length + filteredP1.filter(p => p.status === 'in_progress').length, color: 'emerald', icon: CheckCircle2 },
-            ].map((step, i) => (
-              <div key={step.label} className="flex items-center flex-1 pipeline-step-animate" style={{ animationDelay: `${i * 100}ms` }}>
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <step.icon className={`h-3 w-3 ${
-                      step.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
-                      step.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                      step.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-                      'text-orange-600 dark:text-orange-400'
-                    } ${'vetting' in step && step.vetting ? 'vetting-indicator' : ''}`} />
-                    <span className="text-[10px] font-medium">{step.label}</span>
-                    {'vetting' in step && step.vetting && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                    )}
-                    <span className="text-[9px] text-muted-foreground tabular-nums ml-auto">{step.count}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full relevance-bar-animate ${
-                        step.color === 'emerald' ? 'bg-emerald-500' :
-                        step.color === 'blue' ? 'bg-blue-500' :
-                        step.color === 'purple' ? 'bg-purple-500' :
-                        'bg-orange-500'
-                      }`}
-                      style={{ width: `${Math.min((step.count / (totalAll || 1)) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                {i < 4 && (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 mx-1 shrink-0" />
-                )}
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Pipeline
+              <DataSourceBadge source="api" />
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
+              disabled={pipelineLoading}
+              onClick={handleRunAnalysisPipeline}
+            >
+              {pipelineLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              Run Pipeline
+            </Button>
           </div>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0 space-y-3">
+          <div className="flex items-center gap-1">
+            {(() => {
+              const stages = pipelineStatus?.pipeline?.stages
+              const total = pipelineStatus?.pipeline?.totalPapers || totalAll || 1
+              const pipelineSteps = [
+                { label: 'Intake', count: stages?.intake ?? 0, color: 'emerald', icon: BookOpen },
+                { label: 'Vetting', count: stages?.vetting ?? 0, color: 'blue', icon: Search, vetting: true },
+                { label: 'Manifest', count: stages?.manifest ?? 0, color: 'purple', icon: Library },
+                { label: 'Priority', count: stages?.priority ?? 0, color: 'orange', icon: Target },
+                { label: 'Delivered', count: stages?.delivered ?? 0, color: 'emerald', icon: CheckCircle2 },
+              ]
+              return pipelineSteps.map((step, i) => (
+                <div key={step.label} className="flex items-center flex-1 pipeline-step-animate" style={{ animationDelay: `${i * 100}ms` }}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <step.icon className={`h-3 w-3 ${
+                        step.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                        step.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                        step.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+                        'text-orange-600 dark:text-orange-400'
+                      } ${'vetting' in step && step.vetting ? 'vetting-indicator' : ''}`} />
+                      <span className="text-[10px] font-medium">{step.label}</span>
+                      {'vetting' in step && step.vetting && step.count > 0 && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                      )}
+                      <span className="text-[9px] text-muted-foreground tabular-nums ml-auto">{step.count}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          step.color === 'emerald' ? 'bg-emerald-500' :
+                          step.color === 'blue' ? 'bg-blue-500' :
+                          step.color === 'purple' ? 'bg-purple-500' :
+                          'bg-orange-500'
+                        }`}
+                        style={{ width: `${Math.min((step.count / total) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  {i < 4 && (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 mx-1 shrink-0" />
+                  )}
+                </div>
+              ))
+            })()}
+          </div>
+          {/* Pipeline Metrics Row */}
+          {pipelineStatus?.metrics && (
+            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Activity className="h-3 w-3 text-emerald-500" />
+                Throughput: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.throughputPercent}%</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3 text-blue-500" />
+                Avg DG Score: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.avgDgScore}/15</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <Shield className="h-3 w-3 text-purple-500" />
+                Delivered: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.deliveredPapers}</strong>
+              </span>
+              {pipelineStatus.bottleneck && pipelineStatus.bottleneck.stage !== 'none' && (
+                <span className="flex items-center gap-1 text-orange-500">
+                  <AlertCircle className="h-3 w-3" />
+                  Bottleneck: <strong>{pipelineStatus.bottleneck.stage}</strong> ({pipelineStatus.bottleneck.percentage}%)
+                </span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
@@ -1199,6 +1410,59 @@ export function ResearchTab() {
                             )}
                           </div>
                           <p className="mt-1 text-sm font-medium">{item.title}</p>
+                          {/* DG Classification Badges */}
+                          {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
+                            <div className="mt-1 flex items-center gap-1 flex-wrap">
+                              {item.researchRole && (() => {
+                                const roleMeta = ROLE_META[item.researchRole as ResearchRole]
+                                return roleMeta ? (
+                                  <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                    roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
+                                    roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                    roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                    roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                    roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                    roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
+                                    roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
+                                    roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
+                                    roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                    'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                  }`}>{roleMeta.label}</Badge>
+                                ) : null
+                              })()}
+                              {item.admissionTier && (() => {
+                                const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
+                                return tierMeta ? (
+                                  <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                    tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                    tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                    tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                    tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                    tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                    'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                  }`}>{tierMeta.label}</Badge>
+                                ) : null
+                              })()}
+                              {item.dgFinalScore != null && item.dgFinalScore > 0 && (
+                                <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
+                                  DG: {item.dgFinalScore}/15
+                                </Badge>
+                              )}
+                              {item.conceptIds && (() => {
+                                try {
+                                  const ids: ConceptId[] = JSON.parse(item.conceptIds)
+                                  return ids.slice(0, 2).map(cid => {
+                                    const meta = CONCEPT_META[cid]
+                                    return meta ? (
+                                      <Badge key={cid} className="bg-accent text-muted-foreground border-0 text-[8px] px-1.5 py-0">
+                                        {meta.title}
+                                      </Badge>
+                                    ) : null
+                                  })
+                                } catch { return null }
+                              })()}
+                            </div>
+                          )}
                           <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
                           {item.deliverable && (
                             <div className="mt-2 flex items-center gap-2">
@@ -1209,7 +1473,7 @@ export function ResearchTab() {
                           <div className="mt-2 flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
                               <div
-                                className={`h-full rounded-full relevance-bar-animate ${
+                                className={`h-full rounded-full transition-all duration-500 ${
                                   item.relevance >= 0.8 ? 'bg-red-500' :
                                   item.relevance >= 0.6 ? 'bg-orange-500' :
                                   'bg-emerald-500'
@@ -1261,12 +1525,52 @@ export function ResearchTab() {
                           )}
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
+                        {/* DG Classification Badges */}
+                        {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
+                          <div className="mt-1 flex items-center gap-1 flex-wrap">
+                            {item.researchRole && (() => {
+                              const roleMeta = ROLE_META[item.researchRole as ResearchRole]
+                              return roleMeta ? (
+                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                  roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
+                                  roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                  roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                  roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                  roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                  roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
+                                  roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
+                                  roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
+                                  roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                }`}>{roleMeta.label}</Badge>
+                              ) : null
+                            })()}
+                            {item.admissionTier && (() => {
+                              const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
+                              return tierMeta ? (
+                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                  tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                  tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                  tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                  tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                  tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                }`}>{tierMeta.label}</Badge>
+                              ) : null
+                            })()}
+                            {item.dgFinalScore != null && item.dgFinalScore > 0 && (
+                              <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
+                                DG: {item.dgFinalScore}/15
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
                         {/* Relevance Score Visual Bar with color coding */}
                         <div className="mt-2 flex items-center gap-2">
                           <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
                             <div
-                              className={`h-full rounded-full relevance-bar-animate ${
+                              className={`h-full rounded-full transition-all duration-500 ${
                                 item.relevance >= 0.8 ? 'bg-orange-500' :
                                 item.relevance >= 0.6 ? 'bg-yellow-500' :
                                 'bg-emerald-500'
@@ -1314,12 +1618,52 @@ export function ResearchTab() {
                           </Badge>
                         </div>
                         <p className="mt-1 text-sm font-medium">{item.title}</p>
+                        {/* DG Classification Badges */}
+                        {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
+                          <div className="mt-1 flex items-center gap-1 flex-wrap">
+                            {item.researchRole && (() => {
+                              const roleMeta = ROLE_META[item.researchRole as ResearchRole]
+                              return roleMeta ? (
+                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                  roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
+                                  roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                  roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                  roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                  roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                  roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
+                                  roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
+                                  roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
+                                  roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                }`}>{roleMeta.label}</Badge>
+                              ) : null
+                            })()}
+                            {item.admissionTier && (() => {
+                              const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
+                              return tierMeta ? (
+                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
+                                  tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                                  tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                                  tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                                  tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
+                                  tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
+                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
+                                }`}>{tierMeta.label}</Badge>
+                              ) : null
+                            })()}
+                            {item.dgFinalScore != null && item.dgFinalScore > 0 && (
+                              <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
+                                DG: {item.dgFinalScore}/15
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                         <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
                         {/* Relevance Score Visual Bar with color coding */}
                         <div className="mt-2 flex items-center gap-2">
                           <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
                             <div
-                              className="h-full rounded-full relevance-bar-animate bg-emerald-500"
+                              className="h-full rounded-full transition-all duration-500 bg-emerald-500"
                               style={{ width: `${item.relevance * 100}%` }}
                             />
                           </div>
