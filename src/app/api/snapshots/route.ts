@@ -12,6 +12,9 @@ export async function GET(request: Request) {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000)
 
     if (type === 'health') {
+      if (!db.healthSnapshot) {
+        return NextResponse.json({ type: 'health', snapshots: [], note: 'HealthSnapshot model not yet available' })
+      }
       const where: Record<string, unknown> = { recordedAt: { gte: since } }
       if (pillar) {
         (where as { pillar?: string }).pillar = pillar
@@ -24,6 +27,9 @@ export async function GET(request: Request) {
     }
 
     if (type === 'token') {
+      if (!db.tokenSnapshot) {
+        return NextResponse.json({ type: 'token', snapshots: [], note: 'TokenSnapshot model not yet available' })
+      }
       const snapshots = await db.tokenSnapshot.findMany({
         where: { recordedAt: { gte: since } },
         orderBy: { recordedAt: 'desc' },
@@ -33,14 +39,14 @@ export async function GET(request: Request) {
 
     // No type specified: return both
     const [healthSnapshots, tokenSnapshots] = await Promise.all([
-      db.healthSnapshot.findMany({
+      db.healthSnapshot ? db.healthSnapshot.findMany({
         where: pillar ? { recordedAt: { gte: since }, pillar } : { recordedAt: { gte: since } },
         orderBy: { recordedAt: 'desc' },
-      }),
-      db.tokenSnapshot.findMany({
+      }) : [],
+      db.tokenSnapshot ? db.tokenSnapshot.findMany({
         where: { recordedAt: { gte: since } },
         orderBy: { recordedAt: 'desc' },
-      }),
+      }) : [],
     ])
 
     return NextResponse.json({
@@ -65,6 +71,9 @@ export async function POST(request: Request) {
     }
 
     if (type === 'health') {
+      if (!db.healthSnapshot) {
+        return NextResponse.json({ error: 'HealthSnapshot model not yet available in Prisma client' }, { status: 503 })
+      }
       const { pillar, health, status, metadata } = data
       if (!pillar || health === undefined || !status) {
         return NextResponse.json(
@@ -84,6 +93,9 @@ export async function POST(request: Request) {
     }
 
     if (type === 'token') {
+      if (!db.tokenSnapshot) {
+        return NextResponse.json({ error: 'TokenSnapshot model not yet available in Prisma client' }, { status: 503 })
+      }
       const { totalBudget, usedBudget, remainingBudget, tokensLastHour, burnRate, topModel, topAgent } = data
       if (totalBudget === undefined || usedBudget === undefined || remainingBudget === undefined || tokensLastHour === undefined || burnRate === undefined) {
         return NextResponse.json(

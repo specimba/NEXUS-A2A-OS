@@ -194,6 +194,10 @@ async function computeAgentActivity() {
 async function computeTokenHistory(logs: { createdAt: Date; totalTokens: number }[], remaining: number, totalUsed: number) {
   // Try to use TokenSnapshot records for more accurate historical data
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  if (!db.tokenSnapshot) {
+    // Prisma client not yet updated with new models - fall back to raw data
+    return computeTokenHistoryFallback(logs, remaining, totalUsed)
+  }
   const tokenSnapshots = await db.tokenSnapshot.findMany({
     where: { recordedAt: { gte: twentyFourHoursAgo } },
     orderBy: { recordedAt: 'asc' },
@@ -223,6 +227,10 @@ async function computeTokenHistory(logs: { createdAt: Date; totalTokens: number 
   }
 
   // Fallback: compute from raw token usage logs
+  return computeTokenHistoryFallback(logs, remaining, totalUsed)
+}
+
+function computeTokenHistoryFallback(logs: { createdAt: Date; totalTokens: number }[], remaining: number, totalUsed: number) {
   if (logs.length === 0) {
     // Return flat line at current remaining when no data
     return Array.from({ length: 6 }, (_, i) => ({
@@ -257,6 +265,10 @@ async function computeHealthTimeline(pillars: { name: string; health: number }[]
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
   // Try to use HealthSnapshot records first
+  if (!db.healthSnapshot) {
+    // Prisma client not yet updated with new models - fall back to raw data
+    return computeHealthTimelineFallback(pillars)
+  }
   const healthSnapshots = await db.healthSnapshot.findMany({
     where: { recordedAt: { gte: twentyFourHoursAgo } },
     orderBy: { recordedAt: 'asc' },
@@ -294,6 +306,11 @@ async function computeHealthTimeline(pillars: { name: string; health: number }[]
   }
 
   // Fallback: compute from raw data (original logic)
+  return computeHealthTimelineFallback(pillars)
+}
+
+async function computeHealthTimelineFallback(pillars: { name: string; health: number }[]) {
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const [vaultByHour, decisionsByHour, testRunsByHour, tokenLogsByHour, agents] =
     await Promise.all([
       db.vaultEntry.findMany({

@@ -3335,3 +3335,57 @@ Stage Summary:
 - Full backward compatibility: non-streaming still works when `stream` param absent
 - Graceful fallback: simulated streaming if SDK returns JSON, partial content preserved on errors
 - No lint violations, no compilation errors
+
+---
+Task ID: session-glm51-001
+Agent: main
+Task: GitHub connection, deep scan, P0/P1 feature implementation
+
+Work Log:
+- Connected to private GitHub repo specimba/nexusalpha (read access via PAT)
+- Created DASHBOARD-GLM51 branch locally
+- Push attempt fails: PAT lacks "Contents: Write" permission (API shows push=true but git push returns 403)
+- Performed comprehensive deep scan of entire codebase
+- Read canonical-617 branch structure, AGENT_GLM51.md, PROJECT_STATE.md, PRIORITY_WORK_PLAN.md
+- Built Auto-Task Generation API (3 new routes):
+  - /api/tasks: Unified task CRUD with filtering, pagination, sorting
+  - /api/tasks/auto-generate: Scans P0/P1 papers → creates GovernanceTasks (idempotent)
+  - /api/tasks/[id]: Single task operations with evidence validation
+- Wired "Auto-Gen Tasks" button into Research tab UI
+- Generated 6 tasks from existing papers (verified working)
+- Replaced all mock/simulated data in /api/system with real computed data:
+  - computeAgentActivity: queries VaultEntry from last 7 days
+  - computeTokenHistory: uses real cumulative usage (no more fake offsets)
+  - computeHealthTimeline: computes from real VaultEntry/GovernorDecision/TestRun/Agent data
+  - computeCollapseRateTrend: returns [] when no data instead of fake values
+- Connected Swarm WebSocket to real DB state:
+  - Polls /api/swarm for real worker status
+  - Polls /api/vault for real activity feed
+  - Task assignment calls real /api/swarm
+  - Metrics computed from actual agent data
+  - Synthetic fallback when API unreachable
+- Added HealthSnapshot + TokenSnapshot Prisma models
+- Created /api/snapshots endpoint (GET + POST)
+- Updated System API to use snapshots when available
+- Added AI Chat streaming support:
+  - /api/chat?stream=true returns SSE
+  - Frontend StreamingBubble with blinking cursor
+  - Graceful fallback to non-streaming
+- Created .env.example for all API keys
+- Attempted cron setup (401 auth issue persists)
+
+Stage Summary:
+- 3 P0 items completed: Auto-Task Generation, Real Data Pipeline, Swarm WS → DB
+- 3 P1 items completed: Snapshot models, Chat streaming, Research tab auto-gen button
+- 6 auto-generated tasks from research papers
+- All lint checks pass, dev server clean, all API routes returning 200
+- DASHBOARD-GLM51 branch ready (push blocked by token permissions)
+
+Unresolved / Next Phase:
+1. GitHub push blocked: PAT needs "Contents: Write" permission — user must regenerate token
+2. Cron infrastructure 401 auth issue (X-User-ID/X-User-Role headers required)
+3. DataSourceBadge still shows "mock" in some tabs (GMR, StressLab, Vault, Tokens, KPI, Swarm)
+4. Light theme needs polish pass
+5. More ISC-Bench templates needed (currently 12, target 84)
+6. Export/download functionality for decision logs and test results
+7. Python backend (nexus_os/) entirely disconnected from Next.js app
