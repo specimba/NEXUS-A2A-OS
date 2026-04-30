@@ -23,7 +23,7 @@ export interface ModelRoute {
   tier: ModelTier
   displayName: string
   actualModel: string
-  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway'
+  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway' | 'dashscope' | 'bitdeer'
   providerLabel: string
   isFree: boolean
   rateLimitPerMin: number
@@ -392,6 +392,104 @@ const MODEL_ROUTES: ModelRoute[] = [
     totalCalls: 0,
     successRate: 100,
   },
+
+  // ── Alibaba Cloud DashScope — Qwen (100+ models, 1M free tokens each!) ──
+  {
+    id: 'qwen-max-dashscope',
+    tier: 'reasoning',
+    displayName: 'Qwen Max (DashScope)',
+    actualModel: 'qwen-max',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 32000,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen-plus-dashscope',
+    tier: 'balanced',
+    displayName: 'Qwen Plus (DashScope)',
+    actualModel: 'qwen-plus-2025-07-28',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-vl-235b-dashscope',
+    tier: 'reasoning',
+    displayName: 'Qwen3 VL 235B (DashScope)',
+    actualModel: 'qwen3-vl-235b-a22b-thinking',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 5,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning', 'vision'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen2.5-vl-72b-dashscope',
+    tier: 'balanced',
+    displayName: 'Qwen2.5 VL 72B (DashScope)',
+    actualModel: 'qwen2.5-vl-72b-instruct',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'vision'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen2.5-14b-dashscope',
+    tier: 'fast',
+    displayName: 'Qwen2.5 14B (DashScope)',
+    actualModel: 'qwen2.5-14b-instruct',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 15,
+    contextWindow: 131072,
+    capabilities: ['code'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qvq-max-dashscope',
+    tier: 'reasoning',
+    displayName: 'QVQ Max Vision (DashScope)',
+    actualModel: 'qvq-max-2025-03-25',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 5,
+    contextWindow: 32768,
+    capabilities: ['vision', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
 ]
 
 // ── Runtime State ──────────────────────────────────────────────────────
@@ -571,6 +669,10 @@ function scoreRoute(route: ModelRoute): number {
   }
   // Groq is fast and free, slight preference
   if (route.provider === 'groq') {
+    score -= 5
+  }
+  // DashScope has generous free quotas, slight preference
+  if (route.provider === 'dashscope') {
     score -= 5
   }
   // Demote providers with limited quotas
@@ -1149,6 +1251,81 @@ async function callScaleway(
   return content
 }
 
+// ── DashScope API Call ──────────────────────────────────────────────
+
+async function callDashscope(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('dashscope')
+  if (!apiKey) {
+    throw new Error('No DashScope API key available. Configure DASHSCOPE_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('dashscope', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`DashScope rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('dashscope', retryAfter)
+    recordRateLimitError('dashscope', '429 Too Many Requests')
+    throw new Error(`DashScope rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('dashscope', `${response.status} Auth Error`)
+    throw new Error(`DashScope auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('dashscope', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`DashScope API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from DashScope')
+  }
+
+  recordKeySuccess('dashscope')
+  recordSuccess('dashscope')
+  recordRequest('dashscope', '/chat/completions', undefined, data)
+
+  return content
+}
+
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
 async function callZAI(
@@ -1240,6 +1417,8 @@ export async function routeRequest(
       response = await callFireworks(model.actualModel, messages, opts)
     } else if (model.provider === 'scaleway') {
       response = await callScaleway(model.actualModel, messages, opts)
+    } else if (model.provider === 'dashscope') {
+      response = await callDashscope(model.actualModel, messages, opts)
     } else {
       throw new Error(`Unknown provider: ${model.provider}`)
     }
@@ -1285,6 +1464,8 @@ export async function routeRequest(
           fbResponse = await callFireworks(fallback.actualModel, messages, opts)
         } else if (fallback.provider === 'scaleway') {
           fbResponse = await callScaleway(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'dashscope') {
+          fbResponse = await callDashscope(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }
@@ -1424,7 +1605,11 @@ export function getProviderStatus(provider: string): ProviderStatus {
                 ? 'Fireworks Free (Serverless)'
                 : provider === 'scaleway'
                   ? 'Scaleway Free (EU)'
-                  : provider
+                  : provider === 'dashscope'
+                    ? 'Alibaba Cloud Free (DashScope)'
+                    : provider === 'bitdeer'
+                      ? 'BitDeer'
+                      : provider
 
   return {
     provider,
@@ -1498,6 +1683,8 @@ export async function healthCheckProvider(provider: string): Promise<{
       response = await callFireworks(testRoute.actualModel, testMessages, healthCheckOpts)
     } else if (provider === 'scaleway') {
       response = await callScaleway(testRoute.actualModel, testMessages, healthCheckOpts)
+    } else if (provider === 'dashscope') {
+      response = await callDashscope(testRoute.actualModel, testMessages, healthCheckOpts)
     } else {
       response = await callOpenRouter(testRoute.actualModel, testMessages, healthCheckOpts)
     }

@@ -72,6 +72,8 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   scaleway: ['SCALEWAY_ACCESS_KEY'],
   kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
+  dashscope: ['DASHSCOPE_API_KEY'],
+  bitdeer: ['BITDEER_ACCESS_KEY'],
 }
 
 // ── In-Memory State ────────────────────────────────────────────────
@@ -337,6 +339,17 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
       return {
         'Authorization': `Bearer ${process.env.SCALEWAY_SECRET_KEY ?? ''}`,
         'X-Scaleway-Access-Key': key,
+        'Content-Type': 'application/json',
+      }
+    case 'dashscope':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'bitdeer':
+      return {
+        'Authorization': `Bearer ${process.env.BITDEER_SECRET_KEY ?? ''}`,
+        'X-Access-Key': key,
         'Content-Type': 'application/json',
       }
     case 'jina':

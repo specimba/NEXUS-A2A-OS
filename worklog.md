@@ -3468,3 +3468,38 @@ Stage Summary:
 - Bottleneck analysis identifies where papers are stuck and provides recommendations
 - Dry-run mode allows preview of pipeline operations without DB changes
 - Zero lint violations, zero TypeScript errors in the new file
+
+---
+Task ID: 2-a
+Agent: main
+Task: Add Alibaba Cloud DashScope (Qwen) + BitDeer providers
+
+Work Log:
+- Updated src/lib/api-key-manager.ts:
+  - Added 'dashscope' to ENV_KEY_MAP: `dashscope: ['DASHSCOPE_API_KEY']`
+  - Added 'bitdeer' to ENV_KEY_MAP: `bitdeer: ['BITDEER_ACCESS_KEY']`
+  - Added 'dashscope' case to getAuthHeaders: `Authorization: Bearer ${key}`, `Content-Type: application/json`
+  - Added 'bitdeer' case to getAuthHeaders: `Authorization: Bearer ${process.env.BITDEER_SECRET_KEY}`, `X-Access-Key: key`, `Content-Type: application/json`
+- Updated src/lib/ai-provider-bridge.ts:
+  - Added 'dashscope' | 'bitdeer' to the provider type in ModelRoute interface
+  - Added 6 DashScope Qwen models to MODEL_ROUTES array:
+    - qwen-max-dashscope (reasoning, 32K ctx, 10 RPM)
+    - qwen-plus-dashscope (balanced, 131K ctx, 10 RPM)
+    - qwen3-vl-235b-dashscope (reasoning, 131K ctx, 5 RPM, vision)
+    - qwen2.5-vl-72b-dashscope (balanced, 131K ctx, 10 RPM, vision)
+    - qwen2.5-14b-dashscope (fast, 131K ctx, 15 RPM)
+    - qvq-max-dashscope (reasoning, 32K ctx, 5 RPM, vision)
+  - Added callDashscope function using OpenAI-compatible endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+  - Added 'dashscope' case to routeRequest switch statement
+  - Added 'dashscope' case to fallback route switch statement
+  - Added 'dashscope' case to healthCheckProvider switch statement
+  - Added dashscope preference in scoreRoute: `if (route.provider === 'dashscope') { score -= 5 }`
+  - Added provider label mappings for dashscope and bitdeer in getProviderStatus
+- Lint check passes with zero errors
+
+Stage Summary:
+- Alibaba Cloud DashScope provider fully integrated with 6 Qwen models (all free, 1M free tokens each)
+- BitDeer provider configured in key manager (auth headers ready for future models)
+- DashScope uses OpenAI-compatible API endpoint for easy integration
+- All routing, fallback, health check, and scoring paths updated
+- Zero lint errors, dev server compiles cleanly
