@@ -8,10 +8,9 @@
  */
 
 import { NextResponse } from 'next/server'
-import { getAllProviderKeyStatus, getProviderKeyStatus } from '@/lib/api-key-manager'
+import { getAllProviderKeyStatus } from '@/lib/api-key-manager'
 import {
-  MODEL_ROUTES,
-  getModelForTier,
+  getAllRoutes,
   getAllProviderStatuses,
   type ModelRoute,
   type ModelTier,
@@ -87,8 +86,9 @@ export async function GET() {
     // Get key statuses from api-key-manager
     const allKeyStatuses = getAllProviderKeyStatus()
 
-    // Get unique providers from MODEL_ROUTES
-    const providerSet = new Set(MODEL_ROUTES.map(r => r.provider))
+    // Get unique providers from all routes
+    const allRoutes = getAllRoutes()
+    const providerSet = new Set(allRoutes.map(r => r.provider))
 
     // Build detailed provider responses
     const providers: ProviderDetailResponse[] = []
@@ -120,7 +120,7 @@ export async function GET() {
       }
 
       // Get models for this provider
-      const providerModels = MODEL_ROUTES.filter(r => r.provider === provider).map(r => ({
+      const providerModels = allRoutes.filter(r => r.provider === provider).map(r => ({
         id: r.id,
         tier: r.tier,
         displayName: r.displayName,
@@ -170,7 +170,7 @@ export async function GET() {
     }
 
     // Build model routes summary (lightweight)
-    const modelRoutes = MODEL_ROUTES.map(r => ({
+    const modelRoutes = allRoutes.map(r => ({
       id: r.id,
       tier: r.tier,
       displayName: r.displayName,
@@ -183,14 +183,14 @@ export async function GET() {
 
     // Group models by tier
     const tiers: Record<ModelTier, string[]> = {
-      reasoning: MODEL_ROUTES.filter(r => r.tier === 'reasoning').map(r => r.id),
-      balanced: MODEL_ROUTES.filter(r => r.tier === 'balanced').map(r => r.id),
-      fast: MODEL_ROUTES.filter(r => r.tier === 'fast').map(r => r.id),
-      free: MODEL_ROUTES.filter(r => r.tier === 'free').map(r => r.id),
+      reasoning: allRoutes.filter(r => r.tier === 'reasoning').map(r => r.id),
+      balanced: allRoutes.filter(r => r.tier === 'balanced').map(r => r.id),
+      fast: allRoutes.filter(r => r.tier === 'fast').map(r => r.id),
+      free: allRoutes.filter(r => r.tier === 'free').map(r => r.id),
     }
 
     // Summary stats
-    const healthyModels = MODEL_ROUTES.filter(r => r.health === 'healthy').length
+    const healthyModels = allRoutes.filter(r => r.health === 'healthy').length
     const availableProviders = providers.filter(p => p.isAvailable).length
 
     const response: ProvidersListResponse = {
@@ -200,7 +200,7 @@ export async function GET() {
       summary: {
         totalProviders: providers.length,
         availableProviders,
-        totalModels: MODEL_ROUTES.length,
+        totalModels: allRoutes.length,
         healthyModels,
       },
     }

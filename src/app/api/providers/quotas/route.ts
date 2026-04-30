@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { getAllProviderKeyStatus, getProviderKeyStatus } from '@/lib/api-key-manager'
+import { getAllProviderKeyStatus } from '@/lib/api-key-manager'
 import {
   getRateLimitStatus,
   getProviderFullStatus,
@@ -18,7 +18,7 @@ import {
   PROVIDER_RATE_LIMITS,
   type ProviderFullStatus,
 } from '@/lib/rate-limiter'
-import { MODEL_ROUTES, type ModelTier } from '@/lib/ai-provider-bridge'
+import { getAllRoutes, type ModelTier } from '@/lib/ai-provider-bridge'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -93,12 +93,13 @@ export async function GET() {
     const allKeyStatuses = getAllProviderKeyStatus()
     const allProviderStatuses = getAllProviderFullStatus()
 
-    // Get all unique providers from both rate limiter config and MODEL_ROUTES
+    // Get all unique providers from both rate limiter config and routes
+    const allRoutes = getAllRoutes()
     const providerSet = new Set<string>()
     for (const provider of Object.keys(PROVIDER_RATE_LIMITS)) {
       providerSet.add(provider)
     }
-    for (const route of MODEL_ROUTES) {
+    for (const route of allRoutes) {
       providerSet.add(route.provider)
     }
 
@@ -141,7 +142,7 @@ export async function GET() {
       const keyStatus = allKeyStatuses[provider]
 
       // Get models for this provider
-      const providerModels = MODEL_ROUTES
+      const providerModels = allRoutes
         .filter(r => r.provider === provider)
         .map(r => ({
           id: r.id,

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NexusTab = 'overview' | 'stresslab' | 'gmr' | 'governor' | 'vault' | 'research' | 'swarm' | 'tokens' | 'ratelimit' | 'kpi'
+export type NexusTab = 'overview' | 'stresslab' | 'gmr' | 'providers' | 'governor' | 'vault' | 'research' | 'swarm' | 'tokens' | 'ratelimit' | 'kpi'
 
 export interface ChatMessage {
   role: string

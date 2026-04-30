@@ -1,0 +1,1370 @@
+'use client'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
+import { useApiData } from '@/hooks/use-api-data'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
+import {
+  Server,
+  Activity,
+  Zap,
+  Gauge,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  TestTube2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Loader2,
+  ShieldCheck,
+  Timer,
+  ArrowRight,
+  Key,
+  Hash,
+  Cpu,
+  Globe,
+  BarChart3,
+  Info,
+  CircleDot,
+  Flame,
+  Sparkles,
+} from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { toast } from 'sonner'
+
+// ── Types matching API response ──────────────────────────────────
+
+type HealthStatus = 'healthy' | 'degraded' | 'down' | 'unknown'
+type ModelTier = 'reasoning' | 'balanced' | 'fast' | 'free'
+
+interface ProviderModel {
+  id: string
+  tier: ModelTier
+  displayName: string
+  actualModel: string
+  health: HealthStatus
+  latencyMs: number
+  totalCalls: number
+  successRate: number
+  capabilities: string[]
+  contextWindow: number
+  rateLimitPerMin: number
+  isFree: boolean
+}
+
+interface KeyStatus {
+  totalKeys: number
+  healthyKeys: number
+  hasAvailableKey: boolean
+  activeKeyMasked: string | null
+}
+
+interface RateLimitInfo {
+  rpm: number
+  rpd: number
+  remaining: { rpm: number; rpd: number }
+  isCooldown: boolean
+  cooldownRemainingMs: number
+  description: string
+}
+
+interface ProviderDetail {
+  provider: string
+  label: string
+  isAvailable: boolean
+  activeModels: number
+  totalModels: number
+  health: HealthStatus
+  rateLimitRemaining: number
+  avgLatencyMs: number
+  models: ProviderModel[]
+  keyStatus: KeyStatus
+  rateLimits: RateLimitInfo
+}
+
+interface ProvidersListResponse {
+  providers: ProviderDetail[]
+  modelRoutes: Array<{
+    id: string
+    tier: ModelTier
+    displayName: string
+    actualModel: string
+    provider: string
+    providerLabel: string
+    isFree: boolean
+    health: HealthStatus
+  }>
+  tiers: Record<ModelTier, string[]>
+  summary: {
+    totalProviders: number
+    availableProviders: number
+    totalModels: number
+    healthyModels: number
+  }
+}
+
+interface TestResultModel {
+  id: string
+  displayName: string
+  actualModel: string
+  tier: ModelTier
+}
+
+interface ProviderTestResultItem {
+  provider: string
+  model: TestResultModel
+  success: boolean
+  latencyMs: number
+  tokenCount: number
+  response: string | null
+  error: string | null
+  rateLimitRemaining: { rpm: number; rpd: number }
+  keyAvailable: boolean
+}
+
+interface ProviderQuotaModel {
+  id: string
+  displayName: string
+  tier: ModelTier
+  rateLimitPerMin: number
+}
+
+interface ProviderQuotaInfo {
+  provider: string
+  description: string
+  rateLimits: {
+    rpm: { limit: number; used: number; remaining: number; percentUsed: number }
+    rpd: { limit: number; used: number; remaining: number; percentUsed: number }
+  }
+  cooldown: {
+    isActive: boolean
+    until: number | null
+    remainingMs: number
+    reason: string | null
+  }
+  requestStats: {
+    totalRequests: number
+    totalRejected: number
+    consecutive429s: number
+  }
+  keyHealth: {
+    totalKeys: number
+    healthyKeys: number
+    hasAvailableKey: boolean
+    primaryMasked: string | null
+  }
+  models: ProviderQuotaModel[]
+  queue: {
+    pending: number
+    processing: number
+    completed: number
+  }
+  cache: {
+    size: number
+    hitRate: number
+    hits: number
+    misses: number
+  }
+}
+
+interface QuotasResponse {
+  providers: ProviderQuotaInfo[]
+  summary: {
+    totalProviders: number
+    providersInCooldown: number
+    totalRequestsToday: number
+    totalKeysAvailable: number
+    overallHealth: 'healthy' | 'degraded' | 'critical'
+  }
+}
+
+// ── Constants ─────────────────────────────────────────────────────
+
+const HEALTH_CONFIG: Record<string, { color: string; textColor: string; bgColor: string; label: string }> = {
+  healthy: {
+    color: '#34d399',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-600/15',
+    label: 'Healthy',
+  },
+  degraded: {
+    color: '#facc15',
+    textColor: 'text-yellow-600 dark:text-yellow-400',
+    bgColor: 'bg-yellow-600/15',
+    label: 'Degraded',
+  },
+  down: {
+    color: '#f87171',
+    textColor: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-600/15',
+    label: 'Down',
+  },
+  unknown: {
+    color: '#a3a3a3',
+    textColor: 'text-neutral-500 dark:text-neutral-400',
+    bgColor: 'bg-neutral-600/15',
+    label: 'Unknown',
+  },
+}
+
+const TIER_CONFIG: Record<string, { icon: string; label: string; color: string; textColor: string; bgColor: string; borderColor: string }> = {
+  reasoning: {
+    icon: '🧠',
+    label: 'Reasoning',
+    color: '#a78bfa',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-600/15',
+    borderColor: 'border-purple-600/20',
+  },
+  balanced: {
+    icon: '⚖️',
+    label: 'Balanced',
+    color: '#60a5fa',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-600/15',
+    borderColor: 'border-blue-600/20',
+  },
+  fast: {
+    icon: '⚡',
+    label: 'Fast',
+    color: '#fb923c',
+    textColor: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-600/15',
+    borderColor: 'border-orange-600/20',
+  },
+  free: {
+    icon: '🆓',
+    label: 'Free',
+    color: '#34d399',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-600/15',
+    borderColor: 'border-emerald-600/20',
+  },
+}
+
+const PROVIDER_ICONS: Record<string, string> = {
+  'z-ai': '🤖',
+  nvidia: '🟢',
+  openrouter: '🔵',
+  groq: '⚡',
+  cerebras: '🟣',
+  scaleway: '🟠',
+  fireworks: '🎆',
+  alibaba: '☁️',
+  mistral: '🌀',
+}
+
+// ── Helper ────────────────────────────────────────────────────────
+
+function formatLatency(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
+function formatContextWindow(tokens: number): string {
+  if (tokens >= 131072) return '128K'
+  if (tokens >= 65536) return '64K'
+  if (tokens >= 32768) return '32K'
+  if (tokens >= 16384) return '16K'
+  return `${Math.round(tokens / 1024)}K`
+}
+
+// ── Provider Test Panel ───────────────────────────────────────────
+
+function ProviderTestPanel({
+  provider,
+  onClose,
+}: {
+  provider: ProviderDetail
+  onClose: () => void
+}) {
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<ProviderTestResultItem | null>(null)
+
+  const runTest = useCallback(async () => {
+    setTesting(true)
+    setResult(null)
+    try {
+      const res = await globalThis.fetch('/api/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider.provider }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        toast.error(`Test failed: ${errData.error || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      if (data.results && data.results.length > 0) {
+        setResult(data.results[0])
+        if (data.results[0].success) {
+          toast.success(`${provider.label} test passed — ${data.results[0].latencyMs}ms`)
+        } else {
+          toast.error(`${provider.label} test failed — ${data.results[0].error || 'Unknown error'}`)
+        }
+      }
+    } catch (err) {
+      toast.error(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`)
+    } finally {
+      setTesting(false)
+    }
+  }, [provider])
+
+  const healthCfg = HEALTH_CONFIG[provider.health] || HEALTH_CONFIG.unknown
+
+  return (
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Test Provider: {provider.label}
+          </DialogTitle>
+          <DialogDescription>
+            Run a connectivity and response test against {provider.label}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Provider Summary */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg bg-accent/30 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Health</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`h-2.5 w-2.5 rounded-full ${healthCfg.bgColor}`} style={{ backgroundColor: healthCfg.color }} />
+                <span className={`text-sm font-semibold ${healthCfg.textColor}`}>{healthCfg.label}</span>
+              </div>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Latency</p>
+              <p className="text-sm font-semibold tabular-nums mt-1">{formatLatency(provider.avgLatencyMs)}</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Models</p>
+              <p className="text-sm font-semibold tabular-nums mt-1">{provider.activeModels}/{provider.totalModels}</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">API Key</p>
+              <p className="text-sm font-semibold mt-1">
+                {provider.keyStatus.hasAvailableKey ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">{provider.keyStatus.activeKeyMasked || 'Available'}</span>
+                ) : (
+                  <span className="text-red-600 dark:text-red-400">No key</span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Test Button */}
+          <Button
+            onClick={runTest}
+            disabled={testing}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {testing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Testing {provider.label}...
+              </>
+            ) : (
+              <>
+                <TestTube2 className="h-4 w-4 mr-2" />
+                Run Provider Test
+              </>
+            )}
+          </Button>
+
+          {/* Test Result */}
+          {result && (
+            <div className={`rounded-lg border p-4 space-y-3 ${
+              result.success
+                ? 'border-emerald-600/20 bg-emerald-600/5'
+                : 'border-red-600/20 bg-red-600/5'
+            }`}>
+              <div className="flex items-center gap-2">
+                {result.success ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                )}
+                <span className={`font-semibold ${result.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {result.success ? 'Test Passed' : 'Test Failed'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase">Latency</p>
+                  <p className="text-sm font-bold tabular-nums">{formatLatency(result.latencyMs)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase">Tokens</p>
+                  <p className="text-sm font-bold tabular-nums">{result.tokenCount}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase">Model</p>
+                  <p className="text-sm font-bold truncate">{result.model.displayName}</p>
+                </div>
+              </div>
+
+              {result.response && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Response Preview</p>
+                  <pre className="text-xs bg-muted/50 rounded-md p-2.5 max-h-32 overflow-y-auto custom-scrollbar font-mono whitespace-pre-wrap">
+                    {result.response.slice(0, 300)}
+                  </pre>
+                </div>
+              )}
+
+              {result.error && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Error</p>
+                  <pre className="text-xs bg-red-600/10 rounded-md p-2.5 font-mono whitespace-pre-wrap text-red-600 dark:text-red-400">
+                    {result.error}
+                  </pre>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                <span>RPM remaining: <span className="font-bold tabular-nums">{result.rateLimitRemaining.rpm}</span></span>
+                <span>RPD remaining: <span className="font-bold tabular-nums">{result.rateLimitRemaining.rpd}</span></span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Model Test Dialog ─────────────────────────────────────────────
+
+function ModelTestDialog({
+  model,
+  provider,
+  onClose,
+}: {
+  model: ProviderModel
+  provider: string
+  onClose: () => void
+}) {
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<ProviderTestResultItem | null>(null)
+
+  const runTest = useCallback(async () => {
+    setTesting(true)
+    setResult(null)
+    try {
+      const res = await globalThis.fetch('/api/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, model: model.id }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        toast.error(`Model test failed: ${errData.error || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      if (data.results && data.results.length > 0) {
+        setResult(data.results[0])
+        if (data.results[0].success) {
+          toast.success(`${model.displayName} test passed — ${data.results[0].latencyMs}ms`)
+        } else {
+          toast.error(`${model.displayName} test failed — ${data.results[0].error || 'Unknown'}`)
+        }
+      }
+    } catch (err) {
+      toast.error(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`)
+    } finally {
+      setTesting(false)
+    }
+  }, [model, provider])
+
+  const tierCfg = TIER_CONFIG[model.tier] || TIER_CONFIG.free
+
+  return (
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TestTube2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Test Model: {model.displayName}
+          </DialogTitle>
+          <DialogDescription>
+            {tierCfg.icon} {tierCfg.label} tier • {model.provider} • {formatContextWindow(model.contextWindow)} context
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Model Info */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg bg-accent/30 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase">Health</p>
+              <p className={`text-lg font-bold tabular-nums mt-1 ${HEALTH_CONFIG[model.health]?.textColor || ''}`}>
+                {model.health === 'healthy' ? '✓' : model.health === 'degraded' ? '⚠' : '✗'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase">Success</p>
+              <p className="text-lg font-bold tabular-nums mt-1">{model.successRate}%</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase">Calls</p>
+              <p className="text-lg font-bold tabular-nums mt-1">{model.totalCalls}</p>
+            </div>
+          </div>
+
+          <Button
+            onClick={runTest}
+            disabled={testing}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {testing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Testing {model.displayName}...
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 mr-2" />
+                Run Model Test
+              </>
+            )}
+          </Button>
+
+          {result && (
+            <div className={`rounded-lg border p-3 space-y-2 ${
+              result.success ? 'border-emerald-600/20 bg-emerald-600/5' : 'border-red-600/20 bg-red-600/5'
+            }`}>
+              <div className="flex items-center gap-2">
+                {result.success ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                )}
+                <span className={`text-sm font-semibold ${result.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {result.success ? 'Passed' : 'Failed'} — {formatLatency(result.latencyMs)}
+                </span>
+              </div>
+              {result.response && (
+                <pre className="text-xs bg-muted/50 rounded p-2 max-h-24 overflow-y-auto custom-scrollbar font-mono whitespace-pre-wrap">
+                  {result.response.slice(0, 200)}
+                </pre>
+              )}
+              {result.error && (
+                <p className="text-xs text-red-600 dark:text-red-400">{result.error}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Quota Gauge Component ─────────────────────────────────────────
+
+function QuotaGauge({ label, used, limit, color }: { label: string; used: number; limit: number; color: string }) {
+  const percent = limit > 0 ? Math.min(100, (used / limit) * 100) : 0
+  const remaining = Math.max(0, limit - used)
+  const isCritical = percent > 80
+  const isWarning = percent > 50
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className={`text-[10px] font-bold tabular-nums ${
+          isCritical ? 'text-red-600 dark:text-red-400' :
+          isWarning ? 'text-yellow-600 dark:text-yellow-400' :
+          'text-emerald-600 dark:text-emerald-400'
+        }`}>{remaining}/{limit}</span>
+      </div>
+      <div className="relative h-2.5 rounded-full bg-muted/30 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${percent}%`,
+            backgroundColor: isCritical ? '#f87171' : isWarning ? '#facc15' : color,
+            opacity: 0.8,
+          }}
+        />
+      </div>
+      <p className="text-[9px] text-muted-foreground tabular-nums">{percent.toFixed(0)}% used</p>
+    </div>
+  )
+}
+
+// ── Main ProviderTab ──────────────────────────────────────────────
+
+export function ProviderTab() {
+  const { data: providersData, loading: providersLoading, refetch: refetchProviders } = useApiData<ProvidersListResponse>('/api/providers', 15000)
+  const { data: quotasData, refetch: refetchQuotas } = useApiData<QuotasResponse>('/api/providers/quotas', 15000)
+
+  const [testingProvider, setTestingProvider] = useState<ProviderDetail | null>(null)
+  const [testingModel, setTestingModel] = useState<{ model: ProviderModel; provider: string } | null>(null)
+  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set())
+  const [activeSection, setActiveSection] = useState('grid')
+
+  const toggleProviderExpand = useCallback((providerId: string) => {
+    setExpandedProviders(prev => {
+      const next = new Set(prev)
+      if (next.has(providerId)) {
+        next.delete(providerId)
+      } else {
+        next.add(providerId)
+      }
+      return next
+    })
+  }, [])
+
+  // Compute stats from API data
+  const stats = useMemo(() => {
+    if (!providersData) {
+      return {
+        totalProviders: 0,
+        availableModels: 0,
+        healthyProviders: 0,
+        avgLatency: 0,
+      }
+    }
+    const totalProviders = providersData.summary.totalProviders
+    const availableModels = providersData.summary.totalModels
+    const healthyProviders = providersData.providers.filter(p => p.health === 'healthy' && p.keyStatus.hasAvailableKey).length
+    const testedProviders = providersData.providers.filter(p => p.avgLatencyMs > 0)
+    const avgLatency = testedProviders.length > 0
+      ? Math.round(testedProviders.reduce((sum, p) => sum + p.avgLatencyMs, 0) / testedProviders.length)
+      : 0
+
+    return { totalProviders, availableModels, healthyProviders, avgLatency }
+  }, [providersData])
+
+  // All models flattened for the table
+  const allModels = useMemo(() => {
+    if (!providersData) return []
+    const models: Array<ProviderModel & { provider: string; providerLabel: string }> = []
+    for (const p of providersData.providers) {
+      for (const m of p.models) {
+        models.push({ ...m, provider: p.provider, providerLabel: p.label })
+      }
+    }
+    return models
+  }, [providersData])
+
+  // Latency chart data from providers
+  const latencyChartData = useMemo(() => {
+    if (!providersData) return []
+    return providersData.providers
+      .filter(p => p.avgLatencyMs > 0)
+      .map(p => ({
+        name: p.label.split(' ')[0].substring(0, 10),
+        latency: p.avgLatencyMs,
+      }))
+      .sort((a, b) => a.latency - b.latency)
+  }, [providersData])
+
+  const handleRefresh = useCallback(() => {
+    refetchProviders()
+    refetchQuotas()
+    toast.success('Provider data refreshed')
+  }, [refetchProviders, refetchQuotas])
+
+  // Loading skeleton
+  if (providersLoading) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-28 rounded-xl bg-muted/30 animate-pulse" />
+          ))}
+        </div>
+        <div className="h-64 rounded-xl bg-muted/30 animate-pulse" />
+        <div className="h-48 rounded-xl bg-muted/30 animate-pulse" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6 grid-pattern">
+      {/* ── Top Stats Row ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Providers */}
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/3 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Providers</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">{stats.totalProviders}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">With API keys configured</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600/15">
+                <Server className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Available Models */}
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-blue-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-600/3 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Available Models</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">{stats.availableModels}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Total model routes</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/15">
+                <Cpu className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Healthy Providers */}
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-orange-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-600/3 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Healthy Providers</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">{stats.healthyProviders}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">With healthy API keys</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-600/15">
+                <ShieldCheck className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avg Latency */}
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-purple-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-purple-600/3 to-transparent" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Avg Latency</p>
+                <p className="text-2xl font-bold tabular-nums mt-1">{formatLatency(stats.avgLatency)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Across tested providers</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-600/15">
+                <Gauge className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Section Tabs ──────────────────────────────────────── */}
+      <Tabs value={activeSection} onValueChange={setActiveSection}>
+        <div className="flex items-center justify-between">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="grid" className="text-xs gap-1.5">
+              <Server className="h-3.5 w-3.5" />
+              Provider Status
+            </TabsTrigger>
+            <TabsTrigger value="models" className="text-xs gap-1.5">
+              <Cpu className="h-3.5 w-3.5" />
+              Model Registry
+            </TabsTrigger>
+            <TabsTrigger value="quotas" className="text-xs gap-1.5">
+              <Gauge className="h-3.5 w-3.5" />
+              Quota Dashboard
+            </TabsTrigger>
+          </TabsList>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={handleRefresh}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* ── Provider Status Grid ──────────────────────────────── */}
+        <TabsContent value="grid" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Provider Status Grid</h2>
+              <DataSourceBadge source="api" />
+            </div>
+            <Badge variant="outline" className="text-[10px]">
+              {providersData?.providers.length ?? 0} providers
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {(providersData?.providers ?? []).map((provider) => {
+              const healthCfg = HEALTH_CONFIG[provider.health] || HEALTH_CONFIG.unknown
+              const isExpanded = expandedProviders.has(provider.provider)
+              const providerIcon = PROVIDER_ICONS[provider.provider] || '🖥️'
+
+              return (
+                <Card
+                  key={provider.provider}
+                  className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 ${
+                    provider.health === 'healthy' ? 'border-emerald-600/15' :
+                    provider.health === 'degraded' ? 'border-yellow-600/15' :
+                    'border-red-600/15'
+                  }`}
+                >
+                  {/* Health gradient overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${
+                    provider.health === 'healthy' ? 'from-emerald-600/5' :
+                    provider.health === 'degraded' ? 'from-yellow-600/5' :
+                    'from-red-600/5'
+                  } via-transparent to-transparent`} />
+
+                  <CardHeader className="relative pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="text-base">{providerIcon}</span>
+                        {provider.label}
+                        {/* Health indicator dot */}
+                        <span className="relative flex h-2.5 w-2.5">
+                          {provider.health === 'healthy' && (
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          )}
+                          <span
+                            className="relative inline-flex h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: healthCfg.color }}
+                          />
+                        </span>
+                      </CardTitle>
+                      <Badge className={`border-0 text-[9px] px-1.5 ${healthCfg.bgColor} ${healthCfg.textColor}`}>
+                        {healthCfg.label}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="relative p-4 pt-0 space-y-3">
+                    {/* Key metrics row */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-md bg-accent/30 p-2 text-center">
+                        <p className="text-[9px] text-muted-foreground uppercase">Models</p>
+                        <p className="text-sm font-bold tabular-nums">{provider.activeModels}/{provider.totalModels}</p>
+                      </div>
+                      <div className="rounded-md bg-accent/30 p-2 text-center">
+                        <p className="text-[9px] text-muted-foreground uppercase">RPM Left</p>
+                        <p className="text-sm font-bold tabular-nums">{provider.rateLimits.remaining.rpm}</p>
+                      </div>
+                      <div className="rounded-md bg-accent/30 p-2 text-center">
+                        <p className="text-[9px] text-muted-foreground uppercase">Latency</p>
+                        <p className="text-sm font-bold tabular-nums">{formatLatency(provider.avgLatencyMs)}</p>
+                      </div>
+                    </div>
+
+                    {/* Rate limit bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">Rate Limit (RPM)</span>
+                        <span className="font-medium tabular-nums">{provider.rateLimits.remaining.rpm}/{provider.rateLimits.rpm}</span>
+                      </div>
+                      <Progress
+                        value={provider.rateLimits.rpm > 0 ? (provider.rateLimits.remaining.rpm / provider.rateLimits.rpm) * 100 : 0}
+                        className="h-1.5"
+                      />
+                    </div>
+
+                    {/* Cooldown indicator */}
+                    {provider.rateLimits.isCooldown && (
+                      <div className="flex items-center gap-2 rounded-md bg-red-600/10 border border-red-600/20 px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400">
+                        <Timer className="h-3 w-3 animate-pulse" />
+                        <span>Cooldown active — {Math.ceil(provider.rateLimits.cooldownRemainingMs / 1000)}s remaining</span>
+                      </div>
+                    )}
+
+                    {/* Key status */}
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <Key className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {provider.keyStatus.hasAvailableKey ? (
+                          <>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">Key active</span>
+                            {provider.keyStatus.activeKeyMasked && (
+                              <span className="ml-1.5 font-mono">{provider.keyStatus.activeKeyMasked}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-red-600 dark:text-red-400 font-medium">No key available</span>
+                        )}
+                      </span>
+                      <span className="ml-auto text-muted-foreground">
+                        {provider.keyStatus.healthyKeys}/{provider.keyStatus.totalKeys} healthy
+                      </span>
+                    </div>
+
+                    {/* Expanded model list */}
+                    {isExpanded && provider.models.length > 0 && (
+                      <div className="space-y-1.5 pt-2 border-t border-border/50">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Models</p>
+                        {provider.models.map(m => {
+                          const mHealth = HEALTH_CONFIG[m.health] || HEALTH_CONFIG.unknown
+                          const mTier = TIER_CONFIG[m.tier] || TIER_CONFIG.free
+                          return (
+                            <div
+                              key={m.id}
+                              className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs"
+                            >
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: mHealth.color }}
+                              />
+                              <span className="truncate flex-1 font-medium">{m.displayName}</span>
+                              <Badge className={`border-0 text-[8px] px-1 py-0 ${mTier.bgColor} ${mTier.textColor}`}>
+                                {mTier.icon} {mTier.label}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{formatLatency(m.latencyMs)}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-[11px] h-7 gap-1"
+                        onClick={() => setTestingProvider(provider)}
+                      >
+                        <TestTube2 className="h-3 w-3" />
+                        Test
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 text-[11px] h-7 gap-1"
+                        onClick={() => toggleProviderExpand(provider.provider)}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-3 w-3" />
+                            Collapse
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-3 w-3" />
+                            Details
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Latency Chart */}
+          {latencyChartData.length > 0 && (
+            <Card className="relative overflow-hidden border-emerald-600/15">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+              <CardHeader className="relative pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  Provider Latency Comparison
+                  <DataSourceBadge source="api" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative p-4 pt-0">
+                <div className="h-[160px]">
+                  <NexusBarChart
+                    data={latencyChartData}
+                    dataKey="latency"
+                    nameKey="name"
+                    color={COLORS.emerald}
+                    height={160}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Model Registry Table ──────────────────────────────── */}
+        <TabsContent value="models" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Model Registry</h2>
+              <DataSourceBadge source="api" />
+            </div>
+            <Badge variant="outline" className="text-[10px]">
+              {allModels.length} models
+            </Badge>
+          </div>
+
+          <Card className="relative overflow-hidden border-emerald-600/15">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/2 via-transparent to-transparent" />
+            <CardContent className="relative p-0">
+              <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Model</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Provider</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Tier</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Context</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Health</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Success</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Latency</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider">Capabilities</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider w-20">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allModels.map((model) => {
+                      const mHealth = HEALTH_CONFIG[model.health] || HEALTH_CONFIG.unknown
+                      const mTier = TIER_CONFIG[model.tier] || TIER_CONFIG.free
+                      return (
+                        <TableRow key={model.id} className="hover:bg-accent/30">
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium truncate max-w-[180px]">{model.displayName}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[180px]">{model.actualModel}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs">{model.providerLabel}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`border-0 text-[9px] px-1.5 py-0 ${mTier.bgColor} ${mTier.textColor}`}>
+                              {mTier.icon} {mTier.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs tabular-nums">{formatContextWindow(model.contextWindow)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: mHealth.color }}
+                              />
+                              <span className={`text-[10px] font-medium ${mHealth.textColor}`}>
+                                {mHealth.label}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Progress
+                                value={model.successRate}
+                                className="h-1.5 w-12"
+                              />
+                              <span className="text-[10px] tabular-nums font-medium">{model.successRate}%</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs tabular-nums">{formatLatency(model.latencyMs)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {model.capabilities.slice(0, 3).map(cap => (
+                                <Badge key={cap} variant="outline" className="text-[8px] px-1 py-0 h-4">
+                                  {cap}
+                                </Badge>
+                              ))}
+                              {model.capabilities.length > 3 && (
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 h-4">
+                                  +{model.capabilities.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                              onClick={() => setTestingModel({ model, provider: model.provider })}
+                            >
+                              <Zap className="h-3 w-3" />
+                              Test
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Quota Dashboard ────────────────────────────────────── */}
+        <TabsContent value="quotas" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Quota Dashboard</h2>
+              <DataSourceBadge source="api" />
+            </div>
+            <div className="flex items-center gap-2">
+              {quotasData?.summary.overallHealth && (
+                <Badge className={`border-0 text-[9px] px-2 ${
+                  quotasData.summary.overallHealth === 'healthy' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                  quotasData.summary.overallHealth === 'degraded' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                  'bg-red-600/15 text-red-600 dark:text-red-400'
+                }`}>
+                  {quotasData.summary.overallHealth.toUpperCase()}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Summary Stats */}
+          {quotasData && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-accent/30 p-3 text-center">
+                <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                <p className="text-lg font-bold tabular-nums">{quotasData.summary.totalProviders}</p>
+                <p className="text-[9px] text-muted-foreground">Total Providers</p>
+              </div>
+              <div className="rounded-lg bg-accent/30 p-3 text-center">
+                <Timer className="h-4 w-4 text-red-600 dark:text-red-400 mx-auto mb-1" />
+                <p className="text-lg font-bold tabular-nums">{quotasData.summary.providersInCooldown}</p>
+                <p className="text-[9px] text-muted-foreground">In Cooldown</p>
+              </div>
+              <div className="rounded-lg bg-accent/30 p-3 text-center">
+                <Hash className="h-4 w-4 text-orange-600 dark:text-orange-400 mx-auto mb-1" />
+                <p className="text-lg font-bold tabular-nums">{quotasData.summary.totalRequestsToday}</p>
+                <p className="text-[9px] text-muted-foreground">Requests Today</p>
+              </div>
+              <div className="rounded-lg bg-accent/30 p-3 text-center">
+                <Key className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
+                <p className="text-lg font-bold tabular-nums">{quotasData.summary.totalKeysAvailable}</p>
+                <p className="text-[9px] text-muted-foreground">Keys Available</p>
+              </div>
+            </div>
+          )}
+
+          {/* Per-provider quota cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {(quotasData?.providers ?? []).map((quota) => {
+              const providerIcon = PROVIDER_ICONS[quota.provider] || '🖥️'
+              const isCooldown = quota.cooldown.isActive
+              const isCriticalRpm = quota.rateLimits.rpm.percentUsed > 80
+              const isCriticalRpd = quota.rateLimits.rpd.percentUsed > 80
+
+              return (
+                <Card
+                  key={quota.provider}
+                  className={`relative overflow-hidden hover-lift shadow-md ${
+                    isCooldown ? 'border-red-600/20' :
+                    isCriticalRpm || isCriticalRpd ? 'border-yellow-600/15' :
+                    'border-emerald-600/10'
+                  }`}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${
+                    isCooldown ? 'from-red-600/5' :
+                    isCriticalRpm ? 'from-yellow-600/5' :
+                    'from-emerald-600/3'
+                  } via-transparent to-transparent`} />
+
+                  <CardHeader className="relative pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="text-base">{providerIcon}</span>
+                        {quota.provider}
+                      </CardTitle>
+                      {isCooldown && (
+                        <Badge className="border-0 text-[9px] px-1.5 bg-red-600/15 text-red-600 dark:text-red-400 animate-pulse">
+                          COOLDOWN
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{quota.description}</p>
+                  </CardHeader>
+
+                  <CardContent className="relative p-4 pt-0 space-y-3">
+                    {/* Rate limit gauges */}
+                    <QuotaGauge
+                      label="Requests Per Minute"
+                      used={quota.rateLimits.rpm.used}
+                      limit={quota.rateLimits.rpm.limit}
+                      color={COLORS.emerald}
+                    />
+                    <QuotaGauge
+                      label="Requests Per Day"
+                      used={quota.rateLimits.rpd.used}
+                      limit={quota.rateLimits.rpd.limit}
+                      color={COLORS.blue}
+                    />
+
+                    {/* Cooldown timer */}
+                    {isCooldown && (
+                      <div className="flex items-center gap-2 rounded-md bg-red-600/10 border border-red-600/20 px-2.5 py-2 text-xs text-red-600 dark:text-red-400">
+                        <Timer className="h-3.5 w-3.5 animate-pulse" />
+                        <div>
+                          <p className="font-medium">Cooldown active</p>
+                          {quota.cooldown.remainingMs > 0 && (
+                            <p className="text-[10px]">{Math.ceil(quota.cooldown.remainingMs / 1000)}s remaining</p>
+                          )}
+                          {quota.cooldown.reason && (
+                            <p className="text-[10px] opacity-80">{quota.cooldown.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Request stats */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-md bg-accent/30 p-1.5">
+                        <p className="text-[9px] text-muted-foreground uppercase">Total</p>
+                        <p className="text-xs font-bold tabular-nums">{quota.requestStats.totalRequests}</p>
+                      </div>
+                      <div className="rounded-md bg-accent/30 p-1.5">
+                        <p className="text-[9px] text-muted-foreground uppercase">Rejected</p>
+                        <p className="text-xs font-bold tabular-nums text-red-600 dark:text-red-400">{quota.requestStats.totalRejected}</p>
+                      </div>
+                      <div className="rounded-md bg-accent/30 p-1.5">
+                        <p className="text-[9px] text-muted-foreground uppercase">429s</p>
+                        <p className="text-xs font-bold tabular-nums text-yellow-600 dark:text-yellow-400">{quota.requestStats.consecutive429s}</p>
+                      </div>
+                    </div>
+
+                    {/* Key health */}
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Key className="h-3 w-3" />
+                        Key Health
+                      </span>
+                      <span className={quota.keyHealth.hasAvailableKey ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
+                        {quota.keyHealth.hasAvailableKey
+                          ? `${quota.keyHealth.healthyKeys}/${quota.keyHealth.totalKeys} healthy`
+                          : 'No key available'}
+                      </span>
+                    </div>
+
+                    {/* Cache stats */}
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Cache Hit Rate
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {quota.cache.hitRate > 0 ? `${(quota.cache.hitRate * 100).toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </div>
+
+                    {/* Queue stats */}
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Activity className="h-3 w-3" />
+                        Queue
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {quota.queue.pending} pending · {quota.queue.processing} processing
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Free Tier Notes */}
+          <Card className="relative overflow-hidden border-emerald-600/15">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Info className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Free Tier Quota Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative p-4 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex items-start gap-3 rounded-lg bg-accent/30 p-3">
+                  <Flame className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium">Fireworks AI</p>
+                    <p className="text-[10px] text-muted-foreground">$6 credits on free tier. Use sparingly for production workloads. Ideal for StressLab and quick tests.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg bg-accent/30 p-3">
+                  <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium">Alibaba Cloud (Qwen)</p>
+                    <p className="text-[10px] text-muted-foreground">100+ models available, 1M free tokens each. Excellent for research and development. Best free-tier value.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg bg-accent/30 p-3">
+                  <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium">NVIDIA NIM Free</p>
+                    <p className="text-[10px] text-muted-foreground">40 RPM on free tier. Models like Gemma-3-27B and Llama available at no cost with rate limits.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg bg-accent/30 p-3">
+                  <CircleDot className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium">OpenRouter Free</p>
+                    <p className="text-[10px] text-muted-foreground">Access to DeepSeek, Llama, and other models for free. Rate limited to 20 RPM. Some models may have slower responses.</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Provider Test Dialog ────────────────────────────────── */}
+      {testingProvider && (
+        <ProviderTestPanel
+          provider={testingProvider}
+          onClose={() => setTestingProvider(null)}
+        />
+      )}
+
+      {/* ── Model Test Dialog ───────────────────────────────────── */}
+      {testingModel && (
+        <ModelTestDialog
+          model={testingModel.model}
+          provider={testingModel.provider}
+          onClose={() => setTestingModel(null)}
+        />
+      )}
+    </div>
+  )
+}

@@ -27,6 +27,7 @@ const tabTitles: Record<string, string> = {
   overview: 'System Overview',
   stresslab: 'StressLab Arena',
   gmr: 'GMR Router Panel',
+  providers: 'Provider Management',
   governor: 'Governor Dashboard',
   vault: 'Vault Browser',
   research: 'Research Pipeline',

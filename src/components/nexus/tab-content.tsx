@@ -4,6 +4,7 @@ import { useNexusStore } from '@/store/nexus-store'
 import { OverviewTab } from './tabs/overview-tab'
 import { StressLabTab } from './tabs/stresslab-tab'
 import { GmrTab } from './tabs/gmr-tab'
+import { ProviderTab } from './tabs/provider-tab'
 import { GovernorTab } from './tabs/governor-tab'
 import { VaultTab } from './tabs/vault-tab'
 import { ResearchTab } from './tabs/research-tab'
@@ -17,6 +18,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   overview: OverviewTab,
   stresslab: StressLabTab,
   gmr: GmrTab,
+  providers: ProviderTab,
   governor: GovernorTab,
   vault: VaultTab,
   research: ResearchTab,

@@ -3549,3 +3549,88 @@ Stage Summary:
 - Provider testing with timeout, sequential execution, and key availability checks
 - Quota reporting with rate limits, cooldown status, and overall health assessment
 - Zero lint errors, dev server compiles cleanly
+
+---
+Task ID: 4
+Agent: main
+Task: Build comprehensive Provider Management tab for NEXUS OS dashboard
+
+Work Log:
+- Created ProviderTab component (/src/components/nexus/tabs/provider-tab.tsx):
+  - 'use client' component with 5 major sections matching existing design patterns
+  - **Top Stats Row**: 4 gradient stat cards (Total Providers, Available Models, Healthy Providers, Avg Latency) with hover-lift class, emerald/blue/orange/purple gradients, icon badges
+  - **Provider Status Grid**: Cards per provider showing:
+    - Provider name + emoji icon (from PROVIDER_ICONS map)
+    - Key health status (green/yellow/red indicator with animate-ping for healthy)
+    - Available models count, RPM remaining, average latency
+    - Rate limit progress bar
+    - Cooldown indicator (red border + timer when active)
+    - API key status (active key masked value or "No key available")
+    - Expandable model list with health dots, tier badges, latency
+    - "Test" button → opens ProviderTestPanel dialog
+    - "Details" button → expands/collapses model list
+  - **Model Registry Table**: Full table of all model routes showing:
+    - Model display name + actual model ID, provider, tier badge, context window
+    - Health indicator dot + label, success rate with progress bar, latency
+    - Capabilities badges (max 3 + count), "Test" button per row
+    - Uses shadcn Table components, max-h-[520px] with custom-scrollbar
+  - **Provider Test Panel** (Dialog): When "Test" clicked:
+    - Shows provider summary (health, latency, models, API key)
+    - "Run Provider Test" button → POST /api/providers/test
+    - Loading spinner during test
+    - Result display: success/fail, latency, token count, model, response preview, error
+    - RPM/RPD remaining after test
+  - **Model Test Dialog**: Similar test panel for individual models
+  - **Quota Dashboard** (separate tab): Section showing:
+    - Summary stats row (Total Providers, In Cooldown, Requests Today, Keys Available)
+    - Per-provider quota cards with:
+      - RPM/RPD gauge bars (QuotaGauge component with color-coded usage)
+      - Cooldown timer display
+      - Request stats (total, rejected, 429s)
+      - Key health indicator
+      - Cache hit rate, queue stats
+    - Free Tier Quota Notes card:
+      - Fireworks AI: "$6 credits on free tier. Use sparingly."
+      - Alibaba Cloud (Qwen): "100+ models available, 1M free tokens each."
+      - NVIDIA NIM Free: "40 RPM on free tier."
+      - OpenRouter Free: "20 RPM rate limited."
+  - Uses useApiData hook for /api/providers (15s refresh) and /api/providers/quotas (15s refresh)
+  - Uses DataSourceBadge source="api" throughout
+  - Uses NexusBarChart for Provider Latency Comparison chart
+  - Uses grid-pattern background class
+  - Tab-based navigation: Provider Status / Model Registry / Quota Dashboard
+
+- Updated nexus-store.ts:
+  - Added 'providers' to NexusTab type union (after 'gmr', before 'governor')
+
+- Updated sidebar.tsx:
+  - Added Server icon import from lucide-react
+  - Added "Providers" nav item with Server icon, inserted after "GMR Router" and before "Governor"
+
+- Updated tab-content.tsx:
+  - Added ProviderTab import from './tabs/provider-tab'
+  - Added 'providers: ProviderTab' to tabComponents record
+
+- Updated header.tsx:
+  - Added 'providers: "Provider Management"' to tabTitles mapping
+
+- Fixed pre-existing API route bugs:
+  - /api/providers/route.ts: Changed MODEL_ROUTES → getAllRoutes() (MODEL_ROUTES is not exported)
+  - /api/providers/test/route.ts: Changed MODEL_ROUTES → getAllRoutes() (same issue)
+  - /api/providers/quotas/route.ts: Changed MODEL_ROUTES → getAllRoutes() (same issue)
+  - Removed unused imports: getModelForTier, getProviderKeyStatus
+
+- Installed missing dependency: socket.io-client (pre-existing 500 error from use-swarm-ws.ts)
+
+- All lint checks pass (bun run lint — zero errors)
+- All API endpoints returning 200 (/api/providers, /api/providers/quotas)
+- Dev server running cleanly on port 3000
+
+Stage Summary:
+- New "Providers" tab added to NEXUS OS sidebar (between GMR Router and Governor)
+- Full ProviderTab component with 5 sections: Stats, Provider Grid, Model Registry, Test Panel, Quota Dashboard
+- Connected to real API endpoints: /api/providers, /api/providers/test, /api/providers/quotas
+- Fixed 3 pre-existing API route bugs (MODEL_ROUTES not exported from ai-provider-bridge)
+- Fixed missing socket.io-client dependency
+- No lint violations, no compilation errors
+- Consistent design language matching existing GMR/Vault/Tokens tabs
