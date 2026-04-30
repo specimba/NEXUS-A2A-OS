@@ -3503,3 +3503,49 @@ Stage Summary:
 - DashScope uses OpenAI-compatible API endpoint for easy integration
 - All routing, fallback, health check, and scoring paths updated
 - Zero lint errors, dev server compiles cleanly
+
+---
+Task ID: 3
+Agent: main
+Task: Build comprehensive multi-provider model testing API routes
+
+Work Log:
+- Created /api/providers/route.ts (GET):
+  - Returns all provider statuses with key health, available models, rate limits
+  - Uses getAllProviderKeyStatus() from api-key-manager.ts
+  - Uses getAllProviderStatuses() from ai-provider-bridge.ts
+  - Uses getRateLimitStatus() from rate-limiter.ts
+  - Returns detailed ProviderDetailResponse for each provider including: label, isAvailable, activeModels, totalModels, health, models list with capabilities, key status (totalKeys, healthyKeys, hasAvailableKey, activeKeyMasked), rate limits (rpm, rpd, remaining, isCooldown, cooldownRemainingMs)
+  - Also returns lightweight modelRoutes summary, tier groupings (reasoning/balanced/fast/free), and overall summary stats
+  - Proper TypeScript types for all request/response bodies (ProviderDetailResponse, ProvidersListResponse)
+  - Graceful error handling with 500 status on failures
+- Created /api/providers/test/route.ts (POST):
+  - Accepts body: { provider?: string, model?: string, prompt?: string, tier?: string }
+  - Tests a specific provider or all providers by sending a simple prompt and measuring metrics
+  - Uses "Respond with exactly: NEXUS-OK" as default prompt to minimize token usage
+  - Measures: latencyMs, success/failure, estimated token count (~4 chars per token), actual model used (from routeRequest result)
+  - 30-second timeout per provider test via AbortController + Promise.race
+  - Sequential execution when testing all providers to avoid rate limits
+  - Checks key availability before testing (skips providers with no API key)
+  - Validates provider name and tier parameters with 400 error for unknown providers/tiers
+  - Returns ProviderTestResult per provider with: model info (id, displayName, actualModel, tier), success, latencyMs, tokenCount, response (truncated to 500 chars), error, rateLimitRemaining, keyAvailable
+  - Summary includes: total, succeeded, failed, avgLatencyMs, fastestProvider, slowestProvider
+  - Uses routeRequest() from ai-provider-bridge.ts with system prompt "You are a test endpoint. Follow the user instruction exactly and concisely." and maxTokens=50, temperature=0
+- Created /api/providers/quotas/route.ts (GET):
+  - Returns quota information for each provider estimated from rate limiter state
+  - Shows: rate limits (RPM/RPD with limit/used/remaining/percentUsed), cooldown status (isActive, until, remainingMs, reason), request stats (totalRequests, totalRejected, consecutive429s), key health (totalKeys, healthyKeys, hasAvailableKey, primaryMasked), models list, queue status (pending/processing/completed), cache stats (size, hitRate, hits, misses)
+  - Uses getProviderFullStatus() and getAllProviderFullStatus() from rate-limiter.ts
+  - Uses getAllProviderKeyStatus() from api-key-manager.ts
+  - Summary: totalProviders, providersInCooldown, totalRequestsToday, totalKeysAvailable, overallHealth (healthy/degraded/critical)
+  - Graceful fallback for providers not in rate-limiter config (builds minimal status)
+- All lint checks pass (bun run lint — zero errors)
+- No 'use server' directives (not needed for API routes)
+- All routes handle errors gracefully with try/catch and proper JSON error responses
+
+Stage Summary:
+- 3 new API routes created: /api/providers (GET), /api/providers/test (POST), /api/providers/quotas (GET)
+- Full integration with existing api-key-manager, ai-provider-bridge, and rate-limiter libraries
+- Comprehensive TypeScript types for all request/response bodies
+- Provider testing with timeout, sequential execution, and key availability checks
+- Quota reporting with rate limits, cooldown status, and overall health assessment
+- Zero lint errors, dev server compiles cleanly
