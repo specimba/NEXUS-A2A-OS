@@ -3660,3 +3660,82 @@ Stage Summary:
 - Comments tailored to PR category (bug fix vs OpenShell integration)
 - All API calls returned 201 Created with valid comment IDs
 - Work record appended to worklog.md
+
+---
+Task ID: 3
+Agent: main
+Task: Add BitDeer provider implementation + upgrade model routes
+
+Work Log:
+- Added 3 BitDeer model routes to MODEL_ROUTES in ai-provider-bridge.ts:
+  - deepseek-r1-bitdeer (reasoning tier, deepseek-ai/DeepSeek-R1, 128K ctx)
+  - qwen3-235b-bitdeer (reasoning tier, Qwen/Qwen3-235B-A22B, 131K ctx, tools)
+  - llama-4-maverick-bitdeer (balanced tier, meta-llama/Llama-4-Maverick-17B-128E, 131K ctx)
+- Added 2 Fireworks model routes after qwen3-30b-fireworks:
+  - llama4-maverick-fireworks (reasoning tier, llama4-maverick-instruct-basic, 1M ctx)
+  - qwen3-235b-fireworks (reasoning tier, qwen3-235b-a22b, 131K ctx, tools)
+- Added 3 DashScope Qwen model routes after qvq-max-dashscope:
+  - qwen3-235b-dashscope (reasoning tier, qwen3-235b-a22b, 131K ctx, tools)
+  - qwen3-30b-dashscope (balanced tier, qwen3-30b-a3b, 131K ctx)
+  - qwq-32b-dashscope (balanced tier, qwq-32b, 131K ctx)
+- Added callBitdeer function after callDashscope:
+  - Uses BITDEER_ACCESS_KEY + BITDEER_SECRET_KEY (dual-key auth like Scaleway)
+  - Sends X-Access-Key header + Bearer secret key
+  - API endpoint: https://api.onbitdeer.ai/v1/chat/completions
+  - Full error handling: 429 rate limit, 401/403 auth errors, generic errors
+  - Records key success, success metrics, and request logs
+- Added BitDeer to routeRequest primary dispatch (after dashscope, before else fallback)
+- Added BitDeer to routeRequest fallback dispatch (after dashscope, before openrouter fallback)
+- Added BitDeer slight demotion in scoreRoute: score += 30 (similar to fireworks +50, between groq/dashscope -5 and fireworks +50)
+- Verified api-key-manager.ts already has bitdeer support (BITDEER_ACCESS_KEY key config + case handler)
+- All lint checks pass (bun run lint — zero errors)
+
+Stage Summary:
+- 8 new model routes added: 3 BitDeer, 2 Fireworks, 3 DashScope
+- Full BitDeer provider implementation: API call function, dispatch routing, scoring
+- Total model routes now: 31 (was 23)
+- No lint violations, no compilation errors
+
+---
+Task ID: 5
+Agent: main
+Task: Build Automated Paper Analysis Pipeline for NEXUS OS
+
+Work Log:
+- Updated `/api/research/analyze/route.ts` to add LLM-powered paper analysis:
+  - Added `z-ai-web-dev-sdk` import and singleton ZAI instance (`getZAI()`)
+  - Added `handleLLMAnalysis()` function supporting `{ paperId }` or `{ analyzeAll, tier }` request bodies
+  - When `paperId` is provided: analyzes a single paper using LLM with structured JSON prompt
+  - When `analyzeAll` is provided: fetches up to 10 unvetted papers (optionally filtered by `tier`) and analyzes each via LLM
+  - LLM prompt asks for: abstractSummary, implementationTask, deliverable, researchRole, projectFit, conceptIds, noveltyScore, evidenceQuality, dgFinalScore, priorityTier
+  - Validates and clamps all scores (noveltyScore 0-2, evidenceQuality 0-5, dgFinalScore 0-15)
+  - Validates enum fields against allowed values (VALID_ROLES, VALID_FITS, VALID_CONCEPTS)
+  - Updates paper record in database with all analysis results, sets `isVetted: true`
+  - Returns `{ results, totalAnalyzed }` with per-paper success/error details
+  - Preserves backward compatibility: existing DG pipeline POST (`{ stage, paperIds, dryRun }`) still works
+- Enhanced Research Tab (`research-tab.tsx`) with AI analysis UI:
+  - Added "Analyze P0" button next to search bar (red outline with BrainCircuit icon + Loader2 spinner)
+  - Added AI Analysis Progress Card above priority queues:
+    - 3 stat boxes: Total Papers, Analyzed (vetted), Unanalyzed
+    - Progress bar showing Y/X percentage
+    - "Analyze P0" and "Analyze P1" buttons in card header
+    - Warning banner when unanalyzed papers exist
+  - Added "Analyze" button on every paper card (P0, P1, P2 tiers):
+    - Small emerald outline button with BrainCircuit icon
+    - Loading spinner ("Analyzing...") while LLM is processing
+    - `e.stopPropagation()` to prevent opening paper dialog on click
+  - Added `handleAnalyzePaper()` and `handleAnalyzeQueue()` handler functions
+  - Added `analyzingPaperId` and `analyzeQueueLoading` state variables
+  - Added `BrainCircuit` icon from lucide-react
+- Verified LLM analysis works end-to-end:
+  - POST to `/api/research/analyze` with `{ paperId }` returns analysis with all fields
+  - Paper "Internal Safety Collapse in Frontier LLMs" successfully analyzed: researchRole=evaluation, dgFinalScore=10, priorityTier=P1, conceptIds=[safety_alignment, emergent_behavior, reasoning]
+  - GET `/api/research/analyze` still returns pipeline status correctly
+- All lint checks pass (zero errors)
+
+Stage Summary:
+- API Route: Extended POST handler with LLM-powered analysis mode alongside existing DG pipeline mode
+- Frontend: 3 new UI features — Analyze P0 button in toolbar, AI Analysis Progress Card, per-paper Analyze buttons
+- LLM Integration: z-ai-web-dev-sdk used server-side only, with structured prompt and validated JSON response
+- Backward Compatible: Existing DG pipeline POST and GET endpoints unchanged
+- No lint violations, no compilation errors

@@ -374,6 +374,38 @@ const MODEL_ROUTES: ModelRoute[] = [
     totalCalls: 0,
     successRate: 100,
   },
+  {
+    id: 'llama4-maverick-fireworks',
+    tier: 'reasoning',
+    displayName: 'Llama 4 Maverick (Fireworks)',
+    actualModel: 'accounts/fireworks/models/llama4-maverick-instruct-basic',
+    provider: 'fireworks',
+    providerLabel: 'Fireworks Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 1048576,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-235b-fireworks',
+    tier: 'reasoning',
+    displayName: 'Qwen3 235B (Fireworks)',
+    actualModel: 'accounts/fireworks/models/qwen3-235b-a22b',
+    provider: 'fireworks',
+    providerLabel: 'Fireworks Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
 
   // ── Scaleway — EU-Hosted (1M tok ONE-TIME, USE SPARINGLY) ──
   {
@@ -485,6 +517,104 @@ const MODEL_ROUTES: ModelRoute[] = [
     rateLimitPerMin: 5,
     contextWindow: 32768,
     capabilities: ['vision', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-235b-dashscope',
+    tier: 'reasoning',
+    displayName: 'Qwen3 235B (DashScope)',
+    actualModel: 'qwen3-235b-a22b',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 5,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-30b-dashscope',
+    tier: 'balanced',
+    displayName: 'Qwen3 30B (DashScope)',
+    actualModel: 'qwen3-30b-a3b',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwq-32b-dashscope',
+    tier: 'balanced',
+    displayName: 'QwQ 32B (DashScope)',
+    actualModel: 'qwq-32b',
+    provider: 'dashscope',
+    providerLabel: 'Alibaba Cloud Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── BitDeer AI — Cloud GPU Inference ──
+  {
+    id: 'deepseek-r1-bitdeer',
+    tier: 'reasoning',
+    displayName: 'DeepSeek R1 (BitDeer)',
+    actualModel: 'deepseek-ai/DeepSeek-R1',
+    provider: 'bitdeer',
+    providerLabel: 'BitDeer AI',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-235b-bitdeer',
+    tier: 'reasoning',
+    displayName: 'Qwen3 235B (BitDeer)',
+    actualModel: 'Qwen/Qwen3-235B-A22B',
+    provider: 'bitdeer',
+    providerLabel: 'BitDeer AI',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning', 'tools'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'llama-4-maverick-bitdeer',
+    tier: 'balanced',
+    displayName: 'Llama 4 Maverick (BitDeer)',
+    actualModel: 'meta-llama/Llama-4-Maverick-17B-128E',
+    provider: 'bitdeer',
+    providerLabel: 'BitDeer AI',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning'],
     health: 'unknown',
     latencyMs: 0,
     totalCalls: 0,
@@ -681,6 +811,9 @@ function scoreRoute(route: ModelRoute): number {
   }
   if (route.provider === 'scaleway') {
     score += 100
+  }
+  if (route.provider === 'bitdeer') {
+    score += 30
   }
 
   return score
@@ -1326,6 +1459,81 @@ async function callDashscope(
   return content
 }
 
+// ── BitDeer API Call ──────────────────────────────────────────────
+
+async function callBitdeer(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const accessKey = getActiveKey('bitdeer')
+  const secretKey = process.env.BITDEER_SECRET_KEY ?? ''
+  if (!accessKey || !secretKey) {
+    throw new Error('No BitDeer API keys available. Configure BITDEER_ACCESS_KEY and BITDEER_SECRET_KEY.')
+  }
+
+  const rateCheck = checkRateLimit('bitdeer', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`BitDeer rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.onbitdeer.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'X-Access-Key': accessKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    recordRateLimitError('bitdeer', '429 Too Many Requests')
+    throw new Error('BitDeer rate limited (429). Please wait before trying again.')
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('bitdeer', `${response.status} Auth Error`)
+    throw new Error(`BitDeer auth error (${response.status}). Check API keys.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('bitdeer', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`BitDeer API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from BitDeer')
+  }
+
+  recordKeySuccess('bitdeer')
+  recordSuccess('bitdeer')
+  recordRequest('bitdeer', '/chat/completions', undefined, data)
+
+  return content
+}
+
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
 async function callZAI(
@@ -1419,6 +1627,8 @@ export async function routeRequest(
       response = await callScaleway(model.actualModel, messages, opts)
     } else if (model.provider === 'dashscope') {
       response = await callDashscope(model.actualModel, messages, opts)
+    } else if (model.provider === 'bitdeer') {
+      response = await callBitdeer(model.actualModel, messages, opts)
     } else {
       throw new Error(`Unknown provider: ${model.provider}`)
     }
@@ -1466,6 +1676,8 @@ export async function routeRequest(
           fbResponse = await callScaleway(fallback.actualModel, messages, opts)
         } else if (fallback.provider === 'dashscope') {
           fbResponse = await callDashscope(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'bitdeer') {
+          fbResponse = await callBitdeer(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }

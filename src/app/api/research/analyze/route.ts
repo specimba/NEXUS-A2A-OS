@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import ZAI from 'z-ai-web-dev-sdk'
 import {
   classifyPaper,
   CONCEPT_META,
@@ -7,6 +8,17 @@ import {
   TIER_META,
 } from '@/lib/dg/classification-engine'
 import type { PaperInput, ResearchRole, ConceptId } from '@/lib/dg/classification-engine'
+
+// ─── ZAI SDK singleton for LLM-powered analysis ────────────────────────
+
+let zaiInstance: InstanceType<typeof ZAI> | null = null
+
+async function getZAI() {
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create()
+  }
+  return zaiInstance
+}
 
 // ─── Research Role → Implementation Task Mapping ──────────────────────
 
@@ -557,12 +569,171 @@ function getBottleneckRecommendation(stage: string): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// LLM-Powered Analysis Handler
+// ═══════════════════════════════════════════════════════════════════════
+
+const VALID_ROLES = ['evaluation', 'safety', 'memory', 'harness', 'implementation', 'compression', 'benchmark', 'survey', 'infra', 'context_only'] as const
+const VALID_FITS = ['doppelground', 'twave', 'sequence', 'general'] as const
+const VALID_CONCEPTS = ['agent_memory', 'bounded_execution', 'reward_hacking', 'tool_use', 'multi_agent', 'code_generation', 'reasoning', 'safety_alignment', 'emergent_behavior', 'knowledge_distillation'] as const
+
+async function handleLLMAnalysis(
+  paperId: string | undefined,
+  analyzeAll: boolean | undefined,
+  tier: 'P0' | 'P1' | 'P2' | undefined
+) {
+  // Get papers to analyze
+  let papers
+  if (paperId) {
+    const paper = await db.paper.findUnique({ where: { id: paperId } })
+    if (!paper) {
+      return NextResponse.json({ error: 'Paper not found' }, { status: 404 })
+    }
+    papers = [paper]
+  } else if (analyzeAll) {
+    const where: Record<string, unknown> = {}
+    if (tier) {
+      where.priorityTier = tier
+    }
+    where.isVetted = false
+    papers = await db.paper.findMany({
+      where,
+      take: 10,
+      orderBy: { relevanceScore: 'desc' },
+    })
+
+    // If no unvetted papers, also allow re-analyzing vetted ones
+    if (papers.length === 0) {
+      delete where.isVetted
+      papers = await db.paper.findMany({
+        where,
+        take: 10,
+        orderBy: { relevanceScore: 'desc' },
+      })
+    }
+  } else {
+    return NextResponse.json({ error: 'Provide paperId or analyzeAll' }, { status: 400 })
+  }
+
+  const zai = await getZAI()
+  const results = []
+
+  for (const paper of papers) {
+    if (!paper.title && !paper.abstractSummary) continue
+
+    const prompt = `Analyze this research paper for the NEXUS OS AI governance project:
+
+Title: ${paper.title}
+Abstract: ${paper.abstractSummary || 'Not available'}
+Type: ${paper.type}
+External ID: ${paper.externalId || 'N/A'}
+
+Provide a JSON analysis with these fields:
+- abstractSummary: 2-3 sentence summary of key contribution
+- implementationTask: specific task for implementing this in NEXUS OS
+- deliverable: expected output (e.g., "API route", "UI component", "algorithm")
+- researchRole: one of [evaluation, safety, memory, harness, implementation, compression, benchmark, survey, infra, context_only]
+- projectFit: one of [doppelground, twave, sequence, general]
+- conceptIds: array of relevant concept IDs from [agent_memory, bounded_execution, reward_hacking, tool_use, multi_agent, code_generation, reasoning, safety_alignment, emergent_behavior, knowledge_distillation]
+- noveltyScore: 0-2 (0=incremental, 1=notable, 2=breakthrough)
+- evidenceQuality: 0-5 (0=no evidence, 5=rigorous experimental proof)
+- dgFinalScore: computed 0-15 (novelty + evidence + primaryEvidenceBonus - crowdingPenalty)
+- priorityTier: P0, P1, or P2
+
+Respond ONLY with valid JSON, no markdown.`
+
+    try {
+      const response = await zai.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 1000,
+        temperature: 0.3,
+      })
+
+      const content = response.choices?.[0]?.message?.content || ''
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        results.push({ paperId: paper.id, error: 'No JSON in response', raw: content.slice(0, 200) })
+        continue
+      }
+
+      let analysis: Record<string, unknown>
+      try {
+        analysis = JSON.parse(jsonMatch[0])
+      } catch {
+        results.push({ paperId: paper.id, error: 'Invalid JSON in response', raw: jsonMatch[0].slice(0, 200) })
+        continue
+      }
+
+      // Validate and clamp scores
+      const noveltyScore = Math.max(0, Math.min(2, Number(analysis.noveltyScore) || 0))
+      const evidenceQuality = Math.max(0, Math.min(5, Number(analysis.evidenceQuality) || 0))
+      const dgFinalScore = Math.max(0, Math.min(15, Number(analysis.dgFinalScore) || 0))
+
+      // Validate enum fields
+      const researchRole = VALID_ROLES.includes(analysis.researchRole as typeof VALID_ROLES[number])
+        ? analysis.researchRole
+        : 'context_only'
+      const projectFit = VALID_FITS.includes(analysis.projectFit as typeof VALID_FITS[number])
+        ? analysis.projectFit
+        : 'general'
+      const conceptIds = Array.isArray(analysis.conceptIds)
+        ? (analysis.conceptIds as string[]).filter((id: string) =>
+            VALID_CONCEPTS.includes(id as typeof VALID_CONCEPTS[number])
+          )
+        : []
+      const priorityTier = ['P0', 'P1', 'P2'].includes(analysis.priorityTier as string)
+        ? analysis.priorityTier
+        : 'P2'
+
+      // Update paper in database
+      const updated = await db.paper.update({
+        where: { id: paper.id },
+        data: {
+          abstractSummary: (analysis.abstractSummary as string) || paper.abstractSummary,
+          implementationTask: (analysis.implementationTask as string) || paper.implementationTask,
+          deliverable: (analysis.deliverable as string) || paper.deliverable,
+          researchRole: researchRole as string,
+          projectFit: projectFit as string,
+          conceptIds: conceptIds.length > 0 ? JSON.stringify(conceptIds) : paper.conceptIds,
+          noveltyScore,
+          evidenceQuality,
+          dgFinalScore,
+          relevanceScore: dgFinalScore > 0 ? dgFinalScore / 15 : paper.relevanceScore,
+          priorityTier: priorityTier as string,
+          isVetted: true,
+        },
+      })
+
+      results.push({ paperId: paper.id, success: true, analysis, paper: updated })
+    } catch (err) {
+      results.push({ paperId: paper.id, error: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
+  return NextResponse.json({ results, totalAnalyzed: results.length })
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // POST /api/research/analyze — Run Analysis Pipeline
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // ─── LLM-powered analysis mode ────────────────────────────────────
+    // Supports: { paperId: string } or { analyzeAll: true, tier?: "P0"|"P1"|"P2" }
+    const { paperId: llmPaperId, analyzeAll, tier } = body as {
+      paperId?: string
+      analyzeAll?: boolean
+      tier?: 'P0' | 'P1' | 'P2'
+    }
+
+    if (llmPaperId || analyzeAll) {
+      return await handleLLMAnalysis(llmPaperId, analyzeAll, tier)
+    }
+
+    // ─── Existing DG pipeline mode ────────────────────────────────────
     const { stage, paperIds, dryRun = false } = body as {
       stage?: string
       paperIds?: string[]

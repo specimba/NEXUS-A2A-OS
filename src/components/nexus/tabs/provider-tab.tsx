@@ -24,6 +24,7 @@ import {
 import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Server,
   Activity,
@@ -52,8 +53,10 @@ import {
   CircleDot,
   Flame,
   Sparkles,
+  Trophy,
+  Swords,
 } from 'lucide-react'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 
 // ── Types matching API response ──────────────────────────────────
@@ -596,6 +599,339 @@ function ModelTestDialog({
   )
 }
 
+// ── Batch Test Dialog ─────────────────────────────────────────────
+
+function BatchTestDialog({
+  providers,
+  onClose,
+  onComplete,
+}: {
+  providers: ProviderDetail[]
+  onClose: () => void
+  onComplete: (results: ProviderTestResultItem[]) => void
+}) {
+  const [selectedProviders, setSelectedProviders] = useState<Set<string>>(() =>
+    new Set(providers.map(p => p.provider))
+  )
+  const [testing, setTesting] = useState(false)
+  const [results, setResults] = useState<ProviderTestResultItem[]>([])
+  const [currentIndex, setCurrentIndex] = useState(-1)
+  const [completed, setCompleted] = useState(false)
+  const abortRef = useRef(false)
+
+  const toggleProvider = useCallback((providerId: string) => {
+    setSelectedProviders(prev => {
+      const next = new Set(prev)
+      if (next.has(providerId)) {
+        next.delete(providerId)
+      } else {
+        next.add(providerId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelectedProviders(new Set(providers.map(p => p.provider)))
+  }, [providers])
+
+  const selectNone = useCallback(() => {
+    setSelectedProviders(new Set())
+  }, [])
+
+  const runBatchTest = useCallback(async () => {
+    if (selectedProviders.size === 0) {
+      toast.error('Select at least one provider to test')
+      return
+    }
+
+    setTesting(true)
+    setResults([])
+    setCompleted(false)
+    abortRef.current = false
+
+    try {
+      const res = await globalThis.fetch('/api/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testAll: true,
+          providers: Array.from(selectedProviders),
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        toast.error(`Batch test failed: ${errData.error || res.statusText}`)
+        setTesting(false)
+        return
+      }
+
+      const data = await res.json()
+      const testResults: ProviderTestResultItem[] = data.results || []
+
+      // Simulate progressive results for UX
+      for (let i = 0; i < testResults.length; i++) {
+        if (abortRef.current) break
+        setCurrentIndex(i)
+        setResults(prev => [...prev, testResults[i]])
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      setCompleted(true)
+      setCurrentIndex(testResults.length)
+      onComplete(testResults)
+
+      const passed = testResults.filter(r => r.success).length
+      toast.success(`Batch test complete: ${passed}/${testResults.length} providers passed`)
+    } catch (err) {
+      toast.error(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`)
+    } finally {
+      setTesting(false)
+    }
+  }, [selectedProviders, onComplete])
+
+  // Summary stats from results
+  const passedCount = results.filter(r => r.success).length
+  const failedCount = results.filter(r => !r.success).length
+  const avgLatency = results.length > 0
+    ? Math.round(results.reduce((sum, r) => sum + r.latencyMs, 0) / results.length)
+    : 0
+  const totalTokens = results.reduce((sum, r) => sum + r.tokenCount, 0)
+
+  return (
+    <Dialog open={true} onOpenChange={() => !testing && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Swords className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Batch Multi-Provider Test
+          </DialogTitle>
+          <DialogDescription>
+            Test multiple providers simultaneously and compare results
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Provider selection */}
+          {!testing && !completed && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Select Providers ({selectedProviders.size}/{providers.length})
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectAll}>
+                    Select All
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectNone}>
+                    Select None
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto custom-scrollbar">
+                {providers.map(p => {
+                  const isSelected = selectedProviders.has(p.provider)
+                  const icon = PROVIDER_ICONS[p.provider] || '🖥️'
+                  const healthCfg = HEALTH_CONFIG[p.health] || HEALTH_CONFIG.unknown
+                  return (
+                    <div
+                      key={p.provider}
+                      className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-emerald-600/30 bg-emerald-600/5'
+                          : 'border-border/50 bg-muted/20 opacity-60'
+                      }`}
+                      onClick={() => toggleProvider(p.provider)}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleProvider(p.provider)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <span className="text-sm">{icon}</span>
+                      <span className="text-xs font-medium flex-1 truncate">{p.label}</span>
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: healthCfg.color }}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Progress indicator */}
+          {testing && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                <span className="text-sm font-medium">
+                  Testing {currentIndex + 1}/{selectedProviders.size} providers...
+                </span>
+              </div>
+              <Progress
+                value={selectedProviders.size > 0 ? ((currentIndex + 1) / selectedProviders.size) * 100 : 0}
+                className="h-2"
+              />
+            </div>
+          )}
+
+          {/* Aggregate summary */}
+          {results.length > 0 && (
+            <div className={`rounded-lg border p-3 space-y-2 ${
+              completed
+                ? failedCount === 0
+                  ? 'border-emerald-600/20 bg-emerald-600/5'
+                  : 'border-yellow-600/20 bg-yellow-600/5'
+                : 'border-border/50 bg-muted/20'
+            }`}>
+              <div className="flex items-center gap-2">
+                {completed ? (
+                  failedCount === 0 ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                  )
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                )}
+                <span className="text-sm font-semibold">
+                  {completed ? 'Test Complete' : 'Running...'}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase">Passed</p>
+                  <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{passedCount}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase">Failed</p>
+                  <p className="text-lg font-bold tabular-nums text-red-600 dark:text-red-400">{failedCount}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase">Avg Latency</p>
+                  <p className="text-lg font-bold tabular-nums">{formatLatency(avgLatency)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase">Total Tokens</p>
+                  <p className="text-lg font-bold tabular-nums">{totalTokens}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Results comparison table */}
+          {results.length > 0 && (
+            <div className="rounded-lg border border-border/50">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px] h-8">Provider</TableHead>
+                    <TableHead className="text-[10px]">Model</TableHead>
+                    <TableHead className="text-[10px] text-right">Latency</TableHead>
+                    <TableHead className="text-[10px] text-center">Status</TableHead>
+                    <TableHead className="text-[10px] text-right">Tokens</TableHead>
+                    <TableHead className="text-[10px]">Response Preview</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {results.map((r, idx) => (
+                    <TableRow key={idx} className={
+                      r.success ? 'bg-emerald-600/[0.02]' : 'bg-red-600/[0.02]'
+                    }>
+                      <TableCell className="text-xs font-medium py-2">
+                        <div className="flex items-center gap-1.5">
+                          <span>{PROVIDER_ICONS[r.provider] || '🖥️'}</span>
+                          <span className="capitalize">{r.provider}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs py-2 max-w-[120px] truncate">
+                        {r.model.displayName}
+                      </TableCell>
+                      <TableCell className="text-xs text-right tabular-nums py-2 font-medium">
+                        {formatLatency(r.latencyMs)}
+                      </TableCell>
+                      <TableCell className="py-2 text-center">
+                        {r.success ? (
+                          <Badge className="border-0 text-[8px] bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> PASS
+                          </Badge>
+                        ) : (
+                          <Badge className="border-0 text-[8px] bg-red-600/15 text-red-600 dark:text-red-400">
+                            <XCircle className="h-2.5 w-2.5 mr-0.5" /> FAIL
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-right tabular-nums py-2">
+                        {r.tokenCount}
+                      </TableCell>
+                      <TableCell className="text-xs py-2 max-w-[150px]">
+                        {r.response ? (
+                          <span className="truncate block text-muted-foreground font-mono">
+                            {r.response.slice(0, 50)}
+                          </span>
+                        ) : r.error ? (
+                          <span className="text-red-600 dark:text-red-400 truncate block">
+                            {r.error.slice(0, 50)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          {!testing && (
+            <div className="flex items-center gap-2">
+              {!completed ? (
+                <Button
+                  onClick={runBatchTest}
+                  disabled={selectedProviders.size === 0}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Swords className="h-4 w-4 mr-2" />
+                  Run Batch Test ({selectedProviders.size} providers)
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setCompleted(false)
+                    setResults([])
+                    setCurrentIndex(-1)
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Re-run Test
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            disabled={testing}
+          >
+            {completed ? 'Close' : 'Cancel'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Quota Gauge Component ─────────────────────────────────────────
 
 function QuotaGauge({ label, used, limit, color }: { label: string; used: number; limit: number; color: string }) {
@@ -639,6 +975,8 @@ export function ProviderTab() {
   const [testingModel, setTestingModel] = useState<{ model: ProviderModel; provider: string } | null>(null)
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set())
   const [activeSection, setActiveSection] = useState('grid')
+  const [showBatchTest, setShowBatchTest] = useState(false)
+  const [arenaResults, setArenaResults] = useState<ProviderTestResultItem[]>([])
 
   const toggleProviderExpand = useCallback((providerId: string) => {
     setExpandedProviders(prev => {
@@ -809,15 +1147,26 @@ export function ProviderTab() {
             </TabsTrigger>
           </TabsList>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={handleRefresh}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1.5 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+              onClick={() => setShowBatchTest(true)}
+            >
+              <Swords className="h-3.5 w-3.5" />
+              Batch Test All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={handleRefresh}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* ── Provider Status Grid ──────────────────────────────── */}
@@ -1020,6 +1369,110 @@ export function ProviderTab() {
               </CardContent>
             </Card>
           )}
+
+          {/* ── Provider Arena ──────────────────────────────────── */}
+          <Card className="relative overflow-hidden border-emerald-600/15">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+            <CardHeader className="relative pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  Provider Arena
+                </CardTitle>
+                {arenaResults.length > 0 && (
+                  <Badge className="border-0 text-[9px] bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                    {arenaResults.filter(r => r.success).length}/{arenaResults.length} passed
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="relative p-4 pt-0">
+              {arenaResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Swords className="h-8 w-8 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground font-medium">Not yet tested</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    Run a batch test to see provider latency comparison
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-xs gap-1.5 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+                    onClick={() => setShowBatchTest(true)}
+                  >
+                    <Swords className="h-3.5 w-3.5" />
+                    Run Batch Test
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Arena latency bar chart */}
+                  <div className="h-[200px]">
+                    <NexusBarChart
+                      data={arenaResults
+                        .filter(r => r.success)
+                        .sort((a, b) => a.latencyMs - b.latencyMs)
+                        .map(r => ({
+                          name: r.provider.charAt(0).toUpperCase() + r.provider.slice(1).substring(0, 8),
+                          latency: r.latencyMs,
+                        }))
+                      }
+                      dataKey="latency"
+                      nameKey="name"
+                      color={COLORS.emerald}
+                      height={200}
+                    />
+                  </div>
+
+                  {/* Arena leaderboard */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Leaderboard</p>
+                    {arenaResults
+                      .sort((a, b) => {
+                        // Sort by success first, then latency
+                        if (a.success !== b.success) return a.success ? -1 : 1
+                        return a.latencyMs - b.latencyMs
+                      })
+                      .map((r, idx) => (
+                        <div
+                          key={r.provider}
+                          className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs ${
+                            r.success
+                              ? idx === 0
+                                ? 'bg-emerald-600/10 border border-emerald-600/20'
+                                : 'bg-accent/30'
+                              : 'bg-red-600/5 border border-red-600/10'
+                          }`}
+                        >
+                          <span className="w-5 text-center font-bold tabular-nums text-muted-foreground">
+                            {idx === 0 && r.success ? '🏆' : `#${idx + 1}`}
+                          </span>
+                          <span className="text-sm">{PROVIDER_ICONS[r.provider] || '🖥️'}</span>
+                          <span className="font-medium flex-1 capitalize">{r.provider}</span>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+                            {r.model.displayName}
+                          </span>
+                          {r.success ? (
+                            <>
+                              <Badge className="border-0 text-[8px] bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                                {formatLatency(r.latencyMs)}
+                              </Badge>
+                              <Badge className="border-0 text-[8px] bg-blue-600/15 text-blue-600 dark:text-blue-400">
+                                {r.tokenCount} tok
+                              </Badge>
+                            </>
+                          ) : (
+                            <Badge className="border-0 text-[8px] bg-red-600/15 text-red-600 dark:text-red-400">
+                              <XCircle className="h-2.5 w-2.5 mr-0.5" /> FAIL
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── Model Registry Table ──────────────────────────────── */}

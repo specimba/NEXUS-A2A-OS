@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2, Activity, Shield, Sparkles, TrendingUp } from 'lucide-react'
+import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2, Activity, Shield, Sparkles, TrendingUp, BrainCircuit } from 'lucide-react'
 import { MiniAreaChart } from '@/components/nexus/charts'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { toast } from 'sonner'
@@ -624,6 +624,8 @@ export function ResearchTab() {
   const [arxivSort, setArxivSort] = useState('relevance')
   const [autoGenLoading, setAutoGenLoading] = useState(false)
   const [pipelineLoading, setPipelineLoading] = useState(false)
+  const [analyzingPaperId, setAnalyzingPaperId] = useState<string | null>(null)
+  const [analyzeQueueLoading, setAnalyzeQueueLoading] = useState<'P0' | 'P1' | null>(null)
   const [pipelineStatus, setPipelineStatus] = useState<{
     pipeline: { stages: Record<string, number>; totalPapers: number; throughputRate: number }
     metrics: { avgDgScore: number; avgRelevance: number; deliveredPapers: number; throughputPercent: number }
@@ -1002,6 +1004,61 @@ export function ResearchTab() {
     }
   }
 
+  const handleAnalyzePaper = async (paperId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setAnalyzingPaperId(paperId)
+    try {
+      const res = await fetch('/api/research/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperId }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error('Analysis failed', { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const succeeded = data.results?.filter((r: { success?: boolean }) => r.success).length || 0
+      toast.success('Paper analyzed', {
+        description: succeeded > 0 ? 'LLM analysis complete — paper updated with DG scores' : 'Analysis attempted but may have failed',
+      })
+      refetch()
+    } catch {
+      toast.error('Analysis failed', { description: 'Network error' })
+    } finally {
+      setAnalyzingPaperId(null)
+    }
+  }
+
+  const handleAnalyzeQueue = async (tier: 'P0' | 'P1') => {
+    setAnalyzeQueueLoading(tier)
+    try {
+      const res = await fetch('/api/research/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analyzeAll: true, tier }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(`Analyze ${tier} queue failed`, { description: err.error || 'Unknown error' })
+        return
+      }
+      const data = await res.json()
+      const total = data.totalAnalyzed || 0
+      const succeeded = data.results?.filter((r: { success?: boolean }) => r.success).length || 0
+      toast.success(`${tier} Queue Analysis Complete`, {
+        description: `${succeeded}/${total} papers analyzed successfully via LLM`,
+      })
+      refetch()
+      fetchPipelineStatus()
+    } catch {
+      toast.error(`Analyze ${tier} queue failed`, { description: 'Network error' })
+    } finally {
+      setAnalyzeQueueLoading(null)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
       {/* Loading state with shimmer skeletons */}
@@ -1070,6 +1127,16 @@ export function ResearchTab() {
             {totalFiltered} of {totalAll} results found
           </span>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 gap-1.5 text-xs border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 btn-press focus-ring-enhanced"
+          disabled={analyzeQueueLoading !== null || pipelineLoading}
+          onClick={() => handleAnalyzeQueue('P0')}
+        >
+          {analyzeQueueLoading === 'P0' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
+          Analyze P0
+        </Button>
         <Button
           size="sm"
           className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white ml-auto btn-press focus-ring-enhanced"
@@ -1173,6 +1240,87 @@ export function ResearchTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Analysis Progress Card */}
+      {(() => {
+        const allPapersList = [...allP0, ...allP1, ...allP2]
+        const totalPapers = allPapersList.length || 1
+        const vettedPapers = allPapersList.filter(p => p.dgFinalScore && p.dgFinalScore > 0).length
+        const unanalyzed = totalPapers - vettedPapers
+        const progressPct = totalPapers > 0 ? Math.round((vettedPapers / totalPapers) * 100) : 0
+
+        return (
+          <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+            <CardHeader className="relative pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BrainCircuit className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> AI Analysis Pipeline
+                  <DataSourceBadge source="api" />
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-[10px] border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 btn-press"
+                    disabled={analyzeQueueLoading !== null}
+                    onClick={() => handleAnalyzeQueue('P0')}
+                  >
+                    {analyzeQueueLoading === 'P0' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Flame className="h-3 w-3" />}
+                    Analyze P0
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
+                    disabled={analyzeQueueLoading !== null}
+                    onClick={() => handleAnalyzeQueue('P1')}
+                  >
+                    {analyzeQueueLoading === 'P1' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Target className="h-3 w-3" />}
+                    Analyze P1
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="relative p-4 pt-0 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg bg-accent/30 p-2.5 text-center">
+                  <p className="text-xl font-bold tabular-nums">{totalPapers}</p>
+                  <p className="text-[9px] text-muted-foreground">Total Papers</p>
+                </div>
+                <div className="rounded-lg bg-emerald-600/10 p-2.5 text-center">
+                  <p className="text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{vettedPapers}</p>
+                  <p className="text-[9px] text-muted-foreground">Analyzed</p>
+                </div>
+                <div className="rounded-lg bg-orange-600/10 p-2.5 text-center">
+                  <p className="text-xl font-bold tabular-nums text-orange-600 dark:text-orange-400">{unanalyzed}</p>
+                  <p className="text-[9px] text-muted-foreground">Unanalyzed</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Analysis Progress</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{progressPct}%</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+              {unanalyzed > 0 && (
+                <div className="flex items-center gap-2 rounded-md border border-orange-500/20 bg-orange-500/5 px-3 py-1.5">
+                  <AlertCircle className="h-3 w-3 text-orange-600 dark:text-orange-400 shrink-0" />
+                  <span className="text-[11px] text-orange-600 dark:text-orange-400">
+                    {unanalyzed} paper{unanalyzed !== 1 ? 's' : ''} awaiting AI analysis — click &quot;Analyze P0&quot; or &quot;Analyze P1&quot; to run LLM-powered classification
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Pipeline Progress Indicator — Real Data from /api/research/analyze */}
       <div className="relative overflow-hidden rounded-xl">
@@ -1483,6 +1631,19 @@ export function ResearchTab() {
                             </div>
                             <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
                           </div>
+                          {/* Analyze button */}
+                          <div className="mt-2 flex items-center justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
+                              disabled={analyzingPaperId === item.id}
+                              onClick={(e) => handleAnalyzePaper(item.id, e)}
+                            >
+                              {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
+                              {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -1580,6 +1741,19 @@ export function ResearchTab() {
                           </div>
                           <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
                         </div>
+                        {/* Analyze button */}
+                        <div className="mt-2 flex items-center justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
+                            disabled={analyzingPaperId === item.id}
+                            onClick={(e) => handleAnalyzePaper(item.id, e)}
+                          >
+                            {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
+                            {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1668,6 +1842,19 @@ export function ResearchTab() {
                             />
                           </div>
                           <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
+                        </div>
+                        {/* Analyze button */}
+                        <div className="mt-2 flex items-center justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
+                            disabled={analyzingPaperId === item.id}
+                            onClick={(e) => handleAnalyzePaper(item.id, e)}
+                          >
+                            {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
+                            {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
+                          </Button>
                         </div>
                       </div>
                     </div>
