@@ -231,13 +231,13 @@ function AgentHealthBar({ agent, sparklineData }: { agent: AgentData; sparklineD
         </div>
 
         {/* Bottom row: sparkline + error rate */}
-        <div className="flex items-center justify-between mt-1.5">
-          <div className="w-20 h-5">
+        <div className="flex items-center justify-between mt-1.5 gap-2">
+          <div className="flex-1 min-w-0 h-8">
             <MiniAreaChart
               data={sparklineData}
               dataKey="value"
               color={getHealthStroke(agent.trustScore)}
-              height={20}
+              height={32}
             />
           </div>
           <div className="flex items-center gap-1">

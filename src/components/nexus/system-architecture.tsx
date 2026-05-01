@@ -14,7 +14,7 @@ import {
   Hexagon,
 } from 'lucide-react'
 
-const pillars = [
+const defaultPillars = [
   { name: 'Bridge', icon: Zap, health: 100, color: '#34d399', angle: 0 },
   { name: 'Engine', icon: Router, health: 98, color: '#60a5fa', angle: 45 },
   { name: 'Governor', icon: Shield, health: 95, color: '#f87171', angle: 90 },
@@ -25,7 +25,23 @@ const pillars = [
   { name: 'Config', icon: Settings, health: 100, color: '#34d399', angle: 315 },
 ]
 
-export function SystemArchitecture() {
+interface PillarData {
+  name: string
+  health: number
+  status?: string
+  desc?: string
+  uptime?: string
+}
+
+export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[] }) {
+  // Merge API pillar data into the default pillars (preserving icons, colors, angles)
+  const pillars = defaultPillars.map(dp => {
+    const apiPillar = pillarsData?.find(p => p.name === dp.name)
+    if (apiPillar) {
+      return { ...dp, health: apiPillar.health }
+    }
+    return dp
+  })
   // Calculate positions in a circle
   const centerX = 200
   const centerY = 200

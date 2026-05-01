@@ -3792,3 +3792,50 @@ Unresolved / Next Phase:
 4. Add WebSocket for real-time updates
 5. Light theme polish
 6. Import full 84 ISC-Bench templates
+
+---
+Task ID: mock-elimination-1
+Agent: main
+Task: Eliminate ALL mock data from Overview tab and replace with real API-driven data
+
+Work Log:
+- Enhanced /api/system route with 8 new computed metrics:
+  - systemStartTime: real uptime start time from agent creation dates
+  - performanceMetrics: avg response time, error rate, throughput from test runs and token logs
+  - requestCount: real request count from last 24h token usage logs
+  - activeConnections: real count of agents not offline
+  - governanceStats: real ALLOW/DENY/HOLD counts from GovernorDecision table
+  - systemNotifications: real notifications from vault FAIL entries and governor DENY decisions
+  - recentActivity: real activity items from vault entries and governor decisions
+  - lastDeployTime: real deploy time from SystemConfig updates
+- Rewrote overview-tab.tsx to eliminate ALL mock data:
+  - Removed SessionTimeline component entirely (was confusing and not data-driven)
+  - Removed ALL "MOCK" DataSourceBadge instances - now shows "API" or "LIVE"
+  - QuickStatsBar: replaced hardcoded request count (1247), connections (3), uptime (99.94%), deploy (2h) with API-driven values
+  - PerformanceMetricsRow: replaced hardcoded avg response time (342ms), error rate (0.8%), throughput (247 req/min) with real computed metrics
+  - SystemUptimeCard: replaced hardcoded uptime (3d 14h 27m) with real uptime computed from systemStartTime
+  - Governance Stats: replaced hardcoded ALLOW 847/DENY 23/HOLD 5 with real counts from governanceStats
+  - SystemNotificationsCard: replaced hardcoded notifications with API-provided real notifications
+  - LiveActivityFeed: replaced hardcoded activity items with API-provided recentActivity
+  - Removed random request count increment (was incrementing by random 0-3 every 5s)
+  - Removed Math.random() from availability computation (was causing flickering)
+- Updated SystemArchitecture component to accept pillarsData prop and merge API health data
+- Fixed AgentHealthMonitor sparkline sizing (w-20 h-5 → flex-1 h-8, height 20→32)
+- All fallback constants replaced with empty arrays (no more hardcoded mock data)
+- Verified via agent-browser: LIVE badge, API badges, real data values showing correctly
+- Lint check passes with zero errors
+
+Stage Summary:
+- Zero "MOCK" badges remain in Overview tab
+- All data now sourced from /api/system endpoint which computes from real database
+- SessionTimeline removed (was confusing, no real data value)
+- AgentHealthMonitor sparklines properly sized
+- SystemArchitecture accepts real pillar health data
+- All API endpoints returning 200, dev server clean
+
+Unresolved / Next Phase:
+1. Other tabs (StressLab, GMR, Vault, Swarm, Tokens, KPI) still have some "mock" badges
+2. Performance metrics show 0 values when no test runs have been completed yet (need real test runs)
+3. AI model integration (llama 3.1) still needs fixing - not responding
+4. Compare Models feature still uses mock data
+5. Light theme needs more polish

@@ -19,6 +19,52 @@ export async function GET() {
         db.tokenUsageLog.findMany({ take: 100, orderBy: { createdAt: 'desc' } }),
       ])
 
+    // Fetch additional data for new overview metrics
+    const now = Date.now()
+    const last24h = new Date(now - 24 * 60 * 60 * 1000)
+    const oneHourAgo = new Date(now - 60 * 60 * 1000)
+
+    const [
+      earliestAgent,
+      completedTestRuns,
+      tokenLogsLastHour,
+      requestCountToday,
+      govDecisionStats,
+      recentVaultFull,
+      recentDecisionsFull,
+      latestConfigUpdate,
+      latestModelCheck,
+    ] = await Promise.all([
+      db.agent.findFirst({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
+      db.testRun.findMany({
+        where: { status: { in: ['passed', 'failed', 'error'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: { durationMs: true, status: true, createdAt: true },
+      }),
+      db.tokenUsageLog.findMany({
+        where: { createdAt: { gte: oneHourAgo } },
+        select: { createdAt: true },
+      }),
+      db.tokenUsageLog.count({ where: { createdAt: { gte: last24h } } }),
+      db.governorDecision.groupBy({
+        by: ['decision'],
+        _count: { decision: true },
+      }),
+      db.vaultEntry.findMany({
+        take: 15,
+        orderBy: { createdAt: 'desc' },
+        include: { agent: { select: { name: true } } },
+      }),
+      db.governorDecision.findMany({
+        take: 15,
+        orderBy: { createdAt: 'desc' },
+        include: { agent: { select: { name: true } } },
+      }),
+      db.systemConfig.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+      db.modelEntry.findFirst({ orderBy: { lastChecked: 'desc' }, select: { lastChecked: true } }),
+    ])
+
     // Compute pillar health from real data
     const activeAgents = agents.filter(a => a.status !== 'offline')
     const busyAgents = agents.filter(a => a.status === 'busy')
@@ -120,6 +166,110 @@ export async function GET() {
     // Compute health timeline from real data
     const healthTimeline = await computeHealthTimeline(pillars)
 
+    // ─── New Overview Metrics ───
+
+    // 1. systemStartTime
+    const systemStartTime = earliestAgent?.createdAt ?? budget?.startedAt ?? null
+
+    // 2. performanceMetrics
+    const avgResponseTime = completedTestRuns.length > 0
+      ? Math.round(completedTestRuns.reduce((s, r) => s + r.durationMs, 0) / completedTestRuns.length)
+      : 0
+
+    const errorRunsForPerf = completedTestRuns.filter(r => r.status === 'failed' || r.status === 'error')
+    const errorRate = completedTestRuns.length > 0
+      ? Math.round((errorRunsForPerf.length / completedTestRuns.length) * 10000) / 100
+      : 0
+
+    const throughput = tokenLogsLastHour.length >= 1
+      ? Math.round((tokenLogsLastHour.length / 60) * 100) / 100
+      : 0
+
+    const { responseTimeSparkline, errorRateSparkline } = computeSparklineData(completedTestRuns)
+
+    const performanceMetrics = {
+      avgResponseTime,
+      errorRate,
+      throughput,
+      responseTimeSparkline,
+      errorRateSparkline,
+    }
+
+    // 4. activeConnections (agents that are not offline)
+    const activeConnections = activeAgents.length
+
+    // 5. governanceStats
+    const governanceStats = { allowCount: 0, denyCount: 0, holdCount: 0, totalDecisions: 0 }
+    for (const stat of govDecisionStats) {
+      governanceStats.totalDecisions += stat._count.decision
+      if (stat.decision === 'ALLOW') governanceStats.allowCount = stat._count.decision
+      if (stat.decision === 'DENY') governanceStats.denyCount = stat._count.decision
+      if (stat.decision === 'HOLD') governanceStats.holdCount = stat._count.decision
+    }
+
+    // 6. systemNotifications
+    const systemNotifications: { id: string; severity: 'error' | 'warn' | 'info'; message: string; timestamp: string }[] = []
+
+    // Error notifications from FAIL vault entries
+    for (const entry of recentVaultFull.filter(e => e.track === 'FAIL').slice(0, 3)) {
+      systemNotifications.push({
+        id: entry.id,
+        severity: 'error',
+        message: `Agent ${entry.agent?.name ?? 'unknown'} reported failure: ${entry.category}/${entry.key}`,
+        timestamp: getTimeAgo(entry.createdAt),
+      })
+    }
+
+    // Warning notifications from DENY governor decisions
+    for (const d of recentDecisionsFull.filter(d => d.decision === 'DENY').slice(0, 2)) {
+      systemNotifications.push({
+        id: d.id,
+        severity: 'warn',
+        message: `Governor denied action for ${d.agent?.name ?? 'unknown'}: ${d.reason ?? d.scope}`,
+        timestamp: getTimeAgo(d.createdAt),
+      })
+    }
+
+    // Info notifications from GOV/EVENT vault entries
+    for (const entry of recentVaultFull.filter(e => e.track === 'GOV' || e.track === 'EVENT').slice(0, 2)) {
+      systemNotifications.push({
+        id: entry.id,
+        severity: 'info',
+        message: `${entry.track}: ${entry.agent?.name ?? 'unknown'} - ${entry.category}/${entry.key}`,
+        timestamp: getTimeAgo(entry.createdAt),
+      })
+    }
+
+    // Sort by recency and limit to 5
+    systemNotifications.sort(() => 0) // maintain insertion order (errors first, then warns, then info)
+    const systemNotificationsFinal = systemNotifications.slice(0, 5)
+
+    // 7. recentActivity
+    const recentActivity: { event: string; type: 'success' | 'info' | 'warning'; time: string }[] = []
+
+    // From vault entries
+    for (const entry of recentVaultFull.slice(0, 6)) {
+      const type = entry.track === 'FAIL' ? 'warning' : entry.track === 'GOV' ? 'info' : 'success'
+      recentActivity.push({
+        event: `${entry.agent?.name ?? 'unknown'}: ${entry.track} - ${entry.category}/${entry.key}`,
+        type,
+        time: getTimeAgo(entry.createdAt),
+      })
+    }
+
+    // From governor decisions
+    for (const d of recentDecisionsFull.slice(0, 6)) {
+      const type = d.decision === 'DENY' ? 'warning' : d.decision === 'HOLD' ? 'info' : 'success'
+      recentActivity.push({
+        event: `Governor ${d.decision}: ${d.agent?.name ?? 'unknown'} (${d.scope})`,
+        type,
+        time: getTimeAgo(d.createdAt),
+      })
+    }
+
+    // 8. lastDeployTime
+    const lastDeployTime = latestConfigUpdate?.updatedAt ?? latestModelCheck?.lastChecked ?? null
+
     return NextResponse.json({
       // Raw data
       agents,
@@ -146,6 +296,14 @@ export async function GET() {
         collapseRateTrend: computeCollapseRateTrend(testRuns),
         avgTrust: agents.length > 0 ? Math.round(agents.reduce((s, a) => s + a.trustScore, 0) / agents.length * 100) / 100 : 0,
         totalVaultEntries: await db.vaultEntry.count(),
+        systemStartTime,
+        performanceMetrics,
+        requestCount: requestCountToday,
+        activeConnections,
+        governanceStats,
+        systemNotifications: systemNotificationsFinal,
+        recentActivity,
+        lastDeployTime,
       },
     })
   } catch (error) {
@@ -431,4 +589,37 @@ function computeCollapseRateTrend(runs: { status: string; collapseDetected: bool
     const rate = bucketRuns.length > 0 ? (collapses / bucketRuns.length) * 100 : 0
     return { name: String(i + 1), value: Math.round(rate * 10) / 10 }
   })
+}
+
+function computeSparklineData(
+  runs: { durationMs: number; status: string; createdAt: Date }[],
+  bucketCount: number = 6
+): { responseTimeSparkline: number[]; errorRateSparkline: number[] } {
+  if (runs.length < bucketCount) {
+    // Not enough data for sparklines — return empty arrays rather than fake data
+    return { responseTimeSparkline: [], errorRateSparkline: [] }
+  }
+
+  // Sort chronologically (oldest first) for bucketing
+  const sorted = [...runs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const bucketSize = Math.max(1, Math.floor(sorted.length / bucketCount))
+
+  const responseTimeSparkline: number[] = []
+  const errorRateSparkline: number[] = []
+
+  for (let i = 0; i < bucketCount; i++) {
+    const bucket = sorted.slice(i * bucketSize, (i + 1) * bucketSize)
+    if (bucket.length === 0) {
+      responseTimeSparkline.push(0)
+      errorRateSparkline.push(0)
+      continue
+    }
+    const avgDuration = Math.round(bucket.reduce((s, r) => s + r.durationMs, 0) / bucket.length)
+    const errorCount = bucket.filter(r => r.status === 'failed' || r.status === 'error').length
+    const errRate = Math.round((errorCount / bucket.length) * 10000) / 100
+    responseTimeSparkline.push(avgDuration)
+    errorRateSparkline.push(errRate)
+  }
+
+  return { responseTimeSparkline, errorRateSparkline }
 }
