@@ -88,11 +88,20 @@ export function NexusCommandPalette() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      // Don't trigger shortcuts when user is typing in input fields
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) return
       const tabMap: Record<string, NexusTab> = {
         '1': 'overview', '2': 'stresslab', '3': 'gmr', '4': 'governor',
         '5': 'vault', '6': 'research', '7': 'swarm', '8': 'tokens',
       }
       if (tabMap[e.key]) {
+        e.preventDefault()
         setActiveTab(tabMap[e.key])
       }
     }

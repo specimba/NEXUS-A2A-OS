@@ -2207,8 +2207,8 @@ export function SwarmTab() {
                 </tr>
               </thead>
               <tbody>
-                {liveRecentCompleted.map((r) => (
-                  <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
+                {liveRecentCompleted.map((r, i) => (
+                  <tr key={`${r.id}-${i}`} className="border-b border-border/50 hover:bg-accent/50 transition-colors">
                     <td className="p-3 font-mono text-xs">{r.id}</td>
                     <td className="p-3 text-xs">{r.worker}</td>
                     <td className="p-3">

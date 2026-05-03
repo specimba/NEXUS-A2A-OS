@@ -8,6 +8,7 @@ import {
   Wrench,
   CheckCircle2,
   XCircle,
+  X,
   Loader2,
   Database,
   Globe,
@@ -241,6 +242,14 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
           >
             {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
             {running ? 'Running...' : 'Re-run'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   getAllProviderStatuses,
   getModelForTier,
   getRequestOptimization,
+  callZAI,
   type ModelTier,
   type ModelRoute,
 } from '@/lib/ai-provider-bridge'
@@ -137,27 +138,8 @@ export async function POST(request: NextRequest) {
 
     try {
       if (model.provider === 'z-ai') {
-        // Use z-ai SDK directly (same pattern as /api/chat which works reliably)
-        const ZAI = (await import('z-ai-web-dev-sdk')).default
-        const zai = await ZAI.create()
-
-        const systemMsg = systemPrompt
-          ? [{ role: 'assistant' as const, content: systemPrompt }]
-          : []
-        const apiMessages = [
-          ...systemMsg,
-          ...messages.map(m => ({
-            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-            content: m.content,
-          })),
-        ]
-
-        const completion = await zai.chat.completions.create({
-          messages: apiMessages,
-          thinking: { type: 'disabled' },
-        })
-
-        response = completion.choices?.[0]?.message?.content || ''
+        // Use callZAI which handles the SDK singleton properly
+        response = await callZAI(messages, { systemPrompt })
       } else if (model.provider === 'openrouter') {
         // Use OpenRouter API via fetch
         const { getActiveKey, recordKeySuccess, recordKey429, recordKeyError } = await import('@/lib/api-key-manager')
@@ -165,17 +147,7 @@ export async function POST(request: NextRequest) {
 
         if (!apiKey) {
           // Fall back to z-ai if no OpenRouter key
-          const ZAI = (await import('z-ai-web-dev-sdk')).default
-          const zai = await ZAI.create()
-          const apiMessages = messages.map(m => ({
-            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-            content: m.content,
-          }))
-          const completion = await zai.chat.completions.create({
-            messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...apiMessages],
-            thinking: { type: 'disabled' },
-          })
-          response = completion.choices?.[0]?.message?.content || ''
+          response = await callZAI(messages, { systemPrompt: systemPrompt || 'You are a helpful assistant.' })
         } else {
           const systemMsg = systemPrompt
             ? [{ role: 'system' as const, content: systemPrompt }]
@@ -217,17 +189,7 @@ export async function POST(request: NextRequest) {
             const errorBody = await orResponse.text().catch(() => 'Unknown error')
             recordKeyError('openrouter', `${orResponse.status}: ${errorBody.slice(0, 200)}`)
             // Fall back to z-ai
-            const ZAI = (await import('z-ai-web-dev-sdk')).default
-            const zai = await ZAI.create()
-            const fallbackMessages = messages.map(m => ({
-              role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-              content: m.content,
-            }))
-            const completion = await zai.chat.completions.create({
-              messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...fallbackMessages],
-              thinking: { type: 'disabled' },
-            })
-            response = completion.choices?.[0]?.message?.content || ''
+            response = await callZAI(messages, { systemPrompt: systemPrompt || 'You are a helpful assistant.' })
           } else {
             const data = await orResponse.json()
             response = data.choices?.[0]?.message?.content || ''
@@ -241,17 +203,7 @@ export async function POST(request: NextRequest) {
 
         if (!apiKey) {
           // Fall back to z-ai if no Cerebras key
-          const ZAI = (await import('z-ai-web-dev-sdk')).default
-          const zai = await ZAI.create()
-          const apiMessages = messages.map(m => ({
-            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-            content: m.content,
-          }))
-          const completion = await zai.chat.completions.create({
-            messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...apiMessages],
-            thinking: { type: 'disabled' },
-          })
-          response = completion.choices?.[0]?.message?.content || ''
+          response = await callZAI(messages, { systemPrompt: systemPrompt || 'You are a helpful assistant.' })
         } else {
           const systemMsg = systemPrompt
             ? [{ role: 'system' as const, content: systemPrompt }]
@@ -282,17 +234,7 @@ export async function POST(request: NextRequest) {
             const errorBody = await cbResponse.text().catch(() => 'Unknown error')
             recordKeyError('cerebras', `${cbResponse.status}: ${errorBody.slice(0, 200)}`)
             // Fall back to z-ai
-            const ZAI = (await import('z-ai-web-dev-sdk')).default
-            const zai = await ZAI.create()
-            const fallbackMessages = messages.map(m => ({
-              role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-              content: m.content,
-            }))
-            const completion = await zai.chat.completions.create({
-              messages: [{ role: 'assistant' as const, content: systemPrompt || 'You are a helpful assistant.' }, ...fallbackMessages],
-              thinking: { type: 'disabled' },
-            })
-            response = completion.choices?.[0]?.message?.content || ''
+            response = await callZAI(messages, { systemPrompt: systemPrompt || 'You are a helpful assistant.' })
           } else {
             const data = await cbResponse.json()
             response = data.choices?.[0]?.message?.content || ''

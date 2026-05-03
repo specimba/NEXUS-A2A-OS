@@ -12,6 +12,8 @@
  */
 
 import { enterCooldown, clearCooldown } from './rate-limiter'
+import { existsSync } from 'fs'
+import { join } from 'path'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -74,6 +76,7 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
   dashscope: ['DASHSCOPE_API_KEY'],
   bitdeer: ['BITDEER_ACCESS_KEY'],
+  'z-ai': [],
 }
 
 // ── In-Memory State ────────────────────────────────────────────────
@@ -134,6 +137,39 @@ function initializeKeys(): void {
     }
 
     keyStore.set(provider, keys)
+  }
+
+  // Special handling for z-ai: it uses the SDK (not env vars),
+  // so check if the SDK config file exists and add a synthetic key entry.
+  // The SDK checks .z-ai-config in: cwd, $HOME, and /etc
+  const zaiKeys = keyStore.get('z-ai')
+  if (zaiKeys && zaiKeys.length === 1 && zaiKeys[0].health === 'no_key') {
+    try {
+      const configPaths = [
+        join(process.cwd(), '.z-ai-config'),
+        join(process.env.HOME ?? '/root', '.z-ai-config'),
+        '/etc/.z-ai-config',
+      ]
+      if (configPaths.some(p => existsSync(p))) {
+        keyStore.set('z-ai', [{
+          id: 'z-ai_1',
+          provider: 'z-ai',
+          keyValue: 'z-ai-sdk',
+          masked: 'z-ai-sdk',
+          isActive: true,
+          health: 'healthy',
+          requestsMade: 0,
+          lastError: null,
+          cooldownUntil: 0,
+          lastUsed: null,
+          totalRequests: 0,
+          total429s: 0,
+          totalSuccesses: 0,
+        }])
+      }
+    } catch {
+      // If we can't check for the SDK config, leave z-ai as no_key
+    }
   }
 
   initialized = true

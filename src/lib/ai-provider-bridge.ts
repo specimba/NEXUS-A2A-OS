@@ -1536,7 +1536,7 @@ async function callBitdeer(
 
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
-async function callZAI(
+export async function callZAI(
   messages: { role: string; content: string }[],
   options: RouteRequestOptions = {}
 ): Promise<string> {

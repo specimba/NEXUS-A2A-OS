@@ -1930,7 +1930,7 @@ export function OverviewTab() {
 
       {/* ── Diagnostic Modal ──────────────────────────────────── */}
       <Dialog open={diagnosticOpen} onOpenChange={setDiagnosticOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -2002,7 +2002,7 @@ export function OverviewTab() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDiagnosticOpen(false)}>
+            <Button variant="outline" size="sm" onClick={() => setDiagnosticOpen(false)} className="min-h-[44px] min-w-[80px]">
               Close
             </Button>
             {!diagnosticRunning && diagnosticSummary && (

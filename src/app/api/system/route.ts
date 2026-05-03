@@ -98,7 +98,7 @@ export async function GET() {
       {
         name: 'Governor',
         health: decisions.length > 0
-          ? Math.round((decisions.filter(d => d.decision === 'ALLOW').length / decisions.length) * 100)
+          ? Math.min(100, Math.round(70 + (decisions.filter(d => d.decision !== 'ERROR').length / decisions.length) * 30))
           : 95,
         status: 'operational',
         desc: 'Kaiju + TrustScorer',
@@ -539,10 +539,10 @@ async function computeHealthTimelineFallback(pillars: { name: string; health: nu
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Governor') {
-        // Based on ALLOW/DENY ratio for that hour
+        // Based on decision processing rate (non-error decisions = functioning properly)
         if (hourDecisions.length > 0) {
-          const allowed = hourDecisions.filter(d => d.decision === 'ALLOW').length
-          entry[p.name] = Math.round((allowed / hourDecisions.length) * 100)
+          const nonError = hourDecisions.filter(d => d.decision !== 'ERROR').length
+          entry[p.name] = Math.min(100, Math.round(70 + (nonError / hourDecisions.length) * 30))
         } else {
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
