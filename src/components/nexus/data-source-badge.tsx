@@ -14,7 +14,7 @@ import { Database, Wifi, FlaskConical, FileText, Activity } from 'lucide-react'
 export type DataSource = 'live' | 'simulated' | 'seed' | 'mock' | 'computed' | 'api'
 
 interface DataSourceBadgeProps {
-  source: DataSource
+  source: DataSource | string
   label?: string
   showIcon?: boolean
   className?: string
@@ -65,7 +65,7 @@ const SOURCE_CONFIG: Record<DataSource, {
 }
 
 export function DataSourceBadge({ source, label, showIcon = true, className = '' }: DataSourceBadgeProps) {
-  const config = SOURCE_CONFIG[source]
+  const config = SOURCE_CONFIG[source] || SOURCE_CONFIG.mock
   const Icon = config.icon
 
   return (

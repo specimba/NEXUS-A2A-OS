@@ -99,3 +99,35 @@ Stage Summary:
 - Updated /api/keys route to reload in-memory keys after save/delete operations
 - All features: see key status per provider, click to add/update key, masked key display, delete keys, test keys, encryption info
 - Lint passes with no errors, dev server running successfully
+
+---
+Task ID: 1
+Agent: Main Orchestrator
+Task: Fix NEXUS-OS dashboard "only logo" issue and all critical bugs
+
+Work Log:
+1. Diagnosed the "only logo" issue - the dashboard WAS actually rendering correctly when the dev server was running. The problem was the dev server kept dying between Bash tool sessions.
+2. Fixed the dev script in package.json - removed `2>&1 | tee dev.log` pipe that was causing the server process to die when the parent shell session ended.
+3. Fixed data-source-badge.tsx crash - added fallback `SOURCE_CONFIG[source] || SOURCE_CONFIG.mock` to prevent undefined access when invalid source values are passed.
+4. Made DataSourceBadge props accept `DataSource | string` for flexibility.
+5. Verified Prisma schema - `@@unique([provider, keySuffix])` already exists, API key upsert works correctly.
+6. Tested API key save - POST /api/keys returns `{"success":true}` with masked key display.
+7. Tested all API endpoints - system, providers, vault, agents, models, tokens, logs all return HTTP 200.
+8. Tested all 11 tabs via agent-browser - Overview, StressLab, GMR Router, Providers, Governor, Vault, Research, Swarm, Token Budget, Rate Limits, KPI Dashboard - ALL WORK without crashes.
+9. Tested Key Vault sub-tab in Providers - works correctly, shows z-ai key as "KEY ACTIVE".
+10. ESLint passes with no errors.
+
+Stage Summary:
+- Dashboard renders fully with all content when server is running
+- Dev server stability improved by removing pipe from dev script
+- Data-source-badge crash fixed with defensive fallback
+- API key management system fully functional (save, list, delete)
+- All tabs render without crashes
+- Key Vault shows saved API keys correctly
+- Dev server needs to be started with `(bun run dev > /home/z/my-project/dev.log 2>&1 &)` pattern for persistence
+
+Unresolved Issues:
+- Dev server may still die between Bash tool sessions (infrastructure issue)
+- Some data still comes from mock/hardcoded sources
+- Tab switching via agent-browser may be inconsistent (could be browser state issue)
+- AI assistant, provider test endpoints need real API integration
