@@ -1,5 +1,6 @@
 'use client'
 
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -201,58 +202,55 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
     : 'border-border'
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="space-y-4"
-    >
-      {/* Header with Overall Score */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
-            <Wrench className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+        <div className="p-6 space-y-4">
+          {/* Header with Overall Score */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10">
+                <Wrench className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">System Diagnostics</h3>
+                <p className="text-[10px] text-muted-foreground">Step-by-step health verification</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {running && (
+                <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] gap-1 animate-pulse">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Running
+                </Badge>
+              )}
+              {overallScore !== null && !running && (
+                <Badge className={`border-0 text-[9px] font-bold ${
+                  overallScore >= 80 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                  overallScore >= 50 ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
+                  'bg-red-600/15 text-red-600 dark:text-red-400'
+                }`}>
+                  Score: {overallScore}%
+                </Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] gap-1"
+                onClick={runDiagnostics}
+                disabled={running}
+              >
+                {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
+                {running ? 'Running...' : 'Re-run'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 min-h-[44px] min-w-[44px] sm:hidden"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold">System Diagnostics</h3>
-            <p className="text-[10px] text-muted-foreground">Step-by-step health verification</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {running && (
-            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] gap-1 animate-pulse">
-              <Loader2 className="h-3 w-3 animate-spin" /> Running
-            </Badge>
-          )}
-          {overallScore !== null && !running && (
-            <Badge className={`border-0 text-[9px] font-bold ${
-              overallScore >= 80 ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-              overallScore >= 50 ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-              'bg-red-600/15 text-red-600 dark:text-red-400'
-            }`}>
-              Score: {overallScore}%
-            </Badge>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-[10px] gap-1"
-            onClick={runDiagnostics}
-            disabled={running}
-          >
-            {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
-            {running ? 'Running...' : 'Re-run'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
       {/* Overall Score Card */}
       {overallScore !== null && !running && (
@@ -385,6 +383,8 @@ export function DiagnosticsPanel({ open, onClose }: DiagnosticsPanelProps) {
           ))}
         </AnimatePresence>
       </div>
-    </motion.div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

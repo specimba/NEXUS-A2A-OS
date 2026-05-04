@@ -1771,8 +1771,8 @@ export function SwarmTab() {
               height={140}
             />
             <div className="mt-2 space-y-1.5">
-              {workerPerformanceRows.map((row) => (
-                  <div key={row.id} className="flex items-center gap-2 text-[10px]">
+              {workerPerformanceRows.map((row, idx) => (
+                  <div key={`${row.id}-${idx}`} className="flex items-center gap-2 text-[10px]">
                     <span className="font-mono text-muted-foreground w-12 truncate">{row.name}</span>
                     <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${Math.min(row.tasks * 5, 100)}%` }} />

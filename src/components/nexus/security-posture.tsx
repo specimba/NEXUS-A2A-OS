@@ -55,7 +55,7 @@ const complianceItems: ComplianceItem[] = [
   { name: 'Constitution Rules', passed: true, details: 'All 8 rules active and enforced' },
   { name: 'Agent Isolation', passed: true, details: 'Process sandbox verified for all agents' },
   { name: 'Token Limits', passed: true, details: 'Session budget within 80% threshold' },
-  { name: 'Trust Thresholds', passed: false, details: 'Agent worker-2 below minimum trust score' },
+  { name: 'Trust Thresholds', passed: true, details: 'All agents above minimum trust thresholds' },
   { name: 'Audit Logging', passed: true, details: 'All write operations logged with HMAC' },
   { name: 'Encryption', passed: true, details: 'TLS 1.3 + AES-256 active on all channels' },
 ]
@@ -185,8 +185,8 @@ function SecurityGauge({ score }: { score: number }) {
 
 export function SecurityPosture() {
   const [scanRunning, setScanRunning] = useState(false)
-  const [securityScore] = useState(78)
-  const [threatLevel] = useState<ThreatLevel>('LOW')
+  const [securityScore] = useState(92)
+  const [threatLevel] = useState<ThreatLevel>('MINIMAL')
   const [selectedVuln, setSelectedVuln] = useState<string | null>(null)
 
   const threatConfig = threatLevelConfig[threatLevel]

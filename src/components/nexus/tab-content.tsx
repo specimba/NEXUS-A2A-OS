@@ -1,18 +1,31 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useNexusStore } from '@/store/nexus-store'
-import { OverviewTab } from './tabs/overview-tab'
-import { StressLabTab } from './tabs/stresslab-tab'
-import { GmrTab } from './tabs/gmr-tab'
-import { ProviderTab } from './tabs/provider-tab'
-import { GovernorTab } from './tabs/governor-tab'
-import { VaultTab } from './tabs/vault-tab'
-import { ResearchTab } from './tabs/research-tab'
-import { SwarmTab } from './tabs/swarm-tab'
-import { TokensTab } from './tabs/tokens-tab'
-import { RateLimitTab } from './tabs/rate-limit-tab'
-import { KpiTab } from './tabs/kpi-tab'
 import { motion, AnimatePresence } from 'framer-motion'
+
+function TabLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+        <span className="text-sm text-muted-foreground">Loading tab...</span>
+      </div>
+    </div>
+  )
+}
+
+const OverviewTab = dynamic(() => import('./tabs/overview-tab').then(m => ({ default: m.OverviewTab })), { ssr: false, loading: () => <TabLoader /> })
+const StressLabTab = dynamic(() => import('./tabs/stresslab-tab').then(m => ({ default: m.StressLabTab })), { ssr: false, loading: () => <TabLoader /> })
+const GmrTab = dynamic(() => import('./tabs/gmr-tab').then(m => ({ default: m.GmrTab })), { ssr: false, loading: () => <TabLoader /> })
+const ProviderTab = dynamic(() => import('./tabs/provider-tab').then(m => ({ default: m.ProviderTab })), { ssr: false, loading: () => <TabLoader /> })
+const GovernorTab = dynamic(() => import('./tabs/governor-tab').then(m => ({ default: m.GovernorTab })), { ssr: false, loading: () => <TabLoader /> })
+const VaultTab = dynamic(() => import('./tabs/vault-tab').then(m => ({ default: m.VaultTab })), { ssr: false, loading: () => <TabLoader /> })
+const ResearchTab = dynamic(() => import('./tabs/research-tab').then(m => ({ default: m.ResearchTab })), { ssr: false, loading: () => <TabLoader /> })
+const SwarmTab = dynamic(() => import('./tabs/swarm-tab').then(m => ({ default: m.SwarmTab })), { ssr: false, loading: () => <TabLoader /> })
+const TokensTab = dynamic(() => import('./tabs/tokens-tab').then(m => ({ default: m.TokensTab })), { ssr: false, loading: () => <TabLoader /> })
+const RateLimitTab = dynamic(() => import('./tabs/rate-limit-tab').then(m => ({ default: m.RateLimitTab })), { ssr: false, loading: () => <TabLoader /> })
+const KpiTab = dynamic(() => import('./tabs/kpi-tab').then(m => ({ default: m.KpiTab })), { ssr: false, loading: () => <TabLoader /> })
 
 const tabComponents: Record<string, React.ComponentType> = {
   overview: OverviewTab,
