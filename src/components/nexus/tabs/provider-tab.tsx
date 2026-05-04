@@ -25,6 +25,7 @@ import { MiniAreaChart, NexusBarChart, COLORS } from '@/components/nexus/charts'
 import { useApiData } from '@/hooks/use-api-data'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ApiKeyEntry } from '@/components/nexus/api-key-entry'
 import {
   Server,
   Activity,
@@ -55,6 +56,12 @@ import {
   Sparkles,
   Trophy,
   Swords,
+  Plus,
+  Trash2,
+  Lock,
+  Eye,
+  EyeOff,
+  Shield,
 } from 'lucide-react'
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
@@ -977,6 +984,7 @@ export function ProviderTab() {
   const [activeSection, setActiveSection] = useState('grid')
   const [showBatchTest, setShowBatchTest] = useState(false)
   const [arenaResults, setArenaResults] = useState<ProviderTestResultItem[]>([])
+  const [keyEntryProvider, setKeyEntryProvider] = useState<ProviderDetail | null>(null)
 
   const toggleProviderExpand = useCallback((providerId: string) => {
     setExpandedProviders(prev => {
@@ -1145,6 +1153,10 @@ export function ProviderTab() {
               <Gauge className="h-3.5 w-3.5" />
               Quota Dashboard
             </TabsTrigger>
+            <TabsTrigger value="keys" className="text-xs gap-1.5">
+              <Key className="h-3.5 w-3.5" />
+              Key Vault
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex items-center gap-2">
@@ -1262,22 +1274,45 @@ export function ProviderTab() {
                       </div>
                     )}
 
-                    {/* Key status */}
-                    <div className="flex items-center gap-2 text-[10px]">
+                    {/* Key status — clickable to open key entry */}
+                    <div
+                      className="flex items-center gap-2 text-[10px] rounded-md bg-accent/20 px-2 py-1.5 cursor-pointer hover:bg-accent/40 transition-colors"
+                      onClick={() => setKeyEntryProvider(provider)}
+                      title="Click to manage API key"
+                    >
                       <Key className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">
+                      <span className="flex-1">
                         {provider.keyStatus.hasAvailableKey ? (
-                          <>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">Key active</span>
+                          <span className="flex items-center gap-1.5">
+                            <Badge className="border-0 text-[8px] px-1 py-0 bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                              <Lock className="h-2 w-2 mr-0.5" />
+                              KEY ACTIVE
+                            </Badge>
                             {provider.keyStatus.activeKeyMasked && (
-                              <span className="ml-1.5 font-mono">{provider.keyStatus.activeKeyMasked}</span>
+                              <span className="font-mono text-muted-foreground">{provider.keyStatus.activeKeyMasked}</span>
                             )}
-                          </>
+                          </span>
                         ) : (
-                          <span className="text-red-600 dark:text-red-400 font-medium">No key available</span>
+                          <span className="flex items-center gap-1.5">
+                            <Badge className="border-0 text-[8px] px-1 py-0 bg-red-600/15 text-red-600 dark:text-red-400">
+                              NO KEY
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-4 text-[9px] px-1 py-0 gap-0.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setKeyEntryProvider(provider)
+                              }}
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                              Add Key
+                            </Button>
+                          </span>
                         )}
                       </span>
-                      <span className="ml-auto text-muted-foreground">
+                      <span className="text-muted-foreground shrink-0">
                         {provider.keyStatus.healthyKeys}/{provider.keyStatus.totalKeys} healthy
                       </span>
                     </div>
@@ -1800,6 +1835,138 @@ export function ProviderTab() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── Key Vault Tab ────────────────────────────────────── */}
+        <TabsContent value="keys" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Key Vault</h2>
+              <DataSourceBadge source="api" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px]">
+                {providersData?.providers.filter(p => p.keyStatus.hasAvailableKey).length ?? 0}/{providersData?.providers.length ?? 0} configured
+              </Badge>
+            </div>
+          </div>
+
+          {/* Key overview cards for all providers */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {(providersData?.providers ?? []).map((provider) => {
+              const providerIcon = PROVIDER_ICONS[provider.provider] || '🖥️'
+              const hasKey = provider.keyStatus.hasAvailableKey
+
+              return (
+                <Card
+                  key={provider.provider}
+                  className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 ${
+                    hasKey ? 'border-emerald-600/15' : 'border-red-600/15'
+                  }`}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${
+                    hasKey ? 'from-emerald-600/5' : 'from-red-600/5'
+                  } via-transparent to-transparent`} />
+
+                  <div className="relative p-4 space-y-3">
+                    {/* Provider header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{providerIcon}</span>
+                        <div>
+                          <p className="text-sm font-semibold">{provider.label}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{provider.provider}</p>
+                        </div>
+                      </div>
+                      {hasKey ? (
+                        <Badge className="border-0 text-[9px] bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                          <Lock className="h-2.5 w-2.5 mr-0.5" />
+                          ACTIVE
+                        </Badge>
+                      ) : (
+                        <Badge className="border-0 text-[9px] bg-red-600/15 text-red-600 dark:text-red-400">
+                          NO KEY
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Key info */}
+                    <div className="rounded-md bg-accent/30 p-2.5 space-y-1.5">
+                      {hasKey && provider.keyStatus.activeKeyMasked ? (
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-3 w-3 text-emerald-600/60 dark:text-emerald-400/60" />
+                          <span className="text-xs font-mono">{provider.keyStatus.activeKeyMasked}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Key className="h-3 w-3 text-red-600/60 dark:text-red-400/60" />
+                          <span className="text-xs text-muted-foreground">No API key configured</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                        <span>Keys: {provider.keyStatus.totalKeys}</span>
+                        <span>Healthy: {provider.keyStatus.healthyKeys}/{provider.keyStatus.totalKeys}</span>
+                      </div>
+                    </div>
+
+                    {/* Action button */}
+                    <Button
+                      className={`w-full text-[11px] h-7 gap-1.5 ${
+                        hasKey
+                          ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/20 border border-emerald-600/20'
+                          : 'bg-red-600/10 text-red-600 dark:text-red-400 hover:bg-red-600/20 border border-red-600/20'
+                      }`}
+                      variant="outline"
+                      onClick={() => setKeyEntryProvider(provider)}
+                    >
+                      {hasKey ? (
+                        <>
+                          <Shield className="h-3 w-3" />
+                          Manage Key
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-3 w-3" />
+                          Add API Key
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Encryption info */}
+          <Card className="relative overflow-hidden border-emerald-600/15">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+            <CardContent className="relative p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">Key Encryption & Security</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="rounded-md bg-accent/30 p-2.5">
+                      <p className="text-[9px] text-muted-foreground uppercase">Algorithm</p>
+                      <p className="text-xs font-medium mt-0.5">AES-256-GCM</p>
+                    </div>
+                    <div className="rounded-md bg-accent/30 p-2.5">
+                      <p className="text-[9px] text-muted-foreground uppercase">Key Derivation</p>
+                      <p className="text-xs font-medium mt-0.5">256-bit env-based</p>
+                    </div>
+                    <div className="rounded-md bg-accent/30 p-2.5">
+                      <p className="text-[9px] text-muted-foreground uppercase">Client Exposure</p>
+                      <p className="text-xs font-medium mt-0.5">Masked only (sk-...XXXX)</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    API keys are encrypted before storage using AES-256-GCM with a 96-bit IV and 128-bit authentication tag.
+                    The plaintext key is never sent to the client — only a masked version showing the first 8 and last 4 characters.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* ── Provider Test Dialog ────────────────────────────────── */}
@@ -1816,6 +1983,25 @@ export function ProviderTab() {
           model={testingModel.model}
           provider={testingModel.provider}
           onClose={() => setTestingModel(null)}
+        />
+      )}
+
+      {/* ── API Key Entry Dialog ───────────────────────────────── */}
+      {keyEntryProvider && (
+        <ApiKeyEntry
+          provider={keyEntryProvider.provider}
+          providerLabel={keyEntryProvider.label}
+          providerIcon={PROVIDER_ICONS[keyEntryProvider.provider] || '🖥️'}
+          hasAvailableKey={keyEntryProvider.keyStatus.hasAvailableKey}
+          activeKeyMasked={keyEntryProvider.keyStatus.activeKeyMasked}
+          healthyKeys={keyEntryProvider.keyStatus.healthyKeys}
+          totalKeys={keyEntryProvider.keyStatus.totalKeys}
+          open={!!keyEntryProvider}
+          onClose={() => setKeyEntryProvider(null)}
+          onKeySaved={() => {
+            refetchProviders()
+            refetchQuotas()
+          }}
         />
       )}
     </div>

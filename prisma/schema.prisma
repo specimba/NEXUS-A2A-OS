@@ -228,9 +228,12 @@ model RateLimitLog {
 
 model ApiKey {
   id            String    @id @default(cuid())
-  provider      String    // openrouter, jina, kilocode, cerebras, openai
+  provider      String    // openrouter, jina, kilocode, cerebras, openai, z-ai
   keyPrefix     String    // First 8 chars for identification
   keySuffix     String    // Last 4 chars for identification
+  encryptedKey  String    // AES-256-GCM encrypted key (base64)
+  keyIv         String    // Initialization vector (base64)
+  keyTag        String    // Authentication tag (base64)
   isActive      Boolean   @default(true)
   health        String    @default("healthy") // healthy, degraded, rate_limited, error, no_key
   totalRequests Int       @default(0)
@@ -241,6 +244,8 @@ model ApiKey {
   lastUsed      DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@unique([provider, keySuffix])
 }
 
 // ─── 7352 Governance API ───

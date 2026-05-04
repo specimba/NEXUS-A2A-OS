@@ -2,16 +2,18 @@
  * API Key Manager for NEXUS OS
  *
  * Manages API keys for multiple providers with:
- * - Secure key storage (keys in env vars only, never exposed to client)
+ * - Secure key storage (keys encrypted in DB, or from env vars)
  * - Key rotation support — cycle through multiple keys per provider
  * - Per-key health tracking (requests remaining, last error, cooldown)
  * - Automatic key rotation on 429 errors
+ * - In-dashboard key entry with AES-256-GCM encryption
  *
  * IMPORTANT: API keys are NEVER sent to the client.
  * Only masked versions (sk-or-...XXXX) are exposed via APIs.
  */
 
 import { enterCooldown, clearCooldown } from './rate-limiter'
+import { decrypt } from './encryption'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
@@ -31,6 +33,7 @@ export interface KeyInfo {
   totalRequests: number
   total429s: number
   successRate: number
+  source?: 'env' | 'database'
 }
 
 export interface ProviderKeyStatus {
@@ -58,6 +61,7 @@ interface StoredKey {
   totalRequests: number
   total429s: number
   totalSuccesses: number
+  source: 'env' | 'database'
 }
 
 // ── Environment Variable Mapping ───────────────────────────────────
@@ -83,6 +87,7 @@ const ENV_KEY_MAP: Record<string, string[]> = {
 
 const keyStore: Map<string, StoredKey[]> = new Map()
 let initialized = false
+let dbLoaded = false
 
 // ── Initialization ─────────────────────────────────────────────────
 
@@ -114,6 +119,7 @@ function initializeKeys(): void {
           totalRequests: 0,
           total429s: 0,
           totalSuccesses: 0,
+          source: 'env',
         })
       }
     }
@@ -133,6 +139,7 @@ function initializeKeys(): void {
         totalRequests: 0,
         total429s: 0,
         totalSuccesses: 0,
+        source: 'env',
       })
     }
 
@@ -165,6 +172,7 @@ function initializeKeys(): void {
           totalRequests: 0,
           total429s: 0,
           totalSuccesses: 0,
+          source: 'env',
         }])
       }
     } catch {
@@ -173,6 +181,107 @@ function initializeKeys(): void {
   }
 
   initialized = true
+}
+
+/**
+ * Load API keys from the database and merge with env-based keys.
+ * Database keys take priority over env keys for the same provider+suffix.
+ * This is async and should be called early in server-side code.
+ */
+export async function loadDatabaseKeys(): Promise<void> {
+  if (dbLoaded) return
+  initializeKeys()
+
+  try {
+    const { db } = await import('@/lib/db')
+    const dbKeys = await db.apiKey.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    for (const dbKey of dbKeys) {
+      try {
+        // Decrypt the key
+        const keyValue = decrypt(dbKey.encryptedKey, dbKey.keyIv, dbKey.keyTag)
+        const provider = dbKey.provider
+        const existingKeys = keyStore.get(provider) ?? []
+
+        // Check if we already have this key (by suffix)
+        const existingIdx = existingKeys.findIndex(k => k.source === 'database' && k.id === `db_${dbKey.id}`)
+
+        const newStoredKey: StoredKey = {
+          id: `db_${dbKey.id}`,
+          provider,
+          keyValue,
+          masked: `${dbKey.keyPrefix}...${dbKey.keySuffix}`,
+          isActive: dbKey.isActive,
+          health: (dbKey.health as KeyInfo['health']) || 'healthy',
+          requestsMade: 0,
+          lastError: dbKey.lastError,
+          cooldownUntil: dbKey.cooldownUntil ? new Date(dbKey.cooldownUntil).getTime() : 0,
+          lastUsed: dbKey.lastUsed ? new Date(dbKey.lastUsed).getTime() : null,
+          totalRequests: dbKey.totalRequests,
+          total429s: dbKey.total429s,
+          totalSuccesses: Math.round(dbKey.totalRequests * dbKey.successRate / 100),
+          source: 'database',
+        }
+
+        if (existingIdx >= 0) {
+          // Update existing DB key
+          existingKeys[existingIdx] = newStoredKey
+        } else {
+          // Remove the 'no_key' placeholder if it exists
+          const noKeyIdx = existingKeys.findIndex(k => k.health === 'no_key' && k.source === 'env')
+          if (noKeyIdx >= 0) {
+            existingKeys.splice(noKeyIdx, 1)
+          }
+          // Add the DB key
+          existingKeys.push(newStoredKey)
+        }
+
+        keyStore.set(provider, existingKeys)
+      } catch (decErr) {
+        console.error(`[api-key-manager] Failed to decrypt key ${dbKey.id} for ${dbKey.provider}:`, decErr)
+      }
+    }
+
+    dbLoaded = true
+  } catch (err) {
+    console.error('[api-key-manager] Failed to load database keys:', err)
+    // Non-fatal — env keys still work
+  }
+}
+
+/**
+ * Reload database keys — call this after a key is saved/deleted.
+ */
+export async function reloadDatabaseKeys(): Promise<void> {
+  dbLoaded = false
+  // Reset provider stores that had DB keys
+  for (const [provider, keys] of keyStore.entries()) {
+    const filtered = keys.filter(k => k.source === 'env')
+    if (filtered.length === 0) {
+      // Add back the no_key placeholder
+      filtered.push({
+        id: `${provider}_0`,
+        provider,
+        keyValue: '',
+        masked: 'N/A',
+        isActive: false,
+        health: 'no_key',
+        requestsMade: 0,
+        lastError: 'No API key configured',
+        cooldownUntil: 0,
+        lastUsed: null,
+        totalRequests: 0,
+        total429s: 0,
+        totalSuccesses: 0,
+        source: 'env',
+      })
+    }
+    keyStore.set(provider, filtered)
+  }
+  await loadDatabaseKeys()
 }
 
 // ── Public API ────────────────────────────────────────────────────
@@ -422,5 +531,6 @@ function toKeyInfo(stored: StoredKey): KeyInfo {
     totalRequests: stored.totalRequests,
     total429s: stored.total429s,
     successRate,
+    source: stored.source,
   }
 }
