@@ -13,11 +13,11 @@ import {
 import {
   Gauge, Key, Clock, AlertTriangle, CheckCircle2, XCircle, Activity,
   Database, RefreshCw, Loader2, ShieldAlert, Zap, Timer, Layers, Hash,
-  TrendingUp, Server, Wifi, WifiOff,
+  TrendingUp, Server, Wifi, WifiOff, Shield, Copy, Filter,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
-import { NexusBarChart } from '@/components/nexus/charts'
+import { NexusBarChart, MiniAreaChart, COLORS } from '@/components/nexus/charts'
 import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -355,14 +355,22 @@ export function RateLimitTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [logsData, setLogsData] = useState<{ logs: Array<{ id: string; provider: string; endpoint: string; statusCode: number; wasRateLimited: boolean; wasCached: boolean; wasDeduped: boolean; responseTimeMs: number; errorMessage: string | null; createdAt: string }>; hourlyData: Array<{ hour: string; total: number; rateLimited: number; cached: number; errors: number }>; summary: { total: number; rateLimited: number; cached: number; errors: number; rateLimitHitRate: number; cacheHitRate: number; avgResponseTime: number; totalTokensUsed: number } } | null>(null)
   const tickRef = useRef(0)
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await globalThis.fetch('/api/rate-limit/status')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      setData(json)
+      const [statusRes, logsRes] = await Promise.all([
+        globalThis.fetch('/api/rate-limit/status'),
+        globalThis.fetch('/api/rate-limit/logs?limit=50&hours=24'),
+      ])
+      if (!statusRes.ok) throw new Error(`HTTP ${statusRes.status}`)
+      const statusJson = await statusRes.json()
+      setData(statusJson)
+      if (logsRes.ok) {
+        const logsJson = await logsRes.json()
+        setLogsData(logsJson)
+      }
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -592,6 +600,147 @@ export function RateLimitTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Rate Limit Rules Configuration */}
+      <Card className="relative overflow-hidden border-amber-600/20 shadow-lg">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-600/5 via-transparent to-transparent" />
+        <CardHeader className="relative pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" /> Rate Limit Rules</CardTitle>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(displayProviders.length > 0 ? displayProviders : PREVIEW_PROVIDERS).map((p) => (
+              <div key={p.provider} className="rounded-lg border border-border/50 bg-accent/20 px-3 py-2.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getProviderColor(p.provider) }} />
+                  <span className="text-xs font-semibold capitalize">{p.provider}</span>
+                  <Badge className={`text-[7px] px-1 py-0 h-4 border-0 ${p.isCooldown ? 'bg-red-600/15 text-red-600 dark:text-red-400' : 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'}`}>
+                    {p.isCooldown ? 'COOLDOWN' : 'ACTIVE'}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-[10px] text-muted-foreground">
+                  <div className="flex justify-between"><span>RPM Limit</span><span className="font-mono font-medium text-foreground">{p.config.rpm}/min</span></div>
+                  <div className="flex justify-between"><span>RPD Limit</span><span className="font-mono font-medium text-foreground">{p.config.rpd.toLocaleString()}/day</span></div>
+                  <div className="flex justify-between"><span>Backoff</span><span className="font-mono font-medium text-foreground">Exponential</span></div>
+                  <div className="flex justify-between"><span>Cooldown</span><span className="font-mono font-medium text-foreground">30-120s</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rate Limit History Chart */}
+      <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+        <CardHeader className="relative pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Rate Limit History</CardTitle>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-2">Provider Request Volume</p>
+              <NexusBarChart
+                data={Object.entries(displayProviderStats).map(([provider, stats]) => ({
+                  name: provider.charAt(0).toUpperCase() + provider.slice(1),
+                  value: stats.total,
+                }))}
+                dataKey="value"
+                color={COLORS.emerald}
+                height={160}
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-2">Rate Limited vs Cached</p>
+              <NexusBarChart
+                data={Object.entries(displayProviderStats).map(([provider, stats]) => ({
+                  name: provider.charAt(0).toUpperCase() + provider.slice(1),
+                  value: stats.rateLimited + stats.cached,
+                }))}
+                dataKey="value"
+                color={COLORS.orange}
+                height={160}
+              />
+            </div>
+          </div>
+          {displayProviderStats && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.entries(displayProviderStats).map(([provider, stats]) => (
+                <div key={provider} className="rounded-md bg-accent/20 px-2.5 py-2">
+                  <p className="text-[9px] text-muted-foreground capitalize">{provider}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold tabular-nums">{stats.avgResponseTime}ms</span>
+                    <span className="text-[8px] text-muted-foreground">avg</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] text-muted-foreground mt-0.5">
+                    <span className="text-red-600 dark:text-red-400">{stats.rateLimited} limited</span>
+                    <span>·</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{stats.cached} cached</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dedup + Cache Efficiency */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="relative overflow-hidden border-purple-600/20 shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2"><Filter className="h-4 w-4 text-purple-600 dark:text-purple-400" /> Request Deduplication</CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-accent/20 px-3 py-2.5">
+                <p className="text-[10px] text-muted-foreground">Dedup Entries</p>
+                <p className="text-lg font-bold tabular-nums">{displaySummary?.dedupSize ?? 0}</p>
+              </div>
+              <div className="rounded-lg bg-accent/20 px-3 py-2.5">
+                <p className="text-[10px] text-muted-foreground">Dedup Hit Rate</p>
+                <p className="text-lg font-bold tabular-nums text-purple-600 dark:text-purple-400">{displaySummary ? Math.round(displaySummary.cacheHitRate * 100) : 0}%</p>
+              </div>
+              <div className="rounded-lg bg-accent/20 px-3 py-2.5">
+                <p className="text-[10px] text-muted-foreground">Deduped Requests</p>
+                <p className="text-lg font-bold tabular-nums">{displaySummary?.dedupedCount ?? 0}</p>
+              </div>
+              <div className="rounded-lg bg-accent/20 px-3 py-2.5">
+                <p className="text-[10px] text-muted-foreground">Tokens Saved</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">~{(displaySummary?.dedupedCount ?? 0) * 450}</p>
+              </div>
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-3">Request deduplication prevents duplicate API calls by hashing request payloads. Identical requests within the TTL window are served from cache.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Efficiency Sparklines</CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0 space-y-3">
+            {[
+              { label: 'Cache Hit Rate', value: displayCache ? Math.round(displayCache.hitRate * 100) : 0, color: COLORS.emerald },
+              { label: 'Dedup Efficiency', value: displaySummary ? Math.round(displaySummary.cacheHitRate * 100) : 0, color: COLORS.purple },
+              { label: 'Error Rate', value: displaySummary && displaySummary.totalRequests > 0 ? Math.round((displaySummary.errorCount / displaySummary.totalRequests) * 100) : 0, color: COLORS.red },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-3">
+                <span className="text-[10px] font-medium w-28 shrink-0">{item.label}</span>
+                <div className="flex-1">
+                  <MiniAreaChart
+                    data={Array.from({ length: 7 }, (_, i) => ({ name: String(i), value: Math.max(0, item.value + Math.round(Math.sin(i * 1.5) * 8)) }))}
+                    dataKey="value"
+                    color={item.color}
+                    height={24}
+                  />
+                </div>
+                <span className="text-xs font-bold tabular-nums w-10 text-right" style={{ color: item.color }}>{item.value}%</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Info Footer */}
       <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground/50 pt-2">

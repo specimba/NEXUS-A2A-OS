@@ -118,26 +118,7 @@ function formatJsonValue(value: string): string {
   }
 }
 
-// Vault distribution data for donut chart
-const vaultDistributionData = [
-  { name: 'EVENT', value: 487, pct: 27.1, fill: '#34d399' },
-  { name: 'TRUST', value: 412, pct: 22.9, fill: '#60a5fa' },
-  { name: 'CAP', value: 356, pct: 19.9, fill: '#fb923c' },
-  { name: 'FAIL', value: 289, pct: 16.1, fill: '#ef4444' },
-  { name: 'GOV', value: 248, pct: 13.8, fill: '#a78bfa' },
-]
 
-// Recent vault activity for timeline
-const vaultRecentActivity = [
-  { track: 'EVENT', description: 'Agent worker-3 completed task T-0847', color: '#34d399', time: '2m ago' },
-  { track: 'TRUST', description: 'Trust score updated for agent-alpha: 0.82 → 0.85', color: '#60a5fa', time: '5m ago' },
-  { track: 'CAP', description: 'New skill registered: code-review-v2', color: '#fb923c', time: '8m ago' },
-  { track: 'GOV', description: 'Constitution check passed: agent-beta read file', color: '#a78bfa', time: '12m ago' },
-  { track: 'FAIL', description: 'Worker-1 rate limit error: E-RATE-429', color: '#ef4444', time: '15m ago' },
-  { track: 'EVENT', description: 'GMR model rotation: trinity-large → qwen3-coder', color: '#34d399', time: '18m ago' },
-  { track: 'TRUST', description: 'Trust decay applied: worker-2 0.78 → 0.76', color: '#60a5fa', time: '22m ago' },
-  { track: 'GOV', description: 'Governor denied: worker-2 delete_all (CRIT)', color: '#a78bfa', time: '25m ago' },
-]
 
 export function VaultTab() {
   const { data: apiData, loading, error: apiError, refetch } = useApiData<VaultAPIResponse>('/api/vault', 15000)
@@ -670,85 +651,140 @@ export function VaultTab() {
         </Card>
       </div>
 
-      {/* Vault Statistics + Recent Activity */}
+      {/* Vault Stats Summary + Score Distribution */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Entry Distribution Donut Chart */}
+        {/* Vault Stats Summary Card */}
         <Card className="relative overflow-hidden border-emerald-600/15">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <PieChartLucide className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Entry Distribution
-              <DataSourceBadge source="mock" />
+              Vault Stats
+              <DataSourceBadge source="seed" />
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0">
-                <ResponsiveContainer width={120} height={120}>
-              <RechartsPieChart>
-                    <Pie
-                      data={vaultDistributionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={30}
-                      outerRadius={55}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {vaultDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} />
-              </RechartsPieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-2 flex-1">
-                {vaultDistributionData.map((d) => (
-                  <div key={d.name} className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
-                    <span className="text-[11px] flex-1">{d.name}</span>
-                    <span className="text-[11px] font-bold tabular-nums">{d.value}</span>
-                    <span className="text-[9px] text-muted-foreground tabular-nums">{d.pct}%</span>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {tracks.map((t) => {
+                const count = trackCounts[t.id] ?? 0
+                return (
+                  <div key={`stat-${t.id}`} className={`rounded-lg border ${t.borderColor} bg-gradient-to-br ${t.gradient} p-2.5`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <t.icon className={`h-3 w-3 ${t.textColor}`} />
+                      <span className="text-[10px] font-semibold">{t.label}</span>
+                    </div>
+                    <p className={`text-lg font-bold tabular-nums ${t.textColor}`}>{count}</p>
+                    <p className="text-[9px] text-muted-foreground">{totalEntries > 0 ? ((count / totalEntries) * 100).toFixed(1) : 0}% of total</p>
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
+            {pieData.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="h-[100px] w-[100px] shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={25}
+                        outerRadius={45}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`stat-cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        contentStyle={{
+                          fontSize: '11px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--card)',
+                        }}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  {pieData.map((d) => (
+                    <div key={d.name} className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                      <span className="text-[10px] font-medium flex-1">{d.label}</span>
+                      <span className="text-[10px] tabular-nums text-muted-foreground">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[100px] text-xs text-muted-foreground">
+                No entries yet
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Recent Activity Timeline */}
+        {/* Score Distribution + Timeline */}
         <Card className="relative overflow-hidden border-blue-600/15">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              Recent Activity
+              Score Distribution & Timeline
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="max-h-48 space-y-2 overflow-y-auto custom-scrollbar">
-              {vaultRecentActivity.map((item, i) => (
-                <div key={i} className="flex items-start gap-2.5">
-                  <div className="flex flex-col items-center">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    {i < vaultRecentActivity.length - 1 && <span className="w-px flex-1 bg-border/50 min-h-[16px]" />}
+            {entries.length > 0 ? (
+              <div className="space-y-4">
+                {/* Score distribution summary */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-emerald-600/10 p-2 text-center">
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{entries.filter(e => e.score >= 0.7).length}</p>
+                    <p className="text-[8px] text-muted-foreground">High Score (≥0.7)</p>
                   </div>
-                  <div className="flex-1 min-w-0 pb-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-medium truncate">{item.description}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge className="text-[8px] px-1 py-0 border-0" style={{ backgroundColor: item.color + '20', color: item.color }}>
-                        {item.track}
-                      </Badge>
-                      <span className="text-[9px] text-muted-foreground tabular-nums">{item.time}</span>
-                    </div>
+                  <div className="rounded-lg bg-yellow-600/10 p-2 text-center">
+                    <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400 tabular-nums">{entries.filter(e => e.score >= 0.4 && e.score < 0.7).length}</p>
+                    <p className="text-[8px] text-muted-foreground">Mid (0.4-0.69)</p>
+                  </div>
+                  <div className="rounded-lg bg-red-600/10 p-2 text-center">
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{entries.filter(e => e.score < 0.4).length}</p>
+                    <p className="text-[8px] text-muted-foreground">Low (&lt;0.4)</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                {/* Recent activity from real data */}
+                <div className="max-h-48 space-y-2 overflow-y-auto custom-scrollbar">
+                  {entries.slice(0, 8).map((entry, i) => {
+                    const tc = getTrackConfig(entry.track)
+                    const scoreColor = entry.score >= 0.7 ? '#34d399' : entry.score >= 0.4 ? '#facc15' : '#f87171'
+                    return (
+                      <div key={`timeline-${entry.id}`} className="flex items-start gap-2.5">
+                        <div className="flex flex-col items-center">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: scoreColor }} />
+                          {i < Math.min(entries.length, 8) - 1 && <span className="w-px flex-1 bg-border/50 min-h-[16px]" />}
+                        </div>
+                        <div className="flex-1 min-w-0 pb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium truncate">{entry.key}: {entry.agent}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge className={`text-[8px] px-1 py-0 border-0 ${tc.badgeBg}`}>{entry.track}</Badge>
+                            <span className="text-[9px] text-muted-foreground tabular-nums">{entry.time}</span>
+                            <span className={`text-[9px] font-bold tabular-nums ${entry.score >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : entry.score >= 0.4 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>{entry.score.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground">
+                No vault entries yet
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

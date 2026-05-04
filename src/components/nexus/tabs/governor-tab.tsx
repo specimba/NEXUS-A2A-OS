@@ -1782,6 +1782,81 @@ export function GovernorTab() {
         </Card>
       </div>
 
+      {/* Trust Score Distribution + Recent Governance Actions */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="hover-lift">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Scale className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Trust Score Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {agents.length > 0 ? (
+              <div className="space-y-3">
+                <NexusBarChart
+                  data={agents.map(a => ({ name: a.name, value: Math.round(a.trust * 100) }))}
+                  dataKey="value"
+                  nameKey="name"
+                  color={COLORS.emerald}
+                  height={120}
+                />
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-emerald-600/10 p-2">
+                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{agents.filter(a => a.trust >= 0.7).length}</p>
+                    <p className="text-[9px] text-muted-foreground">High (≥0.70)</p>
+                  </div>
+                  <div className="rounded-lg bg-yellow-600/10 p-2">
+                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400 tabular-nums">{agents.filter(a => a.trust >= 0.5 && a.trust < 0.7).length}</p>
+                    <p className="text-[9px] text-muted-foreground">Medium (0.50-0.69)</p>
+                  </div>
+                  <div className="rounded-lg bg-red-600/10 p-2">
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">{agents.filter(a => a.trust < 0.5).length}</p>
+                    <p className="text-[9px] text-muted-foreground">Low (&lt;0.50)</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[120px] text-xs text-muted-foreground">
+                No trust score data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-emerald-600/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Recent Governance Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0">
+            {decisions.length > 0 && decisions[0].time !== '--:--:--' ? (
+              <div className="max-h-64 space-y-1.5 overflow-y-auto custom-scrollbar">
+                {decisions.slice(0, 12).map((d, i) => (
+                  <div
+                    key={`gov-action-${d.id}-${i}`}
+                    className="flex items-center gap-2 rounded-md bg-accent/20 px-2.5 py-2 text-xs"
+                  >
+                    <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{d.time}</span>
+                    <span className="text-muted-foreground shrink-0 font-medium truncate max-w-[80px]">{d.agent}</span>
+                    {d.decision === 'ALLOW' && <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[8px] shrink-0"><CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />ALLOW</Badge>}
+                    {d.decision === 'DENY' && <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[8px] shrink-0"><XCircle className="mr-0.5 h-2.5 w-2.5" />DENY</Badge>}
+                    {d.decision === 'HOLD' && <Badge className="bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0 text-[8px] shrink-0"><Clock className="mr-0.5 h-2.5 w-2.5" />HOLD</Badge>}
+                    <span className="text-muted-foreground truncate text-[10px] flex-1">{d.action}</span>
+                    <span className={`text-[10px] font-bold tabular-nums shrink-0 ${d.trust >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : d.trust >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>{d.trust.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[120px] text-xs text-muted-foreground">
+                No governance actions recorded yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* CDR Stage Machine + TrustEngine HARDWALL Panel */}
       <div className="grid gap-4 lg:grid-cols-2">
         <CDRStageMachine data={trustEngineData} />

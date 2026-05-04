@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { encrypt, maskKey } from '@/lib/encryption'
+import { reloadDatabaseKeys } from '@/lib/api-key-manager'
 
 // ── GET: List all keys (masked) ──────────────────────────────────
 
@@ -105,9 +106,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Key is persisted in the database. The in-memory key manager
-    // will pick it up on the next server start. For immediate availability,
-    // the providers API also reads from the database via loadDatabaseKeys().
+    // Key is persisted in the database. Reload in-memory keys for immediate availability.
+    await reloadDatabaseKeys()
 
     return NextResponse.json({
       success: true,
@@ -147,7 +147,8 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     })
 
-    // Key deleted from database. Will be reflected on next server start.
+    // Reload in-memory keys after deletion
+    await reloadDatabaseKeys()
 
     return NextResponse.json({
       success: true,

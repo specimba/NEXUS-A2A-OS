@@ -971,65 +971,128 @@ export function TokensTab() {
         </Card>
       )}
 
-      {/* Per-Model Usage with Sparklines */}
-      <div className="relative overflow-hidden rounded-xl">
-        <div className="absolute inset-0 rounded-xl p-[1px]" style={{ background: 'linear-gradient(90deg, #34d399, #fb923c, #60a5fa, #34d399)', backgroundSize: '200% 100%', animation: 'gradientBorder 4s linear infinite' }}>
-          <div className="h-full w-full rounded-xl bg-card" />
-        </div>
-      <Card className="relative hover-lift">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Per-Model Token Consumption <DataSourceBadge source="seed" /></CardTitle>
-            <ExportButton data={modelUsage.map(({ trend, ...rest }) => rest)} filename="token-usage" columnHeaders={modelUsageColumnHeaders} />
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {modelUsage.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-[11px]">Model</TableHead>
-                    <TableHead className="text-[11px]">Tokens</TableHead>
-                    <TableHead className="text-[11px]">API Calls</TableHead>
-                    <TableHead className="text-[11px]">Cost</TableHead>
-                    <TableHead className="text-[11px]">Trend</TableHead>
-                    <TableHead className="text-[11px]">Share</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {modelUsage.map((m) => (
-                    <TableRow key={m.model}>
-                      <TableCell className="text-xs font-medium">{m.model}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{m.tokens.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{m.calls.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs text-emerald-600 dark:text-emerald-400">${m.cost.toFixed(4)}</TableCell>
-                      <TableCell className="w-28 p-1.5">
-                        <MiniAreaChart
-                          data={m.trend}
-                          dataKey="value"
-                          color={COLORS.emerald}
-                          height={28}
-                        />
-                      </TableCell>
-                      <TableCell className="w-36">
-                        <div className="flex items-center gap-2">
-                          <Progress value={totalUsed > 0 ? (m.tokens / totalUsed) * 100 : 0} className="h-1.5 flex-1" />
-                          <span className="text-[10px] text-muted-foreground w-8 tabular-nums">{totalUsed > 0 ? ((m.tokens / totalUsed) * 100).toFixed(0) : 0}%</span>
-                        </div>
-                      </TableCell>
+      {/* Burn Rate & Remaining Budget + Per-Model Cost */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Burn Rate Indicator */}
+        <Card className="relative overflow-hidden border-orange-600/20 hover-lift">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 via-transparent to-transparent" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Flame className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              Burn Rate
+              <DataSourceBadge source="seed" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative p-4 pt-0 space-y-4">
+            <div className="text-center py-2">
+              <p className="text-3xl font-bold tabular-nums text-orange-600 dark:text-orange-400">
+                {burnRate > 0 ? burnRate.toLocaleString() : '0'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">tokens / minute</p>
+            </div>
+            {/* Burn rate projection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Budget Remaining</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{remaining.toLocaleString()}</span>
+              </div>
+              <Progress value={pct} className={`h-2 ${pct > 80 ? '[&>div]:bg-red-500' : pct > 60 ? '[&>div]:bg-orange-500' : '[&>div]:bg-emerald-500'}`} />
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{pct.toFixed(1)}% used</span>
+                <span>{(100 - pct).toFixed(1)}% remaining</span>
+              </div>
+            </div>
+            {/* Time estimates */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-accent/30 p-2 text-center">
+                <p className="text-[9px] text-muted-foreground">Time to Exhaust</p>
+                <p className="text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
+                  {burnRate > 0 ? `~${Math.max(0, Math.round(remaining / burnRate))} min` : '∞'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-accent/30 p-2 text-center">
+                <p className="text-[9px] text-muted-foreground">Session Status</p>
+                <p className={`text-sm font-bold tabular-nums ${pct > 80 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {pct > 80 ? '⚠ Over 80%' : 'Within Budget'}
+                </p>
+              </div>
+            </div>
+            {/* Projected usage curve */}
+            {burnRate > 0 && (
+              <div>
+                <p className="text-[9px] text-muted-foreground mb-1">Projected Usage Curve</p>
+                <MiniAreaChart
+                  data={Array.from({ length: 8 }, (_, i) => ({
+                    name: String(i),
+                    value: Math.max(0, remaining - (burnRate * (i + 1) * 7)),
+                  }))}
+                  dataKey="value"
+                  color={COLORS.orange}
+                  height={48}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Per-Model Cost Tracking */}
+        <Card className="lg:col-span-2 relative overflow-hidden hover-lift">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Coins className="h-4 w-4" /> Per-Model Cost Tracking
+                <DataSourceBadge source="seed" />
+              </CardTitle>
+              <ExportButton data={modelUsage.map(({ trend, ...rest }) => rest)} filename="token-usage" columnHeaders={modelUsageColumnHeaders} />
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {modelUsage.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[11px]">Model</TableHead>
+                      <TableHead className="text-[11px]">Tokens</TableHead>
+                      <TableHead className="text-[11px]">API Calls</TableHead>
+                      <TableHead className="text-[11px]">Cost</TableHead>
+                      <TableHead className="text-[11px]">Trend</TableHead>
+                      <TableHead className="text-[11px]">Share</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              No model usage data available yet
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {modelUsage.map((m) => (
+                      <TableRow key={m.model}>
+                        <TableCell className="text-xs font-medium">{m.model}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{m.tokens.toLocaleString()}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{m.calls.toLocaleString()}</TableCell>
+                        <TableCell className="text-xs text-emerald-600 dark:text-emerald-400">${m.cost.toFixed(4)}</TableCell>
+                        <TableCell className="w-28 p-1.5">
+                          <MiniAreaChart
+                            data={m.trend}
+                            dataKey="value"
+                            color={COLORS.emerald}
+                            height={28}
+                          />
+                        </TableCell>
+                        <TableCell className="w-36">
+                          <div className="flex items-center gap-2">
+                            <Progress value={totalUsed > 0 ? (m.tokens / totalUsed) * 100 : 0} className="h-1.5 flex-1" />
+                            <span className="text-[10px] text-muted-foreground w-8 tabular-nums">{totalUsed > 0 ? ((m.tokens / totalUsed) * 100).toFixed(0) : 0}%</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                No model usage data available yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Budget Forecast + Session Comparison */}

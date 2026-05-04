@@ -607,6 +607,9 @@ function DailyPracticeTimerCard() {
 
 export function ResearchTab() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterAdmissionTier, setFilterAdmissionTier] = useState<string>('all')
+  const [filterResearchRole, setFilterResearchRole] = useState<string>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
   const [selectedPaper, setSelectedPaper] = useState<PaperItem | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [copied, setCopied] = useState(false)

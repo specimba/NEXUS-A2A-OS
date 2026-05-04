@@ -869,21 +869,7 @@ function WorkerDetailDialog({
 
 const PRIORITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 }
 
-// Deterministic worker performance data (avoids Math.random in render)
-const workerPerformanceData = [
-  { name: 'w-3', value: 18 },
-  { name: 'w-1', value: 12 },
-  { name: 'coord', value: 15 },
-  { name: 'w-2', value: 7 },
-  { name: 'res', value: 9 },
-]
-
-const workerPerformanceRows = [
-  { id: 'w-3', name: 'w-3', tasks: 18, avgTime: 312, errRate: 1.2 },
-  { id: 'w-1', name: 'w-1', tasks: 12, avgTime: 245, errRate: 0.8 },
-  { id: 'coord', name: 'coord', tasks: 15, avgTime: 189, errRate: 2.1 },
-  { id: 'w-2', name: 'w-2', tasks: 7, avgTime: 478, errRate: 4.5 },
-]
+// Deterministic worker performance data — replaced with computed data from API in the component
 
 function getPriorityBadge(priority: string) {
   switch (priority) {
@@ -1380,6 +1366,29 @@ export function SwarmTab() {
   // Find worker for reassign dialog
   const reassignWorker = reassignWorkerId ? apiWorkers.find(w => w.id === reassignWorkerId) ?? null : null
 
+  // Compute real worker performance data from API
+  const workerPerformanceData = useMemo(() => {
+    return apiWorkers.map(w => ({
+      name: w.name.length > 8 ? w.name.slice(0, 7) + '…' : w.name,
+      value: w.tasksDone,
+    }))
+  }, [apiWorkers])
+
+  const workerPerformanceRows = useMemo(() => {
+    return apiWorkers.map(w => {
+      const total = w.tasksDone + w.tasksFailed
+      const errRate = total > 0 ? (w.tasksFailed / total) * 100 : 0
+      const avgTime = w.tokens > 0 && w.tasksDone > 0 ? Math.round(w.tokens / w.tasksDone) : 0
+      return {
+        id: w.id,
+        name: w.name.length > 8 ? w.name.slice(0, 7) + '…' : w.name,
+        tasks: w.tasksDone,
+        avgTime,
+        errRate: Math.round(errRate * 10) / 10,
+      }
+    })
+  }, [apiWorkers])
+
   const handleWorkerClick = (worker: Worker) => {
     setSelectedWorker(worker)
     setDialogOpen(true)
@@ -1661,33 +1670,104 @@ export function SwarmTab() {
         </div>
       </div>
 
+      {/* Worker Pool Visualization + Swarm Load */}
+      <Card className="relative overflow-hidden border-emerald-600/15">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
+        <CardHeader className="relative pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Worker Pool
+            <Badge variant="outline" className="text-[9px]">{apiWorkers.length} / {MAX_WORKERS} capacity</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="relative p-4 pt-0 space-y-4">
+          {/* Worker status grid */}
+          {apiWorkers.length > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {apiWorkers.map((w, i) => {
+                const sd = getStatusDisplay(w.status)
+                const StatusIcon = sd.icon
+                return (
+                  <div
+                    key={`pool-${w.id}`}
+                    className={`rounded-lg border p-3 cursor-pointer transition-all hover-lift ${getWorkerCardStyle(w.status)}`}
+                    onClick={() => handleWorkerClick(w)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`flex h-7 w-7 items-center justify-center rounded-md ${sd.bgClass}`}>
+                        <StatusIcon className={`h-3.5 w-3.5 ${sd.textClass} ${w.status === 'busy' ? 'animate-spin' : ''}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{w.name}</p>
+                        <p className="text-[9px] text-muted-foreground">{w.domain ?? 'general'}</p>
+                      </div>
+                      <Badge className={`text-[8px] border-0 ${sd.badgeClass}`}>{w.status}</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 text-center">
+                      <div className="rounded bg-accent/30 px-1 py-0.5">
+                        <p className="text-[9px] font-bold tabular-nums">{w.tasksDone}</p>
+                        <p className="text-[7px] text-muted-foreground">done</p>
+                      </div>
+                      <div className="rounded bg-accent/30 px-1 py-0.5">
+                        <p className="text-[9px] font-bold tabular-nums text-red-600 dark:text-red-400">{w.tasksFailed}</p>
+                        <p className="text-[7px] text-muted-foreground">fail</p>
+                      </div>
+                      <div className="rounded bg-accent/30 px-1 py-0.5">
+                        <p className={`text-[9px] font-bold tabular-nums ${w.trustScore >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : w.trustScore >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>{w.trustScore.toFixed(2)}</p>
+                        <p className="text-[7px] text-muted-foreground">trust</p>
+                      </div>
+                    </div>
+                    {w.task && (
+                      <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground">
+                        <Activity className="h-2.5 w-2.5" />
+                        <span className="truncate">{w.task}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {/* Empty slots */}
+              {Array.from({ length: MAX_WORKERS - apiWorkers.length }, (_, i) => (
+                <div
+                  key={`empty-slot-${i}`}
+                  className="rounded-lg border border-dashed border-border/40 p-3 flex items-center justify-center min-h-[72px]"
+                >
+                  <div className="text-center">
+                    <Plus className="h-4 w-4 text-muted-foreground/30 mx-auto" />
+                    <p className="text-[9px] text-muted-foreground/50 mt-0.5">Slot {apiWorkers.length + i + 1}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+              No workers in the pool — spawn a worker to get started
+            </div>
+          )}
+          {/* Swarm Load Bar */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium flex items-center gap-1.5">
+                <Cpu className="h-3 w-3 text-muted-foreground" />
+                Swarm Load
+              </span>
+              <span className="text-muted-foreground tabular-nums">{busyCount + errorCount}/{apiWorkers.length} occupied</span>
+            </div>
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 transition-all duration-500"
+                style={{ width: `${apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length * 100).toFixed(0) : 0}% capacity</span>
+              <span>{idleCount} available</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Foundry Joker Lanes */}
       <FoundryJokerLanes />
-
-      {/* Swarm Load Progress Bar */}
-      <div className="rounded-lg border border-border/50 bg-card p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium flex items-center gap-1.5">
-            <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
-            Swarm Load
-          </span>
-          <span className="text-xs text-muted-foreground tabular-nums">{busyCount + errorCount}/{apiWorkers.length} workers occupied</span>
-        </div>
-        <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
-          {/* Gradient fill with animated shimmer */}
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 transition-all duration-500 relative overflow-hidden"
-            style={{ width: `${apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length) * 100 : 0}%` }}
-          >
-            {/* Shimmer overlay */}
-            <div className="absolute inset-0 shimmer opacity-40" />
-          </div>
-        </div>
-        <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{apiWorkers.length > 0 ? ((busyCount + errorCount) / apiWorkers.length * 100).toFixed(0) : 0}% capacity utilized</span>
-          <span>{idleCount} workers available</span>
-        </div>
-      </div>
 
       {/* Swarm Topology Map + Worker Performance Comparison */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -1771,17 +1851,21 @@ export function SwarmTab() {
               height={140}
             />
             <div className="mt-2 space-y-1.5">
-              {workerPerformanceRows.map((row, idx) => (
+              {workerPerformanceRows.length > 0 ? workerPerformanceRows.map((row, idx) => (
                   <div key={`${row.id}-${idx}`} className="flex items-center gap-2 text-[10px]">
                     <span className="font-mono text-muted-foreground w-12 truncate">{row.name}</span>
                     <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${Math.min(row.tasks * 5, 100)}%` }} />
                     </div>
                     <span className="text-muted-foreground tabular-nums w-14 text-right">{row.tasks} tasks</span>
-                    <span className="text-muted-foreground/60 tabular-nums w-14 text-right">{row.avgTime}ms</span>
+                    <span className="text-muted-foreground/60 tabular-nums w-14 text-right">{row.avgTime > 0 ? `${row.avgTime}ms` : '—'}</span>
                     <span className={`tabular-nums w-10 text-right ${row.errRate > 3 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{row.errRate}%</span>
                   </div>
-              ))}
+              )) : (
+                <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+                  No worker performance data yet
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
