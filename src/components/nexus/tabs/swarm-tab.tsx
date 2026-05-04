@@ -928,8 +928,8 @@ function ReorderPriorityDialog({
           </div>
         </DialogHeader>
         <div className="space-y-3 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-          {tasks.map((t) => (
-            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
+          {tasks.map((t, i) => (
+            <div key={`${t.id}-${i}`} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
               <span className="font-mono text-xs font-medium w-16 shrink-0">{t.id}</span>
               <Badge variant="outline" className="text-[9px] shrink-0">{t.domain}</Badge>
               <span className="flex-1" />
@@ -2154,7 +2154,7 @@ export function SwarmTab() {
           <CardContent className="p-4 pt-0">
             <div className="space-y-2">
               {liveTaskQueue.map((t, i) => (
-                <div key={t.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2 transition-colors hover:bg-accent/50">
+                <div key={`${t.id}-${i}`} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2 transition-colors hover:bg-accent/50">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-[10px] text-muted-foreground tabular-nums w-4">{i + 1}.</span>
                     <span className="text-xs font-mono">{t.id}</span>

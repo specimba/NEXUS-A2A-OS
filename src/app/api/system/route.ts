@@ -80,6 +80,63 @@ export async function GET() {
       ? Math.round((failedRuns.length / testRuns.length) * 1000) / 10
       : 0
 
+    // ── Compute overview stats (needed for pillar health) ───────
+    const totalTokensUsed = budget?.usedBudget ?? 0
+    const totalBudget = budget?.totalBudget ?? 100000
+
+    // ── Compute pillar health from real data ──────────────────
+    // Governor health: based on decision quality and agent trust scores
+    // A healthy Governor makes proper decisions (ALLOW/DENY/HOLD) without errors
+    // and maintains good trust scores across agents.
+    const governorHealth = (() => {
+      if (decisions.length === 0) return 95 // No decisions = assume operational
+
+      // Decision quality: non-ERROR decisions mean Governor is functioning
+      const govErrorCount = decisions.filter(d => d.decision === 'ERROR').length
+      const govErrorRate = govErrorCount / decisions.length
+
+      // Base health: 97 when no errors, decreasing proportionally with errors
+      // 0% errors → 97, 10% → ~93, 25% → ~88, 50% → ~79, 100% → 60
+      const baseHealth = Math.round(97 - govErrorRate * 37)
+
+      // Trust bonus: good average trust indicates effective governance
+      const avgTrust = agents.length > 0
+        ? agents.reduce((s, a) => s + a.trustScore, 0) / agents.length
+        : 0.5
+      const trustBonus = avgTrust >= 0.7 ? 3 : avgTrust >= 0.5 ? 2 : 0
+
+      return Math.min(100, Math.max(0, baseHealth + trustBonus))
+    })()
+
+    // Engine health: based on model availability and routing capability
+    const engineHealth = activeModels.length > 0
+      ? Math.min(100, 90 + Math.round((activeModels.length / Math.max(models.length, 1)) * 10))
+      : 75
+
+    // GMR health: use average active model health (already computed)
+    // Ensure minimum of 85 even with degraded models (rotation still works)
+    const gmrHealth = Math.max(85, avgModelHealth)
+
+    // Swarm health: based on worker utilization and error rate
+    const swarmHealth = (() => {
+      const total = agents.length
+      if (total === 0) return 95
+      const swarmErrorRate = errorAgents.length / total
+      const busyRate = busyAgents.length / total
+      // Base 96, penalty for errors, bonus for active workers
+      return Math.round(Math.max(75, Math.min(100,
+        96 - swarmErrorRate * 30 + (busyRate >= 0.4 ? 2 : 0)
+      )))
+    })()
+
+    // Monitor health: based on budget utilization
+    const monitorHealth = (() => {
+      const budgetPctVal = totalBudget > 0 ? totalTokensUsed / totalBudget : 0
+      if (budgetPctVal > 0.9) return 88 // Critical budget usage
+      if (budgetPctVal > 0.7) return 94 // High usage
+      return 97 // Healthy budget
+    })()
+
     const pillars = [
       {
         name: 'Bridge',
@@ -90,17 +147,15 @@ export async function GET() {
       },
       {
         name: 'Engine',
-        health: activeModels.length > 0 ? 98 : 80,
+        health: engineHealth,
         status: 'operational',
         desc: `${activeModels.length} models available`,
         uptime: '99.94%',
       },
       {
         name: 'Governor',
-        health: decisions.length > 0
-          ? Math.min(100, Math.round(70 + (decisions.filter(d => d.decision !== 'ERROR').length / decisions.length) * 30))
-          : 95,
-        status: 'operational',
+        health: governorHealth,
+        status: governorHealth >= 95 ? 'operational' : governorHealth >= 85 ? 'degraded' : 'critical',
         desc: 'Kaiju + TrustScorer',
         uptime: '99.87%',
       },
@@ -113,21 +168,21 @@ export async function GET() {
       },
       {
         name: 'GMR',
-        health: avgModelHealth,
-        status: avgModelHealth >= 95 ? 'operational' : 'degraded',
+        health: gmrHealth,
+        status: gmrHealth >= 95 ? 'operational' : 'degraded',
         desc: `${activeModels.length}/${models.length} models active`,
-        uptime: avgModelHealth >= 95 ? '99.71%' : '97.50%',
+        uptime: gmrHealth >= 95 ? '99.71%' : '97.50%',
       },
       {
         name: 'Swarm',
-        health: errorAgents.length > 0 ? Math.max(70, 100 - errorAgents.length * 10) : 95,
-        status: errorAgents.length > 0 ? 'degraded' : 'operational',
+        health: swarmHealth,
+        status: swarmHealth >= 95 ? 'operational' : swarmHealth >= 85 ? 'degraded' : 'critical',
         desc: `${busyAgents.length} busy · ${idleAgents.length} idle`,
-        uptime: errorAgents.length > 0 ? '92.44%' : '98.44%',
+        uptime: swarmHealth >= 95 ? '98.44%' : '92.44%',
       },
       {
         name: 'Monitor',
-        health: 96,
+        health: monitorHealth,
         status: 'operational',
         desc: 'Token budget + audit',
         uptime: '99.92%',
@@ -141,9 +196,7 @@ export async function GET() {
       },
     ]
 
-    // Compute overview stats
-    const totalTokensUsed = budget?.usedBudget ?? 0
-    const totalBudget = budget?.totalBudget ?? 100000
+    // Compute overview stats (totalTokensUsed and totalBudget already computed above for pillar health)
     const remaining = budget?.remainingBudget ?? (totalBudget - totalTokensUsed)
     const budgetPct = totalBudget > 0 ? Math.round((totalTokensUsed / totalBudget) * 10000) / 100 : 0
 
@@ -539,34 +592,33 @@ async function computeHealthTimelineFallback(pillars: { name: string; health: nu
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Governor') {
-        // Based on decision processing rate (non-error decisions = functioning properly)
+        // Based on decision quality — non-ERROR decisions = Governor functioning properly
+        // Uses same formula as pillar health: base 97, penalty for errors, trust bonus
         if (hourDecisions.length > 0) {
-          const nonError = hourDecisions.filter(d => d.decision !== 'ERROR').length
-          entry[p.name] = Math.min(100, Math.round(70 + (nonError / hourDecisions.length) * 30))
+          const govErrors = hourDecisions.filter(d => d.decision === 'ERROR').length
+          const govErrRate = govErrors / hourDecisions.length
+          const baseH = Math.round(97 - govErrRate * 37)
+          entry[p.name] = Math.min(100, Math.max(0, baseH + 3)) // +3 trust bonus assumed for timeline
         } else {
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Vault') {
-        // Based on entry count and scores for that hour
+        // Vault is storage — always operational unless explicit failures
+        // Use current pillar health (100) as baseline, with minor adjustments for FAIL entries
         if (hourVault.length > 0) {
-          const avgScore = hourVault.reduce((s, v) => s + v.score, 0) / hourVault.length
           const failCount = hourVault.filter(v => v.track === 'FAIL').length
-          entry[p.name] = Math.round(Math.max(0, Math.min(100, avgScore * 10 - failCount * 5)))
+          const failRate = failCount / hourVault.length
+          // Small penalty for FAIL entries, but Vault itself is still operational
+          entry[p.name] = Math.round(Math.max(85, 100 - failRate * 15))
         } else {
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Swarm') {
-        // Based on agent status
-        entry[p.name] = errorAgents > 0 ? Math.max(70, 100 - errorAgents * 10) : 95
+        // Based on agent status — use current pillar health as baseline
+        entry[p.name] = pillarHealthMap.get(p.name) ?? 95
       } else if (p.name === 'Monitor') {
-        // Based on token budget health for that hour
-        if (hourTokenLogs.length > 0) {
-          const totalUsed = hourTokenLogs.reduce((s, l) => s + l.totalTokens, 0)
-          // If usage is reasonable, health is high; scale inversely
-          entry[p.name] = Math.max(50, Math.min(100, 100 - Math.floor(totalUsed / 10000)))
-        } else {
-          entry[p.name] = pillarHealthMap.get(p.name) ?? 100
-        }
+        // Monitor tracks budget — use current pillar health as baseline
+        entry[p.name] = pillarHealthMap.get(p.name) ?? 97
       } else {
         entry[p.name] = pillarHealthMap.get(p.name) ?? 100
       }

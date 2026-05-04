@@ -9,7 +9,14 @@ let zaiInstance: InstanceType<typeof ZAI> | null = null
 
 async function getZAI() {
   if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
+    try {
+      zaiInstance = await ZAI.create()
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      throw new Error(
+        `Failed to initialize z-ai-web-dev-sdk. Ensure ZAI_API_KEY is set in .env or .z-ai-config exists. Error: ${msg}`
+      )
+    }
   }
   return zaiInstance
 }

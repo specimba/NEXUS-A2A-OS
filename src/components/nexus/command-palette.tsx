@@ -90,12 +90,19 @@ export function NexusCommandPalette() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       // Don't trigger shortcuts when user is typing in input fields
       const target = e.target as HTMLElement
+      // Direct element checks
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable
       ) return
+      // Check if target is inside an input-like element (e.g. child of contentEditable)
+      if (target.closest('input, textarea, select, [contenteditable]')) return
+      // Check if target is inside a dialog/overlay — skip shortcuts inside modals
+      if (target.closest('[role="dialog"]')) return
+      // Check if target is inside a Radix command input (cmdk)
+      if (target.closest('[cmdk-input]')) return
       const tabMap: Record<string, NexusTab> = {
         '1': 'overview', '2': 'stresslab', '3': 'gmr', '4': 'governor',
         '5': 'vault', '6': 'research', '7': 'swarm', '8': 'tokens',

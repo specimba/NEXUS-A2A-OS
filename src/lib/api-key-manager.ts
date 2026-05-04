@@ -76,7 +76,7 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
   dashscope: ['DASHSCOPE_API_KEY'],
   bitdeer: ['BITDEER_ACCESS_KEY'],
-  'z-ai': [],
+  'z-ai': ['ZAI_API_KEY'],
 }
 
 // ── In-Memory State ────────────────────────────────────────────────
@@ -139,9 +139,9 @@ function initializeKeys(): void {
     keyStore.set(provider, keys)
   }
 
-  // Special handling for z-ai: it uses the SDK (not env vars),
-  // so check if the SDK config file exists and add a synthetic key entry.
-  // The SDK checks .z-ai-config in: cwd, $HOME, and /etc
+  // Special handling for z-ai: it uses the SDK which can authenticate
+  // via ZAI_API_KEY env var or the .z-ai-config file. If no key was found
+  // from the env var check above, check if the SDK config file exists.
   const zaiKeys = keyStore.get('z-ai')
   if (zaiKeys && zaiKeys.length === 1 && zaiKeys[0].health === 'no_key') {
     try {
