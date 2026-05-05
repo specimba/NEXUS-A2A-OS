@@ -59,3 +59,101 @@ Stage Summary:
 - Visually attractive with animated progress rings, glow effects, hover transitions
 - Each pillar is interactive — click to drill into details
 - Data Flow Topology shows actual inter-pillar communication paths
+
+---
+Task ID: 2
+Agent: stresslab-enhancer
+Task: Enhance stresslab API route with detailed harness information
+
+Work Log:
+- Read existing `/home/z/my-project/src/app/api/stresslab/route.ts` (852 lines)
+- Enhanced `run_test` action when `mode='harness'`:
+  - Added `stageTimings` tracking: records ms duration for each of the 5 governance stages (heartbeat, llmCall, result, governance, vault)
+  - Added `validationScore` capture: now captures `validation.score` from `validateResponse()` return value
+  - Added `provider` capture: records which provider was used (z-ai, groq, etc.) from `executePrompt()` return
+  - Added `actualModel` capture: records the actual model name that responded from `executePrompt()` return
+  - Added `failedAtStage` tracking: uses `currentStage` variable to track which stage the error occurred at; set in catch block
+  - Added `harnessDetail` object to response JSON alongside `testRun` and `governance`
+- Enhanced `batch_harness` action:
+  - Added per-template `stageTimings` tracking (renamed `process` key to `llmCall` for consistency)
+  - Added per-template `validationScore`, `provider`, `actualModel`, `failedAtStage` tracking
+  - Added `harnessDetail` object to each item in the `harnessResults` array
+  - Fixed duplicate `stageDurations.process.push()` bug (was pushing 0 then pushing durationMs; now correctly pushes once with the actual timing)
+  - Outer catch block now records `tmplFailedAtStage` for partial failures
+- All existing functionality preserved — non-harness modes return `harnessDetail: null`
+- ESLint passes with no errors
+- Dev server running correctly with no runtime errors
+
+Stage Summary:
+- `run_test` with `mode='harness'` now returns `harnessDetail` with stageTimings, validationScore, provider, actualModel, failedAtStage
+- `batch_harness` now returns `harnessDetail` per template in the `harnessResults` array
+- Fixed pre-existing bug where `stageDurations.process` was being double-pushed in batch_harness
+- Zero breaking changes to existing API contracts
+
+---
+Task ID: 3
+Agent: batch-harness-rewriter
+Task: Completely rewrite BatchHarnessDialog with 3-phase per-template execution flow
+
+Work Log:
+- Read existing worklog.md and stresslab-tab.tsx to understand context
+- Previous BatchHarnessDialog (lines 1241-1398) sent a single `batch_harness` POST and showed a simple progress bar — user felt "nothing substantial happens behind the scenes"
+- Completely rewrote the component with a 3-phase design:
+  - Phase 1 (Pre-Execution): Pipeline stage visualization (5 stages with descriptions), template count, model selector with 14 free provider options (matching RunTestDialog)
+  - Phase 2 (During Execution): Sends individual `run_test` requests with `mode='harness'` sequentially per template, showing:
+    - Overall progress bar (X/N completed)
+    - Running/Pending/Completed count stats
+    - Elapsed time counter
+    - Scrollable template list with per-template status, domain/difficulty badges, mini pipeline dots, result badges, error details
+  - Phase 3 (Post-Execution): Comprehensive scientific results panel with:
+    - Summary Statistics Card (total runs, success count, avg duration, total tokens)
+    - Scientific Metrics Card (95% CI, latency percentiles p50/p95/max, score distribution min/median/max, Cohen's d effect size)
+    - Per-Domain Breakdown table (domain, tested, pass rate, avg score, avg latency)
+    - Failure Analysis (failure stage distribution horizontal bars, failed template list with error details)
+    - Execution Log (collapsible per-template details: stage timings, output snippet, validation details, VAP proof hash)
+- Added `HarnessTemplateResult` interface with full result fields (templateId, result, durationMs, tokensUsed, validationScore, stageTimings, outputSnippet, vapProofHash, etc.)
+- Wider dialog: `sm:max-w-2xl max-h-[85vh]` with `overflow-y-auto` on content
+- Fixed stale closure bug in elapsed timer (captured `now` as local variable instead of using `startTime` state in setInterval callback)
+- Fixed syntax error in DialogDescription template literal (missing opening parenthesis in `((scientificMetrics?.successRate ?? 0) * 100)`)
+- "View Detailed Results" toggle button expands/collapses the scientific panel
+- "Close & Refresh" button at end resets all state and calls onBatchComplete
+- Function signature unchanged: `BatchHarnessDialog({ templates, onBatchComplete }: { templates: UITemplate[]; onBatchComplete: () => void })`
+- No new imports added — uses only existing components and icons
+- ESLint passes with zero errors
+- TypeScript errors are all pre-existing (in other files), none in stresslab-tab.tsx
+
+Stage Summary:
+- BatchHarnessDialog fully rewritten from single-request to per-template sequential execution
+- 3-phase UI: Pre-Execution → During Execution (live per-template progress) → Post-Execution (scientific analysis)
+- Scientific metrics include 95% CI, latency percentiles, score distribution, Cohen's d, per-domain breakdown, failure analysis
+- All 14 free provider models available in selector
+- Dialog stays open after execution for result review
+- Zero breaking changes to other components
+
+---
+Task ID: 5-6
+Agent: main-orchestrator
+Task: Add Integration Roadmap, enhance HarnessResultsSection with real failure tracking and model performance
+
+Work Log:
+- Enhanced HarnessResultsSection: replaced random failure distribution with real data-driven analysis
+  - Collapse detected → LLM Call stage failure (model produced unsafe output)
+  - Error status → LLM Call stage failure (API/network error)
+  - Failed without collapse → Governance stage failure (failed review/validation)
+- Added per-model performance breakdown table to HarnessResultsSection
+  - Shows model name, total runs, pass rate (color-coded), collapse count, avg latency
+- Added IntegrationRoadmap component with 3 phases:
+  - Phase 1 — Foundation (COMPLETE): 5 items all done (7352 Pipeline, AI Provider Bridge, Validation Engine, Vault Audit, Batch Harness)
+  - Phase 2 — Intelligence (IN PROGRESS): 4 items (API Key Integration, Response Caching, Concurrent Mode, Historical Trends)
+  - Phase 3 — Autonomy (PLANNED): 4 items (Python AutoHarness Bridge, mem0 Risk History, CVA Verification, Adaptive Prompts)
+- Added Current Testing Capacity card: 14 Free Models, 5 Pipeline Stages, 6 API Providers, 6 Validation Domains
+- Added IntegrationRoadmap to Harness Pipeline sub-tab (after the 7352 Governance Pipeline card)
+- All lint passes, no errors
+- Dev server running clean
+
+Stage Summary:
+- HarnessResultsSection now shows real failure stage data instead of random distribution
+- Model Performance table added showing per-model pass rates, collapses, and latency
+- Integration Roadmap card shows concrete 3-phase plan with 13 items
+- Testing Capacity metrics visible in the roadmap card
+- Cron review task set up (job_id: 130799)

@@ -324,9 +324,20 @@ export async function POST(request: NextRequest) {
       const isHarness = mode === 'harness'
       const govTaskId = `harness-${testRun.id}`
 
+      // Harness detail tracking variables
+      const stageTimings: Record<string, number> = {}
+      let validationScore: number | null = null
+      let provider: string | null = null
+      let actualModel: string | null = null
+      let failedAtStage: string | null = null
+      let currentStage = ''
+
       if (isHarness) {
         // Stage 1: Heartbeat (task start)
+        currentStage = 'heartbeat'
+        const tHeartbeat = Date.now()
         await governanceHeartbeat(agentName, govTaskId, 10, 'Harness test started — heartbeat sent')
+        stageTimings.heartbeat = Date.now() - tHeartbeat
       }
 
       // Actually execute the test using z-ai-web-dev-sdk
@@ -338,7 +349,7 @@ export async function POST(request: NextRequest) {
 
       try {
         if (isHarness) {
-          // Stage 2: Agent processes prompt
+          // Stage 2: Agent processes prompt (notification)
           await governanceHeartbeat(agentName, govTaskId, 30, 'Agent processing prompt')
         }
 
@@ -356,12 +367,22 @@ export async function POST(request: NextRequest) {
         }
 
         // Use AI Provider Bridge for multi-provider routing
+        currentStage = 'llmCall'
+        const tLlmCall = Date.now()
         const promptResult = await executePrompt(testPrompt, systemPrompt, modelName)
         output = promptResult.output
+        provider = promptResult.provider
+        actualModel = promptResult.actualModel
+        if (isHarness) {
+          stageTimings.llmCall = Date.now() - tLlmCall
+        }
 
         if (isHarness) {
           // Stage 3: Agent sends result
+          currentStage = 'result'
+          const tResult = Date.now()
           await governanceHeartbeat(agentName, govTaskId, 60, 'LLM response received — validating')
+          stageTimings.result = Date.now() - tResult
         }
 
         // Validate the response
@@ -369,16 +390,23 @@ export async function POST(request: NextRequest) {
         collapseDetected = validation.collapseDetected
         finalStatus = validation.passed ? 'passed' : 'failed'
         validatorResult = validation.details
+        validationScore = validation.score
 
         if (isHarness) {
           // Stage 4: Governance reviews result
+          currentStage = 'governance'
+          const tGovernance = Date.now()
           await governanceHeartbeat(agentName, govTaskId, 80, `Governance review — result: ${finalStatus}`)
+          stageTimings.governance = Date.now() - tGovernance
         }
       } catch (apiError) {
         console.error('Test execution error:', apiError)
         output = `Error during test execution: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`
         finalStatus = 'error'
         validatorResult = 'API call failed — test could not be executed'
+        if (isHarness && currentStage) {
+          failedAtStage = currentStage
+        }
       }
 
       const durationMs = Date.now() - startTime
@@ -443,6 +471,8 @@ export async function POST(request: NextRequest) {
       // If harness mode: complete the governance pipeline
       if (isHarness) {
         // Stage 5: Vault audit created
+        currentStage = 'vault'
+        const tVault = Date.now()
         await governanceResult(
           agentName,
           govTaskId,
@@ -451,6 +481,7 @@ export async function POST(request: NextRequest) {
           Math.round(tokenCount),
           durationMs
         )
+        stageTimings.vault = Date.now() - tVault
       }
 
       // If collapse is detected, create a failure_pattern VaultEntry
@@ -471,6 +502,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         testRun: updatedRun,
         governance: isHarness ? { taskId: govTaskId, stages: 5 } : null,
+        harnessDetail: isHarness ? {
+          stageTimings,
+          validationScore,
+          provider,
+          actualModel,
+          failedAtStage,
+        } : null,
       }, { status: 201 })
     }
 
@@ -607,7 +645,7 @@ export async function POST(request: NextRequest) {
       const harnessResults: any[] = []
       const stageDurations: Record<string, number[]> = {
         heartbeat: [],
-        process: [],
+        llmCall: [],
         result: [],
         governance: [],
         vault: [],
@@ -619,11 +657,21 @@ export async function POST(request: NextRequest) {
         const agentName = agent?.name || 'stresslab_agent'
         const govTaskId = `harness-batch-${template.id}-${Date.now()}`
 
+        // Per-template harness detail tracking
+        const tmplStageTimings: Record<string, number> = {}
+        let tmplValidationScore: number | null = null
+        let tmplProvider: string | null = null
+        let tmplActualModel: string | null = null
+        let tmplFailedAtStage: string | null = null
+        let tmplCurrentStage = ''
+
         try {
           // Stage 1: Heartbeat
+          tmplCurrentStage = 'heartbeat'
           const t0 = Date.now()
           await governanceHeartbeat(agentName, govTaskId, 10, 'Harness batch — heartbeat')
-          stageDurations.heartbeat.push(Date.now() - t0)
+          tmplStageTimings.heartbeat = Date.now() - t0
+          stageDurations.heartbeat.push(tmplStageTimings.heartbeat)
 
           // Create test run
           const testRun = await db.testRun.create({
@@ -637,10 +685,9 @@ export async function POST(request: NextRequest) {
             include: { template: true, agent: true },
           })
 
-          // Stage 2: Process prompt
-          const t1 = Date.now()
+          // Stage 2: LLM call
           await governanceHeartbeat(agentName, govTaskId, 30, 'Processing prompt')
-          stageDurations.process.push(0) // Measured together with LLM call
+          tmplCurrentStage = 'llmCall'
 
           const startTime = Date.now()
           let output = ''
@@ -659,29 +706,41 @@ export async function POST(request: NextRequest) {
               modelName
             )
             output = promptResult.output
+            tmplProvider = promptResult.provider
+            tmplActualModel = promptResult.actualModel
+            tmplStageTimings.llmCall = Date.now() - startTime
+            stageDurations.llmCall.push(tmplStageTimings.llmCall)
+
             const validation = validateResponse(output, template.domain, template.name)
             collapseDetected = validation.collapseDetected
             finalStatus = validation.passed ? 'passed' : 'failed'
             validatorResult = validation.details
+            tmplValidationScore = validation.score
           } catch (apiError) {
             output = `Error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`
             finalStatus = 'error'
             validatorResult = 'API call failed'
+            tmplFailedAtStage = tmplCurrentStage
+            tmplStageTimings.llmCall = Date.now() - startTime
+            stageDurations.llmCall.push(tmplStageTimings.llmCall)
           }
 
           const durationMs = Date.now() - startTime
           const tokenCount = output.split(/\s+/).length * 1.3
-          stageDurations.process.push(durationMs)
 
           // Stage 3: Result
+          tmplCurrentStage = 'result'
           const t3 = Date.now()
           await governanceHeartbeat(agentName, govTaskId, 60, `Result: ${finalStatus}`)
-          stageDurations.result.push(Date.now() - t3)
+          tmplStageTimings.result = Date.now() - t3
+          stageDurations.result.push(tmplStageTimings.result)
 
           // Stage 4: Governance review
+          tmplCurrentStage = 'governance'
           const t4 = Date.now()
           await governanceHeartbeat(agentName, govTaskId, 80, 'Governance review complete')
-          stageDurations.governance.push(Date.now() - t4)
+          tmplStageTimings.governance = Date.now() - t4
+          stageDurations.governance.push(tmplStageTimings.governance)
 
           // Update test run
           const vapProofHash = `vap-${testRun.id.slice(0, 8)}-${Date.now().toString(36)}`
@@ -700,6 +759,7 @@ export async function POST(request: NextRequest) {
           })
 
           // Stage 5: Vault audit
+          tmplCurrentStage = 'vault'
           const t5 = Date.now()
           await governanceResult(agentName, govTaskId, finalStatus, output.substring(0, 500), Math.round(tokenCount), durationMs)
           await createGovVaultEntry(
@@ -717,7 +777,8 @@ export async function POST(request: NextRequest) {
             },
             finalStatus === 'passed' ? 1.0 : 0.0
           )
-          stageDurations.vault.push(Date.now() - t5)
+          tmplStageTimings.vault = Date.now() - t5
+          stageDurations.vault.push(tmplStageTimings.vault)
 
           // Collapse failure pattern
           if (collapseDetected) {
@@ -742,10 +803,21 @@ export async function POST(request: NextRequest) {
             collapseDetected,
             durationMs,
             tokensUsed: Math.round(tokenCount),
+            harnessDetail: {
+              stageTimings: tmplStageTimings,
+              validationScore: tmplValidationScore,
+              provider: tmplProvider,
+              actualModel: tmplActualModel,
+              failedAtStage: tmplFailedAtStage,
+            },
           })
 
           if (finalStatus === 'passed') successCount++
         } catch {
+          // If an outer error occurs, still record partial detail if possible
+          if (tmplCurrentStage) {
+            tmplFailedAtStage = tmplCurrentStage
+          }
           // Continue with next template
         }
       }

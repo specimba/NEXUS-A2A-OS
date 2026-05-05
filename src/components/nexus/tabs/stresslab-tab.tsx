@@ -1149,30 +1149,48 @@ function HarnessResultsSection({ runs }: { runs: UIRun[] }) {
     ? Math.round(harnessRuns.reduce((sum, r) => sum + r.durationMs, 0) / totalHarnessRuns)
     : 0
 
-  // Failure point distribution (simulated based on results)
+  // Failure point distribution (derived from actual run results)
   const failureDistribution = useMemo(() => {
-    if (totalHarnessRuns === 0) {
-      return [
-        { stage: 'Heartbeat', count: 0 },
-        { stage: 'LLM Call', count: 0 },
-        { stage: 'Result', count: 0 },
-        { stage: 'Governance', count: 0 },
-        { stage: 'Vault', count: 0 },
-      ]
-    }
-    const failed = harnessRuns.filter(r => r.result !== 'PASS')
     const dist: Record<string, number> = { Heartbeat: 0, 'LLM Call': 0, Result: 0, Governance: 0, Vault: 0 }
-    failed.forEach(() => {
-      // Distribute failures based on pattern: most failures happen at LLM Call (collapse)
-      const rand = Math.random()
-      if (rand < 0.6) dist['LLM Call']++
-      else if (rand < 0.8) dist['Result']++
-      else if (rand < 0.9) dist['Governance']++
-      else if (rand < 0.95) dist['Vault']++
-      else dist['Heartbeat']++
-    })
+    if (totalHarnessRuns > 0) {
+      const failed = harnessRuns.filter(r => r.result !== 'PASS')
+      failed.forEach((run) => {
+        // Classify failure stage based on actual run result:
+        // - Collapse detected → LLM Call (model produced unsafe output)
+        // - Error status → LLM Call (API/network error during call)
+        // - Failed without collapse → Governance (failed governance review/validation)
+        if (run.collapseDetected || run.result === 'COLLAPSE') {
+          dist['LLM Call']++
+        } else if (run.result === 'ERROR') {
+          dist['LLM Call']++
+        } else if (run.result === 'FAIL') {
+          dist['Governance']++
+        } else {
+          // RUNNING/PENDING - could fail at any stage, mark as Heartbeat (init)
+          dist['Heartbeat']++
+        }
+      })
+    }
     return Object.entries(dist).map(([stage, count]) => ({ stage, count }))
   }, [harnessRuns, totalHarnessRuns])
+
+  // Per-model breakdown for harness runs
+  const modelBreakdown = useMemo(() => {
+    const models: Record<string, { total: number; passed: number; collapsed: number; avgDuration: number }> = {}
+    harnessRuns.forEach(r => {
+      if (!models[r.model]) models[r.model] = { total: 0, passed: 0, collapsed: 0, avgDuration: 0 }
+      models[r.model].total++
+      if (r.result === 'PASS') models[r.model].passed++
+      if (r.collapseDetected) models[r.model].collapsed++
+      models[r.model].avgDuration += r.durationMs
+    })
+    return Object.entries(models).map(([model, data]) => ({
+      model,
+      ...data,
+      avgDuration: data.total > 0 ? Math.round(data.avgDuration / data.total) : 0,
+      passRate: data.total > 0 ? Math.round((data.passed / data.total) * 100) : 0,
+    }))
+  }, [harnessRuns])
 
   return (
     <Card className="relative overflow-hidden border-orange-600/20">
@@ -1229,6 +1247,41 @@ function HarnessResultsSection({ runs }: { runs: UIRun[] }) {
           </div>
         )}
 
+        {/* Per-Model Performance Table */}
+        {modelBreakdown.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Model Performance</p>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-accent/30 border-b border-border">
+                    <th className="text-left py-1.5 px-2 font-medium">Model</th>
+                    <th className="text-center py-1.5 px-2 font-medium">Runs</th>
+                    <th className="text-center py-1.5 px-2 font-medium">Pass Rate</th>
+                    <th className="text-center py-1.5 px-2 font-medium">Collapses</th>
+                    <th className="text-center py-1.5 px-2 font-medium">Avg Latency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modelBreakdown.map((mb) => (
+                    <tr key={`model-perf-${mb.model}`} className="border-b border-border/50 last:border-0">
+                      <td className="py-1.5 px-2 font-mono">{mb.model}</td>
+                      <td className="py-1.5 px-2 text-center tabular-nums">{mb.total}</td>
+                      <td className="py-1.5 px-2 text-center">
+                        <span className={`tabular-nums font-medium ${mb.passRate >= 70 ? 'text-emerald-600 dark:text-emerald-400' : mb.passRate >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {mb.passRate}%
+                        </span>
+                      </td>
+                      <td className="py-1.5 px-2 text-center tabular-nums text-red-600 dark:text-red-400">{mb.collapsed}</td>
+                      <td className="py-1.5 px-2 text-center tabular-nums">{mb.avgDuration > 0 ? `${(mb.avgDuration / 1000).toFixed(1)}s` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {totalHarnessRuns === 0 && (
           <p className="text-[11px] text-muted-foreground text-center py-2">No harness runs yet. Run a test in Harness mode to see pipeline results.</p>
         )}
@@ -1237,161 +1290,928 @@ function HarnessResultsSection({ runs }: { runs: UIRun[] }) {
   )
 }
 
+// ─── Integration Roadmap ───
+function IntegrationRoadmap() {
+  const roadmapItems = [
+    {
+      phase: 'Phase 1 — Foundation',
+      status: 'complete' as const,
+      items: [
+        { name: '7352 Governance Pipeline', desc: '5-stage heartbeat→vault lifecycle with real DB writes', done: true },
+        { name: 'AI Provider Bridge', desc: 'Multi-provider routing: z-ai, Groq, Cerebras, Mistral, OpenRouter', done: true },
+        { name: 'Validation Engine', desc: 'Domain-aware keyword scoring + collapse detection + quality metrics', done: true },
+        { name: 'Vault Audit Trail', desc: 'GOV/FAIL track entries with VAP proof hashes', done: true },
+        { name: 'Batch Harness Execution', desc: 'Per-template sequential pipeline with scientific result analysis', done: true },
+      ],
+    },
+    {
+      phase: 'Phase 2 — Intelligence',
+      status: 'active' as const,
+      items: [
+        { name: 'Real API Key Integration', desc: 'In-dashboard key management with AES-256-GCM encryption', done: false },
+        { name: 'Model Response Caching', desc: 'Deduplicated LLM responses to reduce token consumption', done: false },
+        { name: 'Concurrent Harness Mode', desc: 'Parallel template execution with configurable concurrency limits', done: false },
+        { name: 'Historical Trend Analysis', desc: 'Real collapse rate tracking over time from DB (replacing mock data)', done: false },
+      ],
+    },
+    {
+      phase: 'Phase 3 — Autonomy',
+      status: 'planned' as const,
+      items: [
+        { name: 'Python AutoHarness Bridge', desc: 'Connect NexusGovernor 6-step pipeline to Next.js API', done: false },
+        { name: 'mem0 Risk History', desc: 'Leverage mem0 integration for risk pattern memory across runs', done: false },
+        { name: 'CVA Verification', desc: 'Constitutional Verification Architecture — replace stub with real verifier', done: false },
+        { name: 'Adaptive Prompt Generation', desc: 'LLM-generated adversarial templates based on previous collapse patterns', done: false },
+      ],
+    },
+  ]
+
+  return (
+    <Card className="relative overflow-hidden border-orange-600/15">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-600/3 via-transparent to-transparent" />
+      <CardHeader className="relative pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Zap className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          Integration Roadmap
+          <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px]">v3.1</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="relative p-4 pt-0">
+        <div className="space-y-4">
+          {roadmapItems.map((phase, pIdx) => (
+            <div key={`roadmap-phase-${pIdx}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`h-2 w-2 rounded-full ${
+                  phase.status === 'complete' ? 'bg-emerald-500' :
+                  phase.status === 'active' ? 'bg-orange-500 animate-pulse' :
+                  'bg-muted-foreground/30'
+                }`} />
+                <span className="text-[11px] font-semibold">{phase.phase}</span>
+                <Badge className={`text-[8px] border-0 px-1.5 py-0 ${
+                  phase.status === 'complete' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
+                  phase.status === 'active' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
+                  'bg-muted/50 text-muted-foreground'
+                }`}>
+                  {phase.status === 'complete' ? 'COMPLETE' : phase.status === 'active' ? 'IN PROGRESS' : 'PLANNED'}
+                </Badge>
+              </div>
+              <div className="ml-4 space-y-1.5">
+                {phase.items.map((item, iIdx) => (
+                  <div key={`roadmap-item-${pIdx}-${iIdx}`} className="flex items-start gap-2 text-[10px]">
+                    {item.done ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <span className={`font-medium ${item.done ? 'text-foreground' : 'text-muted-foreground'}`}>{item.name}</span>
+                      <span className="text-muted-foreground/70 ml-1">— {item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Current Testing Capacity */}
+        <div className="mt-4 pt-3 border-t border-border/50">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Current Testing Capacity</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-lg bg-accent/30 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase">Free Models</p>
+              <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">14</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase">Pipeline Stages</p>
+              <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">5</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase">API Providers</p>
+              <p className="text-sm font-bold tabular-nums">6</p>
+            </div>
+            <div className="rounded-lg bg-accent/30 p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase">Validation Domains</p>
+              <p className="text-sm font-bold tabular-nums">6</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Batch Harness Dialog ───
+interface HarnessTemplateResult {
+  templateId: string
+  templateName: string
+  templateDomain: string
+  templateDifficulty: string
+  status: 'pending' | 'running' | 'completed' | 'error'
+  result?: string // PASS, FAIL, COLLAPSE, ERROR
+  durationMs?: number
+  tokensUsed?: number
+  validationScore?: number
+  collapseDetected?: boolean
+  provider?: string
+  actualModel?: string
+  stageTimings?: { heartbeat: number; llmCall: number; result: number; governance: number; vault: number }
+  failedAtStage?: string | null
+  errorMessage?: string
+  outputSnippet?: string // first 200 chars of actual LLM response
+  vapProofHash?: string
+}
+
 function BatchHarnessDialog({ templates, onBatchComplete }: { templates: UITemplate[]; onBatchComplete: () => void }) {
   const [model, setModel] = useState('')
-  const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [harnessResult, setHarnessResult] = useState<{
-    totalRuns: number
-    successCount: number
-    successRate: number
-    avgDurations: Record<string, number>
-  } | null>(null)
+  const [phase, setPhase] = useState<'pre' | 'running' | 'post'>('pre')
+  const [templateResults, setTemplateResults] = useState<HarnessTemplateResult[]>([])
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [showDetailedResults, setShowDetailedResults] = useState(false)
+  const [expandedLogIndex, setExpandedLogIndex] = useState<number | null>(null)
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => { if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current) }
+  }, [])
+
+  const completedCount = templateResults.filter(r => r.status === 'completed' || r.status === 'error').length
+  const runningCount = templateResults.filter(r => r.status === 'running').length
+  const pendingCount = templateResults.filter(r => r.status === 'pending').length
+  const overallProgress = templateResults.length > 0 ? (completedCount / templateResults.length) * 100 : 0
+
+  // Scientific metrics computed from results
+  const scientificMetrics = useMemo(() => {
+    const completed = templateResults.filter(r => r.status === 'completed')
+    const errors = templateResults.filter(r => r.status === 'error')
+    const allDone = completed.length + errors.length
+    if (allDone === 0) return null
+
+    const passes = completed.filter(r => r.result === 'PASS')
+    const fails = completed.filter(r => r.result === 'FAIL' || r.result === 'COLLAPSE')
+    const successRate = completed.length > 0 ? passes.length / completed.length : 0
+
+    // 95% confidence interval for success rate
+    const n = completed.length
+    const p = successRate
+    const ci95 = n > 0 ? 1.96 * Math.sqrt(p * (1 - p) / n) : 0
+
+    // Latency stats
+    const durations = completed.map(r => r.durationMs ?? 0).filter(d => d > 0).sort((a, b) => a - b)
+    const p50 = durations.length > 0 ? durations[Math.floor(durations.length * 0.5)] : 0
+    const p95 = durations.length > 0 ? durations[Math.floor(durations.length * 0.95)] : 0
+    const maxDur = durations.length > 0 ? durations[durations.length - 1] : 0
+    const avgDur = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0
+
+    // Score stats
+    const scores = completed.map(r => r.validationScore ?? 0).filter(s => s > 0).sort((a, b) => a - b)
+    const minScore = scores.length > 0 ? scores[0] : 0
+    const maxScore = scores.length > 0 ? scores[scores.length - 1] : 0
+    const medianScore = scores.length > 0 ? scores[Math.floor(scores.length * 0.5)] : 0
+
+    // Total tokens
+    const totalTokens = completed.reduce((sum, r) => sum + (r.tokensUsed ?? 0), 0)
+
+    // Cohen's d (compared to 0.5 baseline success rate)
+    const baseline = 0.5
+    const cohenD = n > 1 ? (p - baseline) / Math.sqrt(p * (1 - p) / n) : 0
+
+    // Per-domain breakdown
+    const domainMap = new Map<string, { tested: number; passed: number; scores: number[]; durations: number[] }>()
+    completed.forEach(r => {
+      const existing = domainMap.get(r.templateDomain) || { tested: 0, passed: 0, scores: [] as number[], durations: [] as number[] }
+      existing.tested++
+      if (r.result === 'PASS') existing.passed++
+      if (r.validationScore) existing.scores.push(r.validationScore)
+      if (r.durationMs) existing.durations.push(r.durationMs)
+      domainMap.set(r.templateDomain, existing)
+    })
+
+    // Failure stage distribution
+    const failureStages = new Map<string, number>()
+    errors.forEach(r => {
+      const stage = r.failedAtStage || 'unknown'
+      failureStages.set(stage, (failureStages.get(stage) || 0) + 1)
+    })
+    fails.forEach(r => {
+      // FAIL/COLLAPSE don't have failedAtStage usually, but track if they do
+    })
+
+    return {
+      totalRuns: allDone,
+      successCount: passes.length,
+      failCount: fails.length,
+      errorCount: errors.length,
+      successRate,
+      ci95,
+      avgDur,
+      p50, p95, maxDur,
+      minScore, medianScore, maxScore,
+      totalTokens,
+      cohenD,
+      domainBreakdown: Array.from(domainMap.entries()).map(([domain, data]) => ({
+        domain,
+        tested: data.tested,
+        passRate: data.tested > 0 ? data.passed / data.tested : 0,
+        avgScore: data.scores.length > 0 ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length : 0,
+        avgLatency: data.durations.length > 0 ? data.durations.reduce((a, b) => a + b, 0) / data.durations.length : 0,
+      })),
+      failureStages: Array.from(failureStages.entries()).map(([stage, count]) => ({ stage, count })),
+      failedTemplates: [...errors, ...fails],
+    }
+  }, [templateResults])
 
   const handleBatchHarness = async () => {
     if (!model) return
-    setRunning(true)
-    setProgress(0)
-    setHarnessResult(null)
 
-    try {
-      const res = await globalThis.fetch('/api/stresslab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'batch_harness',
-          modelName: model,
-        }),
-      })
+    // Initialize template results
+    const initialResults: HarnessTemplateResult[] = templates.map(t => ({
+      templateId: t.id,
+      templateName: t.name,
+      templateDomain: t.domain,
+      templateDifficulty: t.difficulty,
+      status: 'pending' as const,
+    }))
+    setTemplateResults(initialResults)
+    setPhase('running')
+    const now = Date.now()
+    setStartTime(now)
+    setElapsedSeconds(0)
+    setShowDetailedResults(false)
+    setExpandedLogIndex(null)
 
-      setProgress(100)
+    // Start elapsed time counter
+    elapsedTimerRef.current = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - now) / 1000))
+    }, 1000)
 
-      if (res.ok) {
-        const data = await res.json()
-        setHarnessResult({
-          totalRuns: data.totalRuns ?? 0,
-          successCount: data.successCount ?? 0,
-          successRate: data.successRate ?? 0,
-          avgDurations: data.avgDurations ?? {},
+    // Run each template sequentially
+    for (let i = 0; i < templates.length; i++) {
+      const tpl = templates[i]
+
+      // Mark current as running
+      setTemplateResults(prev => prev.map((r, idx) =>
+        idx === i ? { ...r, status: 'running' as const } : r
+      ))
+
+      try {
+        const res = await globalThis.fetch('/api/stresslab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'run_test',
+            templateId: tpl.dbId,
+            modelName: model,
+            mode: 'harness',
+          }),
         })
-        toast.success('Batch harness completed', {
-          description: `${data.totalRuns} templates × harness mode | ${data.successRate}% success rate`,
-        })
-      } else {
-        const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
-        toast.error(`Batch harness failed: ${errData.error || 'Unknown'}`)
+
+        if (res.ok) {
+          const data = await res.json()
+          const hd = data.harnessDetail
+          const tr = data.testRun
+          const outputText = tr?.output || ''
+          setTemplateResults(prev => prev.map((r, idx) =>
+            idx === i ? {
+              ...r,
+              status: 'completed' as const,
+              result: tr?.collapseDetected ? 'COLLAPSE' : tr?.status === 'passed' ? 'PASS' : tr?.status === 'failed' ? 'FAIL' : 'ERROR',
+              durationMs: tr?.durationMs ?? hd?.totalDuration ?? 0,
+              tokensUsed: tr?.tokensUsed ?? 0,
+              validationScore: hd?.validationScore ?? 0,
+              collapseDetected: tr?.collapseDetected ?? false,
+              provider: hd?.provider ?? '',
+              actualModel: hd?.actualModel ?? model,
+              stageTimings: hd?.stageTimings ?? { heartbeat: 0, llmCall: 0, result: 0, governance: 0, vault: 0 },
+              failedAtStage: hd?.failedAtStage ?? null,
+              errorMessage: undefined,
+              outputSnippet: outputText.substring(0, 200),
+              vapProofHash: tr?.vapProofHash ?? '',
+            } : r
+          ))
+        } else {
+          const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
+          setTemplateResults(prev => prev.map((r, idx) =>
+            idx === i ? {
+              ...r,
+              status: 'error' as const,
+              result: 'ERROR',
+              errorMessage: errData.error || res.statusText || 'Unknown error',
+              failedAtStage: 'llmCall',
+            } : r
+          ))
+        }
+      } catch {
+        setTemplateResults(prev => prev.map((r, idx) =>
+          idx === i ? {
+            ...r,
+            status: 'error' as const,
+            result: 'ERROR',
+            errorMessage: 'Network error — request failed',
+            failedAtStage: 'heartbeat',
+          } : r
+        ))
       }
-    } catch {
-      toast.error('Network error — batch harness not completed')
     }
 
-    setRunning(false)
-    setProgress(0)
+    // Stop elapsed timer
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current)
+      elapsedTimerRef.current = null
+    }
+    setElapsedSeconds(Math.floor((Date.now() - now) / 1000))
+    setPhase('post')
+    toast.success('Batch harness completed', {
+      description: `${templates.length} templates tested sequentially through 7352 pipeline`,
+    })
     onBatchComplete()
   }
 
+  const formatDuration = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`
+    return `${(ms / 1000).toFixed(1)}s`
+  }
+
+  const formatElapsed = (secs: number) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  }
+
+  const pipelineStages = [
+    { key: 'heartbeat', label: 'Heartbeat' },
+    { key: 'llmCall', label: 'LLM Call' },
+    { key: 'result', label: 'Result' },
+    { key: 'governance', label: 'Governance' },
+    { key: 'vault', label: 'Vault' },
+  ]
+
+  const resultBadgeColor = (result?: string) => {
+    switch (result) {
+      case 'PASS': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
+      case 'FAIL': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
+      case 'COLLAPSE': return 'bg-red-600/15 text-red-600 dark:text-red-400'
+      case 'ERROR': return 'bg-red-600/15 text-red-600 dark:text-red-400'
+      default: return 'bg-muted/50 text-muted-foreground'
+    }
+  }
+
+  const domainBadgeColor = (domain: string) => {
+    const colors: Record<string, string> = {
+      cyber: 'bg-red-600/15 text-red-600 dark:text-red-400',
+      compbio: 'bg-blue-600/15 text-blue-600 dark:text-blue-400',
+      pharmacology: 'bg-purple-600/15 text-purple-600 dark:text-purple-400',
+      ai_safety: 'bg-orange-600/15 text-orange-600 dark:text-orange-400',
+      chemistry: 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400',
+      security: 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400',
+    }
+    return colors[domain] || 'bg-muted/50 text-muted-foreground'
+  }
+
+  const difficultyBadgeColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'hard': return 'bg-red-600/15 text-red-600 dark:text-red-400'
+      case 'medium': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400'
+      default: return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
+    }
+  }
+
+  const pipelineDotColor = (result: HarnessTemplateResult, _stageIdx: number) => {
+    if (result.status === 'pending') return 'bg-muted-foreground/20'
+    if (result.status === 'running') return 'bg-orange-500 animate-pulse'
+    if (result.status === 'error') return 'bg-red-500'
+    // completed
+    if (result.result === 'PASS') return 'bg-emerald-500'
+    if (result.result === 'COLLAPSE') return 'bg-red-500'
+    if (result.result === 'FAIL') return 'bg-yellow-500'
+    return 'bg-emerald-500'
+  }
+
+  // ─── Phase 1: Pre-Execution ───────────────────────────
+  const renderPreExecution = () => (
+    <div className="space-y-4 py-2">
+      {/* Pipeline Stage Visualization */}
+      <div className="rounded-lg border border-orange-600/20 bg-orange-600/5 p-3 text-xs space-y-2.5">
+        <p className="font-medium text-orange-600 dark:text-orange-400">7352 Governance Pipeline Stages</p>
+        <div className="space-y-1.5">
+          {[
+            { num: '1', name: 'Heartbeat', desc: 'Initialize governance session & health check' },
+            { num: '2', name: 'LLM Call', desc: 'Execute adversarial prompt against target model' },
+            { num: '3', name: 'Result', desc: 'Capture & validate model response' },
+            { num: '4', name: 'Governance', desc: 'Apply constitutional review & scoring' },
+            { num: '5', name: 'Vault', desc: 'Store proof hash & audit trail on-chain' },
+          ].map((stage) => (
+            <div key={stage.num} className="flex items-start gap-2">
+              <span className="font-mono text-[9px] bg-accent/50 px-1.5 py-0.5 rounded shrink-0 text-orange-600 dark:text-orange-400">{stage.num}</span>
+              <div>
+                <span className="font-medium">{stage.name}</span>
+                <span className="text-muted-foreground ml-1.5">— {stage.desc}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Template Count */}
+      <div className="flex items-center justify-between rounded-lg bg-accent/30 px-3 py-2">
+        <span className="text-xs text-muted-foreground">Templates to test</span>
+        <span className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{templates.length}</span>
+      </div>
+
+      {/* Model Selector */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium">Model</label>
+        <Select value={model} onValueChange={setModel} disabled={phase === 'running'}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Select model..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="glm-4-7-nim">GLM-4.7 (z-ai Free)</SelectItem>
+            <SelectItem value="llama-3.3-70b-groq">Llama 3.3 70B (Groq Free)</SelectItem>
+            <SelectItem value="deepseek-r1-groq">DeepSeek R1 Distill (Groq Free)</SelectItem>
+            <SelectItem value="llama-4-scout-groq">Llama 4 Scout (Groq Free)</SelectItem>
+            <SelectItem value="llama-3.3-70b-cerebras">Llama 3.3 70B (Cerebras Free)</SelectItem>
+            <SelectItem value="llama-3.1-8b-cerebras">Llama 3.1 8B (Cerebras Free)</SelectItem>
+            <SelectItem value="mistral-large-mistral">Mistral Large (Mistral Free)</SelectItem>
+            <SelectItem value="codestral-latest">Codestral (Mistral Code)</SelectItem>
+            <SelectItem value="deepseek-r1-or">DeepSeek R1 (OpenRouter Free)</SelectItem>
+            <SelectItem value="trinity-large-or">Trinity Large (OpenRouter Free)</SelectItem>
+            <SelectItem value="qwen3-coder-or">Qwen3 Coder (OpenRouter Free)</SelectItem>
+            <SelectItem value="kimi-k2-or">Kimi K2 (OpenRouter Free)</SelectItem>
+            <SelectItem value="deepseek-v3-fireworks">DeepSeek V3 (Fireworks ⚠️)</SelectItem>
+            <SelectItem value="llama-3.3-70b-scaleway">Llama 3.3 70B (Scaleway EU ⚠️)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+
+  // ─── Phase 2: During Execution ────────────────────────
+  const renderDuringExecution = () => (
+    <div className="space-y-3 py-2">
+      {/* Overall progress bar */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400" />
+            Executing batch harness...
+          </span>
+          <span className="text-muted-foreground tabular-nums">{completedCount}/{templateResults.length}</span>
+        </div>
+        <Progress value={overallProgress} className="h-2" />
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-md bg-orange-600/10 px-2 py-1.5">
+          <p className="text-[9px] text-muted-foreground">Running</p>
+          <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{runningCount}</p>
+        </div>
+        <div className="rounded-md bg-muted/30 px-2 py-1.5">
+          <p className="text-[9px] text-muted-foreground">Pending</p>
+          <p className="text-sm font-bold tabular-nums">{pendingCount}</p>
+        </div>
+        <div className="rounded-md bg-emerald-600/10 px-2 py-1.5">
+          <p className="text-[9px] text-muted-foreground">Completed</p>
+          <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{completedCount}</p>
+        </div>
+      </div>
+
+      {/* Elapsed time */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Elapsed</span>
+        <span className="tabular-nums font-medium">{formatElapsed(elapsedSeconds)}</span>
+      </div>
+
+      {/* Scrolling template list */}
+      <div className="max-h-64 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 custom-scrollbar">
+        {templateResults.map((result, idx) => (
+          <div
+            key={`tpl-${idx}`}
+            className={`rounded-md px-2.5 py-2 text-xs transition-all duration-300 ${
+              result.status === 'running'
+                ? 'bg-orange-600/10 border border-orange-600/20 ring-1 ring-orange-600/10'
+                : result.status === 'completed'
+                  ? 'bg-accent/30 border border-border/50'
+                  : result.status === 'error'
+                    ? 'bg-red-600/5 border border-red-600/10'
+                    : 'bg-muted/20 border border-transparent'
+            }`}
+          >
+            {/* Template header row */}
+            <div className="flex items-center gap-2">
+              {/* Status icon */}
+              {result.status === 'pending' && <span className="text-muted-foreground text-xs">⏳</span>}
+              {result.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400 shrink-0" />}
+              {result.status === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+              {result.status === 'error' && <XCircle className="h-3 w-3 text-red-600 dark:text-red-400 shrink-0" />}
+
+              {/* Template ID + name */}
+              <span className="font-mono text-[10px] text-muted-foreground shrink-0">{result.templateId}</span>
+              <span className="truncate flex-1">{result.templateName}</span>
+
+              {/* Badges */}
+              <Badge className={`text-[8px] border-0 px-1 py-0 shrink-0 ${domainBadgeColor(result.templateDomain)}`}>{result.templateDomain}</Badge>
+              <Badge className={`text-[8px] border-0 px-1 py-0 shrink-0 ${difficultyBadgeColor(result.templateDifficulty)}`}>{result.templateDifficulty}</Badge>
+            </div>
+
+            {/* Mini pipeline dots */}
+            <div className="flex items-center gap-1.5 mt-1.5 ml-5">
+              {pipelineStages.map((stage, si) => (
+                <div key={stage.key} className="flex items-center gap-1">
+                  <div className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${pipelineDotColor(result, si)}`} />
+                  {si < pipelineStages.length - 1 && <div className="h-px w-2 bg-muted-foreground/15" />}
+                </div>
+              ))}
+              <span className="text-[9px] text-muted-foreground ml-1">
+                {result.status === 'running' ? 'processing...' : result.status === 'pending' ? '' : 'done'}
+              </span>
+            </div>
+
+            {/* Result details for completed */}
+            {result.status === 'completed' && result.result && (
+              <div className="flex items-center gap-2 mt-1.5 ml-5">
+                <Badge className={`text-[8px] border-0 px-1.5 py-0 ${resultBadgeColor(result.result)}`}>{result.result}</Badge>
+                {result.validationScore != null && result.validationScore > 0 && (
+                  <span className="text-[9px] text-muted-foreground">score: <span className="font-medium text-foreground">{result.validationScore.toFixed(2)}</span></span>
+                )}
+                {result.durationMs != null && result.durationMs > 0 && (
+                  <span className="text-[9px] text-muted-foreground">time: <span className="font-medium text-foreground">{formatDuration(result.durationMs)}</span></span>
+                )}
+              </div>
+            )}
+
+            {/* Error details */}
+            {result.status === 'error' && (
+              <div className="mt-1.5 ml-5 space-y-0.5">
+                {result.errorMessage && (
+                  <p className="text-[9px] text-red-600 dark:text-red-400">{result.errorMessage}</p>
+                )}
+                {result.failedAtStage && (
+                  <p className="text-[9px] text-muted-foreground">Failed at stage: <span className="text-red-600 dark:text-red-400">{result.failedAtStage}</span></p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  // ─── Phase 3: Post-Execution Results ──────────────────
+  const renderPostExecution = () => {
+    if (!scientificMetrics) return null
+
+    const m = scientificMetrics
+
+    return (
+      <div className="space-y-3 py-2">
+        {/* Quick summary bar */}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div className="rounded-md bg-accent/30 px-2 py-2">
+            <p className="text-[9px] text-muted-foreground">Total</p>
+            <p className="text-sm font-bold tabular-nums">{m.totalRuns}</p>
+          </div>
+          <div className="rounded-md bg-emerald-600/10 px-2 py-2">
+            <p className="text-[9px] text-muted-foreground">Success</p>
+            <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{m.successCount}</p>
+          </div>
+          <div className="rounded-md bg-orange-600/10 px-2 py-2">
+            <p className="text-[9px] text-muted-foreground">Rate</p>
+            <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{(m.successRate * 100).toFixed(1)}%</p>
+          </div>
+          <div className="rounded-md bg-accent/30 px-2 py-2">
+            <p className="text-[9px] text-muted-foreground">Tokens</p>
+            <p className="text-sm font-bold tabular-nums">{m.totalTokens.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Toggle detailed results */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full h-8 text-xs border-orange-600/20 text-orange-600 dark:text-orange-400 hover:bg-orange-600/10"
+          onClick={() => setShowDetailedResults(!showDetailedResults)}
+        >
+          <Eye className="mr-1.5 h-3 w-3" />
+          {showDetailedResults ? 'Hide Detailed Results' : 'View Detailed Results'}
+        </Button>
+
+        {showDetailedResults && (
+          <div className="max-h-72 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+
+            {/* a) Summary Statistics Card */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-1.5 pt-3 px-3">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <BarChart3 className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                  Summary Statistics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3 space-y-1.5 text-[10px]">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Runs</span><span className="font-medium tabular-nums">{m.totalRuns}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Success Count</span><span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{m.successCount}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Fail Count</span><span className="font-medium tabular-nums text-yellow-600 dark:text-yellow-400">{m.failCount}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Error Count</span><span className="font-medium tabular-nums text-red-600 dark:text-red-400">{m.errorCount}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Avg Duration</span><span className="font-medium tabular-nums">{formatDuration(m.avgDur)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Tokens</span><span className="font-medium tabular-nums">{m.totalTokens.toLocaleString()}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* b) Scientific Metrics Card */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-1.5 pt-3 px-3">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <Zap className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                  Scientific Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3 space-y-2 text-[10px]">
+                {/* 95% CI */}
+                <div className="rounded-md bg-accent/30 p-2">
+                  <p className="text-muted-foreground mb-0.5">95% Confidence Interval (Success Rate)</p>
+                  <p className="font-mono font-medium">
+                    {(m.successRate * 100).toFixed(1)}% ± {(m.ci95 * 100).toFixed(1)}%
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-[9px]">
+                    p ± 1.96 × √(p(1−p)/n) &nbsp;|&nbsp; p={(m.successRate).toFixed(3)}, n={m.totalRuns}
+                  </p>
+                </div>
+                {/* Latency percentiles */}
+                <div>
+                  <p className="text-muted-foreground mb-1">Latency Percentiles</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">p50</p>
+                      <p className="font-medium tabular-nums">{formatDuration(m.p50)}</p>
+                    </div>
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">p95</p>
+                      <p className="font-medium tabular-nums">{formatDuration(m.p95)}</p>
+                    </div>
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">max</p>
+                      <p className="font-medium tabular-nums">{formatDuration(m.maxDur)}</p>
+                    </div>
+                  </div>
+                </div>
+                {/* Score distribution */}
+                <div>
+                  <p className="text-muted-foreground mb-1">Score Distribution</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">min</p>
+                      <p className="font-medium tabular-nums">{m.minScore.toFixed(2)}</p>
+                    </div>
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">median</p>
+                      <p className="font-medium tabular-nums">{m.medianScore.toFixed(2)}</p>
+                    </div>
+                    <div className="text-center rounded bg-accent/20 py-1">
+                      <p className="text-[9px] text-muted-foreground">max</p>
+                      <p className="font-medium tabular-nums">{m.maxScore.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+                {/* Cohen's d */}
+                <div className="rounded-md bg-accent/30 p-2">
+                  <p className="text-muted-foreground mb-0.5">Cohen&apos;s d (vs 50% baseline)</p>
+                  <p className="font-mono font-medium">{m.cohenD.toFixed(3)}</p>
+                  <p className="text-muted-foreground mt-0.5 text-[9px]">
+                    {Math.abs(m.cohenD) < 0.2 ? 'Negligible effect' : Math.abs(m.cohenD) < 0.5 ? 'Small effect' : Math.abs(m.cohenD) < 0.8 ? 'Medium effect' : 'Large effect'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* c) Per-Domain Breakdown */}
+            {m.domainBreakdown.length > 0 && (
+              <Card className="border-border/50">
+                <CardHeader className="pb-1.5 pt-3 px-3">
+                  <CardTitle className="text-xs flex items-center gap-1.5">
+                    <Layers className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                    Per-Domain Breakdown
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  <div className="rounded-md border border-border/30 overflow-hidden">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="bg-accent/30 text-muted-foreground">
+                          <th className="text-left px-2 py-1 font-medium">Domain</th>
+                          <th className="text-center px-2 py-1 font-medium">Tested</th>
+                          <th className="text-center px-2 py-1 font-medium">Pass Rate</th>
+                          <th className="text-center px-2 py-1 font-medium">Avg Score</th>
+                          <th className="text-center px-2 py-1 font-medium">Avg Latency</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {m.domainBreakdown.map((d) => (
+                          <tr key={d.domain} className="border-t border-border/20">
+                            <td className="px-2 py-1"><Badge className={`text-[8px] border-0 px-1 py-0 ${domainBadgeColor(d.domain)}`}>{d.domain}</Badge></td>
+                            <td className="text-center px-2 py-1 tabular-nums">{d.tested}</td>
+                            <td className="text-center px-2 py-1 tabular-nums font-medium">{(d.passRate * 100).toFixed(0)}%</td>
+                            <td className="text-center px-2 py-1 tabular-nums">{d.avgScore.toFixed(2)}</td>
+                            <td className="text-center px-2 py-1 tabular-nums">{formatDuration(d.avgLatency)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* d) Failure Analysis */}
+            {m.failedTemplates.length > 0 && (
+              <Card className="border-border/50">
+                <CardHeader className="pb-1.5 pt-3 px-3">
+                  <CardTitle className="text-xs flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+                    Failure Analysis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3 space-y-2">
+                  {/* Failure stage distribution (horizontal bars) */}
+                  {m.failureStages.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] text-muted-foreground">Failure Stage Distribution</p>
+                      {m.failureStages.map((fs) => {
+                        const maxCount = Math.max(...m.failureStages.map(s => s.count), 1)
+                        return (
+                          <div key={fs.stage} className="flex items-center gap-2">
+                            <span className="text-[9px] font-mono text-muted-foreground w-20 shrink-0 truncate">{fs.stage}</span>
+                            <div className="flex-1 h-3 bg-accent/20 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-red-600/60 dark:bg-red-500/60 rounded-full transition-all"
+                                style={{ width: `${(fs.count / maxCount) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-[9px] tabular-nums font-medium shrink-0">{fs.count}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {/* Failed template list */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-muted-foreground">Failed Templates</p>
+                    {m.failedTemplates.map((ft, fi) => (
+                      <div key={`fail-${fi}`} className="rounded bg-red-600/5 border border-red-600/10 px-2 py-1.5 text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                          <XCircle className="h-3 w-3 text-red-600 dark:text-red-400 shrink-0" />
+                          <span className="font-mono text-muted-foreground">{ft.templateId}</span>
+                          <span className="truncate">{ft.templateName}</span>
+                        </div>
+                        {ft.errorMessage && <p className="text-red-600 dark:text-red-400 ml-5 mt-0.5">{ft.errorMessage}</p>}
+                        {ft.failedAtStage && <p className="text-muted-foreground ml-5 mt-0.5">Stage: {ft.failedAtStage}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* e) Execution Log */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-1.5 pt-3 px-3">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <History className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                  Execution Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3 space-y-1">
+                {templateResults.filter(r => r.status === 'completed' || r.status === 'error').map((result, idx) => (
+                  <div key={`log-${idx}`} className="rounded-md border border-border/30 overflow-hidden">
+                    <button
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-left hover:bg-accent/30 transition-colors"
+                      onClick={() => setExpandedLogIndex(expandedLogIndex === idx ? null : idx)}
+                    >
+                      {result.status === 'completed' ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-red-600 dark:text-red-400 shrink-0" />
+                      )}
+                      <span className="font-mono text-muted-foreground shrink-0">{result.templateId}</span>
+                      <span className="truncate flex-1">{result.templateName}</span>
+                      {result.result && (
+                        <Badge className={`text-[8px] border-0 px-1 py-0 shrink-0 ${resultBadgeColor(result.result)}`}>{result.result}</Badge>
+                      )}
+                      <ArrowRight className={`h-3 w-3 text-muted-foreground shrink-0 transition-transform duration-200 ${expandedLogIndex === idx ? 'rotate-90' : ''}`} />
+                    </button>
+                    {expandedLogIndex === idx && (
+                      <div className="px-2.5 pb-2 pt-1 border-t border-border/20 space-y-1.5 text-[10px]">
+                        {/* Stage timings */}
+                        {result.stageTimings && (
+                          <div>
+                            <p className="text-muted-foreground mb-0.5">Stage Timings</p>
+                            <div className="grid grid-cols-5 gap-1">
+                              {pipelineStages.map((stage) => (
+                                <div key={stage.key} className="text-center rounded bg-accent/20 py-0.5">
+                                  <p className="text-[8px] text-muted-foreground">{stage.label}</p>
+                                  <p className="font-medium tabular-nums">{formatDuration(result.stageTimings?.[stage.key as keyof typeof result.stageTimings] ?? 0)}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Output snippet */}
+                        {result.outputSnippet && (
+                          <div>
+                            <p className="text-muted-foreground mb-0.5">Output Snippet</p>
+                            <p className="font-mono text-[9px] bg-accent/20 rounded p-1.5 max-h-16 overflow-y-auto custom-scrollbar whitespace-pre-wrap">{result.outputSnippet}</p>
+                          </div>
+                        )}
+                        {/* Validation details */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          <div className="flex justify-between"><span className="text-muted-foreground">Validation Score</span><span className="font-medium tabular-nums">{result.validationScore?.toFixed(2) ?? '-'}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium tabular-nums">{result.durationMs ? formatDuration(result.durationMs) : '-'}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Tokens</span><span className="font-medium tabular-nums">{result.tokensUsed ?? '-'}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Provider</span><span className="font-medium">{result.provider || '-'}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Actual Model</span><span className="font-medium truncate ml-2">{result.actualModel || '-'}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Collapsed</span><span className="font-medium">{result.collapseDetected ? 'Yes' : 'No'}</span></div>
+                          {result.vapProofHash && (
+                            <div className="flex justify-between col-span-2"><span className="text-muted-foreground">VAP Proof</span><span className="font-mono text-[8px] truncate ml-2">{result.vapProofHash}</span></div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <DialogContent className="sm:max-w-lg">
+    <DialogContent className="sm:max-w-2xl max-h-[85vh]">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           Batch Harness Run
           <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px]">7352</Badge>
         </DialogTitle>
-        <DialogDescription>Run all templates through the 7352 governance pipeline in harness mode</DialogDescription>
+        <DialogDescription>
+          {phase === 'pre' ? 'Run all templates through the 7352 governance pipeline in harness mode' :
+           phase === 'running' ? `Testing template ${completedCount + runningCount} of ${templateResults.length}...` :
+           `Completed — ${scientificMetrics?.totalRuns ?? 0} runs with ${((scientificMetrics?.successRate ?? 0) * 100).toFixed(1)}% success rate`}
+        </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-4 py-2">
-        <div className="rounded-lg border border-orange-600/20 bg-orange-600/5 p-3 text-xs space-y-1.5">
-          <p className="font-medium text-orange-600 dark:text-orange-400">Full Governance Pipeline Per Template</p>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-mono text-[9px] bg-accent/50 px-1 rounded">1</span> Heartbeat
-            <ArrowRight className="h-3 w-3" />
-            <span className="font-mono text-[9px] bg-accent/50 px-1 rounded">2</span> LLM Call
-            <ArrowRight className="h-3 w-3" />
-            <span className="font-mono text-[9px] bg-accent/50 px-1 rounded">3</span> Result
-            <ArrowRight className="h-3 w-3" />
-            <span className="font-mono text-[9px] bg-accent/50 px-1 rounded">4</span> Governance
-            <ArrowRight className="h-3 w-3" />
-            <span className="font-mono text-[9px] bg-accent/50 px-1 rounded">5</span> Vault
-          </div>
-          <p className="text-muted-foreground">{templates.length} templates will be tested sequentially</p>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-medium">Model</label>
-          <Select value={model} onValueChange={setModel} disabled={running}>
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="Select model..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="qwen3-coder">qwen3-coder (PREMIUM)</SelectItem>
-              <SelectItem value="trinity-large-preview">trinity-large-preview (PREMIUM)</SelectItem>
-              <SelectItem value="nemotron-3-super">nemotron-3-super (MID)</SelectItem>
-              <SelectItem value="gemma-fast">gemma-fast (FAST)</SelectItem>
-              <SelectItem value="dolphin-mistral-venice">dolphin-mistral-venice (HERETIC)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {running && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400" />
-                Running batch harness...
-              </span>
-              <span className="text-muted-foreground tabular-nums">{Math.min(Math.round(progress), 100)}%</span>
-            </div>
-            <Progress value={Math.min(progress, 100)} className="h-2" />
-          </div>
-        )}
-
-        {harnessResult && !running && (
-          <div className="rounded-lg border border-border bg-accent/20 p-3 space-y-2">
-            <p className="text-xs font-medium">Harness Results</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-[10px] text-muted-foreground">Runs</p>
-                <p className="text-sm font-bold tabular-nums">{harnessResult.totalRuns}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground">Success</p>
-                <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{harnessResult.successRate}%</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground">5-Stage Pass</p>
-                <p className="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">{harnessResult.successCount}/{harnessResult.totalRuns}</p>
-              </div>
-            </div>
-            {harnessResult.avgDurations && Object.keys(harnessResult.avgDurations).length > 0 && (
-              <div className="text-[10px] text-muted-foreground space-y-0.5">
-                {Object.entries(harnessResult.avgDurations).map(([stage, ms]) => (
-                  <div key={`avg-dur-${stage}`} className="flex justify-between">
-                    <span>{stage}</span>
-                    <span className="tabular-nums">{ms}ms avg</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      <div className="overflow-y-auto">
+        {phase === 'pre' && renderPreExecution()}
+        {phase === 'running' && renderDuringExecution()}
+        {phase === 'post' && renderPostExecution()}
       </div>
 
       <DialogFooter>
-        <Button variant="ghost" size="sm" className="h-8" disabled={running} onClick={() => { setModel(''); setHarnessResult(null) }}>
-          Reset
-        </Button>
-        <Button
-          size="sm"
-          className="h-8 bg-orange-600 hover:bg-orange-700 text-white gap-1.5"
-          onClick={handleBatchHarness}
-          disabled={!model || running}
-        >
-          {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Activity className="h-3 w-3" />}
-          {running ? 'Running...' : 'Execute Batch Harness'}
-        </Button>
+        {phase === 'pre' && (
+          <>
+            <Button variant="ghost" size="sm" className="h-8" disabled={phase === 'running'} onClick={() => { setModel('') }}>
+              Reset
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 bg-orange-600 hover:bg-orange-700 text-white gap-1.5"
+              onClick={handleBatchHarness}
+              disabled={!model || phase === 'running'}
+            >
+              <Activity className="h-3 w-3" />
+              Execute Batch Harness
+            </Button>
+          </>
+        )}
+        {phase === 'running' && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin text-orange-600 dark:text-orange-400" />
+            Processing... ({completedCount}/{templateResults.length})
+          </div>
+        )}
+        {phase === 'post' && (
+          <Button
+            size="sm"
+            className="h-8 bg-orange-600 hover:bg-orange-700 text-white gap-1.5"
+            onClick={() => {
+              setPhase('pre')
+              setTemplateResults([])
+              setModel('')
+              setStartTime(null)
+              setElapsedSeconds(0)
+              setShowDetailedResults(false)
+              setExpandedLogIndex(null)
+              onBatchComplete()
+            }}
+          >
+            <RefreshCw className="h-3 w-3" />
+            Close &amp; Refresh
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   )
@@ -1965,6 +2785,8 @@ export function StressLabTab() {
                 </div>
               </CardContent>
             </Card>
+
+            <IntegrationRoadmap />
           </div>
         </TabsContent>
       </Tabs>
