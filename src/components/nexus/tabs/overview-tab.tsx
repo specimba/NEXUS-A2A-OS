@@ -47,8 +47,8 @@ import {
   Info,
   Bell,
   BellOff,
-  ArrowRight,
-  ArrowUpDown,
+
+
   RotateCw,
   Eye,
   Maximize2,
@@ -481,7 +481,7 @@ function SystemUptimeCard({ systemStartTime }: { systemStartTime: string | null 
     : 'No start time recorded'
 
   return (
-    <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
+    <Card className="relative overflow-hidden border-emerald-600/20 hover-lift transition-all duration-300 hover:shadow-lg hover:border-emerald-600/30">
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/5 to-transparent" />
       <CardContent className="relative p-4">
         <div className="flex items-start justify-between">
@@ -761,221 +761,7 @@ function QuickStatsBar({ requestCount: apiRequestCount, activeConnections: apiAc
   )
 }
 
-// ── Shared sub-components for System Architecture Mini-Map ────────
-function HealthPulseIndicator({ health }: { health: number }) {
-  return (
-    <span className={`absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ${
-      health === 100 ? 'bg-emerald-400' :
-      health >= 90 ? 'bg-emerald-300' :
-      health >= 85 ? 'bg-yellow-400' :
-      'bg-red-400 animate-pulse'
-    } ${health === 100 ? '' : 'animate-pulse'}`} />
-  )
-}
-
-function HealthPctBadge({ health }: { health: number }) {
-  return (
-    <span className={`text-[8px] font-bold tabular-nums mt-0.5 px-1 py-0 rounded ${
-      health === 100 ? 'text-emerald-600 dark:text-emerald-400' :
-      health >= 90 ? 'text-emerald-500 dark:text-emerald-400' :
-      health >= 85 ? 'text-yellow-600 dark:text-yellow-400' :
-      'text-red-600 dark:text-red-400'
-    }`}>{health}%</span>
-  )
-}
-
-function AnimatedConnection({ direction = 'horizontal' }: { direction?: 'horizontal' | 'vertical' }) {
-  return (
-    <div className={`flex items-center ${direction === 'vertical' ? 'flex-col' : ''} gap-0`}>
-      {direction === 'horizontal' ? (
-        <>
-          <motion.div
-            animate={{ x: [0, 4, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <ArrowRight className="h-3 w-3 text-emerald-500/40" />
-          </motion.div>
-          <div className="h-px w-3 bg-gradient-to-r from-emerald-500/20 to-emerald-500/40" />
-          <motion.div
-            animate={{ x: [0, 4, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-          >
-            <ArrowRight className="h-3 w-3 text-emerald-500/30" />
-          </motion.div>
-        </>
-      ) : (
-        <motion.div
-          animate={{ y: [0, 3, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="text-emerald-500/30"
-        >
-          <span className="text-[8px]">│</span>
-        </motion.div>
-      )}
-    </div>
-  )
-}
-
-// ── System Architecture Mini-Map ─────────────────────────────────
-function SystemArchitectureMiniMap({ pillars, onPillarClick }: { pillars: PillarItem[]; onPillarClick: (p: PillarItem) => void }) {
-  // Build a map of pillar name → health for quick lookup
-  const healthMap = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const p of pillars) m[p.name] = p.health
-    return m
-  }, [pillars])
-
-  const pillarBoxClass = (colorClass: string, textColorClass: string, health: number) =>
-    `flex flex-col items-center justify-center rounded-lg border px-2.5 py-2 text-center transition-all duration-200 hover:scale-105 cursor-pointer relative group ${colorClass} ${textColorClass} ${
-      health < 85 ? 'animate-pulse-subtle' : ''
-    }`
-
-  // Click handler that finds the matching PillarItem
-  const handleClick = (name: string) => {
-    const pillar = pillars.find(p => p.name === name)
-    if (pillar) onPillarClick(pillar)
-  }
-
-  return (
-    <Card className="relative overflow-hidden border-emerald-600/15">
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/3 via-transparent to-transparent" />
-      <CardHeader className="relative pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            System Architecture
-            <DataSourceBadge source="api" />
-          </CardTitle>
-          <Badge variant="outline" className="text-[9px]">Live Flow</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="relative p-4 pt-0">
-        <div className="flex flex-col items-center gap-3">
-          {/* Row 1: Bridge ↔ Engine ↔ Governor */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div
-              className={pillarBoxClass('border-emerald-600/30 bg-emerald-600/8', 'text-emerald-600 dark:text-emerald-400', healthMap['Bridge'] ?? 100)}
-              onClick={() => handleClick('Bridge')}
-            >
-              <HealthPulseIndicator health={healthMap['Bridge'] ?? 100} />
-              <Zap className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Bridge</span>
-              <HealthPctBadge health={healthMap['Bridge'] ?? 100} />
-            </div>
-            <AnimatedConnection />
-            <div
-              className={pillarBoxClass('border-blue-600/30 bg-blue-600/8', 'text-blue-600 dark:text-blue-400', healthMap['Engine'] ?? 98)}
-              onClick={() => handleClick('Engine')}
-            >
-              <HealthPulseIndicator health={healthMap['Engine'] ?? 98} />
-              <Router className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Engine</span>
-              <HealthPctBadge health={healthMap['Engine'] ?? 98} />
-            </div>
-            <AnimatedConnection />
-            <div
-              className={pillarBoxClass('border-red-600/30 bg-red-600/8', 'text-red-600 dark:text-red-400', healthMap['Governor'] ?? 95)}
-              onClick={() => handleClick('Governor')}
-            >
-              <HealthPulseIndicator health={healthMap['Governor'] ?? 95} />
-              <Shield className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Governor</span>
-              <HealthPctBadge health={healthMap['Governor'] ?? 95} />
-            </div>
-          </div>
-
-          {/* Connection lines row 1 → row 2 */}
-          <div className="flex items-center justify-center gap-8 sm:gap-12">
-            <AnimatedConnection direction="vertical" />
-            <AnimatedConnection direction="vertical" />
-            <AnimatedConnection direction="vertical" />
-          </div>
-
-          {/* Row 2: Vault · GMR (with rotation) · Swarm */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div
-              className={pillarBoxClass('border-purple-600/30 bg-purple-600/8', 'text-purple-600 dark:text-purple-400', healthMap['Vault'] ?? 100)}
-              onClick={() => handleClick('Vault')}
-            >
-              <HealthPulseIndicator health={healthMap['Vault'] ?? 100} />
-              <Database className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Vault</span>
-              <HealthPctBadge health={healthMap['Vault'] ?? 100} />
-            </div>
-            <div className="flex flex-col items-center mx-1 sm:mx-3">
-              <div
-                className={pillarBoxClass('border-orange-600/30 bg-orange-600/8', 'text-orange-600 dark:text-orange-400', healthMap['GMR'] ?? 95)}
-                onClick={() => handleClick('GMR')}
-              >
-                <HealthPulseIndicator health={healthMap['GMR'] ?? 95} />
-                <div className="flex items-center gap-1">
-                  <FlaskConical className="h-3.5 w-3.5" />
-                  <RotateCw className="h-2.5 w-2.5 opacity-50" />
-                </div>
-                <span className="text-[9px] font-semibold mt-0.5">GMR</span>
-                <HealthPctBadge health={healthMap['GMR'] ?? 95} />
-              </div>
-              <span className="text-[7px] text-orange-600/50 dark:text-orange-400/50 mt-0.5">model rotation</span>
-            </div>
-            <div
-              className={pillarBoxClass('border-yellow-600/30 bg-yellow-600/8', 'text-yellow-600 dark:text-yellow-400', healthMap['Swarm'] ?? 95)}
-              onClick={() => handleClick('Swarm')}
-            >
-              <HealthPulseIndicator health={healthMap['Swarm'] ?? 95} />
-              <Bug className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Swarm</span>
-              <HealthPctBadge health={healthMap['Swarm'] ?? 95} />
-            </div>
-          </div>
-
-          {/* Connection lines row 2 → row 3 */}
-          <div className="flex items-center justify-center gap-8 sm:gap-16">
-            <AnimatedConnection direction="vertical" />
-            <AnimatedConnection direction="vertical" />
-          </div>
-
-          {/* Row 3: Monitor · Config */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div
-              className={pillarBoxClass('border-pink-600/30 bg-pink-600/8', 'text-pink-600 dark:text-pink-400', healthMap['Monitor'] ?? 97)}
-              onClick={() => handleClick('Monitor')}
-            >
-              <HealthPulseIndicator health={healthMap['Monitor'] ?? 97} />
-              <Activity className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Monitor</span>
-              <HealthPctBadge health={healthMap['Monitor'] ?? 97} />
-            </div>
-            <div
-              className={pillarBoxClass('border-emerald-600/30 bg-emerald-600/8', 'text-emerald-600 dark:text-emerald-400', healthMap['Config'] ?? 100)}
-              onClick={() => handleClick('Config')}
-            >
-              <HealthPulseIndicator health={healthMap['Config'] ?? 100} />
-              <Settings className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-semibold mt-0.5">Config</span>
-              <HealthPctBadge health={healthMap['Config'] ?? 100} />
-            </div>
-          </div>
-
-          {/* Flow legend */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-1 text-[9px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <ArrowRight className="h-2.5 w-2.5" /> data flow
-            </span>
-            <span className="flex items-center gap-1">
-              <ArrowUpDown className="h-2.5 w-2.5" /> bidirectional
-            </span>
-            <span className="flex items-center gap-1">
-              <RotateCw className="h-2.5 w-2.5" /> rotation
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> live pulse
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+// ── (SystemArchitectureMiniMap removed — replaced by SVG SystemArchitecture component)
 
 // ── Performance Metrics Row ──────────────────────────────────────
 function PerformanceMetricsRow({ performanceMetrics, dataSource: metricsDataSource }: {
@@ -1009,7 +795,7 @@ function PerformanceMetricsRow({ performanceMetrics, dataSource: metricsDataSour
       >
       {/* Avg Response Time */}
       <motion.div variants={staggerItem}>
-        <Card className="relative overflow-hidden hover-lift border-blue-600/20">
+        <Card className="relative overflow-hidden hover-lift border-blue-600/20 transition-all duration-300 hover:shadow-lg hover:border-blue-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-blue-600/4 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -1033,7 +819,7 @@ function PerformanceMetricsRow({ performanceMetrics, dataSource: metricsDataSour
 
       {/* Error Rate */}
       <motion.div variants={staggerItem}>
-        <Card className="relative overflow-hidden hover-lift border-emerald-600/20">
+        <Card className="relative overflow-hidden hover-lift border-emerald-600/20 transition-all duration-300 hover:shadow-lg hover:border-emerald-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/8 via-emerald-600/4 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -1063,7 +849,7 @@ function PerformanceMetricsRow({ performanceMetrics, dataSource: metricsDataSour
 
       {/* Throughput */}
       <motion.div variants={staggerItem}>
-        <Card className="relative overflow-hidden hover-lift border-purple-600/20">
+        <Card className="relative overflow-hidden hover-lift border-purple-600/20 transition-all duration-300 hover:shadow-lg hover:border-purple-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/8 via-purple-600/4 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-start justify-between">
@@ -1816,9 +1602,9 @@ export function OverviewTab() {
       {/* Quick Stats Bar */}
       <QuickStatsBar requestCount={requestCount} activeConnections={activeConnections} systemStartTime={systemStartTime} lastDeployTime={lastDeployTime} />
 
-      {/* System Architecture Mini-Map */}
+      {/* System Architecture — Full SVG Diagram (prominent position) */}
       <motion.div variants={staggerItem} initial="hidden" animate="visible">
-        <SystemArchitectureMiniMap pillars={pillars} onPillarClick={handlePillarClick} />
+        <SystemArchitecture pillarsData={systemData?.overview?.pillars} onPillarClick={(name) => handlePillarClick(pillars.find(p => p.name === name)!)} />
       </motion.div>
 
       {/* Top Stats with Gradient Cards + AnimatedCounters */}
@@ -1829,7 +1615,7 @@ export function OverviewTab() {
         className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
       >
         <motion.div variants={staggerItem}>
-          <Card className="relative overflow-hidden border-emerald-600/20 hover-lift nexus-glow-effect">
+          <Card className="relative overflow-hidden border-emerald-600/20 hover-lift nexus-glow-effect transition-all duration-300 hover:shadow-xl hover:border-emerald-600/30">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-start justify-between">
@@ -1858,7 +1644,7 @@ export function OverviewTab() {
         </motion.div>
 
         <motion.div variants={staggerItem}>
-          <Card className="relative overflow-hidden hover-lift">
+          <Card className="relative overflow-hidden hover-lift transition-all duration-300 hover:shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-start justify-between">
@@ -1892,7 +1678,7 @@ export function OverviewTab() {
         </motion.div>
 
         <motion.div variants={staggerItem}>
-          <Card className="relative overflow-hidden hover-lift">
+          <Card className="relative overflow-hidden hover-lift transition-all duration-300 hover:shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-orange-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-start justify-between">
@@ -1927,7 +1713,7 @@ export function OverviewTab() {
         </motion.div>
 
         <motion.div variants={staggerItem}>
-          <Card className="relative overflow-hidden hover-lift">
+          <Card className="relative overflow-hidden hover-lift transition-all duration-300 hover:shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-red-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <div className="flex items-start justify-between">
@@ -2105,7 +1891,7 @@ export function OverviewTab() {
           <SystemUptimeCard systemStartTime={systemStartTime} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <Card className="relative overflow-hidden border-blue-600/20 hover-lift">
+          <Card className="relative overflow-hidden border-blue-600/20 hover-lift transition-all duration-300 hover:shadow-lg hover:border-blue-600/30">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Actions</p>
@@ -2278,10 +2064,7 @@ export function OverviewTab() {
         </div>
       </motion.div>
 
-      {/* System Architecture Diagram (full SVG version) */}
-      <motion.div variants={staggerItem} initial="hidden" animate="visible">
-        <SystemArchitecture pillarsData={systemData?.overview?.pillars} />
-      </motion.div>
+      {/* System Architecture is now at top — no duplicate here */}
 
       {/* Middle Row: Charts */}
       <motion.div

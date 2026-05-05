@@ -991,12 +991,55 @@ export function ProviderTab() {
 
   if (providersLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-6 grid-pattern">
+        {/* Stats skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (<div key={i} className="h-28 rounded-xl bg-muted/30 animate-pulse" />))}
+          {['Providers', 'Models', 'Health', 'Latency'].map((label, i) => (
+            <Card key={label} className="relative overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="h-3 w-20 rounded bg-muted/50 animate-pulse" />
+                    <div className="h-7 w-16 rounded bg-muted/50 animate-pulse" />
+                    <div className="h-3 w-24 rounded bg-muted/40 animate-pulse" />
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-muted/30 animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <div className="h-64 rounded-xl bg-muted/30 animate-pulse" />
-        <div className="h-48 rounded-xl bg-muted/30 animate-pulse" />
+        {/* Provider cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i} className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded bg-muted/50 animate-pulse" />
+                    <div className="h-4 w-24 rounded bg-muted/50 animate-pulse" />
+                  </div>
+                  <div className="h-5 w-16 rounded-full bg-muted/40 animate-pulse" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map(j => (
+                    <div key={j} className="h-12 rounded-md bg-muted/30 animate-pulse" />
+                  ))}
+                </div>
+                <div className="h-4 w-full rounded bg-muted/30 animate-pulse" />
+                <div className="h-7 w-full rounded bg-muted/20 animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {/* Loading indicator */}
+        <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+          <span className="text-xs">Loading provider data from API...</span>
+          <DataSourceBadge source="api" label="LOADING" />
+        </div>
       </div>
     )
   }
@@ -1005,12 +1048,15 @@ export function ProviderTab() {
     <div className="p-4 md:p-6 space-y-6 grid-pattern">
       {/* ── Top Stats Row ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden hover-lift shadow-lg border-emerald-600/20">
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-emerald-600/20 transition-all duration-300 hover:shadow-xl hover:border-emerald-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-emerald-600/3 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Providers</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Providers</p>
+                  <DataSourceBadge source="api" />
+                </div>
                 <p className="text-2xl font-bold tabular-nums mt-1">{stats.totalProviders}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{stats.keysConfigured} with API keys</p>
               </div>
@@ -1021,12 +1067,15 @@ export function ProviderTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden hover-lift shadow-lg border-teal-600/20">
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-teal-600/20 transition-all duration-300 hover:shadow-xl hover:border-teal-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-teal-600/10 via-teal-600/3 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Available Models</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Available Models</p>
+                  <DataSourceBadge source="api" />
+                </div>
                 <p className="text-2xl font-bold tabular-nums mt-1">{stats.availableModels}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Total model routes</p>
               </div>
@@ -1037,12 +1086,15 @@ export function ProviderTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden hover-lift shadow-lg border-orange-600/20">
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-orange-600/20 transition-all duration-300 hover:shadow-xl hover:border-orange-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-600/3 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Healthy Providers</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Healthy Providers</p>
+                  <DataSourceBadge source="computed" />
+                </div>
                 <p className="text-2xl font-bold tabular-nums mt-1">{stats.healthyProviders}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">With healthy API keys</p>
               </div>
@@ -1053,12 +1105,15 @@ export function ProviderTab() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden hover-lift shadow-lg border-purple-600/20">
+        <Card className="relative overflow-hidden hover-lift shadow-lg border-purple-600/20 transition-all duration-300 hover:shadow-xl hover:border-purple-600/30">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-purple-600/3 to-transparent" />
           <CardContent className="relative p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Avg Latency</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Avg Latency</p>
+                  <DataSourceBadge source="computed" />
+                </div>
                 <p className="text-2xl font-bold tabular-nums mt-1">{formatLatency(stats.avgLatency)}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Across tested providers</p>
               </div>
@@ -1107,8 +1162,8 @@ export function ProviderTab() {
               const lastTested = provider.avgLatencyMs > 0 ? formatLatency(provider.avgLatencyMs) : 'Not tested'
 
               return (
-                <Card key={provider.provider} className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 ${provider.health === 'healthy' ? 'border-emerald-600/15' : provider.health === 'degraded' ? 'border-yellow-600/15' : 'border-red-600/15'}`}>
-                  <div className={`absolute inset-0 bg-gradient-to-br ${provider.health === 'healthy' ? 'from-emerald-600/5' : provider.health === 'degraded' ? 'from-yellow-600/5' : 'from-red-600/5'} via-transparent to-transparent`} />
+                <Card key={provider.provider} className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 hover:shadow-lg ${provider.health === 'healthy' ? 'border-emerald-600/15 hover:border-emerald-600/30' : provider.health === 'degraded' ? 'border-yellow-600/15 hover:border-yellow-600/30' : 'border-red-600/15 hover:border-red-600/30'}`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-300 ${provider.health === 'healthy' ? 'from-emerald-600/5' : provider.health === 'degraded' ? 'from-yellow-600/5' : 'from-red-600/5'} via-transparent to-transparent`} />
                   <CardHeader className="relative pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm flex items-center gap-2">
@@ -1415,7 +1470,7 @@ export function ProviderTab() {
               const isCriticalRpd = quota.rateLimits.rpd.percentUsed > 80
 
               return (
-                <Card key={quota.provider} className={`relative overflow-hidden hover-lift shadow-md ${isCooldown ? 'border-red-600/20' : isCriticalRpm || isCriticalRpd ? 'border-yellow-600/15' : 'border-emerald-600/10'}`}>
+                <Card key={quota.provider} className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 hover:shadow-lg ${isCooldown ? 'border-red-600/20 hover:border-red-600/30' : isCriticalRpm || isCriticalRpd ? 'border-yellow-600/15 hover:border-yellow-600/30' : 'border-emerald-600/10 hover:border-emerald-600/20'}`}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${isCooldown ? 'from-red-600/5' : isCriticalRpm ? 'from-yellow-600/5' : 'from-emerald-600/3'} via-transparent to-transparent`} />
                   <CardHeader className="relative pb-2">
                     <div className="flex items-center justify-between">
@@ -1496,7 +1551,7 @@ export function ProviderTab() {
               const inlineResult = inlineResults[prov.id]
 
               return (
-                <Card key={prov.id} className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 ${hasKey ? 'border-emerald-600/15' : 'border-red-600/15'}`}>
+                <Card key={prov.id} className={`relative overflow-hidden hover-lift shadow-md transition-all duration-300 hover:shadow-lg ${hasKey ? 'border-emerald-600/15 hover:border-emerald-600/30' : 'border-red-600/15 hover:border-red-600/30'}`}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${hasKey ? 'from-emerald-600/5' : 'from-red-600/5'} via-transparent to-transparent`} />
                   <div className="relative p-4 space-y-3">
                     {/* Provider header */}

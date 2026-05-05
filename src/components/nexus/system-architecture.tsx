@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { DataSourceBadge } from '@/components/nexus/data-source-badge'
 import {
   Zap,
   Router,
@@ -15,14 +16,14 @@ import {
 } from 'lucide-react'
 
 const defaultPillars = [
-  { name: 'Bridge', icon: Zap, health: 100, color: '#34d399', angle: 0 },
-  { name: 'Engine', icon: Router, health: 98, color: '#60a5fa', angle: 45 },
-  { name: 'Governor', icon: Shield, health: 95, color: '#f87171', angle: 90 },
-  { name: 'Vault', icon: Database, health: 100, color: '#a78bfa', angle: 135 },
-  { name: 'GMR', icon: FlaskConical, health: 92, color: '#fb923c', angle: 180 },
-  { name: 'Swarm', icon: Bug, health: 88, color: '#facc15', angle: 225 },
-  { name: 'Monitor', icon: Activity, health: 96, color: '#f472b6', angle: 270 },
-  { name: 'Config', icon: Settings, health: 100, color: '#34d399', angle: 315 },
+  { name: 'Bridge', icon: Zap, health: 100, color: '#34d399', angle: 0, desc: 'HMAC auth · JSON-RPC' },
+  { name: 'Engine', icon: Router, health: 98, color: '#60a5fa', angle: 45, desc: 'Hermes intent routing' },
+  { name: 'Governor', icon: Shield, health: 95, color: '#f87171', angle: 90, desc: 'Kaiju + TrustScorer' },
+  { name: 'Vault', icon: Database, health: 100, color: '#a78bfa', angle: 135, desc: '5-Track memory' },
+  { name: 'GMR', icon: FlaskConical, health: 92, color: '#fb923c', angle: 180, desc: 'Model rotation' },
+  { name: 'Swarm', icon: Bug, health: 88, color: '#facc15', angle: 225, desc: 'Worker pool' },
+  { name: 'Monitor', icon: Activity, health: 96, color: '#f472b6', angle: 270, desc: 'Token budget + audit' },
+  { name: 'Config', icon: Settings, health: 100, color: '#34d399', angle: 315, desc: 'Constitution' },
 ]
 
 interface PillarData {
@@ -33,7 +34,14 @@ interface PillarData {
   uptime?: string
 }
 
-export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[] }) {
+interface SystemArchitectureProps {
+  pillarsData?: PillarData[]
+  onPillarClick?: (pillarName: string) => void
+  showDataSource?: boolean
+  compact?: boolean
+}
+
+export function SystemArchitecture({ pillarsData, onPillarClick, showDataSource = true, compact = false }: SystemArchitectureProps) {
   // Merge API pillar data into the default pillars (preserving icons, colors, angles)
   const pillars = defaultPillars.map(dp => {
     const apiPillar = pillarsData?.find(p => p.name === dp.name)
@@ -45,7 +53,7 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
   // Calculate positions in a circle
   const centerX = 200
   const centerY = 200
-  const radius = 140
+  const radius = compact ? 120 : 140
 
   const nodePositions = pillars.map((p) => {
     const rad = ((p.angle - 90) * Math.PI) / 180
@@ -56,24 +64,53 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
     }
   })
 
+  const handlePillarClick = (name: string) => {
+    if (onPillarClick) onPillarClick(name)
+  }
+
   return (
-    <Card className="relative overflow-hidden border-emerald-600/20">
+    <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5">
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <Hexagon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> System Architecture
+            {showDataSource && <DataSourceBadge source="api" />}
           </CardTitle>
-          <Badge variant="outline" className="text-[9px]">8 Pillars</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[9px]">8 Pillars</Badge>
+            <Badge variant="outline" className="text-[9px] border-emerald-600/30 text-emerald-600 dark:text-emerald-400">Live Flow</Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="relative p-4 pt-0">
         <div className="flex flex-col items-center">
           <svg
             viewBox="0 0 400 400"
-            className="w-full max-w-[400px] h-auto"
+            className={`w-full ${compact ? 'max-w-[320px]' : 'max-w-[400px]'} h-auto`}
             xmlns="http://www.w3.org/2000/svg"
           >
+            {/* Outer ring glow */}
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={radius + 30}
+              fill="none"
+              stroke="#34d399"
+              strokeWidth="0.5"
+              strokeOpacity="0.1"
+              strokeDasharray="3 6"
+            >
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                from={`0 ${centerX} ${centerY}`}
+                to={`360 ${centerX} ${centerY}`}
+                dur="60s"
+                repeatCount="indefinite"
+              />
+            </circle>
+
             {/* Connection lines from center to each pillar */}
             {nodePositions.map((node, i) => (
               <g key={`line-${node.name}`}>
@@ -141,6 +178,29 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
               fill="#34d399"
               fillOpacity="0.08"
             />
+            {/* Central hub pulse ring */}
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r="36"
+              fill="none"
+              stroke="#34d399"
+              strokeWidth="1"
+              strokeOpacity="0.3"
+            >
+              <animate
+                attributeName="r"
+                values="36;44;36"
+                dur="3s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="strokeOpacity"
+                values="0.3;0;0.3"
+                dur="3s"
+                repeatCount="indefinite"
+              />
+            </circle>
             <text
               x={centerX}
               y={centerY - 6}
@@ -163,9 +223,20 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
 
             {/* Pillar nodes */}
             {nodePositions.map((node) => {
-              const Icon = node.icon
+              const healthColor = node.health >= 95 ? '#34d399' : node.health >= 85 ? '#facc15' : '#f87171'
               return (
-                <g key={`node-${node.name}`}>
+                <g
+                  key={`node-${node.name}`}
+                  onClick={() => handlePillarClick(node.name)}
+                  style={{ cursor: onPillarClick ? 'pointer' : 'default' }}
+                >
+                  {/* Hover area (larger invisible circle) */}
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r="28"
+                    fill="transparent"
+                  />
                   {/* Node circle */}
                   <circle
                     cx={node.x}
@@ -188,13 +259,13 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
                     cx={node.x + 18}
                     cy={node.y - 18}
                     r="4"
-                    fill={node.health >= 95 ? '#34d399' : node.health >= 85 ? '#facc15' : '#f87171'}
+                    fill={healthColor}
                   />
                   <circle
                     cx={node.x + 18}
                     cy={node.y - 18}
                     r="4"
-                    fill={node.health >= 95 ? '#34d399' : node.health >= 85 ? '#facc15' : '#f87171'}
+                    fill={healthColor}
                     opacity="0.4"
                   >
                     <animate
@@ -237,13 +308,18 @@ export function SystemArchitecture({ pillarsData }: { pillarsData?: PillarData[]
             })}
           </svg>
 
-          {/* Legend */}
+          {/* Legend with clickable pillars */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[10px]">
             {pillars.map((p) => (
-              <div key={p.name} className="flex items-center gap-1.5">
+              <button
+                key={p.name}
+                onClick={() => handlePillarClick(p.name)}
+                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                title={p.desc}
+              >
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
                 <span className="text-muted-foreground">{p.name}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
