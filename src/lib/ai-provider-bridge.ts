@@ -23,7 +23,7 @@ export interface ModelRoute {
   tier: ModelTier
   displayName: string
   actualModel: string
-  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway' | 'dashscope' | 'bitdeer'
+  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway' | 'dashscope' | 'bitdeer' | 'nvidia' | 'sambanova' | 'siliconflow' | 'opencode'
   providerLabel: string
   isFree: boolean
   rateLimitPerMin: number
@@ -620,6 +620,142 @@ const MODEL_ROUTES: ModelRoute[] = [
     totalCalls: 0,
     successRate: 100,
   },
+
+  // ── NVIDIA NIM — Free Tier (1K credits) ──
+  {
+    id: 'llama-3.3-70b-nvidia',
+    tier: 'reasoning',
+    displayName: 'Llama 3.3 70B (NVIDIA NIM)',
+    actualModel: 'meta/llama-3.3-70b-instruct',
+    provider: 'nvidia',
+    providerLabel: 'NVIDIA NIM Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'nemotron-70b-nvidia',
+    tier: 'reasoning',
+    displayName: 'Nemotron 70B (NVIDIA NIM)',
+    actualModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
+    provider: 'nvidia',
+    providerLabel: 'NVIDIA NIM Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'deepseek-r1-nvidia',
+    tier: 'reasoning',
+    displayName: 'DeepSeek R1 (NVIDIA NIM)',
+    actualModel: 'deepseek-ai/deepseek-r1',
+    provider: 'nvidia',
+    providerLabel: 'NVIDIA NIM Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── SambaNova — Free Tier ──
+  {
+    id: 'llama-3.3-70b-sambanova',
+    tier: 'reasoning',
+    displayName: 'Llama 3.3 70B (SambaNova)',
+    actualModel: 'Meta-Llama-3.3-70B-Instruct',
+    provider: 'sambanova',
+    providerLabel: 'SambaNova Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'deepseek-r1-sambanova',
+    tier: 'reasoning',
+    displayName: 'DeepSeek R1 (SambaNova)',
+    actualModel: 'DeepSeek-R1',
+    provider: 'sambanova',
+    providerLabel: 'SambaNova Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── SiliconFlow — Free Tier ──
+  {
+    id: 'deepseek-r1-siliconflow',
+    tier: 'reasoning',
+    displayName: 'DeepSeek R1 (SiliconFlow)',
+    actualModel: 'deepseek-ai/DeepSeek-R1',
+    provider: 'siliconflow',
+    providerLabel: 'SiliconFlow Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+  {
+    id: 'qwen3-235b-siliconflow',
+    tier: 'reasoning',
+    displayName: 'Qwen3 235B (SiliconFlow)',
+    actualModel: 'Qwen/Qwen3-235B-A22B',
+    provider: 'siliconflow',
+    providerLabel: 'SiliconFlow Free',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 131072,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
+
+  // ── OpenCode ──
+  {
+    id: 'glm-4-opencode',
+    tier: 'balanced',
+    displayName: 'GLM-4 (OpenCode)',
+    actualModel: 'glm-4',
+    provider: 'opencode',
+    providerLabel: 'OpenCode',
+    isFree: true,
+    rateLimitPerMin: 10,
+    contextWindow: 128000,
+    capabilities: ['code', 'reasoning'],
+    health: 'unknown',
+    latencyMs: 0,
+    totalCalls: 0,
+    successRate: 100,
+  },
 ]
 
 // ── Runtime State ──────────────────────────────────────────────────────
@@ -827,6 +963,17 @@ function scoreRoute(route: ModelRoute): number {
   }
   if (route.provider === 'bitdeer') {
     score += 30
+  }
+  // NVIDIA NIM has limited credits, moderate penalty
+  if (route.provider === 'nvidia') {
+    score += 20
+  }
+  // SambaNova and SiliconFlow — free tiers available, slight preference
+  if (route.provider === 'sambanova') {
+    score -= 3
+  }
+  if (route.provider === 'siliconflow') {
+    score -= 3
   }
 
   return score
@@ -1547,6 +1694,306 @@ async function callBitdeer(
   return content
 }
 
+// ── NVIDIA NIM API Call ─────────────────────────────────────────────
+
+async function callNvidia(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('nvidia')
+  if (!apiKey) {
+    throw new Error('No NVIDIA API key available. Configure NVIDIA_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('nvidia', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`NVIDIA rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('nvidia', retryAfter)
+    recordRateLimitError('nvidia', '429 Too Many Requests')
+    throw new Error(`NVIDIA rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('nvidia', `${response.status} Auth Error`)
+    throw new Error(`NVIDIA auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('nvidia', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`NVIDIA API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from NVIDIA')
+  }
+
+  recordKeySuccess('nvidia')
+  recordSuccess('nvidia')
+  recordRequest('nvidia', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── SambaNova API Call ──────────────────────────────────────────────
+
+async function callSambanova(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('sambanova')
+  if (!apiKey) {
+    throw new Error('No SambaNova API key available. Configure SAMBANOVA_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('sambanova', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`SambaNova rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.sambanova.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('sambanova', retryAfter)
+    recordRateLimitError('sambanova', '429 Too Many Requests')
+    throw new Error(`SambaNova rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('sambanova', `${response.status} Auth Error`)
+    throw new Error(`SambaNova auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('sambanova', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`SambaNova API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from SambaNova')
+  }
+
+  recordKeySuccess('sambanova')
+  recordSuccess('sambanova')
+  recordRequest('sambanova', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── SiliconFlow API Call ────────────────────────────────────────────
+
+async function callSiliconflow(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('siliconflow')
+  if (!apiKey) {
+    throw new Error('No SiliconFlow API key available. Configure SILICONFLOW_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('siliconflow', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`SiliconFlow rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('siliconflow', retryAfter)
+    recordRateLimitError('siliconflow', '429 Too Many Requests')
+    throw new Error(`SiliconFlow rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('siliconflow', `${response.status} Auth Error`)
+    throw new Error(`SiliconFlow auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('siliconflow', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`SiliconFlow API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from SiliconFlow')
+  }
+
+  recordKeySuccess('siliconflow')
+  recordSuccess('siliconflow')
+  recordRequest('siliconflow', '/chat/completions', undefined, data)
+
+  return content
+}
+
+// ── OpenCode API Call ───────────────────────────────────────────────
+
+async function callOpencode(
+  model: string,
+  messages: { role: string; content: string }[],
+  options: RouteRequestOptions = {}
+): Promise<string> {
+  const apiKey = getActiveKey('opencode')
+  if (!apiKey) {
+    throw new Error('No OpenCode API key available. Configure OPENCODE_API_KEY environment variable.')
+  }
+
+  const rateCheck = checkRateLimit('opencode', '/chat/completions')
+  if (!rateCheck.allowed && !rateCheck.isDedup) {
+    throw new Error(`OpenCode rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
+  }
+
+  const systemMsg = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }]
+    : []
+
+  const apiMessages = [
+    ...systemMsg,
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      content: m.content,
+    })),
+  ]
+
+  const response = await fetch('https://opencode-ai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  })
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
+    recordKey429('opencode', retryAfter)
+    recordRateLimitError('opencode', '429 Too Many Requests')
+    throw new Error(`OpenCode rate limited (429). Retry after ${retryAfter}s.`)
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    recordKeyError('opencode', `${response.status} Auth Error`)
+    throw new Error(`OpenCode auth error (${response.status}). Check API key.`)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    recordKeyError('opencode', `${response.status}: ${errorBody.slice(0, 200)}`)
+    throw new Error(`OpenCode API error (${response.status}): ${errorBody.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Empty response from OpenCode')
+  }
+
+  recordKeySuccess('opencode')
+  recordSuccess('opencode')
+  recordRequest('opencode', '/chat/completions', undefined, data)
+
+  return content
+}
+
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
 export async function callZAI(
@@ -1642,6 +2089,14 @@ export async function routeRequest(
       response = await callDashscope(model.actualModel, messages, opts)
     } else if (model.provider === 'bitdeer') {
       response = await callBitdeer(model.actualModel, messages, opts)
+    } else if (model.provider === 'nvidia') {
+      response = await callNvidia(model.actualModel, messages, opts)
+    } else if (model.provider === 'sambanova') {
+      response = await callSambanova(model.actualModel, messages, opts)
+    } else if (model.provider === 'siliconflow') {
+      response = await callSiliconflow(model.actualModel, messages, opts)
+    } else if (model.provider === 'opencode') {
+      response = await callOpencode(model.actualModel, messages, opts)
     } else {
       throw new Error(`Unknown provider: ${model.provider}`)
     }
@@ -1691,6 +2146,14 @@ export async function routeRequest(
           fbResponse = await callDashscope(fallback.actualModel, messages, opts)
         } else if (fallback.provider === 'bitdeer') {
           fbResponse = await callBitdeer(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'nvidia') {
+          fbResponse = await callNvidia(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'sambanova') {
+          fbResponse = await callSambanova(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'siliconflow') {
+          fbResponse = await callSiliconflow(fallback.actualModel, messages, opts)
+        } else if (fallback.provider === 'opencode') {
+          fbResponse = await callOpencode(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }

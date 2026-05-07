@@ -80,6 +80,11 @@ const ENV_KEY_MAP: Record<string, string[]> = {
   openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
   dashscope: ['DASHSCOPE_API_KEY'],
   bitdeer: ['BITDEER_ACCESS_KEY'],
+  nvidia: ['NVIDIA_API_KEY'],
+  sambanova: ['SAMBANOVA_API_KEY'],
+  siliconflow: ['SILICONFLOW_API_KEY'],
+  opencode: ['OPENCODE_API_KEY'],
+  composio: ['COMPOSIO_API_KEY'],
   'z-ai': ['ZAI_API_KEY'],
 }
 
@@ -501,6 +506,11 @@ export function getAuthHeaders(provider: string): Record<string, string> | null 
     case 'cerebras':
     case 'openai':
     case 'kilocode':
+    case 'nvidia':
+    case 'sambanova':
+    case 'siliconflow':
+    case 'opencode':
+    case 'composio':
     default:
       return { 'Authorization': `Bearer ${key}` }
   }
