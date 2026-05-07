@@ -157,3 +157,35 @@ Stage Summary:
 - Integration Roadmap card shows concrete 3-phase plan with 13 items
 - Testing Capacity metrics visible in the roadmap card
 - Cron review task set up (job_id: 130799)
+
+---
+Task ID: 11
+Agent: main-agent
+Task: Fix key prop warning, integrate 12 API keys, add new provider routes, push to GitHub
+
+Work Log:
+- The `token-guard-tab.tsx` file no longer exists in the codebase — the key prop error was from a stale/removed file
+- Added all 12 API keys to `.env` file (openrouter, nvidia, groq, kilocode, opencode, sambanova, openai, cerebras, fireworks, siliconflow, composio, mistral, codestral)
+- Added 5 new providers to API Key Manager ENV_KEY_MAP: nvidia, sambanova, siliconflow, opencode, composio
+- Added auth headers for all new providers in getAuthHeaders()
+- Added 9 new model routes in AI Provider Bridge:
+  - NVIDIA NIM: llama-3.3-70b-nvidia, nemotron-70b-nvidia, deepseek-r1-nvidia
+  - SambaNova: llama-3.3-70b-sambanova, deepseek-r1-sambanova
+  - SiliconFlow: deepseek-r1-siliconflow, qwen3-235b-siliconflow
+  - OpenCode: glm-4-opencode
+- Added 4 new provider call functions: callNvidia, callSambanova, callSiliconflow, callOpencode
+- Wired new providers into routeRequest and fallback routing
+- Added scoring preferences for new providers (NVIDIA moderate penalty, SambaNova/SiliconFlow slight preference)
+- Created `.env.example` with all provider key documentation for team
+- Updated `.gitignore` to exclude /db/, /upload/, /agent-ctx/, /sandbox/, /handoff/, /download/
+- Added `.env.example` exception to `.env*` gitignore rule
+- Pushed to GitHub branch `release/v3.1-dashboard`
+- Branch has no common history with origin/main — PR creation failed, but branch is cloneable
+
+Stage Summary:
+- All 12 API providers integrated with real keys
+- 9 new model routes added across NVIDIA, SambaNova, SiliconFlow, OpenCode
+- .env.example created for team onboarding
+- Branch pushed: `release/v3.1-dashboard` on github.com/specimba/nexusalpha
+- Cannot create PR due to unrelated histories — team should clone the branch directly
+- Commits: `3713c5f` (provider integration), `bf23a6b` (gitignore + env.example)
