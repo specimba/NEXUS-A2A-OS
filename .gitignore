@@ -1,6 +1,22 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NEXUS-OS v3.1 — Security-First .gitignore
+# NEVER commit secrets, keys, .env files, or runtime data.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ── SECRETS & CREDENTIALS (NEVER COMMIT) ───────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.secret
+credentials.json
+service-account*.json
+.secrets
+
+# ── Dependencies ───────────────────────────────────────────────
 node_modules
 /.pnp
 .pnp.*
@@ -10,76 +26,89 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# ── Testing ────────────────────────────────────────────────────
 /coverage
 
-# next.js
+# ── Next.js ────────────────────────────────────────────────────
 /.next/
 /out/
 
-# production
+# ── Production ─────────────────────────────────────────────────
 /build
 
-# misc
+# ── OS & Misc ──────────────────────────────────────────────────
 .DS_Store
-*.pem
+Thumbs.db
 
-# debug
+# ── Debug logs ─────────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-!.env.example
-
-# vercel
-.vercel
-
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-local-*
-.claude
-.z-ai-config
 *.log
 dev.log
 dev.out.log
+server.log
+
+# ── TypeScript ─────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Vercel ─────────────────────────────────────────────────────
+.vercel
+
+# ── Local / Dev-only ──────────────────────────────────────────
+local-*
+.claude
+.z-ai-config
+
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+ENV/
+
+# ── Database (runtime data — team runs bun run db:push) ───────
+/db/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Upload directory (user data) ──────────────────────────────
+/upload/
+
+# ── Agent context (development artifacts) ─────────────────────
+/agent-ctx/
+
+# ── Mini services runtime ─────────────────────────────────────
+/mini-services/*/node_modules/
+
+# ── Sandbox ────────────────────────────────────────────────────
+/sandbox/
+
+# ── Handoff ────────────────────────────────────────────────────
+/handoff/
+
+# ── Download ───────────────────────────────────────────────────
+/download/
+
+# ── Temp files ─────────────────────────────────────────────────
+package.json.tmp
 test
 prompt
 
-server.log
-# Skills directory
-/skills/
-
-# Database (runtime data — team should run bun run db:push to create)
-/db/
-
-# Upload directory (user data)
-/upload/
-
-# Agent context (development artifacts)
-/agent-ctx/
-
-# Mini services runtime
-/mini-services/*/node_modules/
-
-# Sandbox
-/sandbox/
-
-# Handoff
-/handoff/
-
-# Download
-/download/
-
-# Package json temp
-package.json.tmp
-
-# Server PID
+# ── Server PID ─────────────────────────────────────────────────
 server.pid
 
-# Prisma migration locks (generated at runtime)
+# ── Prisma ─────────────────────────────────────────────────────
 prisma/migration_lock.toml
+
+# ── Skills directory ──────────────────────────────────────────
+/skills/
