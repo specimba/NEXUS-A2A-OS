@@ -1,61 +1,75 @@
 'use client'
 
-import { NexusSidebar } from '@/components/nexus/sidebar'
-import { NexusHeader } from '@/components/nexus/header'
-import { NexusFooter } from '@/components/nexus/footer'
-import { TabContent } from '@/components/nexus/tab-content'
-import { NexusAssistant } from '@/components/nexus/ai-assistant'
-import { NexusCommandPalette } from '@/components/nexus/command-palette'
-import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
-import { KeyboardShortcuts } from '@/components/nexus/keyboard-shortcuts'
-import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 
-export default function Home() {
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+// Load the entire dashboard dynamically — ssr: false prevents server-side rendering
+// This minimizes memory footprint since the server only serves a lightweight HTML shell
+const NexusDashboard = dynamic(
+  () => import('@/components/nexus/dashboard-shell'),
+  {
+    ssr: false,
+    loading: () => <DashboardBootScreen />,
+  }
+)
 
-  // ? key to open keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const target = e.target as HTMLElement
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
-        e.preventDefault()
-        setShortcutsOpen(prev => !prev)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
-
+function DashboardBootScreen() {
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar (desktop: inline, mobile: sheet) */}
-      <NexusSidebar />
+    <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-6">
+        {/* Logo */}
+        <div className="relative">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-600/30">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div className="absolute -inset-4 rounded-3xl bg-emerald-500/10 animate-pulse" />
+        </div>
 
-      {/* Main Area */}
-      <div className="flex flex-1 flex-col min-w-0">
-        <NexusHeader />
+        {/* Title */}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold tracking-tight">NEXUS OS</h1>
+          <p className="text-sm text-muted-foreground mt-1">v3.1 — Intelligence Dashboard</p>
+        </div>
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto bg-background">
-          <TabContent />
-        </main>
+        {/* Boot sequence animation */}
+        <div className="space-y-2 w-64">
+          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Initializing kernel...</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse [animation-delay:200ms]" />
+            <span>Loading governance modules...</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse [animation-delay:400ms]" />
+            <span>Connecting agent swarm...</span>
+          </div>
+        </div>
 
-        {/* Sticky Footer */}
-        <NexusFooter />
+        {/* Progress bar */}
+        <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full animate-[loading_2s_ease-in-out_infinite]" />
+        </div>
       </div>
 
-      {/* AI Assistant Chat Panel */}
-      <NexusAssistant />
-
-      {/* Command Palette (global overlay, triggered by Ctrl+K / Cmd+K) */}
-      <NexusCommandPalette />
-
-      {/* Quick Stats Floating Widget (desktop only) */}
-      <QuickStatsWidget />
-
-      {/* Keyboard Shortcuts Panel (triggered by ? key) */}
-      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <style jsx>{`
+        @keyframes loading {
+          0% { width: 0%; }
+          50% { width: 70%; }
+          100% { width: 100%; }
+        }
+      `}</style>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<DashboardBootScreen />}>
+      <NexusDashboard />
+    </Suspense>
   )
 }
