@@ -2478,7 +2478,7 @@ export function GmrTab() {
             <CardContent className="p-4 pt-0">
               <div className="max-h-96 space-y-1.5 overflow-y-auto custom-scrollbar">
                 {rotationLog.map((r, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-lg bg-accent/30 px-3 py-2 text-xs hover:bg-accent/50 transition-colors">
+                  <div key={`rot-${r.time}-${i}`} className="flex items-center gap-3 rounded-lg bg-accent/30 px-3 py-2 text-xs hover:bg-accent/50 transition-colors">
                     <span className="font-mono text-[10px] text-muted-foreground shrink-0 tabular-nums">{r.time}</span>
                     <span className="text-muted-foreground">{r.from === '-' ? '—' : r.from}</span>
                     <span className="text-emerald-600 dark:text-emerald-400 font-medium">→</span>

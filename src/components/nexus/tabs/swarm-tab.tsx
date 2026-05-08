@@ -696,7 +696,7 @@ function WorkerDetailDialog({
             <div className="rounded-lg border border-border/50 p-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tokens Consumed</p>
               <p className="mt-0.5 text-sm font-bold tabular-nums">
-                {worker.tokens > 0 ? worker.tokens.toLocaleString() : '0'}
+                {(worker.tokens ?? 0) > 0 ? (worker.tokens ?? 0).toLocaleString() : '0'}
               </p>
             </div>
             <div className="rounded-lg border border-border/50 p-3">
@@ -1316,7 +1316,7 @@ export function SwarmTab() {
   const idleCount = stats?.idleWorkers ?? apiWorkers.filter(w => w.status === 'idle').length
   const errorCount = stats?.errorWorkers ?? apiWorkers.filter(w => w.status === 'error').length
   const offlineCount = stats?.offlineWorkers ?? apiWorkers.filter(w => w.status === 'offline').length
-  const totalTokens = apiWorkers.reduce((s, w) => s + w.tokens, 0)
+  const totalTokens = apiWorkers.reduce((s, w) => s + (w.tokens ?? 0), 0)
   const avgTrust = stats?.avgTrust ?? (apiWorkers.length > 0 ? apiWorkers.reduce((s, w) => s + w.trustScore, 0) / apiWorkers.length : 0)
 
   // Task queue - use WebSocket data if available, otherwise fallback
@@ -2156,7 +2156,7 @@ export function SwarmTab() {
                         </div>
                       )}
                       <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>{w.tokens > 0 ? `${w.tokens.toLocaleString()} tokens` : 'No task'}</span>
+                        <span>{w.tokens > 0 ? `${(w.tokens ?? 0).toLocaleString()} tokens` : 'No task'}</span>
                         <span>↑ {w.uptime}</span>
                       </div>
 
@@ -2303,7 +2303,7 @@ export function SwarmTab() {
                       )}
                     </td>
                     <td className="p-3 text-xs">{r.duration}</td>
-                    <td className="p-3 text-xs tabular-nums">{r.tokens.toLocaleString()}</td>
+                    <td className="p-3 text-xs tabular-nums">{(r.tokens ?? 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

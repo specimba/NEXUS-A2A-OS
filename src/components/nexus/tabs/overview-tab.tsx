@@ -597,8 +597,8 @@ function SystemNotificationsCard({ notifications: apiNotifications }: { notifica
           </div>
         ) : (
           <div className="max-h-56 space-y-1.5 overflow-y-auto custom-scrollbar">
-            {notifications.map((n) => (
-              <div key={n.id} className="flex items-start gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
+            {notifications.map((n, i) => (
+              <div key={n.id || `notif-${i}`} className="flex items-start gap-2 rounded-md bg-accent/30 px-2.5 py-1.5 text-xs hover:bg-accent/50 transition-colors">
                 {n.severity === 'error' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-red-600 dark:text-red-400" />}
                 {n.severity === 'warn' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-600 dark:text-orange-400" />}
                 {n.severity === 'info' && <Info className="mt-0.5 h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />}
@@ -1117,7 +1117,7 @@ function PillarDetailDialog({
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Recent Events</p>
             <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
               {details?.recentEvents.map((e, i) => (
-                <div key={i} className="flex items-start gap-2 rounded-md bg-accent/20 px-2 py-1.5 text-xs">
+                <div key={`event-${e.event}-${i}`} className="flex items-start gap-2 rounded-md bg-accent/20 px-2 py-1.5 text-xs">
                   {e.type === 'success' && <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />}
                   {e.type === 'info' && <Radio className="mt-0.5 h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />}
                   {e.type === 'warning' && <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-orange-600 dark:text-orange-400" />}

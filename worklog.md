@@ -189,3 +189,37 @@ Stage Summary:
 - Branch pushed: `release/v3.1-dashboard` on github.com/specimba/nexusalpha
 - Cannot create PR due to unrelated histories — team should clone the branch directly
 - Commits: `3713c5f` (provider integration), `bf23a6b` (gitignore + env.example)
+
+---
+Task ID: 5
+Agent: bug-fix-polish
+Task: Fix React unique key errors, verify GMR/tokens/stresslab tab fixes, lint pass
+
+Work Log:
+- Searched all .tsx files in `src/components/nexus/` for `.map()` key prop issues and `toLocaleString` on potentially undefined values
+- Fixed 7 unique key prop errors across 5 files:
+  - `tokens-tab.tsx:836` — `key={i}` on budget alerts → `key={\`alert-${i}-${alert.level}\`}`
+  - `gmr-tab.tsx:2481` — `key={i}` on rotation log → `key={\`rot-${r.time}-${i}\`}`
+  - `overview-tab.tsx:1120` — `key={i}` on recent events → `key={\`event-${e.event}-${i}\`}`
+  - `overview-tab.tsx:601` — `key={n.id}` where n.id could be undefined → `key={n.id || \`notif-${i}\`}`
+  - `kpi-tab.tsx:536` — `key={i}` on status dots → `key={\`dot-${kpi.name}-${i}\`}`
+  - `kpi-tab.tsx:600` — `key={i}` on suggestions → `key={\`sug-${s.kpi}-${i}\`}`
+  - `vault-tab.tsx:989` — `key={i}` on issues → `key={\`issue-${i}\`}`
+  - `vault-tab.tsx:1004` — `key={i}` on chain blocks → `key={block.hash}` (unique hash available)
+- Fixed toLocaleString on potentially undefined/null values in 3 files:
+  - `tokens-tab.tsx:181,190,216,218,271,273` — Added `?? 0` fallback on `a.totalTokens`, `log.totalTokens`, `log.cost`, `budget.remainingBudget` before `.toLocaleString()` calls
+  - `swarm-tab.tsx:699,1319,2159,2306` — Added `?? 0` fallback on `worker.tokens`, `w.tokens`, `r.tokens` before `.toLocaleString()` calls
+- Verified GMR tab `getModelPools` fix — `useCallback` is defined before `isLastActiveInPool` which uses it, dependency chain is correct
+- Verified tokens tab `toLocaleString` fix — root cause (undefined `totalTokens` from API) now guarded with `?? 0` at computation level
+- Verified stresslab tab — all key props use composite keys, test data mapping handles all cases, API route has proper error handling
+- Ran `bun run lint` — EXIT: 0, zero lint errors
+- Dev server running clean — all API endpoints returning 200, no runtime errors in logs
+
+Stage Summary:
+- 8 key prop fixes across 5 component files (tokens-tab, gmr-tab, overview-tab, kpi-tab, vault-tab)
+- 9 toLocaleString safety fixes across 2 component files (tokens-tab, swarm-tab)
+- GMR tab getModelPools fix verified solid (useCallback order correct)
+- Tokens tab toLocaleString fix verified solid (root cause guarded with ?? 0)
+- Stresslab tab verified working correctly (no issues found)
+- Clean lint pass (0 errors)
+- Dev server running with no errors

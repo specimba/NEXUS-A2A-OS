@@ -986,7 +986,7 @@ export function VaultTab() {
                   <div className="mt-2 rounded-md bg-red-600/10 border border-red-600/20 p-2">
                     <p className="text-[10px] font-medium text-red-600 dark:text-red-400 mb-1">Issues Found:</p>
                     {verifyResult.issues.map((issue, i) => (
-                      <p key={i} className="text-[10px] text-red-600/80 dark:text-red-400/80">• {issue}</p>
+                      <p key={`issue-${i}`} className="text-[10px] text-red-600/80 dark:text-red-400/80">• {issue}</p>
                     ))}
                   </div>
                 )}
@@ -1001,7 +1001,7 @@ export function VaultTab() {
                   {chainBlocks.map((block, i) => {
                     const tc = getTrackConfig(block.type)
                     return (
-                      <div key={i} className="relative flex items-start gap-3">
+                      <div key={block.hash} className="relative flex items-start gap-3">
                         {/* Timeline connector */}
                         <div className="flex flex-col items-center">
                           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${tc.bgColor} text-[10px] font-bold ${tc.textColor} border ${tc.borderColor}`}>

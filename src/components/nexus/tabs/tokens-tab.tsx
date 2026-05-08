@@ -178,7 +178,7 @@ export function TokensTab() {
     // Use agentUsage from API if available
     if (agentUsageRaw.length > 0) {
       for (const a of agentUsageRaw) {
-        agentMap[a.name] = { tokens: a.totalTokens, model: '' }
+        agentMap[a.name] = { tokens: a.totalTokens ?? 0, model: '' }
       }
     }
     // Also aggregate from logs
@@ -187,7 +187,7 @@ export function TokensTab() {
       if (!agentMap[agentName]) {
         agentMap[agentName] = { tokens: 0, model: log.model }
       }
-      agentMap[agentName].tokens += log.totalTokens
+      agentMap[agentName].tokens += log.totalTokens ?? 0
       if (!agentMap[agentName].model) {
         agentMap[agentName].model = log.model
       }
@@ -213,9 +213,9 @@ export function TokensTab() {
       if (!modelMap[log.model]) {
         modelMap[log.model] = { tokens: 0, calls: 0, cost: 0 }
       }
-      modelMap[log.model].tokens += log.totalTokens
+      modelMap[log.model].tokens += log.totalTokens ?? 0
       modelMap[log.model].calls += 1
-      modelMap[log.model].cost += log.cost
+      modelMap[log.model].cost += log.cost ?? 0
     }
     return Object.entries(modelMap)
       .map(([model, data]) => ({
@@ -268,9 +268,9 @@ export function TokensTab() {
     if (budget) {
       const usedPct = (budget.usedBudget / budget.totalBudget) * 100
       if (usedPct > 80) {
-        alerts.push({ level: 'warning', msg: `Session budget ${usedPct.toFixed(1)}% consumed — ${budget.remainingBudget.toLocaleString()} remaining`, time: '1m ago' })
+        alerts.push({ level: 'warning', msg: `Session budget ${usedPct.toFixed(1)}% consumed — ${(budget.remainingBudget ?? 0).toLocaleString()} remaining`, time: '1m ago' })
       } else if (usedPct > 50) {
-        alerts.push({ level: 'info', msg: `Session budget ${usedPct.toFixed(1)}% consumed — ${budget.remainingBudget.toLocaleString()} remaining`, time: '1m ago' })
+        alerts.push({ level: 'info', msg: `Session budget ${usedPct.toFixed(1)}% consumed — ${(budget.remainingBudget ?? 0).toLocaleString()} remaining`, time: '1m ago' })
       }
       // Check if any agent is approaching limits
       const highUsageAgent = agentUsage.find(a => a.pct > 25)
@@ -833,7 +833,7 @@ export function TokensTab() {
             <div className="space-y-2.5">
               {visibleAlerts.map((alert, i) => (
                 <div
-                  key={i}
+                  key={`alert-${i}-${alert.level}`}
                   className={`rounded-lg px-3 py-2.5 ${
                     alert.level === 'warning'
                       ? 'bg-yellow-600/10 border border-yellow-600/15 budget-alert-pulse'

@@ -533,7 +533,7 @@ export function KpiTab() {
                     <div className="mt-2 flex gap-1.5">
                       {kpis.slice(0, 13).map((kpi, i) => {
                         const s = getKpiStatus(kpi)
-                        return <div key={i} className={`h-2 flex-1 rounded-full ${s.label === 'ON TRACK' ? 'bg-emerald-500' : s.label === 'AT RISK' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                        return <div key={`dot-${kpi.name}-${i}`} className={`h-2 flex-1 rounded-full ${s.label === 'ON TRACK' ? 'bg-emerald-500' : s.label === 'AT RISK' ? 'bg-yellow-500' : 'bg-red-500'}`} />
                       })}
                     </div>
                   </div>
@@ -597,7 +597,7 @@ export function KpiTab() {
                     </div>
                   ) : (
                     improvementSuggestions.map((s, i) => (
-                      <div key={i} className="flex items-start gap-2 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs">
+                      <div key={`sug-${s.kpi}-${i}`} className="flex items-start gap-2 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs">
                         <Badge className={`text-[7px] px-1 py-0 h-4 shrink-0 border-0 ${s.impact === 'high' ? 'bg-red-600/15 text-red-600 dark:text-red-400' : s.impact === 'medium' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' : 'bg-blue-600/15 text-blue-600 dark:text-blue-400'}`}>
                           {s.impact.toUpperCase()}
                         </Badge>
