@@ -641,7 +641,7 @@ export function RateLimitTab() {
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-2">Provider Request Volume</p>
               <NexusBarChart
-                data={Object.entries(displayProviderStats).map(([provider, stats]) => ({
+                data={Object.entries(displayProviderStats ?? {}).map(([provider, stats]) => ({
                   name: provider.charAt(0).toUpperCase() + provider.slice(1),
                   value: stats.total,
                 }))}
@@ -653,7 +653,7 @@ export function RateLimitTab() {
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-2">Rate Limited vs Cached</p>
               <NexusBarChart
-                data={Object.entries(displayProviderStats).map(([provider, stats]) => ({
+                data={Object.entries(displayProviderStats ?? {}).map(([provider, stats]) => ({
                   name: provider.charAt(0).toUpperCase() + provider.slice(1),
                   value: stats.rateLimited + stats.cached,
                 }))}

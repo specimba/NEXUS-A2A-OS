@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Wifi, AlertTriangle, Gauge } from 'lucide-react'
+import { Wifi, AlertTriangle, Gauge, Camera } from 'lucide-react'
 
 interface PoolStatus {
   name: string
@@ -18,6 +18,7 @@ export function NexusFooter() {
   ])
   const [errorCount, setErrorCount] = useState(0)
   const [rateLimitStatus, setRateLimitStatus] = useState<'ok' | 'caution' | 'limited'>('ok')
+  const [snapshotting, setSnapshotting] = useState(false)
 
   useEffect(() => {
     const start = Date.now()
@@ -107,6 +108,57 @@ export function NexusFooter() {
     return () => clearInterval(interval)
   }, [])
 
+  // Create snapshot of current dashboard state
+  const createSnapshot = useCallback(async () => {
+    setSnapshotting(true)
+    try {
+      const [systemRes, agentsRes, modelsRes, vaultRes, tokensRes] = await Promise.allSettled([
+        globalThis.fetch('/api/system'),
+        globalThis.fetch('/api/agents'),
+        globalThis.fetch('/api/models'),
+        globalThis.fetch('/api/vault'),
+        globalThis.fetch('/api/tokens'),
+      ])
+
+      const getResult = async (res: PromiseSettledResult<Response>) => {
+        if (res.status === 'fulfilled' && res.value.ok) {
+          try { return await res.value.json() } catch { return null }
+        }
+        return null
+      }
+
+      const snapshot = {
+        version: 'NEXUS OS v3.1',
+        exportedAt: new Date().toISOString(),
+        system: await getResult(systemRes),
+        agents: await getResult(agentsRes),
+        models: await getResult(modelsRes),
+        vault: await getResult(vaultRes),
+        tokens: await getResult(tokensRes),
+        footer: {
+          sessionUptime: uptime,
+          poolStatuses,
+          errorCount,
+          rateLimitStatus,
+        },
+      }
+
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nexus-snapshot-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      // Silently ignore snapshot errors
+    } finally {
+      setSnapshotting(false)
+    }
+  }, [uptime, poolStatuses, errorCount, rateLimitStatus])
+
   return (
     <footer className="relative flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
       {/* Gradient top border */}
@@ -165,8 +217,18 @@ export function NexusFooter() {
         </div>
       </div>
 
-      {/* Right side: uptime + live + powered by */}
+      {/* Right side: snapshot + uptime + live + powered by */}
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <button
+          onClick={createSnapshot}
+          disabled={snapshotting}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          title="Export current dashboard state as JSON snapshot"
+        >
+          <Camera className={`h-3 w-3 ${snapshotting ? 'animate-pulse' : ''}`} />
+          <span>{snapshotting ? 'Saving...' : 'Snapshot'}</span>
+        </button>
+        <span className="text-border">|</span>
         <span suppressHydrationWarning>Session: {uptime}</span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1">

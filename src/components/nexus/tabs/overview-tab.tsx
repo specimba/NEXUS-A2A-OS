@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { MiniAreaChart, NexusBarChart, NexusGauge, NexusStackedAreaChart, COLORS } from '@/components/nexus/charts'
 import { ExportButton, downloadFile } from '@/components/nexus/export-button'
@@ -55,6 +55,11 @@ import {
   Gauge,
   Signal,
   Hexagon,
+  ShieldCheck,
+  Search,
+  Scan,
+  TimerReset,
+  AlertOctagon,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
@@ -1401,7 +1406,93 @@ export function OverviewTab() {
     }
   }, [])
 
+  // ── Command Profile State ────────────────────────────────────
+  type CommandProfile = 'default' | 'security' | 'research'
+  const [activeProfile, setActiveProfile] = useState<CommandProfile>('default')
+
+  // ── Privileged Action Confirmation Dialog ─────────────────────
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<{ action: string; label: string; description: string } | null>(null)
+
+  const requestPrivilegedAction = useCallback((action: string, label: string, description: string) => {
+    setPendingAction({ action, label, description })
+    setConfirmDialogOpen(true)
+  }, [])
+
+  const executePrivilegedAction = useCallback(() => {
+    if (!pendingAction) return
+    const { action } = pendingAction
+    setConfirmDialogOpen(false)
+    setPendingAction(null)
+    handleQuickActionConfirmed(action)
+  }, [pendingAction])
+
+  const handleQuickActionConfirmed = useCallback((action: string) => {
+    switch (action) {
+      case 'clear': {
+        toast.success('Cache cleared', {
+          description: 'All cached data purged. Refreshing from source...',
+          duration: 3000,
+        })
+        setTimeout(() => window.location.reload(), 1000)
+        break
+      }
+      case 'reset-timer': {
+        toast.success('Timer reset', {
+          description: 'All session timers and counters have been reset.',
+          duration: 3000,
+        })
+        break
+      }
+    }
+  }, [])
+
+  // ── Command Profile Definitions ────────────────────────────────
+  const commandProfiles: Record<CommandProfile, { label: string; icon: React.ElementType; color: string; actions: { action: string; label: string; icon: React.ElementType; color: string; privileged?: boolean; interactive?: boolean }[] }> = useMemo(() => ({
+    default: {
+      label: 'Default',
+      icon: Zap,
+      color: 'emerald',
+      actions: [
+        { action: 'diagnostic', label: 'Run Diagnostic', icon: Activity, color: 'emerald', interactive: true },
+        { action: 'export', label: 'Export Report', icon: Download, color: 'blue' },
+        { action: 'clear', label: 'Clear Cache', icon: Trash2, color: 'orange', privileged: true },
+        { action: 'refresh', label: 'Refresh Data', icon: RefreshCw, color: 'purple' },
+      ],
+    },
+    security: {
+      label: 'Security',
+      icon: ShieldCheck,
+      color: 'red',
+      actions: [
+        { action: 'diagnostic', label: 'Security Scan', icon: Scan, color: 'red', interactive: true },
+        { action: 'audit-export', label: 'Audit Export', icon: FileDown, color: 'blue' },
+        { action: 'reset-timer', label: 'Reset Timer', icon: TimerReset, color: 'orange', privileged: true },
+        { action: 'lockdown', label: 'View Lockdown', icon: Shield, color: 'red' },
+      ],
+    },
+    research: {
+      label: 'Research',
+      icon: Search,
+      color: 'purple',
+      actions: [
+        { action: 'diagnostic', label: 'Deep Scan', icon: Activity, color: 'purple', interactive: true },
+        { action: 'export', label: 'Export Report', icon: Download, color: 'blue' },
+        { action: 'clear', label: 'Clear Cache', icon: Trash2, color: 'orange', privileged: true },
+        { action: 'research-refresh', label: 'Research Sync', icon: RefreshCw, color: 'purple' },
+      ],
+    },
+  }), [])
+
   const handleQuickAction = useCallback((action: string) => {
+    // Check if this is a privileged action that needs confirmation
+    const allActions = Object.values(commandProfiles).flatMap(p => p.actions)
+    const actionDef = allActions.find(a => a.action === action)
+    if (actionDef?.privileged) {
+      requestPrivilegedAction(action, actionDef.label, `This will execute the "${actionDef.label}" operation. This action may affect system state and cannot be undone. Continue?`)
+      return
+    }
+
     switch (action) {
       case 'diagnostic':
         runDiagnostic()
@@ -1410,10 +1501,11 @@ export function OverviewTab() {
           duration: 2000,
         })
         break
-      case 'export': {
+      case 'export': case 'audit-export': {
         const json = JSON.stringify({
           exportedAt: new Date().toISOString(),
-          version: 'NEXUS OS v3.0',
+          version: 'NEXUS OS v3.1',
+          profile: activeProfile,
           pillars: systemStatusExport,
           summary: { totalPillars: 8, operationalPillars: pillars.filter(p => p.health >= 90).length, degradedPillars: pillars.filter(p => p.health < 90).length, avgHealth: Math.round(pillars.reduce((s, p) => s + p.health, 0) / pillars.length * 10) / 10, tokenBudget: { remaining: tokenBudget.remaining, max: tokenBudget.total, utilization: `${tokenBudget.pct}%` } },
           recentDecisions,
@@ -1425,15 +1517,7 @@ export function OverviewTab() {
         })
         break
       }
-      case 'clear': {
-        toast.success('Cache cleared', {
-          description: 'All cached data purged. Refreshing from source...',
-          duration: 3000,
-        })
-        setTimeout(() => window.location.reload(), 1000)
-        break
-      }
-      case 'refresh': {
+      case 'refresh': case 'research-refresh': {
         toast.info('Refreshing data', {
           description: 'Re-fetching all system metrics from source...',
           duration: 2000,
@@ -1441,8 +1525,15 @@ export function OverviewTab() {
         setTimeout(() => window.location.reload(), 1500)
         break
       }
+      case 'lockdown': {
+        toast.info('Lockdown status', {
+          description: 'No active lockdowns. All systems operating normally.',
+          duration: 3000,
+        })
+        break
+      }
     }
-  }, [runDiagnostic])
+  }, [runDiagnostic, commandProfiles, requestPrivilegedAction, activeProfile, pillars, tokenBudget, recentDecisions])
 
   // ── Loading skeleton ──────────────────────────────────────────
   if (systemLoading && !systemData) {
@@ -1894,44 +1985,66 @@ export function OverviewTab() {
           <Card className="relative overflow-hidden border-blue-600/20 hover-lift transition-all duration-300 hover:shadow-lg hover:border-blue-600/30">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
             <CardContent className="relative p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Actions</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+                {/* Command Profile Switcher */}
+                <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
+                  {(Object.entries(commandProfiles) as [CommandProfile, typeof commandProfiles[CommandProfile]][]).map(([key, profile]) => {
+                    const ProfileIcon = profile.icon
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActiveProfile(key)}
+                        className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-all duration-200 ${
+                          activeProfile === key
+                            ? key === 'default' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                              : key === 'security' ? 'bg-red-600/15 text-red-600 dark:text-red-400 shadow-sm'
+                              : 'bg-purple-600/15 text-purple-600 dark:text-purple-400 shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <ProfileIcon className="h-3 w-3" />
+                        {profile.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200"
-                  onClick={() => handleQuickAction('diagnostic')}
-                >
-                  <Activity className="h-4 w-4" />
-                  <span className="text-[11px] font-medium">Run Diagnostic</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200"
-                  onClick={() => handleQuickAction('export')}
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="text-[11px] font-medium">Export Report</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-all duration-200"
-                  onClick={() => handleQuickAction('clear')}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="text-[11px] font-medium">Clear Cache</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-auto flex-col gap-2 py-3 border-purple-600/20 hover:bg-purple-600/10 hover:border-purple-600/30 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 transition-all duration-200"
-                  onClick={() => handleQuickAction('refresh')}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  <span className="text-[11px] font-medium">Refresh Data</span>
-                </Button>
+                {commandProfiles[activeProfile].actions.map((act) => {
+                  const ActIcon = act.icon
+                  const colorStyles: Record<string, string> = {
+                    emerald: 'border-emerald-600/20 hover:bg-emerald-600/10 hover:border-emerald-600/30 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300',
+                    blue: 'border-blue-600/20 hover:bg-blue-600/10 hover:border-blue-600/30 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300',
+                    orange: 'border-orange-600/20 hover:bg-orange-600/10 hover:border-orange-600/30 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300',
+                    purple: 'border-purple-600/20 hover:bg-purple-600/10 hover:border-purple-600/30 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300',
+                    red: 'border-red-600/20 hover:bg-red-600/10 hover:border-red-600/30 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300',
+                  }
+                  return (
+                    <Button
+                      key={act.action}
+                      variant="outline"
+                      size="sm"
+                      className={`h-auto flex-col gap-1.5 py-3 ${colorStyles[act.color] ?? colorStyles.emerald} transition-all duration-200 relative`}
+                      onClick={() => handleQuickAction(act.action)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <ActIcon className="h-4 w-4" />
+                        {act.privileged && (
+                          <Badge className="bg-amber-600/20 text-amber-600 dark:text-amber-400 border-0 text-[7px] px-1 py-0 h-3.5 font-bold tracking-wider">
+                            SUDO
+                          </Badge>
+                        )}
+                        {act.interactive && (
+                          <Badge className="bg-purple-600/20 text-purple-600 dark:text-purple-400 border-0 text-[7px] px-1 py-0 h-3.5 font-bold tracking-wider">
+                            LIVE
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-medium">{act.label}</span>
+                    </Button>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
@@ -2221,6 +2334,38 @@ export function OverviewTab() {
                 <Wrench className="h-3 w-3 mr-1" /> Re-run
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privileged Action Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              Confirm Privileged Action
+            </DialogTitle>
+            <DialogDescription>
+              {pendingAction?.description ?? 'Are you sure you want to proceed?'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-600/20 bg-amber-600/5 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Badge className="bg-amber-600/20 text-amber-600 dark:text-amber-400 border-0 text-[9px] font-bold tracking-wider">
+                SUDO
+              </Badge>
+              <span className="text-sm font-medium">{pendingAction?.label}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">This operation requires elevated privileges and may affect system state. This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setConfirmDialogOpen(false); setPendingAction(null) }} className="min-h-[44px] min-w-[80px]">
+              Cancel
+            </Button>
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white min-h-[44px]" onClick={executePrivilegedAction}>
+              <AlertOctagon className="h-3 w-3 mr-1" /> Execute
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

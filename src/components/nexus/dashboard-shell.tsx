@@ -43,8 +43,11 @@ export default function NexusDashboard() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  // Use useSyncExternalStore for hydration-safe mounted detection
+  // This avoids calling setState synchronously in an effect
   useEffect(() => {
-    setMounted(true)
+    const id = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(id)
   }, [])
 
   // ? key to open keyboard shortcuts

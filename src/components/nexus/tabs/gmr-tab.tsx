@@ -933,11 +933,11 @@ function FailoverLogCard() {
 // Model Performance Comparison Card with grouped bar chart
 function ModelPerformanceComparison({ models }: { models: ModelData[] }) {
   const chartData = useMemo(() => {
-    return models.map(m => ({
-      name: m.name.split('-')[0].substring(0, 8),
-      health: Math.round(m.health),
-      successRate: Math.round(m.successRate),
-      latency: Math.round(Math.max(0, 100 - (m.latencyMs / 50))),
+    return models.filter(m => m && m.name).map(m => ({
+      name: (m.name ?? '').split('-')[0].substring(0, 8),
+      health: Math.round(m.health ?? 0),
+      successRate: Math.round(m.successRate ?? 0),
+      latency: Math.round(Math.max(0, 100 - ((m.latencyMs ?? 0) / 50))),
     }))
   }, [models])
 
