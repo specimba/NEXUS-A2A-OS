@@ -26,10 +26,19 @@ const healthCards = [
 ]
 
 const agents = [
-  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research' },
-  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding' },
-  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis' },
-  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance' },
+  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large' },
+  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder' },
+  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast' },
+  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7' },
+]
+
+const recentModelUsage = [
+  { model: 'trinity-large', agent: 'worker-1', type: 'completion', tokens: 2450, time: '1m ago' },
+  { model: 'qwen3-coder', agent: 'worker-2', type: 'prompt', tokens: 1820, time: '3m ago' },
+  { model: 'gemma-fast', agent: 'worker-3', type: 'completion', tokens: 980, time: '5m ago' },
+  { model: 'glm-4.7', agent: 'coordinator', type: 'prompt', tokens: 3200, time: '8m ago' },
+  { model: 'trinity-large', agent: 'worker-1', type: 'prompt', tokens: 1560, time: '12m ago' },
+  { model: 'gemma-fast', agent: 'worker-3', type: 'completion', tokens: 720, time: '15m ago' },
 ]
 
 const modelPools = [
@@ -104,7 +113,9 @@ export function OverviewTab() {
               {agents.map((agent) => (
                 <div key={agent.name} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
                   <span className={`h-2 w-2 rounded-full ${statusStyles[agent.status as keyof typeof statusStyles]}`} />
-                  <span className="text-sm font-medium flex-1">{agent.name}</span>
+                  <span className="text-sm font-medium">{agent.name}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">{agent.model}</span>
+                  <span className="flex-1" />
                   <Badge variant="outline" className="text-[10px]">{agent.domain}</Badge>
                   <div className="flex items-center gap-1">
                     <Shield className="h-3 w-3 text-muted-foreground" />
@@ -145,6 +156,31 @@ export function OverviewTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent Model Usage */}
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Recent Usage
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {recentModelUsage.map((entry, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm font-mono">{entry.model}</span>
+                <Badge variant="outline" className="text-[9px] h-4">{entry.agent}</Badge>
+                <Badge variant="secondary" className="text-[9px] h-4">{entry.type}</Badge>
+                <span className="flex-1" />
+                <span className="text-xs font-mono text-muted-foreground">{entry.tokens.toLocaleString()} tok</span>
+                <span className="text-[10px] text-muted-foreground">{entry.time}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card className="bg-card/50 border-border/50">

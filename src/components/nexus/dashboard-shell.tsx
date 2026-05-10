@@ -4,6 +4,7 @@ import { NexusSidebar } from '@/components/nexus/sidebar'
 import { NexusHeader } from '@/components/nexus/header'
 import { NexusFooter } from '@/components/nexus/footer'
 import { TabContent } from '@/components/nexus/tab-content'
+import { NexusAssistant } from '@/components/nexus/ai-assistant'
 
 export function NexusDashboard() {
   return (
@@ -23,6 +24,9 @@ export function NexusDashboard() {
         {/* Sticky Footer */}
         <NexusFooter />
       </div>
+
+      {/* Floating AI Assistant (bottom-right) */}
+      <NexusAssistant />
     </div>
   )
 }

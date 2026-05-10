@@ -1,70 +1,75 @@
-# NEXUS OS v3.1 — Work Log
+# NEXUS OS v3.1 — Worklog
 
 ---
 Task ID: 1
-Agent: Main Orchestrator
-Task: Diagnose dashboard rendering issue and save API keys
+Agent: main
+Task: Read current project state and diagnose issues
 
 Work Log:
-- Diagnosed that dashboard IS rendering correctly (VLM analysis confirmed full dashboard with sidebar, tabs, content)
-- The "Z logo" issue was likely a stale preview or browser cache
-- Confirmed all API keys are stored safely in .env (not tracked by git)
-- .gitignore properly excludes .env files
+- Read all source files: dashboard-shell, sidebar, header, footer, tab-content, store, AI assistant, all tabs
+- Read .env to verify API keys are safe (15+ keys + Bitdeer)
+- Diagnosed issues: NexusAssistant missing from dashboard-shell, header uses "coming soon" toasts, footer has "Powered by z-ai", AI chat has only 8 models, agents lack model names, KPI has no description, constitutional rules have no rationale, no settings panel
 
 Stage Summary:
-- Dashboard renders correctly with all tabs
-- API keys are safe in .env (14 providers with keys)
-- .gitignore properly configured
+- All API keys confirmed safe in .env
+- Dashboard renders correctly on localhost:3000
+- Multiple UX gaps identified and prioritized
 
 ---
-Task ID: 2-a
-Agent: Backend API Developer
-Task: Create backend AI API routes
+Task ID: 2-5
+Agent: main
+Task: Fix critical UI issues — NexusAssistant, footer, header, .env
 
 Work Log:
-- Created POST /api/ai/chat route with streaming support and multi-model selection
-- Created POST /api/ai/research/search route with AI-powered search
-- Created POST /api/ai/research/analyze route with 3 analysis types
-- Created GET /api/ai/providers route with real provider data (14 providers, 41 models)
-- Created POST /api/ai/stresslab/run route with test types
-- Created POST /api/ai/vault/query route with AI-powered knowledge retrieval
+- Added NexusAssistant to dashboard-shell.tsx (floating chat button bottom-right)
+- Changed "Powered by z-ai" to "z-ai SDK" in footer.tsx
+- Replaced header's "coming soon" toasts with real NotificationCenter popover and Settings sheet
+- Created new settings-panel.tsx with appearance, notifications, data/refresh, AI config, governor, and system info sections
+- Added Bitdeer API key (BITDEER_API_KEY) to .env
 
 Stage Summary:
-- 6 API routes created using z-ai-web-dev-sdk
-- All routes have proper error handling and TypeScript types
-- Providers API returns real data from configured API keys
+- Dashboard now has working floating AI assistant button
+- Notifications bell opens real notification center with live alerts
+- Settings button opens full settings sheet with theme, notifications, refresh, AI config
+- Footer no longer shows "Powered by z-ai" — shows "z-ai SDK" instead
+- Bitdeer API key stored safely in .env
 
 ---
-Task ID: 2-b
-Agent: Frontend Research Tab Developer
-Task: Upgrade Research tab with AI-powered features
+Task ID: 6
+Agent: subagent (full-stack-developer)
+Task: Enhance AI Chat Tab with more models, thinking indicators, regeneration
 
 Work Log:
-- Completely rewrote research-tab.tsx from ~155 to ~500+ lines
-- Added AI-powered research search with search bar
-- Added AI paper analysis with dialog modal
-- Enhanced paper queue with abstracts, citations, years, DG scores
-- Added category filtering (7 categories)
-- Added research chat at bottom
+- Expanded model list from 8 to 23 models across 4 tiers (reasoning, balanced, fast, code)
+- Added thinking phase indicator (pulsing violet brain icon + "Thinking..." text)
+- Added responding phase indicator with streaming content
+- Added message regeneration button on last assistant message
+- Added model change logging to chat (system messages: "🔄 Model changed to: ...")
+- Updated footer to show "23 models available"
+- Added tier-grouped model selector with color-coded sections
 
 Stage Summary:
-- Research tab massively upgraded with AI features
-- Graceful degradation when API unavailable
-- All features verified working in browser
+- AI Chat now supports 23 models from all configured providers
+- Thinking/reaction indicators give visual feedback during AI processing
+- Regeneration button on hover for last assistant message
+- Model changes are logged as system messages in chat
+- Clean lint, no errors
 
 ---
-Task ID: 2-c
-Agent: Frontend Tab Upgrades Developer
-Task: Add AI Chat tab and upgrade Provider tab
+Task ID: 7-9
+Agent: subagent (full-stack-developer)
+Task: Add model names to agents, KPI description, constitutional rule rationales
 
 Work Log:
-- Created ai-chat-tab.tsx with full chat interface, model selector, streaming
-- Updated nexus-store.ts with 'aichat' tab type
-- Updated tab-content.tsx with AiChatTab mapping
-- Updated sidebar.tsx with AI Assistant nav item
-- Completely rewrote provider-tab.tsx with real API data, test connection, capabilities
+- Added `model` field to agents in overview-tab.tsx (worker-1→trinity-large, worker-2→qwen3-coder, worker-3→gemma-fast, coordinator→glm-4.7)
+- Added Recent Usage section to overview showing model+agent combos
+- Added `model` field to usageByAgent in tokens-tab.tsx with badge display
+- Added KPI description card explaining Key Performance Indicators, grading scale
+- Added `rationale` field to all 7 constitutional rules with system-constraint explanations
+- Rationales displayed as muted text below each rule's progress bar
 
 Stage Summary:
-- AI Assistant tab fully functional with model selector and chat
-- Provider tab shows real provider data with 14 providers, 41 models
-- All 12 tabs verified working in browser via VLM analysis
+- Agents now show which model controls them in both Overview and Tokens tabs
+- KPI Dashboard has clear description with grading explanation
+- Constitutional rules have research-based rationales (free-tier limits, concurrency caps, etc.)
+- Clean lint, no errors

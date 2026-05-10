@@ -33,10 +33,10 @@ const usageByModel = [
 ]
 
 const usageByAgent = [
-  { agent: 'worker-1', tokens: 9870, percent: 37.2, tasks: 47 },
-  { agent: 'worker-2', tokens: 7230, percent: 27.2, tasks: 31 },
-  { agent: 'worker-3', tokens: 5680, percent: 21.4, tasks: 38 },
-  { agent: 'coordinator', tokens: 3770, percent: 14.2, tasks: 12 },
+  { agent: 'worker-1', model: 'trinity-large', tokens: 9870, percent: 37.2, tasks: 47 },
+  { agent: 'worker-2', model: 'qwen3-coder', tokens: 7230, percent: 27.2, tasks: 31 },
+  { agent: 'worker-3', model: 'gemma-fast', tokens: 5680, percent: 21.4, tasks: 38 },
+  { agent: 'coordinator', model: 'glm-4.7', tokens: 3770, percent: 14.2, tasks: 12 },
 ]
 
 const recentUsage = [
@@ -165,7 +165,10 @@ export function TokensTab() {
               {usageByAgent.map((agent) => (
                 <div key={agent.agent} className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">{agent.agent}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{agent.agent}</span>
+                      <Badge variant="secondary" className="text-[9px] h-4 font-mono">{agent.model}</Badge>
+                    </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{agent.tokens.toLocaleString()} tok</span>
                       <span>{agent.tasks} tasks</span>

@@ -100,9 +100,21 @@ export function KpiTab() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-        <h2 className="text-lg font-semibold">KPI Dashboard</h2>
+        <h2 className="text-lg font-semibold">KPI Dashboard — Key Performance Indicators</h2>
         <Badge variant="secondary" className="text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400">{totalKpis} KPIs</Badge>
       </div>
+
+      {/* Description */}
+      <Card className="bg-muted/30 border-border/50">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Monitor system health, agent efficiency, governance effectiveness, and model resource utilization.{' '}
+            Overall grade is calculated from the ratio of on-target KPIs across all categories.{' '}
+            Grades are assigned as follows: <strong>A+</strong> ≥ 95% on-target,{' '}
+            <strong>A</strong> ≥ 90%, <strong>B</strong> ≥ 80%, <strong>C</strong> ≥ 70%, <strong>D</strong> &lt; 70%.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Top-level Score */}
       <Card className="bg-card/50 border-border/50">

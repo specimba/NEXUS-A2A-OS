@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Send, Bot, User, Trash2, Loader2, Sparkles, Copy, Check, AlertCircle, RotateCcw } from 'lucide-react'
+import { Send, Bot, User, Trash2, Loader2, Sparkles, Copy, Check, AlertCircle, RotateCcw, Brain, Zap, Code, Scale } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: number
   model?: string
@@ -20,15 +20,43 @@ interface ChatMessage {
 }
 
 const AI_MODELS = [
+  // Reasoning tier
   { id: 'glm-4-7-nim', name: 'GLM-4.7 (z-ai)', tier: 'reasoning' },
-  { id: 'deepseek-r1-or', name: 'DeepSeek R1 (OR)', tier: 'reasoning' },
-  { id: 'llama-3.3-70b-groq', name: 'Llama 3.3 70B (Groq)', tier: 'reasoning' },
-  { id: 'llama-3.3-70b-cerebras', name: 'Llama 3.3 70B (Cerebras)', tier: 'reasoning' },
-  { id: 'qwen3-coder-or', name: 'Qwen3 Coder (OR)', tier: 'balanced' },
-  { id: 'trinity-large-or', name: 'Trinity Large (OR)', tier: 'balanced' },
-  { id: 'step-3-5-flash-or', name: 'Step 3.5 Flash (OR)', tier: 'fast' },
-  { id: 'gemma-4-26b-or', name: 'Gemma 4 26B (OR)', tier: 'fast' },
+  { id: 'deepseek-r1-or', name: 'DeepSeek R1 (OpenRouter)', tier: 'reasoning' },
+  { id: 'nemotron-4-340b-nim', name: 'Nemotron-4 340B (NVIDIA NIM)', tier: 'reasoning' },
+  { id: 'llama-3.1-405b-nim', name: 'Llama 3.1 405B (NVIDIA NIM)', tier: 'reasoning' },
+  { id: 'mistral-large-nim', name: 'Mistral Large (NVIDIA NIM)', tier: 'reasoning' },
+  { id: 'deepseek-v3-sambanova', name: 'DeepSeek V3 (SambaNova)', tier: 'reasoning' },
+  // Balanced tier
+  { id: 'llama-3.3-70b-groq', name: 'Llama 3.3 70B (Groq)', tier: 'balanced' },
+  { id: 'llama-3.3-70b-cerebras', name: 'Llama 3.3 70B (Cerebras)', tier: 'balanced' },
+  { id: 'qwen3-coder-or', name: 'Qwen3 Coder (OpenRouter)', tier: 'balanced' },
+  { id: 'trinity-large-or', name: 'Trinity Large (OpenRouter)', tier: 'balanced' },
+  { id: 'llama-3.3-70b-sambanova', name: 'Llama 3.3 70B (SambaNova)', tier: 'balanced' },
+  { id: 'gpt-4o-mini-openai', name: 'GPT-4o-mini (OpenAI)', tier: 'balanced' },
+  { id: 'llama-3.1-70b-fireworks', name: 'Llama 3.1 70B (Fireworks)', tier: 'balanced' },
+  { id: 'qwen2.5-72b-fireworks', name: 'Qwen2.5 72B (Fireworks)', tier: 'balanced' },
+  { id: 'deepseek-v3-siliconflow', name: 'DeepSeek V3 (SiliconFlow)', tier: 'balanced' },
+  { id: 'qwen2.5-72b-siliconflow', name: 'Qwen2.5 72B (SiliconFlow)', tier: 'balanced' },
+  { id: 'mistral-medium-mistral', name: 'Mistral Medium (Mistral)', tier: 'balanced' },
+  // Fast tier
+  { id: 'step-3-5-flash-or', name: 'Step 3.5 Flash (OpenRouter)', tier: 'fast' },
+  { id: 'gemma-4-26b-or', name: 'Gemma 4 26B (OpenRouter)', tier: 'fast' },
+  { id: 'mixtral-8x7b-groq', name: 'Mixtral 8x7B (Groq)', tier: 'fast' },
+  { id: 'gemma-2-9b-groq', name: 'Gemma 2 9B (Groq)', tier: 'fast' },
+  { id: 'llama-3.1-8b-cerebras', name: 'Llama 3.1 8B (Cerebras)', tier: 'fast' },
+  // Code tier
+  { id: 'codestral-codestral', name: 'Codestral (Codestral)', tier: 'code' },
 ]
+
+const TIER_CONFIG: Record<string, { label: string; icon: typeof Brain; color: string; description: string }> = {
+  reasoning: { label: 'Reasoning', icon: Brain, color: 'text-violet-600 dark:text-violet-400', description: 'Best for complex reasoning & analysis' },
+  balanced: { label: 'Balanced', icon: Scale, color: 'text-emerald-600 dark:text-emerald-400', description: 'Great quality-to-speed ratio' },
+  fast: { label: 'Fast', icon: Zap, color: 'text-amber-600 dark:text-amber-400', description: 'Lowest latency responses' },
+  code: { label: 'Code', icon: Code, color: 'text-cyan-600 dark:text-cyan-400', description: 'Optimized for code generation' },
+}
+
+const TIER_ORDER = ['reasoning', 'balanced', 'fast', 'code']
 
 function generateId() {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -199,6 +227,7 @@ export function AiChatTab() {
   const [selectedModel, setSelectedModel] = useState('glm-4-7-nim')
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [thinkingPhase, setThinkingPhase] = useState<'idle' | 'thinking' | 'responding'>('idle')
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -207,7 +236,7 @@ export function AiChatTab() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages, streamingContent])
+  }, [messages, streamingContent, thinkingPhase])
 
   // Focus input on mount
   useEffect(() => {
@@ -218,6 +247,7 @@ export function AiChatTab() {
     setMessages([])
     setStreamingContent('')
     setError(null)
+    setThinkingPhase('idle')
   }, [])
 
   const retryLastMessage = useCallback(() => {
@@ -227,6 +257,27 @@ export function AiChatTab() {
       setError(null)
       // Re-send
       sendMessage(lastUserMsg.content)
+    }
+  }, [messages, selectedModel])
+
+  const regenerateLastResponse = useCallback(() => {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
+    if (lastUserMsg) {
+      // Remove the last assistant message
+      setMessages(prev => {
+        const lastAssistantIdx = [...prev].reverse().findIndex(m => m.role === 'assistant')
+        if (lastAssistantIdx !== -1) {
+          return prev.slice(0, prev.length - lastAssistantIdx - 1)
+        }
+        return prev
+      })
+      setError(null)
+      // Re-send after state update
+      setTimeout(() => {
+        if (lastUserMsg) {
+          sendMessage(lastUserMsg.content)
+        }
+      }, 50)
     }
   }, [messages, selectedModel])
 
@@ -245,11 +296,17 @@ export function AiChatTab() {
     setIsLoading(true)
     setStreamingContent('')
     setError(null)
+    setThinkingPhase('thinking')
+
+    // Simulate thinking phase for 1.5 seconds before streaming begins
+    const thinkingTimer = setTimeout(() => {
+      setThinkingPhase('responding')
+    }, 1500)
 
     try {
-      // Build messages array for API
+      // Build messages array for API (filter out system messages)
       const apiMessages = [...messages, userMessage]
-        .filter(m => !m.error)
+        .filter(m => m.role !== 'system' && !m.error)
         .map(m => ({ role: m.role, content: m.content }))
 
       // Try streaming first
@@ -278,6 +335,7 @@ export function AiChatTab() {
         }
 
         const data = await fallbackResponse.json()
+        clearTimeout(thinkingTimer)
         const assistantMessage: ChatMessage = {
           id: generateId(),
           role: 'assistant',
@@ -288,6 +346,7 @@ export function AiChatTab() {
         }
         setMessages(prev => [...prev, assistantMessage])
         setIsLoading(false)
+        setThinkingPhase('idle')
         return
       }
 
@@ -298,6 +357,7 @@ export function AiChatTab() {
       const decoder = new TextDecoder()
       let accumulated = ''
       let buffer = ''
+      let firstChunkReceived = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -314,6 +374,7 @@ export function AiChatTab() {
           const payload = trimmed.slice(5).trim()
           if (payload === '[DONE]') {
             // Stream complete
+            clearTimeout(thinkingTimer)
             const assistantMessage: ChatMessage = {
               id: generateId(),
               role: 'assistant',
@@ -324,6 +385,7 @@ export function AiChatTab() {
             setMessages(prev => [...prev, assistantMessage])
             setStreamingContent('')
             setIsLoading(false)
+            setThinkingPhase('idle')
             return
           }
 
@@ -334,6 +396,11 @@ export function AiChatTab() {
               continue
             }
             if (parsed.content) {
+              if (!firstChunkReceived) {
+                firstChunkReceived = true
+                clearTimeout(thinkingTimer)
+                setThinkingPhase('responding')
+              }
               accumulated += parsed.content
               setStreamingContent(accumulated)
             }
@@ -344,6 +411,7 @@ export function AiChatTab() {
       }
 
       // If we get here without [DONE], save what we have
+      clearTimeout(thinkingTimer)
       if (accumulated) {
         const assistantMessage: ChatMessage = {
           id: generateId(),
@@ -355,6 +423,7 @@ export function AiChatTab() {
         setMessages(prev => [...prev, assistantMessage])
       }
     } catch (err) {
+      clearTimeout(thinkingTimer)
       const errorMsg = err instanceof Error ? err.message : 'Failed to get response'
       setError(errorMsg)
       const errorMessage: ChatMessage = {
@@ -369,9 +438,28 @@ export function AiChatTab() {
     } finally {
       setIsLoading(false)
       setStreamingContent('')
+      setThinkingPhase('idle')
       inputRef.current?.focus()
     }
   }, [messages, selectedModel, isLoading])
+
+  const handleModelChange = useCallback((newModelId: string) => {
+    const oldModel = AI_MODELS.find(m => m.id === selectedModel)
+    const newModel = AI_MODELS.find(m => m.id === newModelId)
+    
+    if (newModel && oldModel && newModelId !== selectedModel) {
+      // Add system message about model change
+      const systemMsg: ChatMessage = {
+        id: generateId(),
+        role: 'system',
+        content: `🔄 Model changed to: ${newModel.name}`,
+        timestamp: Date.now(),
+      }
+      setMessages(prev => [...prev, systemMsg])
+    }
+    
+    setSelectedModel(newModelId)
+  }, [selectedModel])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -381,6 +469,8 @@ export function AiChatTab() {
   }
 
   const selectedModelInfo = AI_MODELS.find(m => m.id === selectedModel)
+  const lastAssistantMessageIndex = [...messages].reverse().findIndex(m => m.role === 'assistant')
+  const lastAssistantIdx = lastAssistantMessageIndex !== -1 ? messages.length - 1 - lastAssistantMessageIndex : -1
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] gap-4">
@@ -394,21 +484,43 @@ export function AiChatTab() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-[200px] h-8 text-xs">
+          <Select value={selectedModel} onValueChange={handleModelChange}>
+            <SelectTrigger className="w-[240px] h-8 text-xs">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
-              {AI_MODELS.map(model => (
-                <SelectItem key={model.id} value={model.id} className="text-xs">
-                  <div className="flex items-center gap-2">
-                    <span>{model.name}</span>
-                    <Badge variant="outline" className="h-3.5 px-1 text-[8px] border-emerald-600/30 text-emerald-600">
-                      {model.tier}
-                    </Badge>
+              {TIER_ORDER.map(tier => {
+                const tierModels = AI_MODELS.filter(m => m.tier === tier)
+                const tierConfig = TIER_CONFIG[tier]
+                const TierIcon = tierConfig.icon
+                return (
+                  <div key={tier}>
+                    <div className="flex items-center gap-1.5 px-2 py-1.5">
+                      <TierIcon className={cn('h-3 w-3', tierConfig.color)} />
+                      <span className={cn('text-[10px] font-semibold uppercase tracking-wider', tierConfig.color)}>
+                        {tierConfig.label}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">— {tierConfig.description}</span>
+                    </div>
+                    {tierModels.map(model => (
+                      <SelectItem key={model.id} value={model.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span>{model.name}</span>
+                          <Badge variant="outline" className={cn(
+                            'h-3.5 px-1 text-[8px]',
+                            tier === 'reasoning' && 'border-violet-600/30 text-violet-600',
+                            tier === 'balanced' && 'border-emerald-600/30 text-emerald-600',
+                            tier === 'fast' && 'border-amber-600/30 text-amber-600',
+                            tier === 'code' && 'border-cyan-600/30 text-cyan-600',
+                          )}>
+                            {model.tier}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </div>
-                </SelectItem>
-              ))}
+                )
+              })}
             </SelectContent>
           </Select>
           <Button
@@ -457,88 +569,146 @@ export function AiChatTab() {
                 </div>
               )}
 
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    'flex gap-3',
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className={cn(
-                      'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-                      msg.error
-                        ? 'bg-red-500/10'
-                        : 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10'
-                    )}>
-                      <Bot className={cn(
-                        'h-4 w-4',
-                        msg.error ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'
-                      )} />
+              {messages.map((msg, idx) => {
+                // System messages - centered, subtle
+                if (msg.role === 'system') {
+                  return (
+                    <div key={msg.id} className="flex justify-center">
+                      <div className="text-[11px] text-muted-foreground/70 bg-muted/30 px-4 py-1.5 rounded-full border border-border/30">
+                        {msg.content}
+                      </div>
                     </div>
-                  )}
+                  )
+                }
 
-                  <div className={cn(
-                    'max-w-[80%] rounded-xl px-4 py-2.5 text-sm',
-                    msg.role === 'user'
-                      ? 'bg-emerald-600/10 text-foreground border border-emerald-600/20'
-                      : msg.error
-                        ? 'bg-red-500/5 border border-red-500/20 text-red-600 dark:text-red-400'
-                        : 'bg-card border border-border/50'
-                  )}>
-                    <div className="prose-sm">
-                      {msg.role === 'assistant' ? formatMessageContent(msg.content) : msg.content}
+                const isLastAssistant = msg.role === 'assistant' && idx === lastAssistantIdx && !isLoading
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      'flex gap-3',
+                      msg.role === 'user' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                        msg.error
+                          ? 'bg-red-500/10'
+                          : 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10'
+                      )}>
+                        <Bot className={cn(
+                          'h-4 w-4',
+                          msg.error ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'
+                        )} />
+                      </div>
+                    )}
+
+                    <div className={cn(
+                      'max-w-[80%] rounded-xl px-4 py-2.5 text-sm group',
+                      msg.role === 'user'
+                        ? 'bg-emerald-600/10 text-foreground border border-emerald-600/20'
+                        : msg.error
+                          ? 'bg-red-500/5 border border-red-500/20 text-red-600 dark:text-red-400'
+                          : 'bg-card border border-border/50'
+                    )}>
+                      <div className="prose-sm">
+                        {msg.role === 'assistant' ? formatMessageContent(msg.content) : msg.content}
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border/30">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-muted-foreground font-mono">
+                            {msg.model || selectedModelInfo?.name}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {/* Regenerate button on last assistant message */}
+                        {isLastAssistant && !msg.error && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1.5 gap-1 text-[9px] text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={regenerateLastResponse}
+                          >
+                            <RotateCcw className="h-2.5 w-2.5" />
+                            Regenerate
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-border/30">
+
+                    {msg.role === 'user' && (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Thinking phase indicator */}
+              {thinkingPhase === 'thinking' && !streamingContent && (
+                <div className="flex gap-3 justify-start">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/20 to-violet-600/10">
+                    <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400 animate-pulse" />
+                  </div>
+                  <div className="rounded-xl px-4 py-3 text-sm bg-card border border-violet-500/20">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400 animate-pulse" />
+                      <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+                        Thinking...
+                      </span>
                       <span className="text-[9px] text-muted-foreground font-mono">
-                        {msg.model || selectedModelInfo?.name}
+                        {selectedModelInfo?.name}
                       </span>
-                      <span className="text-[9px] text-muted-foreground">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                    </div>
+                    <div className="mt-2 flex gap-1">
+                      {[0, 1, 2].map(i => (
+                        <div
+                          key={i}
+                          className="h-1 w-4 rounded-full bg-violet-500/30 animate-pulse"
+                          style={{ animationDelay: `${i * 0.2}s` }}
+                        />
+                      ))}
                     </div>
                   </div>
-
-                  {msg.role === 'user' && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <User className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
                 </div>
-              ))}
+              )}
 
-              {/* Streaming content */}
-              {streamingContent && (
+              {/* Responding phase - streaming content */}
+              {thinkingPhase === 'responding' && streamingContent && (
                 <div className="flex gap-3 justify-start">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10">
                     <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm bg-card border border-border/50">
+                  <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm bg-card border border-emerald-500/20">
                     <div className="prose-sm">
                       {formatMessageContent(streamingContent)}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1.5 pt-1.5 border-t border-border/30">
                       <Loader2 className="h-3 w-3 animate-spin text-emerald-500" />
                       <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">
-                        {selectedModelInfo?.name} — streaming...
+                        {selectedModelInfo?.name} — Responding...
                       </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Loading indicator (non-streaming) */}
-              {isLoading && !streamingContent && (
+              {/* Fallback loading indicator (non-streaming, after thinking phase) */}
+              {isLoading && thinkingPhase === 'responding' && !streamingContent && (
                 <div className="flex gap-3 justify-start">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10">
-                    <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
                   </div>
                   <div className="rounded-xl px-4 py-3 text-sm bg-card border border-border/50">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
                       <span className="text-xs text-muted-foreground">
-                        {selectedModelInfo?.name} is thinking...
+                        {selectedModelInfo?.name} is processing...
                       </span>
                     </div>
                   </div>
@@ -594,14 +764,20 @@ export function AiChatTab() {
       </div>
 
       {/* Model Info Footer */}
-      <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0 flex-wrap">
         <span>Model: <span className="font-mono text-foreground">{selectedModelInfo?.name}</span></span>
         <span className="text-border">|</span>
-        <span>Tier: <Badge variant="outline" className="h-3 px-1 text-[8px] border-emerald-600/30 text-emerald-600">{selectedModelInfo?.tier}</Badge></span>
+        <span>Tier: <Badge variant="outline" className={cn(
+          'h-3 px-1 text-[8px]',
+          selectedModelInfo?.tier === 'reasoning' && 'border-violet-600/30 text-violet-600',
+          selectedModelInfo?.tier === 'balanced' && 'border-emerald-600/30 text-emerald-600',
+          selectedModelInfo?.tier === 'fast' && 'border-amber-600/30 text-amber-600',
+          selectedModelInfo?.tier === 'code' && 'border-cyan-600/30 text-cyan-600',
+        )}>{selectedModelInfo?.tier}</Badge></span>
         <span className="text-border">|</span>
-        <span>Messages: <span className="font-mono text-foreground">{messages.length}</span></span>
+        <span>Messages: <span className="font-mono text-foreground">{messages.filter(m => m.role !== 'system').length}</span></span>
         <span className="text-border">|</span>
-        <span>All models are open-source via free-tier APIs</span>
+        <span>{AI_MODELS.length} models available</span>
       </div>
     </div>
   )

@@ -15,13 +15,13 @@ import {
 } from 'lucide-react'
 
 const constitutionRules = [
-  { id: 'C1', rule: 'Max agents per hour', limit: 5, current: 3, impact: 'high', status: 'ok' },
-  { id: 'C2', rule: 'API calls per session', limit: 20, current: 12, impact: 'medium', status: 'ok' },
-  { id: 'C3', rule: 'Max concurrent agents', limit: 2, current: 2, impact: 'high', status: 'caution' },
-  { id: 'C4', rule: 'File writes per session', limit: 30, current: 8, impact: 'low', status: 'ok' },
-  { id: 'C5', rule: 'Max tokens per session', limit: 100000, current: 73450, impact: 'high', status: 'caution' },
-  { id: 'C6', rule: 'Trust score minimum', limit: 0.5, current: 0.78, impact: 'critical', status: 'ok' },
-  { id: 'C7', rule: 'Block CRITICAL actions', limit: 1, current: 0, impact: 'critical', status: 'ok' },
+  { id: 'C1', rule: 'Max agents per hour', limit: 5, current: 3, impact: 'high', status: 'ok', rationale: 'Based on free-tier API rate limits across providers. Prevents quota exhaustion.' },
+  { id: 'C2', rule: 'API calls per session', limit: 20, current: 12, impact: 'medium', status: 'ok', rationale: 'Conservative limit to stay within concurrent request thresholds on free tiers.' },
+  { id: 'C3', rule: 'Max concurrent agents', limit: 2, current: 2, impact: 'high', status: 'caution', rationale: 'Matches typical free-tier concurrency limits (Cerebras: 2, Groq: 2, NVIDIA: 2).' },
+  { id: 'C4', rule: 'File writes per session', limit: 30, current: 8, impact: 'low', status: 'ok', rationale: 'Prevents runaway agents from flooding storage. 30 is generous for governance operations.' },
+  { id: 'C5', rule: 'Max tokens per session', limit: 100000, current: 73450, impact: 'high', status: 'caution', rationale: 'Aligned with combined free-tier token budgets across 14 providers.' },
+  { id: 'C6', rule: 'Trust score minimum', limit: 0.5, current: 0.78, impact: 'critical', status: 'ok', rationale: 'Below 0.5 trust indicates unreliable behavior patterns. Threshold for intervention.' },
+  { id: 'C7', rule: 'Block CRITICAL actions', limit: 1, current: 0, impact: 'critical', status: 'ok', rationale: 'Zero-tolerance for destructive patterns. Any match triggers immediate block.' },
 ]
 
 const recentDecisions = [
@@ -137,6 +137,7 @@ export function GovernorTab() {
                       {rule.limit > 100 ? `${(rule.current / 1000).toFixed(1)}k / ${(rule.limit / 1000).toFixed(0)}k` : `${rule.current} / ${rule.limit}`}
                     </span>
                   </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">{rule.rationale}</p>
                 </div>
               )
             })}

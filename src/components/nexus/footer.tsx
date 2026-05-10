@@ -83,7 +83,7 @@ export function NexusFooter() {
           Live
         </span>
         <span className="text-border">|</span>
-        <span className="text-[10px] text-muted-foreground/60">Powered by z-ai</span>
+        <span className="text-[10px] text-muted-foreground/60">z-ai SDK</span>
       </div>
     </footer>
   )
