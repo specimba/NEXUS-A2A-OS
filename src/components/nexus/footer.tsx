@@ -1,10 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Wifi, AlertTriangle, Gauge } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Wifi, AlertTriangle, Gauge, Network } from 'lucide-react'
+
+interface RelayStatus {
+  availableProviders: number
+  totalModels: number
+  freeModels: number
+  activeStrategy: string
+  statistics: {
+    totalRequests: number
+    successfulRequests: number
+    failedRequests: number
+  }
+}
 
 export function NexusFooter() {
   const [uptime, setUptime] = useState('00:00:00')
+  const [relayStatus, setRelayStatus] = useState<RelayStatus | null>(null)
 
   useEffect(() => {
     const start = Date.now()
@@ -19,6 +32,28 @@ export function NexusFooter() {
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  const fetchRelayStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/modelrelay/status')
+      if (res.ok) {
+        const data = await res.json()
+        setRelayStatus(data)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    const load = async () => { await fetchRelayStatus() }
+    load()
+    const interval = setInterval(fetchRelayStatus, 60000)
+    return () => clearInterval(interval)
+  }, [fetchRelayStatus])
+
+  const poolPremium = 2 // From ModelRelay config: zai, nvidia premium models
+  const poolMid = 7 // openrouter, sambanova, deepseek, fireworks, etc.
+  const poolFast = 4 // groq, cerebras
+  const errorCount = relayStatus?.statistics?.failedRequests || 0
 
   return (
     <footer className="relative flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
@@ -41,17 +76,31 @@ export function NexusFooter() {
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span className="text-[10px]">PREMIUM:</span>
-            <span className="text-[10px] font-bold tabular-nums text-emerald-400">2</span>
+            <span className="text-[10px] font-bold tabular-nums text-emerald-400">{poolPremium}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
             <span className="text-[10px]">MID:</span>
-            <span className="text-[10px] font-bold tabular-nums text-blue-400">3</span>
+            <span className="text-[10px] font-bold tabular-nums text-blue-400">{poolMid}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
             <span className="text-[10px]">FAST:</span>
-            <span className="text-[10px] font-bold tabular-nums text-orange-400">2</span>
+            <span className="text-[10px] font-bold tabular-nums text-orange-400">{poolFast}</span>
+          </span>
+        </div>
+
+        <span className="text-border">|</span>
+
+        {/* ModelRelay Status */}
+        <div className="flex items-center gap-1">
+          <Network className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-[10px]">Relay:</span>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            {relayStatus ? `${relayStatus.availableProviders} providers` : '...'}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            &middot; {relayStatus?.totalModels || '—'} models
           </span>
         </div>
 
@@ -59,9 +108,9 @@ export function NexusFooter() {
 
         {/* Error Count */}
         <div className="flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-[10px]">Errors (5m):</span>
-          <span className="text-[10px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400">0</span>
+          <AlertTriangle className={cn('h-3 w-3', errorCount > 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400')} />
+          <span className="text-[10px]">Errors:</span>
+          <span className={cn('text-[10px] font-bold tabular-nums', errorCount > 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400')}>{errorCount}</span>
         </div>
 
         <span className="text-border">|</span>
@@ -87,4 +136,8 @@ export function NexusFooter() {
       </div>
     </footer>
   )
+}
+
+function cn(...inputs: (string | boolean | undefined | null)[]) {
+  return inputs.filter(Boolean).join(' ')
 }

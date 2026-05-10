@@ -14,6 +14,7 @@ import { SwarmTab } from '@/components/nexus/tabs/swarm-tab'
 import { TokensTab } from '@/components/nexus/tabs/tokens-tab'
 import { RateLimitTab } from '@/components/nexus/tabs/rate-limit-tab'
 import { KpiTab } from '@/components/nexus/tabs/kpi-tab'
+import { ModelRelayTab } from '@/components/nexus/tabs/modelrelay-tab'
 
 const tabComponents: Record<string, ComponentType> = {
   overview: OverviewTab,
@@ -28,6 +29,7 @@ const tabComponents: Record<string, ComponentType> = {
   tokens: TokensTab,
   ratelimit: RateLimitTab,
   kpi: KpiTab,
+  modelrelay: ModelRelayTab,
 }
 
 export function TabContent() {

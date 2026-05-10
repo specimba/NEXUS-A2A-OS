@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Zap,
   Target,
+  Network,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" /> },
   { id: 'ratelimit', label: 'Rate Limits', icon: <Gauge className="h-4 w-4" /> },
   { id: 'kpi', label: 'KPI Dashboard', icon: <Target className="h-4 w-4" /> },
+  { id: 'modelrelay', label: 'ModelRelay', icon: <Network className="h-4 w-4" />, badge: 'GWR' },
 ]
 
 function SidebarNav({ activeTab, setActiveTab, collapsed, onNavigate }: { activeTab: NexusTab; setActiveTab: (t: NexusTab) => void; collapsed: boolean; onNavigate?: () => void }) {

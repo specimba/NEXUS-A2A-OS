@@ -1,7 +1,9 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
   Router,
@@ -12,7 +14,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   Activity,
+  Network,
+  RefreshCw,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useNexusStore } from '@/store/nexus-store'
 
 const pools = [
   {
@@ -22,8 +28,8 @@ const pools = [
     bgClass: 'bg-emerald-600/20',
     health: 97,
     models: [
-      { name: 'trinity-large-preview', health: 98, latency: 142, successRate: 99.2, calls: 1247, status: 'active' },
-      { name: 'minimax-m2.5', health: 95, latency: 189, successRate: 97.8, calls: 834, status: 'active' },
+      { name: 'trinity-large-preview', health: 98, latency: 142, successRate: 99.2, calls: 1247, status: 'active', provider: 'OpenRouter' },
+      { name: 'glm-4.7 (z-ai)', health: 95, latency: 189, successRate: 97.8, calls: 834, status: 'active', provider: 'Z-AI' },
     ],
   },
   {
@@ -33,9 +39,9 @@ const pools = [
     bgClass: 'bg-blue-600/20',
     health: 89,
     models: [
-      { name: 'qwen3-coder', health: 82, latency: 234, successRate: 91.4, calls: 2156, status: 'degraded' },
-      { name: 'kimi-k2.5', health: 91, latency: 198, successRate: 95.2, calls: 1567, status: 'active' },
-      { name: 'gpt-oss-120b', health: 94, latency: 156, successRate: 96.7, calls: 982, status: 'active' },
+      { name: 'qwen3-coder', health: 82, latency: 234, successRate: 91.4, calls: 2156, status: 'degraded', provider: 'OpenRouter' },
+      { name: 'DeepSeek V3', health: 91, latency: 198, successRate: 95.2, calls: 1567, status: 'active', provider: 'SambaNova' },
+      { name: 'Nemotron Super 128K', health: 94, latency: 156, successRate: 96.7, calls: 982, status: 'active', provider: 'OpenRouter' },
     ],
   },
   {
@@ -45,35 +51,99 @@ const pools = [
     bgClass: 'bg-orange-600/20',
     health: 94,
     models: [
-      { name: 'gemma-fast', health: 100, latency: 67, successRate: 99.8, calls: 3421, status: 'active' },
-      { name: 'nemotron-3-super', health: 96, latency: 89, successRate: 98.1, calls: 1876, status: 'active' },
+      { name: 'gemma-fast (Groq)', health: 100, latency: 67, successRate: 99.8, calls: 3421, status: 'active', provider: 'Groq' },
+      { name: 'llama-3.3-70b (Cerebras)', health: 96, latency: 40, successRate: 98.1, calls: 1876, status: 'active', provider: 'Cerebras' },
     ],
   },
 ]
 
 const failoverLog = [
   { time: '35m ago', from: 'dolphin-mistral', to: 'trinity-large', reason: 'Health below 70% threshold', duration: '1.2s' },
-  { time: '2h ago', from: 'qwen3-coder', to: 'gpt-oss-120b', reason: 'Latency spike (>500ms)', duration: '0.8s' },
-  { time: '4h ago', from: 'kimi-k2.5', to: 'minimax-m2.5', reason: 'Error rate exceeded 5%', duration: '2.1s' },
+  { time: '2h ago', from: 'qwen3-coder', to: 'Nemotron Super 128K', reason: 'Latency spike (>500ms)', duration: '0.8s' },
+  { time: '4h ago', from: 'kimi-k2.5', to: 'glm-4.7', reason: 'Error rate exceeded 5%', duration: '2.1s' },
 ]
 
 const routingRules = [
-  { pattern: 'code.*', pool: 'MID', priority: 1, description: 'Code tasks routed to MID pool' },
-  { pattern: 'chat.*', pool: 'FAST', priority: 2, description: 'Chat tasks routed to FAST pool' },
-  { pattern: 'analysis.*', pool: 'PREMIUM', priority: 1, description: 'Analysis routed to PREMIUM pool' },
-  { pattern: 'research.*', pool: 'PREMIUM', priority: 1, description: 'Research tasks use premium models' },
-  { pattern: 'default', pool: 'FAST', priority: 10, description: 'Fallback to FAST pool' },
+  { pattern: 'code.*', pool: 'MID', priority: 1, description: 'Code tasks routed to MID pool', modelRelay: 'zai/glm-4-7 → nvidia/llama-3.3-70b' },
+  { pattern: 'chat.*', pool: 'FAST', priority: 2, description: 'Chat tasks routed to FAST pool', modelRelay: 'groq/llama-3.3-70b → cerebras/llama-3.3-70b' },
+  { pattern: 'analysis.*', pool: 'PREMIUM', priority: 1, description: 'Analysis routed to PREMIUM pool', modelRelay: 'zai/glm-4-7 → nvidia/nemotron-4-340b' },
+  { pattern: 'research.*', pool: 'PREMIUM', priority: 1, description: 'Research tasks use premium models', modelRelay: 'zai/glm-4-7 → openrouter/gemini-2.5-pro' },
+  { pattern: 'default', pool: 'FAST', priority: 10, description: 'Fallback to FAST pool', modelRelay: 'groq/mixtral-8x7b → cerebras/llama-3.1-8b' },
 ]
 
 export function GmrTab() {
+  const setActiveTab = useNexusStore(s => s.setActiveTab)
+  const [relayHealth, setRelayHealth] = useState<{ status: string; providersAvailable: number } | null>(null)
+
+  const fetchRelayHealth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/modelrelay/health')
+      if (res.ok) {
+        const data = await res.json()
+        setRelayHealth(data)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    const load = async () => { await fetchRelayHealth() }
+    load()
+  }, [fetchRelayHealth])
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Router className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-        <h2 className="text-lg font-semibold">GMR Router Panel</h2>
-        <Badge variant="secondary" className="text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400">Active</Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Router className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-lg font-semibold">GMR Router Panel</h2>
+          <Badge variant="secondary" className="text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400">Active</Badge>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 h-8"
+          onClick={() => setActiveTab('modelrelay')}
+        >
+          <Network className="h-3 w-3" />
+          Open ModelRelay
+        </Button>
       </div>
+
+      {/* ModelRelay Integration Banner */}
+      <Card className="bg-gradient-to-r from-emerald-600/10 to-emerald-600/5 border-emerald-600/20">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600/20">
+                <Network className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">ModelRelay Gateway Connected</span>
+                  <Badge className={cn(
+                    'text-[9px] border-0',
+                    relayHealth?.status === 'operational' ? 'bg-emerald-600/20 text-emerald-600' : 'bg-yellow-600/20 text-yellow-600'
+                  )}>
+                    {relayHealth?.status === 'operational' ? 'OPERATIONAL' : 'CHECKING...'}
+                  </Badge>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {relayHealth?.providersAvailable || 0} providers available &middot; Intent classification &middot; Fallback cascade &middot; Quota-aware routing
+                </span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 h-7 text-emerald-600 hover:text-emerald-700"
+              onClick={() => setActiveTab('modelrelay')}
+            >
+              View Gateway →
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pool Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -113,12 +183,23 @@ export function GmrTab() {
               {pool.models.map((model) => (
                 <div key={model.name} className="p-3 rounded-lg bg-muted/30 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{model.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{model.name}</span>
+                    </div>
                     {model.status === 'active' ? (
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     ) : (
                       <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
                     )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[9px] h-3.5">{model.provider}</Badge>
+                    <Badge variant={model.status === 'active' ? 'secondary' : 'outline'} className={cn(
+                      'text-[9px] h-3.5',
+                      model.status === 'active' ? 'bg-emerald-600/10 text-emerald-600 border-0' : ''
+                    )}>
+                      {model.status}
+                    </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="flex items-center gap-1">
@@ -147,7 +228,7 @@ export function GmrTab() {
       ))}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Routing Rules */}
+        {/* Routing Rules with ModelRelay fallback chains */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -158,12 +239,18 @@ export function GmrTab() {
           <CardContent className="p-4 pt-0">
             <div className="space-y-2">
               {routingRules.map((rule, i) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                  <code className="text-xs font-mono text-emerald-600 dark:text-emerald-400 min-w-[80px]">{rule.pattern}</code>
-                  <ArrowRightLeft className="h-3 w-3 text-muted-foreground shrink-0" />
-                  <Badge variant="outline" className="text-[10px] h-4">{rule.pool}</Badge>
-                  <span className="text-[11px] text-muted-foreground flex-1">{rule.description}</span>
-                  <span className="text-[10px] text-muted-foreground">P{rule.priority}</span>
+                <div key={i} className="p-2 rounded-lg bg-muted/30 space-y-1">
+                  <div className="flex items-center gap-3">
+                    <code className="text-xs font-mono text-emerald-600 dark:text-emerald-400 min-w-[80px]">{rule.pattern}</code>
+                    <ArrowRightLeft className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <Badge variant="outline" className="text-[10px] h-4">{rule.pool}</Badge>
+                    <span className="text-[11px] text-muted-foreground flex-1">{rule.description}</span>
+                    <span className="text-[10px] text-muted-foreground">P{rule.priority}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground ml-2">
+                    <Network className="h-3 w-3 text-violet-500" />
+                    <span className="font-mono">ModelRelay: {rule.modelRelay}</span>
+                  </div>
                 </div>
               ))}
             </div>
