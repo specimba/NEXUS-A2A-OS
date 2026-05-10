@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NEXUS OS v3.0 — Command Center",
+  title: "NEXUS OS v3.1 — Command Center",
   description: "AI Governance Operating System — Command Center for constitutional AI orchestration",
   keywords: ["NEXUS OS", "AI Governance", "Command Center", "Constitutional AI"],
   authors: [{ name: "NEXUS OS" }],

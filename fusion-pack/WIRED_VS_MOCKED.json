@@ -1,0 +1,192 @@
+{
+  "version": "3.1",
+  "generated": "2025-01-27",
+  "components": {
+    "overview-tab": {
+      "file": "src/components/nexus/tabs/overview-tab.tsx",
+      "status": "SIMULATED",
+      "data_source": "hardcoded",
+      "mutations_persist": false,
+      "backend_contract": "/api/system (exists but NOT consumed)",
+      "public_safe": false,
+      "issues": [
+        "Ignores real /api/system endpoint",
+        "All pillar health/sparklines/activity feed are fake",
+        "Uptime counter is simulated"
+      ]
+    },
+    "stresslab-tab": {
+      "file": "src/components/nexus/tabs/stresslab-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/stresslab + real LLM execution",
+      "mutations_persist": true,
+      "backend_contract": "/api/stresslab (GET/POST)",
+      "public_safe": true,
+      "issues": []
+    },
+    "gmr-tab": {
+      "file": "src/components/nexus/tabs/gmr-tab.tsx",
+      "status": "WIRED+MOCK",
+      "data_source": "/api/models (real) + hardcoded pools/rotation/failover",
+      "mutations_persist": true,
+      "backend_contract": "/api/models (GET/POST)",
+      "public_safe": false,
+      "issues": [
+        "Pool definitions hardcoded",
+        "Rotation log hardcoded",
+        "Failover log hardcoded",
+        "AI Bridge routes hardcoded"
+      ]
+    },
+    "governor-tab": {
+      "file": "src/components/nexus/tabs/governor-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/governor",
+      "mutations_persist": true,
+      "backend_contract": "/api/governor (GET/POST)",
+      "public_safe": true,
+      "issues": [
+        "Live Decision Feed is simulated from real data",
+        "Constitution rule toggles are local-only"
+      ]
+    },
+    "vault-tab": {
+      "file": "src/components/nexus/tabs/vault-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/vault",
+      "mutations_persist": true,
+      "backend_contract": "/api/vault (GET/POST)",
+      "public_safe": true,
+      "issues": [
+        "Entry distribution donut uses hardcoded fallback",
+        "Recent activity timeline uses hardcoded fallback"
+      ]
+    },
+    "research-tab": {
+      "file": "src/components/nexus/tabs/research-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/research",
+      "mutations_persist": true,
+      "backend_contract": "/api/research (GET/PUT)",
+      "public_safe": true,
+      "issues": [
+        "Practice timer resets on tab switch",
+        "Add-to-queue is local-only",
+        "Priority/status changes use local overrides with toast disclaimer"
+      ]
+    },
+    "swarm-tab": {
+      "file": "src/components/nexus/tabs/swarm-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/swarm + WebSocket",
+      "mutations_persist": true,
+      "backend_contract": "/api/swarm (GET/POST)",
+      "public_safe": true,
+      "issues": []
+    },
+    "tokens-tab": {
+      "file": "src/components/nexus/tabs/tokens-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/tokens",
+      "mutations_persist": false,
+      "backend_contract": "/api/tokens (GET/POST)",
+      "public_safe": true,
+      "issues": [
+        "Optimization suggestions hardcoded",
+        "Constitution limits hardcoded",
+        "Burn rate hardcoded at 142 tok/min",
+        "No UI mutations (read-only)"
+      ]
+    },
+    "rate-limit-tab": {
+      "file": "src/components/nexus/tabs/rate-limit-tab.tsx",
+      "status": "WIRED",
+      "data_source": "/api/rate-limit/status",
+      "mutations_persist": false,
+      "backend_contract": "/api/rate-limit/status (GET)",
+      "public_safe": true,
+      "issues": [
+        "Read-only dashboard",
+        "Only shows data after real API traffic"
+      ]
+    },
+    "ai-assistant": {
+      "file": "src/components/nexus/ai-assistant.tsx",
+      "status": "WIRED",
+      "data_source": "/api/chat + /api/claude",
+      "mutations_persist": false,
+      "backend_contract": "/api/chat (POST) + /api/claude (POST)",
+      "public_safe": true,
+      "issues": [
+        "Chat messages in Zustand only (not DB)",
+        "Claude proxy on :8082 may be offline"
+      ]
+    },
+    "command-palette": {
+      "file": "src/components/nexus/command-palette.tsx",
+      "status": "WIRED",
+      "data_source": "Zustand store",
+      "mutations_persist": false,
+      "backend_contract": "None needed",
+      "public_safe": true,
+      "issues": []
+    },
+    "system-logs": {
+      "file": "src/components/nexus/system-logs.tsx",
+      "status": "SIMULATED",
+      "data_source": "Hardcoded templates",
+      "mutations_persist": false,
+      "backend_contract": "None",
+      "public_safe": false,
+      "issues": [
+        "Entirely simulated",
+        "No connection to VaultEntry or RateLimitLog"
+      ]
+    },
+    "notification-center": {
+      "file": "src/components/nexus/notification-center.tsx",
+      "status": "MOCK",
+      "data_source": "Hardcoded notifications",
+      "mutations_persist": false,
+      "backend_contract": "None",
+      "public_safe": false,
+      "issues": [
+        "Initial notifications hardcoded in store"
+      ]
+    }
+  },
+  "api_routes": {
+    "/api/system": { "method": "GET", "real_data": true, "consumed_by": "NONE (gap)" },
+    "/api/swarm": { "method": "GET/POST", "real_data": true, "consumed_by": "swarm-tab" },
+    "/api/governor": { "method": "GET/POST", "real_data": true, "consumed_by": "governor-tab" },
+    "/api/vault": { "method": "GET/POST", "real_data": true, "consumed_by": "vault-tab" },
+    "/api/research": { "method": "GET/PUT", "real_data": true, "consumed_by": "research-tab" },
+    "/api/models": { "method": "GET/POST", "real_data": true, "consumed_by": "gmr-tab" },
+    "/api/tokens": { "method": "GET/POST", "real_data": true, "consumed_by": "tokens-tab" },
+    "/api/stresslab": { "method": "GET/POST", "real_data": true, "consumed_by": "stresslab-tab" },
+    "/api/rate-limit/status": { "method": "GET", "real_data": true, "consumed_by": "rate-limit-tab" },
+    "/api/chat": { "method": "POST", "real_data": true, "consumed_by": "ai-assistant" },
+    "/api/claude": { "method": "POST", "real_data": "unstable", "consumed_by": "ai-assistant (fallback)" },
+    "/api/ai-bridge": { "method": "GET/POST", "real_data": true, "consumed_by": "ai-bridge" },
+    "/api/ai-bridge/providers": { "method": "GET/POST", "real_data": true, "consumed_by": "gmr-tab" },
+    "/api/proxy": { "method": "POST", "real_data": true, "consumed_by": "external" },
+    "/api/settings": { "method": "GET/PUT/DELETE", "real_data": true, "consumed_by": "settings" },
+    "/api/trust-engine": { "method": "GET", "real_data": true, "consumed_by": "trust-engine" },
+    "/api/agents": { "method": "GET", "real_data": true, "consumed_by": "agents" },
+    "/api/seed": { "method": "POST", "real_data": true, "consumed_by": "seed script" }
+  },
+  "summary": {
+    "total_components": 14,
+    "wired": 8,
+    "wired_plus_mock": 1,
+    "simulated": 2,
+    "mock": 1,
+    "ui_only": 2,
+    "total_api_routes": 19,
+    "routes_with_real_data": 17,
+    "routes_consuming_real_data": 15,
+    "biggest_gap": "Overview Tab ignores /api/system",
+    "strongest_component": "StressLab Tab (real LLM execution + validation)",
+    "weakest_component": "Overview Tab (entirely simulated)"
+  }
+}

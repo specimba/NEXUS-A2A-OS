@@ -1,2406 +1,996 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Progress } from '@/components/ui/progress'
-import { Slider } from '@/components/ui/slider'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { BookOpen, ExternalLink, Flame, Target, Beaker, Search, X, Copy, CheckCircle2, ArrowUpRight, Plus, Play, Library, Loader2, ChevronRight, BarChart3, Zap, Timer, Pause, RotateCcw, Clock, CircleDot, AlertCircle, CalendarDays, Wand2, Activity, Shield, Sparkles, TrendingUp, BrainCircuit } from 'lucide-react'
-import { MiniAreaChart } from '@/components/nexus/charts'
-import { DataSourceBadge } from '@/components/nexus/data-source-badge'
-import { toast } from 'sonner'
-import { useApiData } from '@/hooks/use-api-data'
-import { useNexusStore } from '@/store/nexus-store'
-import { CONCEPT_META, ROLE_META, TIER_META } from '@/lib/dg/classification-engine'
-import type { ConceptId, ResearchRole, AdmissionTier } from '@/lib/dg/classification-engine'
+  BookOpen,
+  FileSearch,
+  CheckCircle2,
+  Clock,
+  Star,
+  ExternalLink,
+  Filter,
+  TrendingUp,
+  Search,
+  Loader2,
+  Sparkles,
+  Bot,
+  Send,
+  X,
+  Brain,
+  Shield,
+  Cpu,
+  Database,
+  MessageSquare,
+  ChevronRight,
+  Quote,
+  Eye,
+  Zap,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-interface PaperItem {
-  id: string          // DB cuid — used for API calls (PUT /api/research)
-  externalId?: string // Human-readable ID (e.g. arxiv-2603.23509) for display
-  title: string
-  relevance: number
-  task: string
-  deliverable?: string
-  status?: string
-  priority: 'P0' | 'P1' | 'P2'
-  arxivId?: string
-  domain?: string
-  // DG classification fields
-  admissionTier?: string | null
-  researchRole?: string | null
-  conceptIds?: string | null  // JSON string
-  projectFit?: string | null
-  dgFinalScore?: number | null
-  noveltyScore?: number | null
-  evidenceQuality?: number | null
-  promotable?: boolean | null
-  abstractSummary?: string | null
-}
+// ─── Types ─────────────────────────────────────────────────────────────────
 
-interface DGPaperFields {
+interface Paper {
   id: string
-  externalId: string | null
-  type: string
   title: string
+  authors: string[]
+  abstract: string
+  category: string
+  priority: string
+  relevance: number
+  novelty: number
+  status: 'vetted' | 'vetting' | 'queued'
+  year: number | null
+  citations: number
+  pdfUrl?: string
+  source?: string
+  researchRole?: string
+  projectFit?: string
+  dgScore?: number
+}
+
+interface AISuggestion {
+  title: string
+  relevanceReason: string
+  suggestedCategory: string
   relevanceScore: number
+}
+
+interface SearchResult {
+  papers: Paper[]
+  aiSuggestions: AISuggestion[]
+  query: string
+  totalFound: number
+  sources: { database: number; arxiv: number; aiSuggestions: number }
+}
+
+interface AnalysisResult {
+  summary: string
+  critique: string
+  relevance: string
+  concepts: string[]
+  implementationTask: string
   priorityTier: string
-  implementationTask: string | null
-  deliverable: string | null
-  isVetted: boolean
-  // DG classification fields
-  admissionTier?: string | null
-  researchRole?: string | null
-  conceptIds?: string | null
-  projectFit?: string | null
-  dgFinalScore?: number | null
-  noveltyScore?: number | null
-  evidenceQuality?: number | null
-  promotable?: boolean | null
-  abstractSummary?: string | null
 }
 
-interface ResearchApiResponse {
-  papers: DGPaperFields[]
-  p0: DGPaperFields[]
-  p1: DGPaperFields[]
-  p2: DGPaperFields[]
-  total: number
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
 }
 
-function mapApiPaperToItem(p: DGPaperFields): PaperItem {
-  const task = p.implementationTask || 'No task assigned'
-  const status = task === 'In progress' ? 'in_progress' : task === 'No task assigned' ? undefined : 'pending'
-  return {
-    id: p.id,
-    externalId: p.externalId || undefined,
-    title: p.title,
-    relevance: p.relevanceScore,
-    task,
-    deliverable: p.deliverable || undefined,
-    status,
-    priority: p.priorityTier as 'P0' | 'P1' | 'P2',
-    // DG classification fields
-    admissionTier: p.admissionTier,
-    researchRole: p.researchRole,
-    conceptIds: p.conceptIds,
-    projectFit: p.projectFit,
-    dgFinalScore: p.dgFinalScore,
-    noveltyScore: p.noveltyScore,
-    evidenceQuality: p.evidenceQuality,
-    promotable: p.promotable,
-    abstractSummary: p.abstractSummary,
-  }
-}
+// ─── Enhanced Mock Data (fallback when API is unavailable) ─────────────────
 
-function getArxivUrl(id: string): string | null {
-  const match = id.match(/(\d{4}\.\d{4,5})/)
-  if (match) {
-    return `https://arxiv.org/abs/${match[1]}`
-  }
-  return null
-}
-
-/** Get color classes for a DG role badge */
-function getRoleBadgeClasses(role: string | null | undefined): string {
-  const meta = ROLE_META[role as ResearchRole]
-  if (!meta) return 'bg-gray-600/15 text-gray-600 dark:text-gray-400 border-0'
-  switch (meta.color) {
-    case 'orange': return 'bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0'
-    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
-    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
-    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
-    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
-    case 'teal': return 'bg-teal-600/15 text-teal-600 dark:text-teal-400 border-0'
-    case 'amber': return 'bg-amber-600/15 text-amber-600 dark:text-amber-400 border-0'
-    case 'cyan': return 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400 border-0'
-    case 'yellow': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0'
-    case 'gray': default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-  }
-}
-
-/** Get color classes for a DG tier badge */
-function getTierBadgeClasses(tier: string | null | undefined): string {
-  const meta = TIER_META[tier as AdmissionTier]
-  if (!meta) return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-  switch (meta.color) {
-    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
-    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
-    case 'yellow': return 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400 border-0'
-    case 'gray': return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
-    case 'muted': return 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-0'
-    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
-    default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-  }
-}
-
-/** Get color classes for a concept badge */
-function getConceptBadgeClasses(conceptId: string): string {
-  const meta = CONCEPT_META[conceptId as ConceptId]
-  if (!meta) return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-  switch (meta.color) {
-    case 'blue': return 'bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0'
-    case 'emerald': return 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0'
-    case 'purple': return 'bg-purple-600/15 text-purple-600 dark:text-purple-400 border-0'
-    case 'orange': return 'bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0'
-    case 'amber': return 'bg-amber-600/15 text-amber-600 dark:text-amber-400 border-0'
-    case 'red': return 'bg-red-600/15 text-red-600 dark:text-red-400 border-0'
-    case 'teal': return 'bg-teal-600/15 text-teal-600 dark:text-teal-400 border-0'
-    default: return 'bg-gray-600/15 text-gray-500 dark:text-gray-400 border-0'
-  }
-}
-
-/** Parse conceptIds JSON string into an array */
-function parseConceptIds(conceptIds: string | null | undefined): string[] {
-  if (!conceptIds) return []
-  try {
-    const parsed = JSON.parse(conceptIds)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-/** Render DG mini badges for a paper card (compact inline) */
-function DGMiniBadges({ paper }: { paper: PaperItem }) {
-  const roleMeta = ROLE_META[paper.researchRole as ResearchRole]
-  const tierMeta = TIER_META[paper.admissionTier as AdmissionTier]
-  const concepts = parseConceptIds(paper.conceptIds)
-  const hasDG = paper.dgFinalScore !== null && paper.dgFinalScore !== undefined && paper.dgFinalScore > 0
-
-  if (!hasDG && !roleMeta && !tierMeta) return null
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-      {tierMeta && (
-        <Badge className={`${getTierBadgeClasses(paper.admissionTier)} text-[8px] px-1.5 py-0 h-4`}>
-          {tierMeta.label}
-        </Badge>
-      )}
-      {roleMeta && (
-        <Badge className={`${getRoleBadgeClasses(paper.researchRole)} text-[8px] px-1.5 py-0 h-4`}>
-          {roleMeta.label}
-        </Badge>
-      )}
-      {hasDG && (
-        <div className="flex items-center gap-1">
-          <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-              style={{ width: `${Math.min(((paper.dgFinalScore ?? 0) / 15) * 100, 100)}%` }}
-            />
-          </div>
-          <span className="text-[8px] text-muted-foreground tabular-nums">{paper.dgFinalScore}/15</span>
-        </div>
-      )}
-      {concepts.slice(0, 2).map((cid) => {
-        const cmeta = CONCEPT_META[cid as ConceptId]
-        return cmeta ? (
-          <Badge key={cid} className={`${getConceptBadgeClasses(cid)} text-[7px] px-1 py-0 h-4`}>
-            {cmeta.title}
-          </Badge>
-        ) : null
-      })}
-      {concepts.length > 2 && (
-        <span className="text-[7px] text-muted-foreground">+{concepts.length - 2}</span>
-      )}
-    </div>
-  )
-}
-
-function getPriorityConfig(priority: PaperItem['priority']) {
-  switch (priority) {
-    case 'P0':
-      return {
-        icon: Flame,
-        label: 'P0 — Implement Now',
-        color: 'red',
-        bgColor: 'bg-red-600/15',
-        textColor: 'text-red-600 dark:text-red-400',
-        borderColor: 'border-red-600/20',
-        gradientFrom: 'from-red-600/10',
-        gradientTo: 'to-red-600/5',
-        explanation: 'P0: Critical implementation items. Must be completed in the current sprint. Directly impacts system safety or core functionality.',
-      }
-    case 'P1':
-      return {
-        icon: Target,
-        label: 'P1 — Next Sprint',
-        color: 'orange',
-        bgColor: 'bg-orange-600/15',
-        textColor: 'text-orange-600 dark:text-orange-400',
-        borderColor: 'border-orange-600/20',
-        gradientFrom: 'from-orange-600/10',
-        gradientTo: 'to-orange-600/5',
-        explanation: 'P1: High-priority items for the next sprint. Strong relevance to NEXUS architecture with clear integration paths.',
-      }
-    case 'P2':
-      return {
-        icon: Beaker,
-        label: 'P2 — Research',
-        color: 'emerald',
-        bgColor: 'bg-emerald-600/15',
-        textColor: 'text-emerald-600 dark:text-emerald-400',
-        borderColor: 'border-emerald-600/20',
-        gradientFrom: 'from-emerald-600/10',
-        gradientTo: 'to-emerald-600/5',
-        explanation: 'P2: Research-grade items. Valuable insights for future development but no immediate implementation requirement.',
-      }
-  }
-}
-
-const practiceSteps = [
-  { step: '1', name: 'INTAKE', desc: 'Collect up to 20 links, deduplicate, prioritize by NEXUS relevance', time: '5 min' },
-  { step: '2', name: 'VETTING', desc: 'Extract abstract, conclusion, score relevance 0-1, map to modules', time: '15 min' },
-  { step: '3', name: 'MANIFEST', desc: 'Output papers_manifest with all structured fields', time: '5 min' },
-  { step: '4', name: 'PRIORITY', desc: 'Sort by relevance, tier into P0/P1/P2 with concrete tasks', time: '5 min' },
-  { step: '5', name: 'DELIVER', desc: 'Save manifest + queue, provide download, log to VAP chain', time: '2 min' },
+const mockPapers: Paper[] = [
+  {
+    id: 'mock-1',
+    title: 'OR-Bench: Over-Refusal Benchmark for LLM Safety Evaluation',
+    authors: ['Cui et al.'],
+    abstract: 'We propose OR-Bench, a comprehensive benchmark for evaluating over-refusal behavior in large language models. Our benchmark includes 1,000+ test cases across multiple safety categories, measuring both under-refusal and over-refusal rates.',
+    category: 'Safety',
+    priority: 'P1',
+    relevance: 95,
+    novelty: 88,
+    status: 'vetted',
+    year: 2024,
+    citations: 47,
+    pdfUrl: 'https://arxiv.org/abs/2401.12345',
+    researchRole: 'safety',
+    dgScore: 12,
+  },
+  {
+    id: 'mock-2',
+    title: 'Chain-of-Thought Hub: Reasoning Evaluation Framework',
+    authors: ['Li et al.'],
+    abstract: 'Chain-of-Thought Hub provides a systematic framework for evaluating the reasoning capabilities of large language models. We benchmark 20+ models across mathematical, logical, and commonsense reasoning tasks.',
+    category: 'Evaluation',
+    priority: 'P1',
+    relevance: 92,
+    novelty: 76,
+    status: 'vetted',
+    year: 2024,
+    citations: 83,
+    pdfUrl: 'https://arxiv.org/abs/2401.12346',
+    researchRole: 'evaluation',
+    dgScore: 11,
+  },
+  {
+    id: 'mock-3',
+    title: 'AgentBench: Multi-dimensional LLM Agent Evaluation',
+    authors: ['Liu et al.'],
+    abstract: 'AgentBench evaluates LLM-based agents across 8 distinct environments including coding, web browsing, and database management. Our results reveal significant gaps between model capabilities and real-world agent performance.',
+    category: 'Agents',
+    priority: 'P2',
+    relevance: 87,
+    novelty: 82,
+    status: 'vetting',
+    year: 2024,
+    citations: 124,
+    pdfUrl: 'https://arxiv.org/abs/2401.12347',
+    researchRole: 'benchmark',
+    dgScore: 9,
+  },
+  {
+    id: 'mock-4',
+    title: 'Self-RAG: Learning to Retrieve and Generate Through Self-Reflection',
+    authors: ['Asai et al.'],
+    abstract: 'Self-RAG introduces a framework where language models learn to retrieve, generate, and critique through self-reflection. Our approach achieves state-of-the-art results on multiple QA and reasoning benchmarks.',
+    category: 'RAG',
+    priority: 'P2',
+    relevance: 84,
+    novelty: 90,
+    status: 'vetting',
+    year: 2024,
+    citations: 215,
+    pdfUrl: 'https://arxiv.org/abs/2401.12348',
+    researchRole: 'memory',
+    dgScore: 10,
+  },
+  {
+    id: 'mock-5',
+    title: 'Mixture-of-Agents Enhances Large Language Model Performance',
+    authors: ['Wang et al.'],
+    abstract: 'We propose Mixture-of-Agents (MoA), a novel architecture that leverages multiple LLM agents collaboratively to achieve superior performance. MoA outperforms single-model approaches on 6 benchmarks.',
+    category: 'Architecture',
+    priority: 'P2',
+    relevance: 81,
+    novelty: 73,
+    status: 'queued',
+    year: 2024,
+    citations: 56,
+    pdfUrl: 'https://arxiv.org/abs/2401.12349',
+    researchRole: 'implementation',
+    dgScore: 8,
+  },
+  {
+    id: 'mock-6',
+    title: 'Constitutional AI: Harmlessness from AI Feedback',
+    authors: ['Bai et al.'],
+    abstract: 'We present Constitutional AI, an approach for training AI systems to be harmless through AI feedback. Our method uses a set of principles to guide the model behavior, reducing harmful outputs by 60%.',
+    category: 'Safety',
+    priority: 'P3',
+    relevance: 78,
+    novelty: 65,
+    status: 'queued',
+    year: 2023,
+    citations: 892,
+    pdfUrl: 'https://arxiv.org/abs/2212.08073',
+    researchRole: 'safety',
+    dgScore: 7,
+  },
+  {
+    id: 'mock-7',
+    title: 'ToolLLM: Facilitating Large Language Models to Master Tools',
+    authors: ['Qin et al.'],
+    abstract: 'ToolLLM is a framework for training LLMs to effectively use external tools. We construct ToolBench, a dataset of 16,000+ real-world API interactions, and demonstrate significant improvements in tool-use accuracy.',
+    category: 'Tools',
+    priority: 'P3',
+    relevance: 75,
+    novelty: 70,
+    status: 'queued',
+    year: 2024,
+    citations: 178,
+    pdfUrl: 'https://arxiv.org/abs/2307.16789',
+    researchRole: 'harness',
+    dgScore: 7,
+  },
+  {
+    id: 'mock-8',
+    title: 'TrustGPT: A Benchmark for Trustworthy Large Language Models',
+    authors: ['Huang et al.'],
+    abstract: 'TrustGPT evaluates LLM trustworthiness across toxicity, bias, and robustness dimensions. Our benchmark reveals that even state-of-the-art models exhibit concerning behaviors in adversarial settings.',
+    category: 'Safety',
+    priority: 'P3',
+    relevance: 72,
+    novelty: 61,
+    status: 'queued',
+    year: 2023,
+    citations: 142,
+    pdfUrl: 'https://arxiv.org/abs/2306.08092',
+    researchRole: 'safety',
+    dgScore: 6,
+  },
 ]
 
-const domainOptions = [
-  { value: 'ai-ml', label: 'AI / Machine Learning' },
-  { value: 'safety', label: 'Safety & Alignment' },
-  { value: 'systems', label: 'Systems & Infrastructure' },
-  { value: 'architecture', label: 'Architecture & Design' },
-  { value: 'security', label: 'Security & Cryptography' },
-  { value: 'nlp', label: 'NLP & Language Models' },
-  { value: 'other', label: 'Other' },
-]
+// ─── Constants ──────────────────────────────────────────────────────────────
 
-function AddToQueueDialog({ open, onOpenChange, onAdd }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onAdd: (paper: PaperItem) => void
-}) {
-  const [title, setTitle] = useState('')
-  const [paperId, setPaperId] = useState('')
-  const [arxivId, setArxivId] = useState('')
-  const [taskDesc, setTaskDesc] = useState('')
-  const [priority, setPriority] = useState('')
-  const [domain, setDomain] = useState('')
-  const [relevance, setRelevance] = useState([75])
+const CATEGORIES = ['All', 'Safety', 'Evaluation', 'Agents', 'RAG', 'Architecture', 'Tools'] as const
 
-  const handleAdd = () => {
-    if (!title || !paperId || !taskDesc || !priority) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-    onAdd({
-      id: paperId,
-      title,
-      relevance: relevance[0] / 100,
-      task: taskDesc,
-      priority: priority as 'P0' | 'P1' | 'P2',
-      status: 'pending',
-      arxivId: arxivId || undefined,
-      domain: domain || undefined,
-    })
-    setTitle('')
-    setPaperId('')
-    setArxivId('')
-    setTaskDesc('')
-    setPriority('')
-    setDomain('')
-    setRelevance([75])
-    onOpenChange(false)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            Add Paper to Queue
-          </DialogTitle>
-          <DialogDescription>Add a new research paper or repo to the NEXUS priority queue</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Paper Title *</label>
-            <Input
-              placeholder="e.g. Safety Alignment in LLMs"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="h-9 text-xs"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Paper ID *</label>
-            <Input
-              placeholder="e.g. arxiv-2605.12345 or repo-name"
-              value={paperId}
-              onChange={(e) => setPaperId(e.target.value)}
-              className="h-9 text-xs font-mono"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium">arXiv ID</label>
-            <Input
-              placeholder="e.g. 2605.12345"
-              value={arxivId}
-              onChange={(e) => setArxivId(e.target.value)}
-              className="h-9 text-xs font-mono"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Domain</label>
-            <Select value={domain} onValueChange={setDomain}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Select domain..." />
-              </SelectTrigger>
-              <SelectContent>
-                {domainOptions.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Task Description *</label>
-            <Textarea
-              placeholder="Describe the integration task for NEXUS..."
-              value={taskDesc}
-              onChange={(e) => setTaskDesc(e.target.value)}
-              className="min-h-[80px] text-xs"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Priority Tier *</label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Select priority..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="P0">
-                  <span className="flex items-center gap-1.5">
-                    <Flame className="h-3 w-3 text-red-600 dark:text-red-400" /> P0 — Implement Now
-                  </span>
-                </SelectItem>
-                <SelectItem value="P1">
-                  <span className="flex items-center gap-1.5">
-                    <Target className="h-3 w-3 text-orange-600 dark:text-orange-400" /> P1 — Next Sprint
-                  </span>
-                </SelectItem>
-                <SelectItem value="P2">
-                  <span className="flex items-center gap-1.5">
-                    <Beaker className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> P2 — Research
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium">Relevance Score</label>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{relevance[0]}%</span>
-            </div>
-            <Slider
-              value={relevance}
-              onValueChange={setRelevance}
-              min={0}
-              max={100}
-              step={1}
-              className="[&_[data-slot=slider-range]]:bg-emerald-500 [&_[data-slot=slider-thumb]]:border-emerald-500"
-            />
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>0%</span>
-              <span>100%</span>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            size="sm"
-            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-            onClick={handleAdd}
-            disabled={!title || !paperId || !taskDesc || !priority}
-          >
-            <Plus className="h-3 w-3" />
-            Add Paper
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+const vettingStatus: Record<string, { color: string; icon: typeof CheckCircle2 }> = {
+  vetted: { color: 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400', icon: CheckCircle2 },
+  vetting: { color: 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400', icon: Clock },
+  queued: { color: 'bg-slate-500/20 text-slate-500 dark:text-slate-400', icon: FileSearch },
 }
 
-function DailyPracticeTimerCard() {
-  const {
-    timerStartedAt,
-    timerIsRunning,
-    timerDuration,
-    timerElapsedOnPause,
-    startTimer,
-    pauseTimer,
-    resetTimer,
-    setTimerIsRunning,
-  } = useNexusStore()
+const priorityColors: Record<string, string> = {
+  P0: 'bg-red-600/20 text-red-600 dark:text-red-400 border-red-600/30',
+  P1: 'bg-orange-600/20 text-orange-600 dark:text-orange-400 border-orange-600/30',
+  P2: 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400 border-yellow-600/30',
+  P3: 'bg-slate-500/20 text-slate-500 dark:text-slate-400 border-slate-500/30',
+}
 
-  const [tick, setTick] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+const categoryIcons: Record<string, typeof Shield> = {
+  Safety: Shield,
+  Evaluation: Eye,
+  Agents: Cpu,
+  RAG: Database,
+  Architecture: Zap,
+  Tools: Sparkles,
+}
 
-  // Compute elapsed from store state: paused elapsed + (now - startedAt) if running
-  const elapsed = timerIsRunning && timerStartedAt
-    ? Math.min(timerElapsedOnPause + Math.floor((Date.now() - timerStartedAt) / 1000), timerDuration)
-    : timerElapsedOnPause
+// ─── Sub-components ─────────────────────────────────────────────────────────
 
-  // Force re-render every second while running so the display updates
-  useEffect(() => {
-    if (timerIsRunning) {
-      intervalRef.current = setInterval(() => {
-        setTick((t) => t + 1)
-      }, 1000)
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [timerIsRunning])
-
-  // Check for completion
-  useEffect(() => {
-    if (elapsed >= timerDuration && timerIsRunning) {
-      setTimerIsRunning(false)
-      pauseTimer()
-      toast.success('Practice session complete!', {
-        description: '32 minutes elapsed — great work!',
-      })
-    }
-  }, [elapsed, timerDuration, timerIsRunning, setTimerIsRunning, pauseTimer])
-
-  const remaining = Math.max(timerDuration - elapsed, 0)
-  const progressPct = Math.min((elapsed / timerDuration) * 100, 100)
-  const isLowTime = remaining < 5 * 60 && remaining > 0
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60)
-    const s = secs % 60
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  }
-
-  const handleStart = useCallback(() => {
-    startTimer()
-  }, [startTimer])
-
-  const handlePause = useCallback(() => {
-    pauseTimer()
-  }, [pauseTimer])
-
-  const handleReset = useCallback(() => {
-    resetTimer()
-  }, [resetTimer])
-
+function StatCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: typeof BookOpen; color: string }) {
   return (
-    <Card className={`relative overflow-hidden shadow-lg hover-lift transition-colors ${isLowTime ? 'border-red-500/40 shadow-red-500/10' : 'border-emerald-600/20 shadow-emerald-600/5'}`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${isLowTime ? 'from-red-600/10 via-transparent to-red-600/5' : 'from-emerald-600/5 via-transparent to-transparent'}`} />
-      <CardHeader className="relative pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Timer className={`h-4 w-4 ${isLowTime ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`} /> Daily Practice Timer
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="relative p-4 pt-0 space-y-4">
-        {/* Timer Display */}
-        <div className="flex items-center justify-center gap-6">
-          <div className="text-center">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Elapsed</p>
-            <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatTime(elapsed)}</p>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-full border-2 ${isLowTime ? 'border-red-500/40 bg-red-500/10' : 'border-emerald-600/30 bg-emerald-600/10'}`}>
-              <Clock className={`h-7 w-7 ${isLowTime ? 'text-red-500 animate-pulse' : 'text-emerald-600 dark:text-emerald-400'}`} />
-            </div>
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Remaining</p>
-            <p className={`text-2xl font-bold tabular-nums ${isLowTime ? 'text-red-600 dark:text-red-400' : remaining === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{formatTime(remaining)}</p>
+    <Card className="bg-card/50 border-border/50">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Icon className={cn('h-4 w-4', color)} />
+            <span className="text-xs text-muted-foreground">{label}</span>
           </div>
         </div>
-
-        {/* Progress Bar */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>0:00</span>
-            <span>32:00</span>
-          </div>
-          <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ${isLowTime ? 'bg-red-500' : 'bg-emerald-500'}`}
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+        <div className="mt-2">
+          <span className={cn('text-2xl font-bold', color)}>{value}</span>
         </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-center gap-2">
-          {!timerIsRunning ? (
-            <Button
-              size="sm"
-              className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={handleStart}
-              disabled={remaining === 0}
-            >
-              <Play className="h-3.5 w-3.5" />
-              {elapsed === 0 ? 'Start' : 'Resume'}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 text-xs"
-              onClick={handlePause}
-            >
-              <Pause className="h-3.5 w-3.5" />
-              Pause
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 gap-1.5 text-xs"
-            onClick={handleReset}
-            disabled={elapsed === 0 && !timerIsRunning}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </Button>
-        </div>
-
-        {/* Low time warning */}
-        {isLowTime && timerIsRunning && (
-          <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2">
-            <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-            <span className="text-xs text-red-600 dark:text-red-400">Less than 5 minutes remaining!</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   )
 }
 
-export function ResearchTab() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterAdmissionTier, setFilterAdmissionTier] = useState<string>('all')
-  const [filterResearchRole, setFilterResearchRole] = useState<string>('all')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [selectedPaper, setSelectedPaper] = useState<PaperItem | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [addToQueueOpen, setAddToQueueOpen] = useState(false)
-  const [practiceSessionActive, setPracticeSessionActive] = useState(false)
-  const [practiceStep, setPracticeStep] = useState(0)
-  const [localPapers, setLocalPapers] = useState<PaperItem[]>([])
-  const [alphaxivLoading, setAlphaxivLoading] = useState(false)
-  const [alphaxivResults, setAlphaxivResults] = useState<PaperItem[]>([])
-  const [alphaxivTopic, setAlphaxivTopic] = useState('')
-  const [arxivLoading, setArxivLoading] = useState(false)
-  const [arxivResults, setArxivResults] = useState<PaperItem[]>([])
-  const [arxivQuery, setArxivQuery] = useState('')
-  const [arxivCategory, setArxivCategory] = useState('all')
-  const [arxivSort, setArxivSort] = useState('relevance')
-  const [autoGenLoading, setAutoGenLoading] = useState(false)
-  const [pipelineLoading, setPipelineLoading] = useState(false)
-  const [analyzingPaperId, setAnalyzingPaperId] = useState<string | null>(null)
-  const [analyzeQueueLoading, setAnalyzeQueueLoading] = useState<'P0' | 'P1' | null>(null)
-  const [pipelineStatus, setPipelineStatus] = useState<{
-    pipeline: { stages: Record<string, number>; totalPapers: number; throughputRate: number }
-    metrics: { avgDgScore: number; avgRelevance: number; deliveredPapers: number; throughputPercent: number }
-    bottleneck: { stage: string; paperCount: number; percentage: number; recommendation: string }
-  } | null>(null)
-
-  const { data: apiData, loading, error: apiError, refetch } = useApiData<ResearchApiResponse>('/api/research', 30000)
-
-  // Map API data to PaperItems
-  const apiP0: PaperItem[] = (apiData?.p0 || []).map(mapApiPaperToItem)
-  const apiP1: PaperItem[] = (apiData?.p1 || []).map(mapApiPaperToItem)
-  const apiP2: PaperItem[] = (apiData?.p2 || []).map(mapApiPaperToItem)
-
-  // Merge local papers (from "Add to Queue") with API papers — deduplicate by id
-  const apiIds = new Set([...apiP0, ...apiP1, ...apiP2].map(p => p.id))
-  const allP0 = [...apiP0, ...localPapers.filter(p => p.priority === 'P0' && !apiIds.has(p.id))]
-  const allP1 = [...apiP1, ...localPapers.filter(p => p.priority === 'P1' && !apiIds.has(p.id))]
-  const allP2 = [...apiP2, ...localPapers.filter(p => p.priority === 'P2' && !apiIds.has(p.id))]
-
-  const isSearchActive = searchQuery !== ''
-
-  const filterPapers = (papers: PaperItem[]) => {
-    if (!searchQuery) return papers
-    const q = searchQuery.toLowerCase()
-    return papers.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q) ||
-        p.task.toLowerCase().includes(q) ||
-        (p.externalId && p.externalId.toLowerCase().includes(q)) ||
-        (p.domain && p.domain.toLowerCase().includes(q)) ||
-        (p.arxivId && p.arxivId.toLowerCase().includes(q)) ||
-        (p.admissionTier && p.admissionTier.toLowerCase().includes(q)) ||
-        (p.researchRole && p.researchRole.toLowerCase().includes(q)) ||
-        (p.projectFit && p.projectFit.toLowerCase().includes(q)) ||
-        (p.conceptIds && p.conceptIds.toLowerCase().includes(q)) ||
-        (p.abstractSummary && p.abstractSummary.toLowerCase().includes(q))
-    )
-  }
-
-  const filteredP0 = filterPapers(allP0)
-  const filteredP1 = filterPapers(allP1)
-  const filteredP2 = filterPapers(allP2)
-
-  const totalFiltered = filteredP0.length + filteredP1.length + filteredP2.length
-  const totalAll = allP0.length + allP1.length + allP2.length
-
-  const openPaperDialog = (paper: PaperItem) => {
-    setSelectedPaper(paper)
-    setDialogOpen(true)
-    setCopied(false)
-  }
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      toast.success('Copied to clipboard', { description: text })
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error('Failed to copy')
-    }
-  }
-
-  const handleMarkInProgress = async () => {
-    if (!selectedPaper) return
-    try {
-      const res = await fetch('/api/research', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paperId: selectedPaper.id,
-          updates: { implementationTask: 'In progress' },
-        }),
-      })
-      if (res.ok) {
-        toast.success('Status updated', {
-          description: `"${selectedPaper.title}" marked as In Progress`,
-        })
-        refetch()
-      } else {
-        const err = await res.json()
-        toast.error('Failed to update status', { description: err.error || 'Unknown error' })
-      }
-    } catch {
-      toast.error('Failed to update status', { description: 'Network error' })
-    }
-  }
-
-  const handlePriorityChange = async (paperId: string, newTier: 'P0' | 'P1' | 'P2') => {
-    try {
-      const res = await fetch('/api/research', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paperId,
-          updates: { priorityTier: newTier },
-        }),
-      })
-      if (res.ok) {
-        toast.success('Priority updated', {
-          description: `Paper moved to ${newTier} queue`,
-        })
-        refetch()
-      } else {
-        const err = await res.json()
-        toast.error('Failed to update priority', { description: err.error || 'Unknown error' })
-      }
-    } catch {
-      toast.error('Failed to update priority', { description: 'Network error' })
-    }
-  }
-
-  const handleAddPaper = async (paper: PaperItem) => {
-    // Save to database first so priority/status changes work
-    try {
-      const res = await fetch('/api/research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: paper.title,
-          externalId: paper.externalId || paper.id,
-          priorityTier: paper.priority,
-          relevanceScore: paper.relevance,
-          implementationTask: paper.task,
-          deliverable: paper.deliverable,
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        // Use the DB ID returned from the server
-        const dbPaper: PaperItem = { ...paper, id: data.paper?.id || paper.id }
-        setLocalPapers((prev) => [...prev, dbPaper])
-        toast.success('Paper saved to database', {
-          description: `"${paper.title}" → ${paper.priority} queue`,
-        })
-      } else {
-        // Fallback to local-only
-        setLocalPapers((prev) => [...prev, paper])
-        toast.success('Paper added to local queue', {
-          description: `"${paper.title}" → ${paper.priority} queue (DB save failed)`,
-        })
-      }
-    } catch {
-      setLocalPapers((prev) => [...prev, paper])
-      toast.success('Paper added to local queue', {
-        description: `"${paper.title}" → ${paper.priority} queue (offline)`,
-      })
-    }
-  }
-
-  const handleStartPracticeSession = () => {
-    setPracticeSessionActive(true)
-    setPracticeStep(0)
-    toast.success('Practice session started', {
-      description: 'INTAKE phase — collecting links...',
-      duration: 3000,
-    })
-    // Simulate progression through steps
-    const stepDurations = [5000, 15000, 5000, 5000, 2000]
-    let elapsed = 0
-    stepDurations.forEach((dur, i) => {
-      elapsed += dur
-      setTimeout(() => {
-        if (i < 4) {
-          setPracticeStep(i + 1)
-          const stepNames = ['INTAKE', 'VETTING', 'MANIFEST', 'PRIORITY', 'DELIVER']
-          toast.info(`${stepNames[i + 1]} phase started`, { duration: 2000 })
-        } else {
-          setPracticeSessionActive(false)
-          toast.success('Practice session complete', {
-            description: 'Manifest saved to VAP chain',
-          })
-        }
-      }, elapsed)
-    })
-  }
-
-  const handleFetchAlphaxiv = async () => {
-    setAlphaxivLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (alphaxivTopic) params.set('topic', alphaxivTopic)
-      params.set('max', '10')
-      const res = await fetch(`/api/alphaxiv?${params.toString()}`)
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error('Alphaxiv fetch failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; snippet: string; relevanceScore: number; url: string; isNew?: boolean }) => ({
-        // Use DB ID if available (so priority/status changes work), fall back to search ID
-        id: p.dbId || p.id,
-        title: p.title,
-        relevance: p.relevanceScore ?? 0.5,
-        task: 'Pending review',
-        deliverable: p.url,
-        status: 'pending' as const,
-        priority: (p.relevanceScore ?? 0.5) > 0.7 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.4 ? 'P1' as const : 'P2' as const,
-        domain: 'alphaxiv',
-      }))
-      setAlphaxivResults(mapped)
-      const savedInfo = data.savedToDb ? ` (${data.savedToDb.new} new, ${data.savedToDb.existing} existing saved to DB)` : ''
-      toast.success(`Found ${mapped.length} papers via Alphaxiv${savedInfo}`, {
-        description: 'Papers saved to database — priority and status changes now work!',
-      })
-      // Also refetch the main research list so new papers appear in the queue
-      refetch()
-    } catch {
-      toast.error('Alphaxiv fetch failed', { description: 'Network error' })
-    } finally {
-      setAlphaxivLoading(false)
-    }
-  }
-
-  const handleFetchArxiv = async () => {
-    setArxivLoading(true)
-    try {
-      const params = new URLSearchParams()
-      params.set('q', arxivQuery || 'multi-agent AI systems governance')
-      params.set('max', '10')
-      if (arxivCategory && arxivCategory !== 'all') params.set('category', arxivCategory)
-      if (arxivSort) params.set('sort', arxivSort)
-      const res = await fetch(`/api/arxiv?${params.toString()}`)
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error('arXiv fetch failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
-        id: p.dbId || p.id,
-        externalId: p.id,
-        title: p.title,
-        relevance: p.relevanceScore ?? 0.5,
-        task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
-        deliverable: p.pdfUrl,
-        status: 'pending' as const,
-        priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
-        arxivId: p.arxivId,
-        domain: 'arxiv',
-      }))
-      setArxivResults(mapped)
-      const newCount = data.newCount || 0
-      const existingCount = data.existingCount || 0
-      toast.success(`Found ${mapped.length} papers via arXiv`, {
-        description: `${newCount} new, ${existingCount} existing saved to DB. Provider: ${data.provider}`,
-      })
-      refetch()
-    } catch {
-      toast.error('arXiv fetch failed', { description: 'Network error — check arXiv API connectivity' })
-    } finally {
-      setArxivLoading(false)
-    }
-  }
-
-  const handleFetchArxivTrending = async () => {
-    setArxivLoading(true)
-    try {
-      const res = await fetch('/api/arxiv?trending=true&max=15')
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error('arXiv trending fetch failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
-        id: p.dbId || p.id,
-        externalId: p.id,
-        title: p.title,
-        relevance: p.relevanceScore ?? 0.5,
-        task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
-        deliverable: p.pdfUrl,
-        status: 'pending' as const,
-        priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
-        arxivId: p.arxivId,
-        domain: 'arxiv',
-      }))
-      setArxivResults(mapped)
-      toast.success(`Fetched ${mapped.length} trending arXiv papers`, {
-        description: `Provider: ${data.provider} · ${data.newCount || 0} new papers`,
-      })
-      refetch()
-    } catch {
-      toast.error('arXiv trending fetch failed', { description: 'Network error' })
-    } finally {
-      setArxivLoading(false)
-    }
-  }
-
-  const handleAutoGenerateTasks = async () => {
-    setAutoGenLoading(true)
-    try {
-      // First, preview what would be generated
-      const previewRes = await fetch('/api/tasks/auto-generate')
-      if (!previewRes.ok) {
-        const err = await previewRes.json()
-        toast.error('Auto-generate preview failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const preview = await previewRes.json()
-      const eligibleCount = preview.eligiblePapers?.length || 0
-
-      if (eligibleCount === 0) {
-        toast.info('No papers need task generation', {
-          description: 'All P0/P1 papers already have associated tasks.',
-        })
-        return
-      }
-
-      // Now generate the tasks
-      const genRes = await fetch('/api/tasks/auto-generate', { method: 'POST' })
-      if (!genRes.ok) {
-        const err = await genRes.json()
-        toast.error('Auto-generate failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const result = await genRes.json()
-      const generated = result.summary?.generated || 0
-      const skipped = result.summary?.skipped || 0
-
-      toast.success(`Generated ${generated} tasks from research papers`, {
-        description: skipped > 0 ? `${skipped} papers skipped (already have tasks)` : `${eligibleCount} papers processed`,
-      })
-      refetch()
-    } catch {
-      toast.error('Auto-generate failed', { description: 'Network error' })
-    } finally {
-      setAutoGenLoading(false)
-    }
-  }
-
-  const handleRunAnalysisPipeline = async () => {
-    setPipelineLoading(true)
-    try {
-      const res = await fetch('/api/research/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: false }),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error('Analysis pipeline failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const stages = data.stages || {}
-      const summary = data.summary || {}
-      const stageSummaries = Object.entries(stages).map(([stageName, r]: [string, any]) =>
-        `${stageName}: ${r.succeeded}/${r.processed}`
-      ).join(' · ')
-
-      toast.success('DG Analysis Pipeline Complete', {
-        description: stageSummaries || `${summary.totalPapers || 0} papers processed`,
-      })
-      refetch()
-      // Also refresh pipeline status
-      fetchPipelineStatus()
-    } catch {
-      toast.error('Analysis pipeline failed', { description: 'Network error' })
-    } finally {
-      setPipelineLoading(false)
-    }
-  }
-
-  const fetchPipelineStatus = async () => {
-    try {
-      const res = await fetch('/api/research/analyze')
-      if (res.ok) {
-        const data = await res.json()
-        setPipelineStatus(data)
-      }
-    } catch {
-      // Silently fail
-    }
-  }
-
-  const handleAnalyzePaper = async (paperId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
-    setAnalyzingPaperId(paperId)
-    try {
-      const res = await fetch('/api/research/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paperId }),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error('Analysis failed', { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const succeeded = data.results?.filter((r: { success?: boolean }) => r.success).length || 0
-      toast.success('Paper analyzed', {
-        description: succeeded > 0 ? 'LLM analysis complete — paper updated with DG scores' : 'Analysis attempted but may have failed',
-      })
-      refetch()
-    } catch {
-      toast.error('Analysis failed', { description: 'Network error' })
-    } finally {
-      setAnalyzingPaperId(null)
-    }
-  }
-
-  const handleAnalyzeQueue = async (tier: 'P0' | 'P1') => {
-    setAnalyzeQueueLoading(tier)
-    try {
-      const res = await fetch('/api/research/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analyzeAll: true, tier }),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        toast.error(`Analyze ${tier} queue failed`, { description: err.error || 'Unknown error' })
-        return
-      }
-      const data = await res.json()
-      const total = data.totalAnalyzed || 0
-      const succeeded = data.results?.filter((r: { success?: boolean }) => r.success).length || 0
-      toast.success(`${tier} Queue Analysis Complete`, {
-        description: `${succeeded}/${total} papers analyzed successfully via LLM`,
-      })
-      refetch()
-      fetchPipelineStatus()
-    } catch {
-      toast.error(`Analyze ${tier} queue failed`, { description: 'Network error' })
-    } finally {
-      setAnalyzeQueueLoading(null)
-    }
-  }
+function PaperCard({
+  paper,
+  onAnalyze,
+  isAnalyzing,
+}: {
+  paper: Paper
+  onAnalyze: (paper: Paper) => void
+  isAnalyzing: boolean
+}) {
+  const status = vettingStatus[paper.status] || vettingStatus.queued
+  const StatusIcon = status.icon
+  const CategoryIcon = categoryIcons[paper.category] || BookOpen
 
   return (
-    <div className="space-y-6 p-6 grid-pattern-animated animate-fade-in">
-      {/* Loading state with shimmer skeletons */}
-      {loading && !apiData && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 animate-spin" />
-            <span className="text-sm text-muted-foreground">Loading research data...</span>
+    <div className="group p-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-emerald-500/20 transition-all duration-200 space-y-2">
+      {/* Title row */}
+      <div className="flex items-start gap-2">
+        <StatusIcon className={cn('h-4 w-4 shrink-0 mt-0.5', status.color.split(' ')[1])} />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            {paper.title}
           </div>
-          <div className="grid gap-4 md:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="relative overflow-hidden">
-                <CardContent className="relative p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="h-3 w-20 shimmer-skeleton" />
-                      <div className="mt-2 h-8 w-16 shimmer-skeleton" />
-                      <div className="mt-1 h-3 w-24 shimmer-skeleton" />
-                    </div>
-                    <div className="h-11 w-11 shimmer-skeleton rounded-xl" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-muted-foreground">{paper.authors.join(', ')}</span>
+            {paper.year && (
+              <span className="text-[10px] text-muted-foreground font-mono">({paper.year})</span>
+            )}
           </div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="relative overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 shimmer-skeleton rounded-md" />
-                    <div className="flex-1">
-                      <div className="h-3 w-48 shimmer-skeleton" />
-                      <div className="mt-2 h-4 w-72 shimmer-skeleton" />
-                      <div className="mt-2 h-2 w-full shimmer-skeleton" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        </div>
+        <Badge className={cn('text-[9px] h-4 border', priorityColors[paper.priority] || priorityColors.P3)}>
+          {paper.priority}
+        </Badge>
+      </div>
+
+      {/* Abstract preview */}
+      {paper.abstract && (
+        <div className="pl-6">
+          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+            {paper.abstract}
+          </p>
         </div>
       )}
 
-      {/* Search Bar + Add Button */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search papers by title, ID, or task..."
-            className="h-9 pl-8 pr-8 text-xs rounded-lg transition-colors hover:border-emerald-600/30 focus:border-emerald-600/50 focus-ring-enhanced"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+      {/* Metrics row */}
+      <div className="flex items-center gap-2 pl-6 flex-wrap">
+        <Badge variant="outline" className="text-[9px] h-4 gap-1">
+          <CategoryIcon className="h-2.5 w-2.5" />
+          {paper.category}
+        </Badge>
+        <div className="flex items-center gap-1 text-[10px]">
+          <TrendingUp className="h-3 w-3 text-muted-foreground" />
+          <span>Rel: <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">{paper.relevance}%</span></span>
         </div>
-        {isSearchActive && (
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {totalFiltered} of {totalAll} results found
-          </span>
+        <div className="flex items-center gap-1 text-[10px]">
+          <Star className="h-3 w-3 text-muted-foreground" />
+          <span>Nov: <span className="font-mono font-medium">{paper.novelty}%</span></span>
+        </div>
+        {paper.citations > 0 && (
+          <div className="flex items-center gap-1 text-[10px]">
+            <Quote className="h-3 w-3 text-muted-foreground" />
+            <span>Cit: <span className="font-mono font-medium">{paper.citations}</span></span>
+          </div>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 gap-1.5 text-xs border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 btn-press focus-ring-enhanced"
-          disabled={analyzeQueueLoading !== null || pipelineLoading}
-          onClick={() => handleAnalyzeQueue('P0')}
-        >
-          {analyzeQueueLoading === 'P0' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
-          Analyze P0
-        </Button>
-        <Button
-          size="sm"
-          className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white ml-auto btn-press focus-ring-enhanced"
-          onClick={() => setAddToQueueOpen(true)}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add to Queue
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 gap-1.5 text-xs border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 btn-press focus-ring-enhanced"
-          disabled={alphaxivLoading}
-          onClick={handleFetchAlphaxiv}
-        >
-          {alphaxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Library className="h-3.5 w-3.5" />}
-          Fetch Alphaxiv
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 gap-1.5 text-xs border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press focus-ring-enhanced"
-          disabled={arxivLoading}
-          onClick={handleFetchArxivTrending}
-        >
-          {arxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-          arXiv Trending
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 gap-1.5 text-xs border-purple-500/40 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 btn-press focus-ring-enhanced"
-          disabled={autoGenLoading}
-          onClick={handleAutoGenerateTasks}
-        >
-          {autoGenLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-          Auto-Gen Tasks
-        </Button>
+        {paper.dgScore != null && (
+          <div className="flex items-center gap-1 text-[10px]">
+            <Brain className="h-3 w-3 text-muted-foreground" />
+            <span>DG: <span className="font-mono font-medium">{paper.dgScore}</span></span>
+          </div>
+        )}
+        <Badge className={cn('text-[9px] h-4 border-0', status.color)}>
+          {paper.status}
+        </Badge>
+        {paper.source && (
+          <Badge variant="secondary" className="text-[8px] h-3">
+            {paper.source}
+          </Badge>
+        )}
       </div>
 
-      {/* Stats — Gradient Cards with Icon Badges + Hover Lift + Glow */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="relative overflow-hidden border-red-600/20 hover-lift priority-p0-glow">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-transparent" />
-          <CardContent className="relative p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P0 — Implement Now</p>
-                <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums animate-count-up">{filteredP0.length}</p>
-                <p className="text-[10px] text-muted-foreground">critical items</p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 shadow-lg shadow-red-600/10 status-glow-red">
-                <Flame className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden border-orange-600/20 hover-lift priority-p1-glow">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-transparent to-transparent" />
-          <CardContent className="relative p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P1 — Next Sprint</p>
-                <p className="mt-1 text-3xl font-bold text-orange-600 dark:text-orange-400 tabular-nums animate-count-up">{filteredP1.length}</p>
-                <p className="text-[10px] text-muted-foreground">high priority</p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600/15 shadow-lg shadow-orange-600/10 status-glow-orange">
-                <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden border-emerald-600/20 hover-lift">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-transparent to-transparent" />
-          <CardContent className="relative p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">P2 — Research</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums animate-count-up">{filteredP2.length}</p>
-                <p className="text-[10px] text-muted-foreground">research grade</p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/15 shadow-lg shadow-emerald-600/10 status-glow-green">
-                <Beaker className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden hover-lift">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-transparent to-transparent" />
-          <CardContent className="relative p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Vetted</p>
-                <p className="mt-1 text-3xl font-bold tabular-nums animate-count-up">{totalFiltered}</p>
-                <p className="text-[10px] text-muted-foreground">papers + repos</p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 shadow-lg shadow-blue-600/10 status-glow-blue">
-                <Library className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Actions row */}
+      <div className="flex items-center gap-2 pl-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-500/10 px-2"
+          onClick={() => onAnalyze(paper)}
+          disabled={isAnalyzing}
+        >
+          {isAnalyzing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Brain className="h-3 w-3" />
+          )}
+          Analyze
+        </Button>
+        {paper.pdfUrl && (
+          <a
+            href={paper.pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground inline-flex items-center px-2 rounded-md hover:bg-muted/80 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            PDF
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
+
+export function ResearchTab() {
+  // ─── State ─────────────────────────────────────────────────────────────
+  const [papers, setPapers] = useState<Paper[]>(mockPapers)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  const [showSearchResults, setShowSearchResults] = useState(false)
+
+  // Analysis state
+  const [analysisOpen, setAnalysisOpen] = useState(false)
+  const [analyzingPaper, setAnalyzingPaper] = useState<Paper | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzingPaperId, setAnalyzingPaperId] = useState<string | null>(null)
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatLoading, setIsChatLoading] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // ─── Computed Values ───────────────────────────────────────────────────
+  const displayedPapers = showSearchResults && searchResults
+    ? searchResults.papers
+    : papers.filter(p => selectedCategory === 'All' || p.category === selectedCategory)
+
+  const stats = {
+    vetted: papers.filter(p => p.status === 'vetted').length,
+    vetting: papers.filter(p => p.status === 'vetting').length,
+    queued: papers.filter(p => p.status === 'queued').length,
+    avgRelevance: papers.length > 0
+      ? Math.round(papers.reduce((sum, p) => sum + p.relevance, 0) / papers.length)
+      : 0,
+  }
+
+  // ─── Auto-scroll chat ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chatMessages])
+
+  // ─── AI Search Handler ─────────────────────────────────────────────────
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim()) return
+
+    setIsSearching(true)
+    setShowSearchResults(true)
+
+    try {
+      const response = await fetch('/api/ai/research/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery.trim(),
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          maxResults: 10,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Search failed')
+
+      const data: SearchResult = await response.json()
+      setSearchResults(data)
+
+      if (data.papers.length > 0) {
+        setPapers(prev => {
+          const existingIds = new Set(prev.map(p => p.id))
+          const newPapers = data.papers.filter(p => !existingIds.has(p.id))
+          return [...prev, ...newPapers]
+        })
+      }
+    } catch {
+      // Graceful degradation: show message but keep existing data
+      setSearchResults({
+        papers: papers.filter(p =>
+          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.abstract.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        aiSuggestions: [],
+        query: searchQuery.trim(),
+        totalFound: 0,
+        sources: { database: 0, arxiv: 0, aiSuggestions: 0 },
+      })
+    } finally {
+      setIsSearching(false)
+    }
+  }, [searchQuery, selectedCategory, papers])
+
+  // ─── AI Analysis Handler ───────────────────────────────────────────────
+  const handleAnalyze = useCallback(async (paper: Paper) => {
+    setAnalyzingPaper(paper)
+    setAnalyzingPaperId(paper.id)
+    setAnalysisOpen(true)
+    setAnalysisResult(null)
+    setIsAnalyzing(true)
+
+    try {
+      const response = await fetch('/api/research/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperId: paper.id }),
+      })
+
+      if (!response.ok) throw new Error('Analysis failed')
+
+      const data = await response.json()
+
+      // Extract analysis from response
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0]
+        if (result.success && result.analysis) {
+          setAnalysisResult({
+            summary: result.analysis.abstractSummary || paper.abstract,
+            critique: `Novelty: ${result.analysis.noveltyScore || paper.novelty}/2, Evidence Quality: ${result.analysis.evidenceQuality || 'N/A'}/5`,
+            relevance: `Research Role: ${result.analysis.researchRole || paper.researchRole || 'N/A'}, Project Fit: ${result.analysis.projectFit || paper.projectFit || 'N/A'}`,
+            concepts: result.analysis.conceptIds || [],
+            implementationTask: result.analysis.implementationTask || 'Pending review',
+            priorityTier: result.analysis.priorityTier || paper.priority,
+          })
+        } else if (result.error) {
+          setAnalysisResult({
+            summary: paper.abstract || 'No abstract available.',
+            critique: `Analysis error: ${result.error}. Displaying basic paper info.`,
+            relevance: `Priority: ${paper.priority}, Category: ${paper.category}`,
+            concepts: [],
+            implementationTask: 'Analysis unavailable — try again later',
+            priorityTier: paper.priority,
+          })
+        }
+      } else {
+        // Fallback to basic analysis
+        setAnalysisResult({
+          summary: paper.abstract || 'No abstract available.',
+          critique: 'Full AI analysis unavailable. The analysis engine may be processing. Try again in a moment.',
+          relevance: `Relevance Score: ${paper.relevance}%, DG Score: ${paper.dgScore || 'N/A'}, Category: ${paper.category}`,
+          concepts: [],
+          implementationTask: 'Pending AI analysis',
+          priorityTier: paper.priority,
+        })
+      }
+    } catch {
+      // Graceful degradation
+      setAnalysisResult({
+        summary: paper.abstract || 'No abstract available.',
+        critique: 'AI analysis service is currently unavailable. This could be due to rate limits or the analysis engine being offline.',
+        relevance: `Based on static data: Relevance ${paper.relevance}%, Novelty ${paper.novelty}%, ${paper.citations} citations`,
+        concepts: [],
+        implementationTask: 'Pending — AI analysis unavailable',
+        priorityTier: paper.priority,
+      })
+    } finally {
+      setIsAnalyzing(false)
+      setAnalyzingPaperId(null)
+    }
+  }, [])
+
+  // ─── Research Chat Handler ─────────────────────────────────────────────
+  const handleChatSend = useCallback(async () => {
+    if (!chatInput.trim() || isChatLoading) return
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: Date.now(),
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setChatInput('')
+    setIsChatLoading(true)
+
+    try {
+      // Build context from current papers
+      const paperContext = displayedPapers.slice(0, 5).map(p =>
+        `- ${p.title} (${p.category}, ${p.priority}, Relevance: ${p.relevance}%)`
+      ).join('\n')
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: `Research context - Current papers in pipeline:\n${paperContext}\n\nUser question: ${userMessage.content}`,
+            },
+          ],
+        }),
+      })
+
+      if (!response.ok) throw new Error('Chat failed')
+
+      const data = await response.json()
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.response || 'No response received.',
+        timestamp: Date.now(),
+      }
+
+      setChatMessages(prev => [...prev, assistantMessage])
+    } catch {
+      // Graceful degradation
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: '⚠ Research AI is currently unavailable. Please try again in a moment.',
+        timestamp: Date.now(),
+      }
+      setChatMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsChatLoading(false)
+    }
+  }, [chatInput, isChatLoading, displayedPapers])
+
+  const handleChatKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleChatSend()
+    }
+  }, [handleChatSend])
+
+  // ─── Clear search ──────────────────────────────────────────────────────
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('')
+    setSearchResults(null)
+    setShowSearchResults(false)
+  }, [])
+
+  // ─── Render ────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        <h2 className="text-lg font-semibold">Research Pipeline</h2>
+        <Badge variant="secondary" className="text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400">
+          {papers.length} papers
+        </Badge>
+        {showSearchResults && searchResults && (
+          <Badge variant="outline" className="text-[10px]">
+            Search: {searchResults.totalFound} results
+          </Badge>
+        )}
       </div>
 
-      {/* AI Analysis Progress Card */}
-      {(() => {
-        const allPapersList = [...allP0, ...allP1, ...allP2]
-        const totalPapers = allPapersList.length || 1
-        const vettedPapers = allPapersList.filter(p => p.dgFinalScore && p.dgFinalScore > 0).length
-        const unanalyzed = totalPapers - vettedPapers
-        const progressPct = totalPapers > 0 ? Math.round((vettedPapers / totalPapers) * 100) : 0
-
-        return (
-          <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
-            <CardHeader className="relative pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <BrainCircuit className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> AI Analysis Pipeline
-                  <DataSourceBadge source="api" />
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1.5 text-[10px] border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 btn-press"
-                    disabled={analyzeQueueLoading !== null}
-                    onClick={() => handleAnalyzeQueue('P0')}
-                  >
-                    {analyzeQueueLoading === 'P0' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Flame className="h-3 w-3" />}
-                    Analyze P0
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1.5 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
-                    disabled={analyzeQueueLoading !== null}
-                    onClick={() => handleAnalyzeQueue('P1')}
-                  >
-                    {analyzeQueueLoading === 'P1' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Target className="h-3 w-3" />}
-                    Analyze P1
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="relative p-4 pt-0 space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-accent/30 p-2.5 text-center">
-                  <p className="text-xl font-bold tabular-nums">{totalPapers}</p>
-                  <p className="text-[9px] text-muted-foreground">Total Papers</p>
-                </div>
-                <div className="rounded-lg bg-emerald-600/10 p-2.5 text-center">
-                  <p className="text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{vettedPapers}</p>
-                  <p className="text-[9px] text-muted-foreground">Analyzed</p>
-                </div>
-                <div className="rounded-lg bg-orange-600/10 p-2.5 text-center">
-                  <p className="text-xl font-bold tabular-nums text-orange-600 dark:text-orange-400">{unanalyzed}</p>
-                  <p className="text-[9px] text-muted-foreground">Unanalyzed</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>Analysis Progress</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{progressPct}%</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-700"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
-              {unanalyzed > 0 && (
-                <div className="flex items-center gap-2 rounded-md border border-orange-500/20 bg-orange-500/5 px-3 py-1.5">
-                  <AlertCircle className="h-3 w-3 text-orange-600 dark:text-orange-400 shrink-0" />
-                  <span className="text-[11px] text-orange-600 dark:text-orange-400">
-                    {unanalyzed} paper{unanalyzed !== 1 ? 's' : ''} awaiting AI analysis — click &quot;Analyze P0&quot; or &quot;Analyze P1&quot; to run LLM-powered classification
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )
-      })()}
-
-      {/* Pipeline Progress Indicator — Real Data from /api/research/analyze */}
-      <div className="relative overflow-hidden rounded-xl">
-        <div className="absolute inset-0 rounded-xl p-[1.5px]" style={{ background: 'linear-gradient(90deg, #34d399, #60a5fa, #a78bfa, #fb923c, #34d399)', backgroundSize: '300% 100%', animation: 'gradientBorder 4s linear infinite' }}>
-          <div className="h-full w-full rounded-xl bg-card" />
-        </div>
-      <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
-        <CardHeader className="relative pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Pipeline
-              <DataSourceBadge source="api" />
-            </CardTitle>
+      {/* AI Search Bar */}
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="AI-powered research search... (e.g., 'multi-agent safety evaluation')"
+                className="pl-9 h-9 bg-muted/50 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+                disabled={isSearching}
+              />
+            </div>
             <Button
-              size="sm"
-              variant="outline"
-              className="h-7 gap-1.5 text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
-              disabled={pipelineLoading}
-              onClick={handleRunAnalysisPipeline}
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="h-9 bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white shadow-sm disabled:opacity-50"
             >
-              {pipelineLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              Run Pipeline
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="relative p-4 pt-0 space-y-3">
-          <div className="flex items-center gap-1">
-            {(() => {
-              const stages = pipelineStatus?.pipeline?.stages
-              const total = pipelineStatus?.pipeline?.totalPapers || totalAll || 1
-              const pipelineSteps = [
-                { label: 'Intake', count: stages?.intake ?? 0, color: 'emerald', icon: BookOpen },
-                { label: 'Vetting', count: stages?.vetting ?? 0, color: 'blue', icon: Search, vetting: true },
-                { label: 'Manifest', count: stages?.manifest ?? 0, color: 'purple', icon: Library },
-                { label: 'Priority', count: stages?.priority ?? 0, color: 'orange', icon: Target },
-                { label: 'Delivered', count: stages?.delivered ?? 0, color: 'emerald', icon: CheckCircle2 },
-              ]
-              return pipelineSteps.map((step, i) => (
-                <div key={step.label} className="flex items-center flex-1 pipeline-step-animate" style={{ animationDelay: `${i * 100}ms` }}>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <step.icon className={`h-3 w-3 ${
-                        step.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
-                        step.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                        step.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-                        'text-orange-600 dark:text-orange-400'
-                      } ${'vetting' in step && step.vetting ? 'vetting-indicator' : ''}`} />
-                      <span className="text-[10px] font-medium">{step.label}</span>
-                      {'vetting' in step && step.vetting && step.count > 0 && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                      )}
-                      <span className="text-[9px] text-muted-foreground tabular-nums ml-auto">{step.count}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          step.color === 'emerald' ? 'bg-emerald-500' :
-                          step.color === 'blue' ? 'bg-blue-500' :
-                          step.color === 'purple' ? 'bg-purple-500' :
-                          'bg-orange-500'
-                        }`}
-                        style={{ width: `${Math.min((step.count / total) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  {i < 4 && (
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 mx-1 shrink-0" />
-                  )}
-                </div>
-              ))
-            })()}
-          </div>
-          {/* Pipeline Metrics Row */}
-          {pipelineStatus?.metrics && (
-            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Activity className="h-3 w-3 text-emerald-500" />
-                Throughput: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.throughputPercent}%</strong>
-              </span>
-              <span className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3 text-blue-500" />
-                Avg DG Score: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.avgDgScore}/15</strong>
-              </span>
-              <span className="flex items-center gap-1">
-                <Shield className="h-3 w-3 text-purple-500" />
-                Delivered: <strong className="text-foreground tabular-nums">{pipelineStatus.metrics.deliveredPapers}</strong>
-              </span>
-              {pipelineStatus.bottleneck && pipelineStatus.bottleneck.stage !== 'none' && (
-                <span className="flex items-center gap-1 text-orange-500">
-                  <AlertCircle className="h-3 w-3" />
-                  Bottleneck: <strong>{pipelineStatus.bottleneck.stage}</strong> ({pipelineStatus.bottleneck.percentage}%)
-                </span>
+              {isSearching ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-1.5" />
               )}
+              Search
+            </Button>
+            {showSearchResults && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClearSearch}
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {isSearching && (
+            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Searching database, arXiv, and AI suggestions...
+            </div>
+          )}
+          {/* AI Suggestions */}
+          {searchResults?.aiSuggestions && searchResults.aiSuggestions.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <Sparkles className="h-3 w-3 text-emerald-500" />
+                AI Suggestions
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {searchResults.aiSuggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setSearchQuery(s.title)
+                    }}
+                    className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 hover:bg-emerald-500/20 transition-colors text-left cursor-pointer"
+                  >
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{s.suggestedCategory}</span>
+                    <span className="text-muted-foreground ml-1">{s.title.slice(0, 40)}...</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Search Sources */}
+          {searchResults && !isSearching && (
+            <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><Database className="h-3 w-3" /> DB: {searchResults.sources.database}</span>
+              <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> arXiv: {searchResults.sources.arxiv}</span>
+              <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI: {searchResults.sources.aiSuggestions}</span>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard label="Vetted (P1)" value={stats.vetted} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" />
+        <StatCard label="Vetting" value={stats.vetting} icon={Clock} color="text-yellow-600 dark:text-yellow-400" />
+        <StatCard label="Queued" value={stats.queued} icon={FileSearch} color="text-slate-500 dark:text-slate-400" />
+        <StatCard label="Avg Relevance" value={`${stats.avgRelevance}%`} icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
       </div>
 
-      {/* Research Progress Dashboard */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="relative overflow-hidden border-emerald-600/20 shadow-lg shadow-emerald-600/5 hover-lift">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent" />
-          <CardHeader className="relative pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Research Progress Dashboard
-              <DataSourceBadge source="seed" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative p-4 pt-0 space-y-4">
-            {(() => {
-              const allPapers = [...allP0, ...allP1, ...allP2]
-              const notStarted = allPapers.filter(p => !p.status || p.status === 'pending').length
-              const inProgress = allPapers.filter(p => p.status === 'in_progress').length
-              const completed = allPapers.filter(p => p.status === 'completed').length
-              const blocked = allPapers.filter(p => p.status === 'blocked').length
-              const total = allPapers.length || 1
-              const completionPct = Math.round((completed / total) * 100)
+      {/* Category Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        {CATEGORIES.map((cat) => {
+          const CatIcon = categoryIcons[cat] || Filter
+          const count = cat === 'All'
+            ? papers.length
+            : papers.filter(p => p.category === cat).length
+          const isActive = selectedCategory === cat
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer',
+                isActive
+                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10'
+                  : 'border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:border-border'
+              )}
+            >
+              <CatIcon className="h-3 w-3" />
+              {cat}
+              <span className={cn(
+                'text-[9px] font-mono px-1 py-0.5 rounded-full',
+                isActive
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-muted text-muted-foreground'
+              )}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
 
-              // Summary stats row
-              const summaryStats = [
-                { label: 'Total', count: allPapers.length, color: 'text-foreground' },
-                { label: 'Completed', count: completed, color: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'In Progress', count: inProgress, color: 'text-blue-600 dark:text-blue-400' },
-                { label: 'Queued', count: notStarted, color: 'text-yellow-600 dark:text-yellow-400' },
-              ]
+      {/* Paper Queue */}
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Star className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            {showSearchResults ? 'Search Results' : 'Paper Queue'}
+            <Badge variant="outline" className="text-[9px] ml-1">{displayedPapers.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {displayedPapers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No papers found</p>
+              <p className="text-xs mt-1">Try a different search query or category</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
+              {displayedPapers.map((paper) => (
+                <PaperCard
+                  key={paper.id}
+                  paper={paper}
+                  onAnalyze={handleAnalyze}
+                  isAnalyzing={analyzingPaperId === paper.id}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-              const statuses = [
-                { label: 'Not Started', count: notStarted, color: 'bg-zinc-400', textColor: 'text-zinc-500 dark:text-zinc-400', pct: Math.round((notStarted / total) * 100) },
-                { label: 'In Progress', count: inProgress, color: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400', pct: Math.round((inProgress / total) * 100) },
-                { label: 'Completed', count: completed, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', pct: Math.round((completed / total) * 100) },
-                { label: 'Blocked', count: blocked, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', pct: Math.round((blocked / total) * 100) },
-              ]
-
-              return (
-                <>
-                  {/* Summary stats */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {summaryStats.map((s) => (
-                      <div key={s.label} className="rounded-lg bg-accent/30 p-2 text-center">
-                        <p className={`text-xl font-bold tabular-nums ${s.color}`}>{s.count}</p>
-                        <p className="text-[9px] text-muted-foreground">{s.label}</p>
-                      </div>
+      {/* Research Chat */}
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Research Chat
+            <Badge variant="outline" className="text-[9px]">AI-Powered</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {/* Chat Messages */}
+          <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-3 mb-3">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-6">
+                <Bot className="h-8 w-8 mx-auto mb-2 text-emerald-500/50" />
+                <p className="text-xs text-muted-foreground mb-3">
+                  Ask questions about research papers, methodologies, or findings
+                </p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {[
+                    'What are the top safety papers?',
+                    'Explain Self-RAG',
+                    'Compare evaluation methods',
+                    'What is OR-Bench?',
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => {
+                        setChatInput(prompt)
+                      }}
+                      className="text-[10px] rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((msg, i) => (
+                <div
+                  key={`${msg.timestamp}-${i}`}
+                  className={cn(
+                    'flex gap-2',
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  )}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 mt-0.5">
+                      <Bot className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      'max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed break-words',
+                      msg.role === 'user'
+                        ? 'rounded-tr-none bg-gradient-to-br from-emerald-500 to-emerald-700 text-white'
+                        : 'rounded-tl-none bg-muted text-foreground'
+                    )}
+                  >
+                    {msg.content.split('\n').map((line, j) => (
+                      <span key={j}>
+                        {j > 0 && <br />}
+                        {line}
+                      </span>
                     ))}
                   </div>
-                  {/* Circular progress indicator */}
-                  <div className="flex items-center gap-4">
-                    <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
-                      <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
-                        <circle cx="40" cy="40" r="34" fill="none" stroke="var(--muted)" strokeWidth="6" />
-                        <circle cx="40" cy="40" r="34" fill="none" stroke="#34d399" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${completionPct * 2.136} ${213.6 - completionPct * 2.136}`} className="transition-all duration-700" />
-                      </svg>
-                      <span className="absolute text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{completionPct}%</span>
+                  {msg.role === 'user' && (
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 mt-0.5">
+                      <Sparkles className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Est. completion</span>
-                      </div>
-                      <p className="text-sm font-medium">~2 weeks at current pace</p>
-                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${completionPct}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Status breakdown bars */}
-                  {statuses.map((s) => (
-                    <div key={s.label} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${s.color}`} />
-                          <span className="text-xs font-medium">{s.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold tabular-nums">{s.count}</span>
-                          <span className={`text-[10px] tabular-nums ${s.textColor}`}>({s.pct}%)</span>
-                        </div>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${s.color}`}
-                          style={{ width: `${s.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )
-            })()}
-          </CardContent>
-        </Card>
-
-        <DailyPracticeTimerCard />
-      </div>
-
-      <Tabs defaultValue="p0" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="p0">P0 — Now</TabsTrigger>
-          <TabsTrigger value="p1">P1 — Next</TabsTrigger>
-          <TabsTrigger value="p2">P2 — Research</TabsTrigger>
-          <TabsTrigger value="alphaxiv" className="text-blue-600 dark:text-blue-400">α Alphaxiv</TabsTrigger>
-          <TabsTrigger value="arxiv" className="text-orange-600 dark:text-orange-400">arXiv Crawler</TabsTrigger>
-          <TabsTrigger value="practice">Daily Practice</TabsTrigger>
-        </TabsList>
-
-        {/* P0 */}
-        <TabsContent value="p0">
-          <div className="space-y-3">
-            {filteredP0.length > 0 ? (
-              filteredP0.map((item) => {
-                const config = getPriorityConfig(item.priority)
-                return (
-                  <Card
-                    key={item.id}
-                    className="hover:border-red-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-red-500/60 btn-press shadow-sm shadow-red-600/5"
-                    onClick={() => openPaperDialog(item)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-600/15 status-glow-red priority-p0-glow">
-                          <Flame className="h-4 w-4 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                            <Badge className="bg-red-600/15 text-red-600 dark:text-red-400 border-0 text-[9px] badge-glow-red">
-                              Relevance: {(item.relevance * 100).toFixed(0)}%
-                            </Badge>
-                            {item.status === 'in_progress' && (
-                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
-                            )}
-                            {item.status === 'pending' && (
-                              <Badge className="bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-0 text-[9px] animate-pulse">NEW</Badge>
-                            )}
-                          </div>
-                          <p className="mt-1 text-sm font-medium">{item.title}</p>
-                          {/* DG Classification Badges */}
-                          {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
-                            <div className="mt-1 flex items-center gap-1 flex-wrap">
-                              {item.researchRole && (() => {
-                                const roleMeta = ROLE_META[item.researchRole as ResearchRole]
-                                return roleMeta ? (
-                                  <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                    roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
-                                    roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                    roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                    roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                    roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                    roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
-                                    roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
-                                    roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
-                                    roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                    'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                  }`}>{roleMeta.label}</Badge>
-                                ) : null
-                              })()}
-                              {item.admissionTier && (() => {
-                                const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
-                                return tierMeta ? (
-                                  <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                    tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                    tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                    tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                    tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                    tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                    'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                  }`}>{tierMeta.label}</Badge>
-                                ) : null
-                              })()}
-                              {item.dgFinalScore != null && item.dgFinalScore > 0 && (
-                                <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
-                                  DG: {item.dgFinalScore}/15
-                                </Badge>
-                              )}
-                              {item.conceptIds && (() => {
-                                try {
-                                  const ids: ConceptId[] = JSON.parse(item.conceptIds)
-                                  return ids.slice(0, 2).map(cid => {
-                                    const meta = CONCEPT_META[cid]
-                                    return meta ? (
-                                      <Badge key={cid} className="bg-accent text-muted-foreground border-0 text-[8px] px-1.5 py-0">
-                                        {meta.title}
-                                      </Badge>
-                                    ) : null
-                                  })
-                                } catch { return null }
-                              })()}
-                            </div>
-                          )}
-                          <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                          {item.deliverable && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <code className="text-[10px] rounded bg-accent px-1.5 py-0.5">{item.deliverable}</code>
-                            </div>
-                          )}
-                          {/* Relevance Score Visual Bar with color coding */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  item.relevance >= 0.8 ? 'bg-red-500' :
-                                  item.relevance >= 0.6 ? 'bg-orange-500' :
-                                  'bg-emerald-500'
-                                }`}
-                                style={{ width: `${item.relevance * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
-                          </div>
-                          {/* Analyze button */}
-                          <div className="mt-2 flex items-center justify-end">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
-                              disabled={analyzingPaperId === item.id}
-                              onClick={(e) => handleAnalyzePaper(item.id, e)}
-                            >
-                              {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
-                              {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  {loading ? 'Loading P0 papers...' : 'No P0 papers match your search'}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* P1 */}
-        <TabsContent value="p1">
-          <div className="space-y-3">
-            {filteredP1.length > 0 ? (
-              filteredP1.map((item) => (
-                <Card
-                  key={item.id}
-                  className="hover:border-orange-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60 btn-press shadow-sm shadow-orange-600/5"
-                  onClick={() => openPaperDialog(item)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/15 status-glow-orange priority-p1-glow">
-                        <Target className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                          <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px] status-glow-orange">
-                            Relevance: {(item.relevance * 100).toFixed(0)}%
-                          </Badge>
-                          {item.status === 'in_progress' && (
-                            <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">IN PROGRESS</Badge>
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm font-medium">{item.title}</p>
-                        {/* DG Classification Badges */}
-                        {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
-                          <div className="mt-1 flex items-center gap-1 flex-wrap">
-                            {item.researchRole && (() => {
-                              const roleMeta = ROLE_META[item.researchRole as ResearchRole]
-                              return roleMeta ? (
-                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                  roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
-                                  roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                  roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                  roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                  roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                  roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
-                                  roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
-                                  roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
-                                  roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                }`}>{roleMeta.label}</Badge>
-                              ) : null
-                            })()}
-                            {item.admissionTier && (() => {
-                              const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
-                              return tierMeta ? (
-                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                  tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                  tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                  tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                  tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                  tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                }`}>{tierMeta.label}</Badge>
-                              ) : null
-                            })()}
-                            {item.dgFinalScore != null && item.dgFinalScore > 0 && (
-                              <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
-                                DG: {item.dgFinalScore}/15
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                        {/* Relevance Score Visual Bar with color coding */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                item.relevance >= 0.8 ? 'bg-orange-500' :
-                                item.relevance >= 0.6 ? 'bg-yellow-500' :
-                                'bg-emerald-500'
-                              }`}
-                              style={{ width: `${item.relevance * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
-                        </div>
-                        {/* Analyze button */}
-                        <div className="mt-2 flex items-center justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
-                            disabled={analyzingPaperId === item.id}
-                            onClick={(e) => handleAnalyzePaper(item.id, e)}
-                          >
-                            {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
-                            {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  {loading ? 'Loading P1 papers...' : 'No P1 papers match your search'}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* P2 */}
-        <TabsContent value="p2">
-          <div className="space-y-3">
-            {filteredP2.length > 0 ? (
-              filteredP2.map((item) => (
-                <Card
-                  key={item.id}
-                  className="hover:border-emerald-600/30 transition-all cursor-pointer hover-lift border-l-4 border-l-emerald-500/60 btn-press shadow-sm shadow-emerald-600/5"
-                  onClick={() => openPaperDialog(item)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-600/15 status-glow-green">
-                        <Beaker className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                          <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px] badge-glow-emerald">
-                            Relevance: {(item.relevance * 100).toFixed(0)}%
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-sm font-medium">{item.title}</p>
-                        {/* DG Classification Badges */}
-                        {(item.researchRole || item.admissionTier || item.dgFinalScore) && (
-                          <div className="mt-1 flex items-center gap-1 flex-wrap">
-                            {item.researchRole && (() => {
-                              const roleMeta = ROLE_META[item.researchRole as ResearchRole]
-                              return roleMeta ? (
-                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                  roleMeta.color === 'orange' ? 'bg-orange-600/15 text-orange-600 dark:text-orange-400' :
-                                  roleMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                  roleMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                  roleMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                  roleMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                  roleMeta.color === 'teal' ? 'bg-teal-600/15 text-teal-600 dark:text-teal-400' :
-                                  roleMeta.color === 'amber' ? 'bg-amber-600/15 text-amber-600 dark:text-amber-400' :
-                                  roleMeta.color === 'cyan' ? 'bg-cyan-600/15 text-cyan-600 dark:text-cyan-400' :
-                                  roleMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                }`}>{roleMeta.label}</Badge>
-                              ) : null
-                            })()}
-                            {item.admissionTier && (() => {
-                              const tierMeta = TIER_META[item.admissionTier as AdmissionTier]
-                              return tierMeta ? (
-                                <Badge className={`border-0 text-[8px] px-1.5 py-0 ${
-                                  tierMeta.color === 'emerald' ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400' :
-                                  tierMeta.color === 'blue' ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                                  tierMeta.color === 'yellow' ? 'bg-yellow-600/15 text-yellow-600 dark:text-yellow-400' :
-                                  tierMeta.color === 'red' ? 'bg-red-600/15 text-red-600 dark:text-red-400' :
-                                  tierMeta.color === 'purple' ? 'bg-purple-600/15 text-purple-600 dark:text-purple-400' :
-                                  'bg-gray-600/15 text-gray-600 dark:text-gray-400'
-                                }`}>{tierMeta.label}</Badge>
-                              ) : null
-                            })()}
-                            {item.dgFinalScore != null && item.dgFinalScore > 0 && (
-                              <Badge className="bg-blue-600/10 text-blue-600 dark:text-blue-400 border-0 text-[8px] px-1.5 py-0">
-                                DG: {item.dgFinalScore}/15
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                        {/* Relevance Score Visual Bar with color coding */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500 bg-emerald-500"
-                              style={{ width: `${item.relevance * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-[9px] text-muted-foreground tabular-nums">{(item.relevance * 100).toFixed(0)}%</span>
-                        </div>
-                        {/* Analyze button */}
-                        <div className="mt-2 flex items-center justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 gap-1 text-[9px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
-                            disabled={analyzingPaperId === item.id}
-                            onClick={(e) => handleAnalyzePaper(item.id, e)}
-                          >
-                            {analyzingPaperId === item.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <BrainCircuit className="h-2.5 w-2.5" />}
-                            {analyzingPaperId === item.id ? 'Analyzing...' : 'Analyze'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  {loading ? 'Loading P2 papers...' : 'No P2 papers match your search'}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Alphaxiv Integration */}
-        <TabsContent value="alphaxiv">
-          <Card className="relative overflow-hidden border-blue-500/30 shadow-lg shadow-blue-500/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-indigo-600/8" />
-            <CardHeader className="relative pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Library className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Alphaxiv Research Feed
-                <DataSourceBadge source="live" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="relative p-4 pt-0 space-y-4">
-              {/* Search controls */}
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Search topic (e.g., constitutional AI, multi-agent governance)..."
-                  className="h-9 text-xs border-blue-500/30 focus:border-blue-500/50"
-                  value={alphaxivTopic}
-                  onChange={(e) => setAlphaxivTopic(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleFetchAlphaxiv()}
-                />
-                <Button
-                  size="sm"
-                  className="h-9 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white shrink-0 btn-press"
-                  disabled={alphaxivLoading}
-                  onClick={handleFetchAlphaxiv}
-                >
-                  {alphaxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                  Search
-                </Button>
-              </div>
-
-              {/* Auto-fetch notice */}
-              <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
-                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                  <Zap className="h-3 w-3" /> Automated Pipeline
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Papers are fetched from AlphaXiv via Tavily API, auto-scored by relevance, and assigned to P0/P1/P2 queues.
-                  Review below, then click &quot;Add to Queue&quot; to import into the research pipeline.
-                </p>
-              </div>
-
-              {/* Results */}
-              {alphaxivResults.length > 0 ? (
-                <div className="space-y-3">
-                  {alphaxivResults.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="hover:border-blue-500/30 transition-all cursor-pointer hover-lift border-l-4 border-l-blue-500/60 btn-press shadow-sm shadow-blue-600/5"
-                      onClick={() => openPaperDialog(item)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600/15">
-                            <Library className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                              <Badge className="bg-blue-600/15 text-blue-600 dark:text-blue-400 border-0 text-[9px]">
-                                Relevance: {(item.relevance * 100).toFixed(0)}%
-                              </Badge>
-                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
-                                {item.priority}
-                              </Badge>
-                              <Badge className="bg-blue-500/15 text-blue-500 dark:text-blue-400 border-0 text-[9px]">
-                                ALPHAXIV
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-sm font-medium leading-snug">{item.title}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-[10px] shrink-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleAddPaper(item)
-                            }}
-                          >
-                            <Plus className="h-3 w-3 mr-1" /> Add
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 mb-3">
-                    <Library className="h-5 w-5 text-blue-500/50" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">No AlphaXiv results yet</p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">Enter a topic and click Search to fetch papers</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* arXiv Paper Crawler */}
-        <TabsContent value="arxiv">
-          <Card className="relative overflow-hidden border-orange-500/30 shadow-lg shadow-orange-500/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-orange-500/5 to-amber-600/8" />
-            <CardHeader className="relative pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-orange-600 dark:text-orange-400" /> arXiv Paper Crawler
-                  <DataSourceBadge source="live" />
-                  <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">NO API KEY NEEDED</Badge>
-                </CardTitle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
-                  disabled={arxivLoading}
-                  onClick={handleFetchArxivTrending}
-                >
-                  <Flame className="h-3 w-3 mr-1" /> Trending
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="relative p-4 pt-0 space-y-4">
-              {/* Search controls */}
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Search arXiv (e.g., constitutional AI, multi-agent governance, LLM reasoning)..."
-                  className="h-9 text-xs border-orange-500/30 focus:border-orange-500/50"
-                  value={arxivQuery}
-                  onChange={(e) => setArxivQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleFetchArxiv()}
-                />
-                <Select value={arxivCategory} onValueChange={setArxivCategory}>
-                  <SelectTrigger className="h-9 w-36 text-xs border-orange-500/30">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="cs.AI">cs.AI — AI</SelectItem>
-                    <SelectItem value="cs.CL">cs.CL — NLP</SelectItem>
-                    <SelectItem value="cs.LG">cs.LG — ML</SelectItem>
-                    <SelectItem value="cs.MA">cs.MA — Multi-Agent</SelectItem>
-                    <SelectItem value="cs.RO">cs.RO — Robotics</SelectItem>
-                    <SelectItem value="cs.CY">cs.CY — Safety/Policy</SelectItem>
-                    <SelectItem value="stat.ML">stat.ML — Stat/ML</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={arxivSort} onValueChange={setArxivSort}>
-                  <SelectTrigger className="h-9 w-32 text-xs border-orange-500/30">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="relevance">Relevance</SelectItem>
-                    <SelectItem value="submittedDate">Newest</SelectItem>
-                    <SelectItem value="lastUpdatedDate">Updated</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  className="h-9 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white shrink-0 btn-press"
-                  disabled={arxivLoading}
-                  onClick={handleFetchArxiv}
-                >
-                  {arxivLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                  Search
-                </Button>
-              </div>
-
-              {/* Info banner */}
-              <div className="rounded-md border border-orange-500/20 bg-orange-500/5 p-3">
-                <p className="text-xs font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
-                  <Zap className="h-3 w-3" /> Direct arXiv API — No API Key Required
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Papers are fetched directly from arXiv&apos;s public API, auto-scored by NEXUS relevance engine,
-                  and saved to the database. Based on DoppelGround&apos;s arxiv_adapter_clean.py v1.2.
-                  Use &quot;Trending&quot; for the latest papers across AI/ML/NLP/Multi-Agent domains.
-                </p>
-              </div>
-
-              {/* Quick search topics */}
-              <div className="flex flex-wrap gap-1.5">
-                {['Multi-Agent Systems', 'LLM Alignment', 'Constitutional AI', 'Tool Use', 'RAG', 'Reasoning', 'AI Safety', 'Code Generation'].map(topic => (
-                  <Button
-                    key={topic}
-                    size="sm"
-                    variant="outline"
-                    className="h-6 text-[10px] border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
-                    onClick={async () => {
-                      setArxivQuery(topic)
-                      // Use the topic directly since state update is async
-                      setArxivLoading(true)
-                      try {
-                        const params = new URLSearchParams()
-                        params.set('q', topic)
-                        params.set('max', '10')
-                        if (arxivCategory && arxivCategory !== 'all') params.set('category', arxivCategory)
-                        const res = await fetch(`/api/arxiv?${params.toString()}`)
-                        if (res.ok) {
-                          const data = await res.json()
-                          const mapped: PaperItem[] = (data.papers || []).map((p: { id: string; dbId: string | null; title: string; summary: string; relevanceScore: number; pdfUrl: string; arxivId: string; category: string; authors: string[]; published: string; isNew?: boolean }) => ({
-                            id: p.dbId || p.id,
-                            externalId: p.id,
-                            title: p.title,
-                            relevance: p.relevanceScore ?? 0.5,
-                            task: `arXiv ${p.category} · ${p.authors?.slice(0, 3).join(', ')}${p.authors?.length > 3 ? ' et al.' : ''}`,
-                            deliverable: p.pdfUrl,
-                            status: 'pending' as const,
-                            priority: (p.relevanceScore ?? 0.5) > 0.8 ? 'P0' as const : (p.relevanceScore ?? 0.5) > 0.5 ? 'P1' as const : 'P2' as const,
-                            arxivId: p.arxivId,
-                            domain: 'arxiv',
-                          }))
-                          setArxivResults(mapped)
-                          toast.success(`Found ${mapped.length} papers for "${topic}"`, {
-                            description: `${data.newCount || 0} new papers saved to DB`,
-                          })
-                          refetch()
-                        }
-                      } catch {
-                        toast.error('arXiv fetch failed')
-                      } finally {
-                        setArxivLoading(false)
-                      }
-                    }}
-                    disabled={arxivLoading}
-                  >
-                    {topic}
-                  </Button>
-                ))}
-              </div>
-
-              {/* Results */}
-              {arxivResults.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-                  {arxivResults.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="hover:border-orange-500/30 transition-all cursor-pointer hover-lift border-l-4 border-l-orange-500/60 btn-press shadow-sm shadow-orange-600/5"
-                      onClick={() => openPaperDialog(item)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/15">
-                            <BookOpen className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {item.arxivId && (
-                                <span className="text-xs font-mono text-orange-500 dark:text-orange-400">{item.arxivId}</span>
-                              )}
-                              <Badge className="bg-orange-600/15 text-orange-600 dark:text-orange-400 border-0 text-[9px]">
-                                Relevance: {(item.relevance * 100).toFixed(0)}%
-                              </Badge>
-                              <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[9px]">
-                                {item.priority}
-                              </Badge>
-                              <Badge className="bg-orange-500/15 text-orange-500 dark:text-orange-400 border-0 text-[9px]">
-                                ARXIV
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-sm font-medium leading-snug">{item.title}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{item.task}</p>
-                          </div>
-                          <div className="flex flex-col gap-1 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 btn-press"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleAddPaper(item)
-                              }}
-                            >
-                              <Plus className="h-3 w-3 mr-1" /> Add
-                            </Button>
-                            {item.arxivId && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[10px] border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 btn-press"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  window.open(`https://arxiv.org/abs/${item.arxivId}`, '_blank', 'noopener,noreferrer')
-                                }}
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" /> PDF
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10 mb-3">
-                    <BookOpen className="h-5 w-5 text-orange-500/50" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">No arXiv results yet</p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">Enter a query and click Search, or click Trending for latest papers</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Daily Practice — Enhanced */}
-        <TabsContent value="practice">
-          <Card className="relative overflow-hidden border-emerald-500/40 nexus-gradient-border shadow-lg shadow-emerald-500/10">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/15 via-emerald-500/5 to-emerald-700/10" />
-            <CardHeader className="relative pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Daily Research Practice Template
-                <DataSourceBadge source="live" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="relative p-4 pt-0 space-y-4">
-              {/* Steps with progression lines and gradient colors */}
-              <div className="relative">
-                {/* Connector line behind steps */}
-                <div className="absolute top-5 left-5 right-5 h-0.5 bg-gradient-to-r from-emerald-300/60 via-emerald-500/70 to-emerald-700/80 hidden md:block" />
-
-                <div className="grid gap-3 md:grid-cols-5 relative">
-                  {practiceSteps.map((s, i) => {
-                    const emeraldLevels = [
-                      'bg-emerald-300/30 text-emerald-700 dark:text-emerald-200 border-emerald-300/50 shadow-sm shadow-emerald-300/20',
-                      'bg-emerald-400/30 text-emerald-700 dark:text-emerald-200 border-emerald-400/50 shadow-sm shadow-emerald-400/20',
-                      'bg-emerald-500/30 text-emerald-700 dark:text-emerald-200 border-emerald-500/50 shadow-sm shadow-emerald-500/20',
-                      'bg-emerald-600/30 text-emerald-700 dark:text-emerald-200 border-emerald-600/50 shadow-sm shadow-emerald-600/20',
-                      'bg-emerald-700/30 text-emerald-700 dark:text-emerald-200 border-emerald-700/50 shadow-sm shadow-emerald-700/20',
-                    ]
-                    const stepBadgeBg = [
-                      'bg-emerald-300/40 text-emerald-700 dark:text-emerald-200',
-                      'bg-emerald-400/40 text-emerald-700 dark:text-emerald-200',
-                      'bg-emerald-500/40 text-emerald-700 dark:text-emerald-200',
-                      'bg-emerald-600/40 text-emerald-700 dark:text-emerald-200',
-                      'bg-emerald-700/40 text-emerald-700 dark:text-emerald-200',
-                    ]
-                    const isActive = practiceSessionActive && i === practiceStep
-                    return (
-                      <div
-                        key={s.step}
-                        className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover-pulse ${emeraldLevels[i]} ${isActive ? 'ring-2 ring-emerald-400 shadow-lg shadow-emerald-400/20' : ''}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${stepBadgeBg[i]}`}>
-                            {s.step}
-                          </span>
-                          <span className="text-xs font-semibold">{s.name}</span>
-                        </div>
-                        <p className="mt-1.5 text-[11px] text-muted-foreground">{s.desc}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground/60">~{s.time}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Start Practice Session Button */}
-              <div className="flex justify-center pt-2">
-                <Button
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 btn-press focus-ring-enhanced"
-                  onClick={handleStartPracticeSession}
-                  disabled={practiceSessionActive}
-                >
-                  <Zap className="h-4 w-4" />
-                  {practiceSessionActive ? `Running: ${practiceSteps[practiceStep]?.name}...` : 'Start Practice Session'}
-                </Button>
-              </div>
-
-              <div className="rounded-md border border-border/50 bg-accent/30 p-3">
-                <p className="text-xs font-medium">Quality Gates</p>
-                <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
-                  <li>• No dumping: every entry must have abstract + conclusion vetted</li>
-                  <li>• No hallucination: cite source lines for key numbers</li>
-                  <li>• Max 20 items per run to maintain depth</li>
-                  <li>• Run 1-2x daily as requested</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Add to Queue Dialog */}
-      <AddToQueueDialog
-        open={addToQueueOpen}
-        onOpenChange={setAddToQueueOpen}
-        onAdd={handleAddPaper}
-      />
-
-      {/* Paper Detail Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        {selectedPaper && (() => {
-          const config = getPriorityConfig(selectedPaper.priority)
-          const arxivUrl = getArxivUrl(selectedPaper.externalId || selectedPaper.id)
-          const PriorityIcon = config.icon
-
-          return (
-            <DialogContent className="max-w-lg p-0 overflow-hidden animate-scale-in">
-              {/* Gradient header matching priority color */}
-              <div className={`bg-gradient-to-r ${config.gradientFrom} ${config.gradientTo} p-6 border-b`}>
-                <DialogHeader>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className={`${config.bgColor} ${config.textColor} border-0 text-[10px]`}>
-                      <PriorityIcon className="h-3 w-3 mr-1" />
-                      {config.label}
-                    </Badge>
-                    {selectedPaper.status === 'in_progress' && (
-                      <Badge className="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 text-[10px]">
-                        IN PROGRESS
-                      </Badge>
-                    )}
-                    {selectedPaper.status === 'pending' && (
-                      <Badge variant="outline" className="text-[10px]">
-                        PENDING
-                      </Badge>
-                    )}
-                  </div>
-                  <DialogTitle className="text-base leading-snug">
-                    {selectedPaper.title}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs font-mono mt-1">
-                    {selectedPaper.externalId || selectedPaper.id}
-                  </DialogDescription>
-                </DialogHeader>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {/* Relevance Score with Visual Bar */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Relevance Score</span>
-                    <span className={`text-sm font-bold ${config.textColor}`}>
-                      {(selectedPaper.relevance * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full relevance-bar-animate ${
-                        selectedPaper.priority === 'P0' ? 'bg-red-500' :
-                        selectedPaper.priority === 'P1' ? 'bg-orange-500' :
-                        'bg-emerald-500'
-                      }`}
-                      style={{ width: `${selectedPaper.relevance * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Task Description */}
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Task Description</span>
-                  <p className="text-sm leading-relaxed">{selectedPaper.task}</p>
-                </div>
-
-                {/* Deliverable Path */}
-                {selectedPaper.deliverable && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Deliverable Path</span>
-                    <div className="flex items-center gap-2 rounded-md bg-accent/50 border border-border px-3 py-2">
-                      <code className="text-xs font-mono flex-1 break-all">{selectedPaper.deliverable}</code>
-                      <button
-                        onClick={() => copyToClipboard(selectedPaper.deliverable!)}
-                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-accent"
-                      >
-                        {copied ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Priority Tier Explanation + Priority Change */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Priority Tier</span>
-                    <Select
-                      value={selectedPaper.priority}
-                      onValueChange={(val) => handlePriorityChange(selectedPaper.id, val as 'P0' | 'P1' | 'P2')}
-                    >
-                      <SelectTrigger className="h-7 w-24 text-[10px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="P0">P0 — Now</SelectItem>
-                        <SelectItem value="P1">P1 — Next</SelectItem>
-                        <SelectItem value="P2">P2 — Research</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="rounded-md border border-border bg-accent/20 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{config.explanation}</p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <DialogFooter className="gap-2 sm:gap-2 pt-2">
-                  {arxivUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-xs"
-                      onClick={() => window.open(arxivUrl, '_blank', 'noopener,noreferrer')}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      View on arXiv
-                    </Button>
                   )}
-                  <Button
-                    size="sm"
-                    className="gap-1.5 text-xs"
-                    onClick={handleMarkInProgress}
-                    disabled={selectedPaper.status === 'in_progress'}
-                  >
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                    {selectedPaper.status === 'in_progress' ? 'Already In Progress' : 'Mark as In Progress'}
-                  </Button>
-                </DialogFooter>
+                </div>
+              ))
+            )}
+            {isChatLoading && (
+              <div className="flex gap-2 justify-start">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                  <Bot className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="rounded-xl rounded-tl-none bg-muted px-3 py-2">
+                  <div className="flex gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse [animation-delay:0.2s]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse [animation-delay:0.4s]" />
+                  </div>
+                </div>
               </div>
-            </DialogContent>
-          )
-        })()}
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Chat Input */}
+          <div className="flex items-center gap-2">
+            <Input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+              placeholder="Ask about research..."
+              className="flex-1 h-8 text-xs bg-muted/50 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+              disabled={isChatLoading}
+            />
+            <Button
+              onClick={handleChatSend}
+              disabled={isChatLoading || !chatInput.trim()}
+              size="icon"
+              className="h-8 w-8 shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Analysis Dialog */}
+      <Dialog open={analysisOpen} onOpenChange={setAnalysisOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              AI Paper Analysis
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {analyzingPaper?.title || 'Analyzing...'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isAnalyzing ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+                <Brain className="absolute inset-0 m-auto h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <p className="text-sm text-muted-foreground">Analyzing paper with AI...</p>
+              <p className="text-xs text-muted-foreground/60">This may take a moment</p>
+            </div>
+          ) : analysisResult ? (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Summary
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                  {analysisResult.summary}
+                </div>
+              </div>
+
+              {/* Critique */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                  <Eye className="h-3.5 w-3.5" />
+                  Critique
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                  {analysisResult.critique}
+                </div>
+              </div>
+
+              {/* Relevance */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Relevance
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                  {analysisResult.relevance}
+                </div>
+              </div>
+
+              {/* Concepts */}
+              {analysisResult.concepts.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Concepts
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {analysisResult.concepts.map((concept) => (
+                      <Badge key={concept} variant="outline" className="text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
+                        {concept.replace(/_/g, ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Implementation Task */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                  Implementation Task
+                </div>
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm leading-relaxed">
+                  {analysisResult.implementationTask}
+                </div>
+              </div>
+
+              {/* Priority */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Priority:</span>
+                <Badge className={cn('text-xs border', priorityColors[analysisResult.priorityTier] || priorityColors.P3)}>
+                  {analysisResult.priorityTier}
+                </Badge>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No analysis available
+            </div>
+          )}
+        </DialogContent>
       </Dialog>
     </div>
   )
