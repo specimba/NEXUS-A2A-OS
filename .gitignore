@@ -1,114 +1,148 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# === NEXUS OS Generated Artifacts (NEVER COMMIT) ===
+nexus_api.db*
+arena_results.jsonl
+arena_report.md
+test_scan_report.json
+api_scan_report.json
+test_grok.py
+test_api_direct.py
+monitor_a2a.py
+*.task.md
+nexus-system-status.json
+nexus-system-status.csv
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NEXUS-OS v3.1 — Security-First .gitignore
-# NEVER commit secrets, keys, .env files, or runtime data.
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Kiro / Kilo artifacts
+.kiro/
+.kilo/
+.kiloignore
+kiro.config.yaml
 
-# ── SECRETS & CREDENTIALS (NEVER COMMIT) ───────────────────────
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.secret
-credentials.json
-service-account*.json
-.secrets
+# Large research dumps
+GroundingCollectiveBackup/
+research/teamlogs_reports/
+*.tar.gz
+*.zip
 
-# ── Dependencies ───────────────────────────────────────────────
-node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Temporary test files
+test_*.py
+fix_*.py
 
-# ── Testing ────────────────────────────────────────────────────
-/coverage
+# Canonical additions created under the current Nexus doctor workstream.
+!tests/monitoring/test_token_policy.py
+!tests/vault/test_zilliz_client.py
 
-# ── Next.js ────────────────────────────────────────────────────
-/.next/
-/out/
+# Python
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*$py.class
 
-# ── Production ─────────────────────────────────────────────────
-/build
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
 
-# ── OS & Misc ──────────────────────────────────────────────────
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
 .DS_Store
 Thumbs.db
 
-# ── Debug logs ─────────────────────────────────────────────────
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-*.log
-dev.log
-dev.out.log
+# ByteRover — .brv/context-tree/ contains a nested .git managed by brv vc.
+# Without these entries, `git add .` fails with "does not have a commit checked out".
+.brv/
+.brv.backup*/
+
+# === Agent connector artifacts (DO NOT COMMIT) ===
+.claude/
+.codex/
+.cursor/
+.kilocode/
+.opencode/
+.windsurf/
+.augment/
+.gemini/
+.agent/
+.agents/
+CLAUDE.md
+GEMINI.md
+WARP.md
+QWEN.md
+.mcp.json
+
+# === Secrets and environment ===
+.env
+.env.*
+!.env.example
+
+# === Test temp directories ===
+tests_tmp/
+.pytest_tmp/
+.tmp/
+/research_api_cache/
+/research_quota_ledger.jsonl
+/.nexus_pytest_tmp/
+/tmp_pytest_*/
+/tmp[0-9a-z]*/
+
+# === NEXUS PI infrastructure (agent sessions, backups, profiles) ===
+.nexus_pi/sessions/
+.nexus_pi/backup/
+.nexus_pi/archive/
+.nexus_pi/checkpoints/
+.nexus_pi/state/session_log.jsonl
+.nexus_pi/state/session_checkpoints/*.json
+# Keep tracked: profiles, backup_restore.py, infrastructure doc, README
+!.nexus_pi/profiles/
+!.nexus_pi/backup_restore.py
+!.nexus_pi/NEXUS_PI_INFRASTRUCTURE.md
+!.nexus_pi/README.md
+
+# === Session and log files ===
 server.log
+scan_report.json
+pi-session-*.html
+*.n8n
 
-# ── TypeScript ─────────────────────────────────────────────────
-*.tsbuildinfo
-next-env.d.ts
-
-# ── Vercel ─────────────────────────────────────────────────────
-.vercel
-
-# ── Local / Dev-only ──────────────────────────────────────────
-local-*
-.claude
-.z-ai-config
-
-# ── Python ─────────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
-ENV/
-
-# ── Database (runtime data — team runs bun run db:push) ───────
-/db/
+# === Databases (local only) ===
+nexus.db
+nexus_api.db
 *.db
-*.sqlite
-*.sqlite3
+*.db-shm
+*.db-wal
 
-# ── Upload directory (user data) ──────────────────────────────
-/upload/
+# === Legacy and sandbox (not canonical) ===
+/legacy/
+sandbox/
+cloud_pack/
+GroundingCollectiveBackup/
 
-# ── Agent context (development artifacts) ─────────────────────
-/agent-ctx/
+# === Build artifacts ===
+src/nexus_os.egg-info/
 
-# ── Mini services runtime ─────────────────────────────────────
-/mini-services/*/node_modules/
+# === Large/generated files ===
+benchmarks/data/
+modelscope_studio_upload/
+node_modules/
 
-# ── Sandbox ────────────────────────────────────────────────────
-/sandbox/
+# === OS-level ===
+gitleaks-report.json
+trust_state.json
+vap_chain.jsonl
 
-# ── Handoff ────────────────────────────────────────────────────
-/handoff/
+# OpenACP local workspace (contains secrets)
+.openacp
 
-# ── Download ───────────────────────────────────────────────────
-/download/
-
-# ── Temp files ─────────────────────────────────────────────────
-package.json.tmp
-test
-prompt
-
-# ── Server PID ─────────────────────────────────────────────────
-server.pid
-
-# ── Prisma ─────────────────────────────────────────────────────
-prisma/migration_lock.toml
-
-# ── Skills directory ──────────────────────────────────────────
-/skills/
+# HF Science database (contains API token)
+data/HF_Science_database.txt
+# Raw HF cache (not committed)
+benchmarks/data/beavertails.jsonl
+benchmarks/data/PKU-Alignment___beaver_tails/
+benchmarks/data/hf_cache/
+benchmarks/data/gsm8k/
+benchmarks/data/bigcode___humanevalpack/
