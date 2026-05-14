@@ -1,9 +1,12 @@
 #!/bin/bash
-cd /home/z/my-project
-while true; do
-    echo "[$(date)] Starting Next.js production server..." >> /home/z/my-project/server.log
-    node node_modules/next/dist/bin/next start -p 3000 -H 0.0.0.0 >> /home/z/my-project/server.log 2>&1
-    EXIT_CODE=$?
-    echo "[$(date)] Server exited with code $EXIT_CODE, restarting in 2s..." >> /home/z/my-project/server.log
-    sleep 2
-done
+# Check if server is running on port 3000
+if ! curl -s -o /dev/null -w '' http://localhost:3000/ 2>/dev/null; then
+  echo "[$(date)] Server not responding, restarting..." >> /home/z/my-project/keep-alive.log
+  # Kill any stale processes
+  pkill -f "server.js" 2>/dev/null
+  sleep 1
+  # Start server
+  cd /home/z/my-project
+  NODE_OPTIONS="--max-old-space-size=512" HOSTNAME="0.0.0.0" PORT=3000 nohup node .next/standalone/server.js > /home/z/my-project/dev.log 2>&1 &
+  echo "[$(date)] Server restarted with PID $!" >> /home/z/my-project/keep-alive.log
+fi

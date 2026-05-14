@@ -133,22 +133,118 @@
   }
 }
 
-/* Custom scrollbar for the command center */
+/* Custom scrollbar for the command center — thin, emerald accent */
 @layer base {
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.4 0.03 155 / 50%);
-    border-radius: 3px;
+    background: oklch(0.4 0.03 155 / 40%);
+    border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.5 0.1 155 / 70%);
+    background: oklch(0.65 0.2 155 / 70%);
   }
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.4 0.03 155 / 40%) transparent;
+  }
+  *:hover {
+    scrollbar-color: oklch(0.65 0.2 155 / 70%) transparent;
+  }
+}
+
+/* Smooth page transition for tab switches */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+/* Enhanced focus ring — emerald accent */
+@layer base {
+  *:focus-visible {
+    outline: 2px solid oklch(0.65 0.2 155 / 60%);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  :root *:focus-visible {
+    outline: 2px solid oklch(0.508 0.164 155 / 60%);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Micro-Interaction Utility Classes ────────────────────────── */
+
+/* .glow-emerald — subtle emerald glow/shadow on hover */
+.glow-emerald {
+  transition: box-shadow 250ms ease, border-color 250ms ease;
+}
+.glow-emerald:hover {
+  box-shadow: 0 0 12px oklch(0.65 0.2 155 / 25%), 0 0 24px oklch(0.65 0.2 155 / 10%);
+  border-color: oklch(0.65 0.2 155 / 30%);
+}
+:root .glow-emerald:hover {
+  box-shadow: 0 0 12px oklch(0.508 0.164 155 / 15%), 0 0 24px oklch(0.508 0.164 155 / 6%);
+  border-color: oklch(0.508 0.164 155 / 25%);
+}
+
+/* .card-hover — card hover effect (slight lift + shadow + border color change) */
+.card-hover {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px oklch(0 0 0 / 15%), 0 0 0 1px oklch(0.65 0.2 155 / 15%);
+  border-color: oklch(0.65 0.2 155 / 30%);
+}
+:root .card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px oklch(0 0 0 / 8%), 0 0 0 1px oklch(0.508 0.164 155 / 12%);
+  border-color: oklch(0.508 0.164 155 / 20%);
+}
+
+/* .pulse-dot — animated pulsing dot indicator */
+@keyframes pulseDot {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.65 0.2 155 / 50%);
+  }
+  50% {
+    box-shadow: 0 0 0 6px oklch(0.65 0.2 155 / 0%);
+  }
+}
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+:root .pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* .glass-effect — frosted glass background effect */
+.glass-effect {
+  background: oklch(0.155 0.008 155 / 65%);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border: 1px solid oklch(1 0 0 / 8%);
+  box-shadow: 0 4px 16px oklch(0 0 0 / 12%);
+}
+:root .glass-effect {
+  background: oklch(1 0 0 / 78%);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid oklch(0.88 0.01 155);
+  box-shadow: 0 4px 16px oklch(0 0 0 / 6%);
 }
 
 /* Nexus glow pulse animation */

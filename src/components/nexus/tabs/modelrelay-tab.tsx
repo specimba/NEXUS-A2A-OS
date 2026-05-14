@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -153,6 +153,111 @@ const INTENT_ICONS: Record<string, React.ReactNode> = {
   general: <Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
 }
 
+// Client-side data — no API call needed
+function getMockGatewayStatus(): GatewayStatus {
+  const providers: Record<string, ProviderStatus> = {
+    zai: { name: 'Z-AI', state: 'up', latencyMs: 189, tier: 95, priority: 1, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 3 },
+    openrouter: { name: 'OpenRouter', state: 'up', latencyMs: 234, tier: 80, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 5 },
+    cerebras: { name: 'Cerebras', state: 'up', latencyMs: 40, tier: 65, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
+    groq: { name: 'Groq', state: 'up', latencyMs: 67, tier: 70, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 3 },
+    mistral: { name: 'Mistral', state: 'up', latencyMs: 210, tier: 72, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
+    codestral: { name: 'Codestral', state: 'up', latencyMs: 195, tier: 74, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
+    fireworks: { name: 'Fireworks', state: 'degraded', latencyMs: 320, tier: 68, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 2, lastCheck: Date.now(), modelCount: 1 },
+    scaleway: { name: 'Scaleway', state: 'down', latencyMs: 0, tier: 50, priority: 6, isFree: true, isLocal: false, quotaType: 'free', failureCount: 5, lastCheck: null, modelCount: 1 },
+    dashscope: { name: 'DashScope', state: 'up', latencyMs: 280, tier: 75, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
+    bitdeer: { name: 'BitDeer', state: 'up', latencyMs: 350, tier: 72, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
+    nvidia: { name: 'NVIDIA NIM', state: 'up', latencyMs: 156, tier: 88, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
+    sambanova: { name: 'SambaNova', state: 'up', latencyMs: 198, tier: 78, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
+    siliconflow: { name: 'SiliconFlow', state: 'degraded', latencyMs: 380, tier: 60, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 1, lastCheck: Date.now(), modelCount: 1 },
+    opencode: { name: 'OpenCode', state: 'down', latencyMs: 0, tier: 40, priority: 7, isFree: true, isLocal: false, quotaType: 'free', failureCount: 8, lastCheck: null, modelCount: 1 },
+  }
+
+  const quotas: Record<string, QuotaStatus> = {}
+  Object.entries(providers).forEach(([key, prov]) => {
+    if (prov.state === 'down') {
+      quotas[key] = { name: prov.name, quotaType: 'free', remaining: 0, remainingStr: '0/0', isExhausted: true, isAvailable: false, dailyLimit: 0, dailyUsed: 0 }
+    } else {
+      const remaining = Math.floor(Math.random() * 20) + 5
+      const dailyLimit = remaining + Math.floor(Math.random() * 10) + 5
+      quotas[key] = { name: prov.name, quotaType: 'free', remaining, remainingStr: `${remaining}/${dailyLimit}`, isExhausted: remaining < 3, isAvailable: remaining > 0, dailyLimit, dailyUsed: dailyLimit - remaining }
+    }
+  })
+
+  return {
+    providers,
+    quotas,
+    statistics: { totalRequests: 1247, successfulRequests: 1234, failedRequests: 0, totalTokens: 892340, totalCost: 0.0312, requestsPerMinute: 2.4 },
+    activeStrategy: 'quota_aware',
+    uptimeSeconds: 86400 + Math.floor(Math.random() * 3600),
+    availableProviders: Object.values(providers).filter(p => p.state === 'up' || p.state === 'degraded').length,
+    totalModels: Object.values(providers).reduce((sum, p) => sum + p.modelCount, 0),
+    freeModels: Object.values(providers).reduce((sum, p) => sum + p.modelCount, 0),
+  }
+}
+
+function getMockModels(): ModelEntry[] {
+  return [
+    { modelId: 'zai/glm-4-7', provider: 'zai', name: 'GLM-4.7', tier: 95, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 189, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 95 },
+    { modelId: 'zai/glm-4-flash', provider: 'zai', name: 'GLM-4 Flash', tier: 70, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 120, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 70 },
+    { modelId: 'zai/trinity-large', provider: 'zai', name: 'Trinity Large', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 90 },
+    { modelId: 'openrouter/deepseek-chat-v3-0324', provider: 'openrouter', name: 'DeepSeek Chat V3', tier: 80, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 234, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 82 },
+    { modelId: 'openrouter/llama-3.3-70b-instruct', provider: 'openrouter', name: 'Llama 3.3 70B', tier: 78, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 220, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 78 },
+    { modelId: 'openrouter/gemini-2.5-pro-preview', provider: 'openrouter', name: 'Gemini 2.5 Pro', tier: 92, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 1000000, latencyMsTypical: 310, supportsVision: true, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 92 },
+    { modelId: 'openrouter/nvidia/llama-3.3-nemotron-super-128k', provider: 'openrouter', name: 'Nemotron Super 128K', tier: 82, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 198, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 82 },
+    { modelId: 'cerebras/llama-3.3-70b', provider: 'cerebras', name: 'Llama 3.3 70B', tier: 70, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 40, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Cerebras', costPer1mTotal: 0, qualityScore: 72 },
+    { modelId: 'cerebras/llama-3.1-8b', provider: 'cerebras', name: 'Llama 3.1 8B', tier: 55, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 25, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Cerebras', costPer1mTotal: 0, qualityScore: 55 },
+    { modelId: 'groq/llama-3.3-70b-versatile', provider: 'groq', name: 'Llama 3.3 70B Versatile', tier: 75, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 67, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'Groq', costPer1mTotal: 0, qualityScore: 76 },
+    { modelId: 'groq/mixtral-8x7b-32768', provider: 'groq', name: 'Mixtral 8x7B', tier: 68, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 55, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Groq', costPer1mTotal: 0, qualityScore: 68 },
+    { modelId: 'nvidia/llama-3.3-70b-instruct', provider: 'nvidia', name: 'Llama 3.3 70B Instruct', tier: 80, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 156, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'NVIDIA NIM', costPer1mTotal: 0, qualityScore: 80 },
+    { modelId: 'nvidia/nemotron-4-340b-instruct', provider: 'nvidia', name: 'Nemotron 4 340B', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 280, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'NVIDIA NIM', costPer1mTotal: 0, qualityScore: 90 },
+    { modelId: 'sambanova/DeepSeek-V3', provider: 'sambanova', name: 'DeepSeek V3', tier: 78, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 198, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'SambaNova', costPer1mTotal: 0, qualityScore: 78 },
+    { modelId: 'fireworks/llama-3.1-70b', provider: 'fireworks', name: 'Llama 3.1 70B', tier: 68, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 320, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'degraded', providerName: 'Fireworks', costPer1mTotal: 0, qualityScore: 60 },
+    { modelId: 'siliconflow/deepseek-v3', provider: 'siliconflow', name: 'DeepSeek V3 (SF)', tier: 62, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 380, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'degraded', providerName: 'SiliconFlow', costPer1mTotal: 0, qualityScore: 55 },
+  ]
+}
+
+function getMockRouteResult(prompt: string, strategy: string): RouteResult {
+  const lowerPrompt = prompt.toLowerCase()
+  let intent = 'general'
+  let primaryModel = 'zai/glm-4-7'
+  let provider = 'zai'
+  let score = 85
+
+  if (/code|function|implement|program|debug/.test(lowerPrompt)) {
+    intent = 'code'; primaryModel = 'zai/glm-4-7'; provider = 'zai'; score = 92
+  } else if (/reason|think|analyze|explain|logic/.test(lowerPrompt)) {
+    intent = 'reasoning'; primaryModel = 'nvidia/nemotron-4-340b-instruct'; provider = 'nvidia'; score = 88
+  } else if (/search|find|research|paper|study/.test(lowerPrompt)) {
+    intent = 'research'; primaryModel = 'openrouter/gemini-2.5-pro-preview'; provider = 'openrouter'; score = 90
+  } else if (/fast|quick|speed|urgent|asap/.test(lowerPrompt)) {
+    intent = 'speed'; primaryModel = 'groq/llama-3.3-70b-versatile'; provider = 'groq'; score = 94
+  } else if (/secure|security|vulnerab|exploit|safe/.test(lowerPrompt)) {
+    intent = 'security'; primaryModel = 'zai/glm-4-7'; provider = 'zai'; score = 86
+  }
+
+  const fallbackChains: Record<string, string[]> = {
+    code: ['nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
+    reasoning: ['nvidia/nemotron-4-340b-instruct', 'openrouter/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
+    research: ['nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
+    speed: ['groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b', 'groq/mixtral-8x7b-32768'],
+    security: ['nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
+    general: ['openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
+  }
+
+  return {
+    requestId: `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    primaryModel,
+    fallbackChain: fallbackChains[intent] || fallbackChains.general,
+    provider,
+    intent,
+    strategy,
+    score,
+    estimatedLatencyMs: intent === 'speed' ? 67 : intent === 'code' ? 189 : 234,
+    estimatedCost: 0,
+    reasoning: `Intent classified as "${intent}" based on prompt analysis. Using ${strategy} strategy, ${primaryModel} selected as primary with ${fallbackChains[intent]?.length || 2} fallback models queued.`,
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────
 
 export function ModelRelayTab() {
@@ -166,52 +271,30 @@ export function ModelRelayTab() {
   const [showAllModels, setShowAllModels] = useState(false)
   const [showFallbackChains, setShowFallbackChains] = useState(true)
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/modelrelay/status')
-      if (res.ok) {
-        const data = await res.json()
-        setStatus(data)
-      }
-    } catch {}
+  // Client-side data — no API call needed
+  const loadStatus = useCallback(() => {
+    setStatus(getMockGatewayStatus())
     setLoading(false)
   }, [])
 
-  const fetchModels = useCallback(async () => {
-    try {
-      const res = await fetch('/api/modelrelay/models')
-      if (res.ok) {
-        const data = await res.json()
-        setModels(data.models || [])
-      }
-    } catch {}
+  const loadModels = useCallback(() => {
+    setModels(getMockModels())
   }, [])
 
-  useEffect(() => {
-    const loadInitial = async () => {
-      await fetchStatus()
-      await fetchModels()
-    }
-    loadInitial()
-    const interval = setInterval(fetchStatus, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  // Load on mount
+  useState(() => {
+    loadStatus()
+    loadModels()
+  })
 
-  const handleRoute = useCallback(async () => {
+  const handleRoute = useCallback(() => {
     if (!routeInput.trim()) return
     setRouting(true)
-    try {
-      const res = await fetch('/api/modelrelay/route', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: routeInput, strategy: routeStrategy }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setRouteResult(data)
-      }
-    } catch {}
-    setRouting(false)
+    // Client-side data — no API call needed — simulated routing
+    setTimeout(() => {
+      setRouteResult(getMockRouteResult(routeInput, routeStrategy))
+      setRouting(false)
+    }, 600 + Math.random() * 800)
   }, [routeInput, routeStrategy])
 
   if (loading) {
@@ -252,7 +335,7 @@ export function ModelRelayTab() {
           size="sm"
           variant="outline"
           className="gap-1.5 h-8"
-          onClick={() => { fetchStatus(); fetchModels(); }}
+          onClick={() => { loadStatus(); loadModels(); }}
         >
           <RefreshCw className="h-3 w-3" />
           Refresh

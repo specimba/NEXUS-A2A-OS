@@ -1,23 +1,26 @@
 import { spawn } from 'child_process'
 
-console.log('[nextjs-wrapper] Starting Next.js dev server...')
+console.log('[nextjs-wrapper] Starting NEXUS-OS lightweight server...')
 
-const child = spawn('npx', ['next', 'dev', '-p', '3000'], {
-  cwd: '/home/z/my-project',
-  stdio: 'inherit',
-  env: { ...process.env },
-})
+function startServer() {
+  const child = spawn('node', ['lightweight-server.mjs'], {
+    cwd: '/home/z/my-project',
+    stdio: 'inherit',
+    env: { ...process.env },
+  })
 
-child.on('exit', (code) => {
-  console.log(`[nextjs-wrapper] Next.js exited with code ${code}. Restarting in 3s...`)
-  setTimeout(() => {
-    spawn('npx', ['next', 'dev', '-p', '3000'], {
-      cwd: '/home/z/my-project',
-      stdio: 'inherit',
-      env: { ...process.env },
-    })
-  }, 3000)
-})
+  child.on('exit', (code, signal) => {
+    console.log(`[nextjs-wrapper] Server exited (code=${code}, signal=${signal}). Restarting in 2s...`)
+    setTimeout(startServer, 2000)
+  })
+
+  child.on('error', (err) => {
+    console.log(`[nextjs-wrapper] Server error: ${err.message}. Restarting in 2s...`)
+    setTimeout(startServer, 2000)
+  })
+}
+
+startServer()
 
 // Keep the process alive
 setInterval(() => {

@@ -2300,8 +2300,16 @@ export function getProviderStatus(provider: string): ProviderStatus {
                   : provider === 'dashscope'
                     ? 'Alibaba Cloud Free (DashScope)'
                     : provider === 'bitdeer'
-                      ? 'BitDeer'
-                      : provider
+                      ? 'BitDeer AI'
+                      : provider === 'nvidia'
+                        ? 'NVIDIA NIM Free'
+                        : provider === 'sambanova'
+                          ? 'SambaNova Free'
+                          : provider === 'siliconflow'
+                            ? 'SiliconFlow Free'
+                            : provider === 'opencode'
+                              ? 'OpenCode'
+                              : provider
 
   return {
     provider,

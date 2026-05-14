@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // output: "standalone", // Disabled — standalone server has memory issues in sandbox
-  /* config options here */
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  allowedDevOrigins: [
+    ".space-z.ai",
+  ],
 };
 
 export default nextConfig;

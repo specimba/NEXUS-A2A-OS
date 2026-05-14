@@ -1,3 +1,6 @@
 #!/bin/bash
 cd /home/z/my-project
-exec node node_modules/next/dist/bin/next dev -p 3000
+while true; do
+  node lightweight-server.mjs 2>&1
+  sleep 1
+done
