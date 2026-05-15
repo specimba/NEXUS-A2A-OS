@@ -6,14 +6,15 @@ Status: M3 hardened baseline preserved; Phase 0 grounding in progress.
 
 ## Verification Gate
 
-Latest local verification (from Codex team report):
+Latest local verification:
 
 ```text
-617 passed in 16.99s
+617 passed in 24.09s
 ```
 
 All `pytest.mark.skip` removed. Hermes, GMR, VaultManager, Coordinator, TokenGuard migrated to V3.
 Vault uses the canonical 5-track schema (`store_track` / `retrieve_track`).
+**2026-05-15: Fixed 2 pre-existing import errors** — test collection now clean at 617/617.
 
 ## Core Thesis
 

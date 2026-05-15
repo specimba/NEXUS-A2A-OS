@@ -1,4 +1,12 @@
-# === NEXUS OS Generated Artifacts (NEVER COMMIT) ===
+# =============================================================================
+# NEXUS OS — .gitignore
+# =============================================================================
+# Policy: Generated artifacts, large datasets, session dumps, and unused
+# static assets must never be committed. Track only canoncial source code,
+# documentation, and config templates.
+# =============================================================================
+
+# === GENERATED ARTIFACTS (NEVER COMMIT) ===
 nexus_api.db*
 arena_results.jsonl
 arena_report.md
@@ -11,50 +19,50 @@ monitor_a2a.py
 nexus-system-status.json
 nexus-system-status.csv
 
-# Kiro / Kilo artifacts
+# === Kiro / Kilo artifacts ===
 .kiro/
 .kilo/
 .kiloignore
 kiro.config.yaml
 
-# Large research dumps
+# === Large research dumps ===
 GroundingCollectiveBackup/
 research/teamlogs_reports/
 *.tar.gz
 *.zip
 
-# Temporary test files
+# === Temporary files ===
 test_*.py
 fix_*.py
+*.tmp
+*~
 
 # Canonical additions created under the current Nexus doctor workstream.
 !tests/monitoring/test_token_policy.py
 !tests/vault/test_zilliz_client.py
 
-# Python
+# === Python ===
 __pycache__/
 .pytest_cache/
 *.py[cod]
 *$py.class
 
-# Virtual Environment
+# === Virtual Environment ===
 venv/
 ENV/
 env/
 .venv/
 
-# IDE
+# === IDE ===
 .vscode/
 .idea/
 *.swp
-*~
 
-# OS
+# === OS ===
 .DS_Store
 Thumbs.db
 
-# ByteRover — .brv/context-tree/ contains a nested .git managed by brv vc.
-# Without these entries, `git add .` fails with "does not have a commit checked out".
+# === ByteRover ===
 .brv/
 .brv.backup*/
 
@@ -90,13 +98,14 @@ tests_tmp/
 /tmp_pytest_*/
 /tmp[0-9a-z]*/
 
-# === NEXUS PI infrastructure (agent sessions, backups, profiles) ===
+# === NEXUS PI infrastructure ===
 .nexus_pi/sessions/
 .nexus_pi/backup/
 .nexus_pi/archive/
 .nexus_pi/checkpoints/
 .nexus_pi/state/session_log.jsonl
 .nexus_pi/state/session_checkpoints/*.json
+.nexus_pi/state/session_compact.json
 # Keep tracked: profiles, backup_restore.py, infrastructure doc, README
 !.nexus_pi/profiles/
 !.nexus_pi/backup_restore.py
@@ -104,6 +113,8 @@ tests_tmp/
 !.nexus_pi/README.md
 
 # === Session and log files ===
+session-*.md
+session-ses_*.md
 server.log
 scan_report.json
 pi-session-*.html
@@ -116,7 +127,7 @@ nexus_api.db
 *.db-shm
 *.db-wal
 
-# === Legacy and sandbox (not canonical) ===
+# === Legacy, sandbox, and stale assets (not canonical) ===
 /legacy/
 sandbox/
 cloud_pack/
@@ -135,10 +146,10 @@ gitleaks-report.json
 trust_state.json
 vap_chain.jsonl
 
-# OpenACP local workspace (contains secrets)
+# === OpenACP local workspace (contains secrets) ===
 .openacp
 
-# HF Science database (contains API token)
+# === HF Science database (contains API token) ===
 data/HF_Science_database.txt
 # Raw HF cache (not committed)
 benchmarks/data/beavertails.jsonl
@@ -146,3 +157,46 @@ benchmarks/data/PKU-Alignment___beaver_tails/
 benchmarks/data/hf_cache/
 benchmarks/data/gsm8k/
 benchmarks/data/bigcode___humanevalpack/
+
+# =============================================================================
+# DATASET & GENERATED DATA DIRECTORIES (NEVER COMMIT — Local generation only)
+# =============================================================================
+
+# Foundry datasets — 1.5+ GB of generated eval/stress data. Regenerate locally.
+foundry_datasets/
+
+# Benchmark generation scripts produce large output files.
+benchmarks/__pycache__/
+
+# Research session logs (dynamic, regenerated per work session)
+research/session_logs/
+
+# Static archive of unused assets (zips, binaries, old screenshots)
+download/
+
+# Agent context work records (historical dev logs — not canonical source)
+agent-ctx/
+
+# Handoff task files (agent-to-agent, ephemeral)
+handoff/
+
+# Ollama Modelfile (local model config, machine-specific)
+Modelfile
+
+# Windows artifact (created by accident)
+nul
+
+# Session log at root (6K+ line work session dump)
+session-ses_*.md
+
+# Tectonic LaTeX binary (10 MB — should be installed by package manager, not in git)
+skills/ppt/scripts/tectonic
+
+# Stale build artifact directories (egg-info, compiled-only exports)
+docs/usefulthings-01/
+v4 plans and related doc with codes/
+NEO-TEAM_nexus-integration/
+
+# Nexus-fusion-pack (old exported presentations — not canonical source)
+nexus-fusion-pack/
+nexus-glm5-fusion-pack/
