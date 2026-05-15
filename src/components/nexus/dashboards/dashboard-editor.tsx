@@ -149,8 +149,8 @@ const MOCK_DASHBOARD: Dashboard = {
   tags: ['system', 'health', 'monitoring'],
   isPublic: false,
   shareId: null,
-  createdAt: new Date(Date.now() - 86400000).toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: '2025-03-03T12:00:00.000Z',
+  updatedAt: '2025-03-04T12:00:00.000Z',
 }
 
 // ─── Sortable Widget Item ──────────────────────────────────────────────────
@@ -246,6 +246,7 @@ export function DashboardEditor({ dashboardId, onBack, onShare }: DashboardEdito
   // Initialize with mock data to avoid synchronous setState in effects
   const initialDashboard = { ...MOCK_DASHBOARD, id: dashboardId }
 
+  const [mounted, setMounted] = useState(false)
   const [dashboard, setDashboard] = useState<Dashboard>(initialDashboard)
   const [metrics, setMetrics] = useState<MetricSeries[]>(() => {
     // Pre-generate mock metrics for initial dashboard
@@ -299,6 +300,12 @@ export function DashboardEditor({ dashboardId, onBack, onShare }: DashboardEdito
       activationConstraint: { distance: 5 },
     }),
   )
+
+  // ─── Hydration: set mounted after initial render ──────────────────────
+  useEffect(() => {
+    // Using requestAnimationFrame to avoid synchronous setState in effect
+    requestAnimationFrame(() => setMounted(true))
+  }, [])
 
   // Async fetch dashboard data from API — only updates state on success
   useEffect(() => {
@@ -653,7 +660,7 @@ export function DashboardEditor({ dashboardId, onBack, onShare }: DashboardEdito
         <span>•</span>
         <span>{dashboard.layout === 'grid' ? 'Grid layout' : 'Freeform layout'}</span>
         <span>•</span>
-        <span>Updated {new Date(dashboard.updatedAt).toLocaleString()}</span>
+        <span suppressHydrationWarning>Updated {mounted ? new Date(dashboard.updatedAt).toLocaleString() : ''}</span>
         {dashboard.isPublic && (
           <>
             <span>•</span>
@@ -799,7 +806,7 @@ export function DashboardEditor({ dashboardId, onBack, onShare }: DashboardEdito
 
             <div className="p-3 rounded-lg bg-muted/30 text-[10px] text-muted-foreground space-y-1">
               <div>Dashboard ID: <span className="font-mono">{dashboard.id}</span></div>
-              <div>Created: {new Date(dashboard.createdAt).toLocaleString()}</div>
+              <div suppressHydrationWarning>Created: {mounted ? new Date(dashboard.createdAt).toLocaleString() : ''}</div>
               <div>Widgets: {dashboard.widgets.length}</div>
               <div>Tags: {dashboard.tags.length > 0 ? dashboard.tags.join(', ') : 'None'}</div>
             </div>

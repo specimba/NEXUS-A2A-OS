@@ -568,33 +568,51 @@ export function ProviderTab() {
         )}
       </AnimatePresence>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{activeCount}</div>
-            <div className="text-xs text-muted-foreground">Active</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{warningCount}</div>
-            <div className="text-xs text-muted-foreground">Warning</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{inactiveCount}</div>
-            <div className="text-xs text-muted-foreground">Inactive</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold">{summary.totalModels}</div>
-            <div className="text-xs text-muted-foreground">Total Models</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Provider Health Overview Summary Card */}
+      <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 via-transparent to-transparent">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-sm font-semibold">Provider Health Overview</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
+              {Math.round((summary.healthyModels / Math.max(summary.totalModels, 1)) * 100)}% Healthy
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="bg-gradient-to-br from-emerald-600/10 to-transparent p-2.5 rounded-lg border border-emerald-600/20">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</div>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{activeCount}</div>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-600/10 to-transparent p-2.5 rounded-lg border border-yellow-600/20">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Warning</div>
+              <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{warningCount}</div>
+            </div>
+            <div className="bg-gradient-to-br from-red-600/10 to-transparent p-2.5 rounded-lg border border-red-600/20">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Inactive</div>
+              <div className="text-xl font-bold text-red-600 dark:text-red-400">{inactiveCount}</div>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-600/5 to-transparent p-2.5 rounded-lg border border-border/30">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Models</div>
+              <div className="text-xl font-bold">{summary.totalModels}</div>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-600/5 to-transparent p-2.5 rounded-lg border border-border/30">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Healthy Models</div>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{summary.healthyModels}</div>
+            </div>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-emerald-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.round((summary.healthyModels / Math.max(summary.totalModels, 1)) * 100)}%` }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+            />
+          </div>
+          <div className="text-[9px] text-muted-foreground mt-1">{summary.healthyModels} of {summary.totalModels} models healthy across {providers.length} providers</div>
+        </CardContent>
+      </Card>
 
       {/* ─── Provider Health Grid ─────────────────────────────────────────── */}
       <Card className="bg-card/50 border-border/50">
@@ -798,23 +816,32 @@ export function ProviderTab() {
               onOpenChange={() => toggleProvider(provider.provider)}
             >
               <Card className={cn(
-                "bg-card/50 border-border/50 transition-all duration-200",
-                isExpanded && 'border-emerald-500/20 shadow-sm shadow-emerald-500/5'
+                "bg-card/50 transition-all duration-200",
+                // Gradient border based on status
+                provider.health === 'healthy' && 'border-l-2 border-l-emerald-500 border-border/50',
+                provider.health === 'degraded' && 'border-l-2 border-l-yellow-500 border-border/50 bg-gradient-to-r from-yellow-600/5 to-transparent',
+                (provider.health === 'down' || !provider.isAvailable) && 'border-l-2 border-l-red-500 border-border/50 bg-gradient-to-r from-red-600/5 to-transparent',
+                provider.health === 'unknown' && provider.isAvailable && 'border-l-2 border-l-gray-400 border-border/50',
+                isExpanded && 'shadow-sm shadow-emerald-500/5'
               )}>
                 <CardContent className="p-4">
                   {/* Summary Row (always visible) */}
                   <CollapsibleTrigger asChild>
                     <div className="flex items-center justify-between cursor-pointer select-none">
                       <div className="flex items-center gap-3">
-                        <Server className="h-5 w-5 text-muted-foreground" />
+                        <div className={cn(
+                          'h-2.5 w-2.5 rounded-full shrink-0',
+                          healthColorMap[provider.health] || 'bg-gray-400',
+                          !provider.isAvailable && 'bg-red-500'
+                        )} />
                         <span className="text-sm font-bold">{provider.label}</span>
                         <Badge
                           variant="outline"
                           className={cn('text-[10px]', {
-                            'border-emerald-600/30 text-emerald-600 dark:text-emerald-400': provider.health === 'healthy',
-                            'border-yellow-600/30 text-yellow-600 dark:text-yellow-400': provider.health === 'degraded',
-                            'border-red-600/30 text-red-600 dark:text-red-400': provider.health === 'down' || (!provider.isAvailable && keyStatus === 'missing'),
-                            'border-gray-600/30 text-gray-600 dark:text-gray-400': provider.health === 'unknown' && provider.isAvailable,
+                            'border-emerald-600/30 text-emerald-600 dark:text-emerald-400 bg-emerald-600/5': provider.health === 'healthy',
+                            'border-yellow-600/30 text-yellow-600 dark:text-yellow-400 bg-yellow-600/5': provider.health === 'degraded',
+                            'border-red-600/30 text-red-600 dark:text-red-400 bg-red-600/5': provider.health === 'down' || (!provider.isAvailable && keyStatus === 'missing'),
+                            'border-gray-600/30 text-gray-600 dark:text-gray-400 bg-gray-600/5': provider.health === 'unknown' && provider.isAvailable,
                           })}
                         >
                           {provider.isAvailable
@@ -826,7 +853,20 @@ export function ProviderTab() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><Gauge className="h-3 w-3" /> {provider.avgLatencyMs > 0 ? `${provider.avgLatencyMs}ms` : 'N/A'}</span>
+                          {/* Latency bar indicator */}
+                          {provider.avgLatencyMs > 0 && (
+                            <span className="flex items-center gap-1.5">
+                              <Gauge className="h-3 w-3" />
+                              <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className={cn(
+                                  'h-full rounded-full',
+                                  provider.avgLatencyMs < 100 ? 'bg-emerald-500' :
+                                  provider.avgLatencyMs < 250 ? 'bg-yellow-500' : 'bg-red-500'
+                                )} style={{ width: `${Math.min((provider.avgLatencyMs / 500) * 100, 100)}%` }} />
+                              </div>
+                              <span>{provider.avgLatencyMs}ms</span>
+                            </span>
+                          )}
                           <span className="flex items-center gap-1"><Server className="h-3 w-3" /> {provider.activeModels}/{provider.totalModels}</span>
                           <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {provider.costEstimate.inputPer1k === 0 && provider.costEstimate.outputPer1k === 0 ? 'FREE' : `$${provider.costEstimate.inputPer1k}/$${provider.costEstimate.outputPer1k}`}</span>
                         </div>

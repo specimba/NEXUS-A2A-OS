@@ -26,8 +26,16 @@ import {
   Bell,
   XCircle,
   Info,
+  Scale,
+  BookOpen,
+  Rocket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip'
 import {
   AreaChart,
   Area,
@@ -40,16 +48,33 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts'
 
 const healthCards = [
-  { label: 'CPU Load', value: 34, unit: '%', icon: Cpu, trend: 'down', color: 'emerald', gradient: 'from-emerald-600/5 to-transparent', sparkData: [42, 38, 45, 35, 30, 37, 34, 28, 32, 36, 33, 34] },
-  { label: 'Memory', value: 62, unit: '%', icon: HardDrive, trend: 'up', color: 'yellow', gradient: 'from-yellow-600/5 to-transparent', sparkData: [55, 58, 52, 60, 57, 63, 65, 62, 59, 61, 64, 62] },
-  { label: 'API Latency', value: 142, unit: 'ms', icon: Zap, trend: 'down', color: 'emerald', gradient: 'from-emerald-600/5 to-transparent', sparkData: [180, 165, 172, 155, 148, 160, 152, 145, 142, 148, 139, 142] },
-  { label: 'Uptime', value: 99.7, unit: '%', icon: Activity, trend: 'up', color: 'emerald', gradient: 'from-emerald-600/5 to-transparent', sparkData: [99.5, 99.6, 99.7, 99.8, 99.7, 99.6, 99.7, 99.8, 99.9, 99.7, 99.6, 99.7] },
+  { label: 'CPU Load', value: 34, unit: '%', icon: Cpu, trend: 'down', color: 'emerald', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', sparkData: [42, 38, 45, 35, 30, 37, 34, 28, 32, 36, 33, 34] },
+  { label: 'Memory', value: 62, unit: '%', icon: HardDrive, trend: 'up', color: 'yellow', gradient: 'from-yellow-600/10 via-yellow-600/5 to-transparent', sparkData: [55, 58, 52, 60, 57, 63, 65, 62, 59, 61, 64, 62] },
+  { label: 'API Latency', value: 142, unit: 'ms', icon: Zap, trend: 'down', color: 'emerald', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', sparkData: [180, 165, 172, 155, 148, 160, 152, 145, 142, 148, 139, 142] },
+  { label: 'Uptime', value: 99.7, unit: '%', icon: Activity, trend: 'up', color: 'emerald', gradient: 'from-emerald-600/10 via-emerald-600/5 to-transparent', sparkData: [99.5, 99.6, 99.7, 99.8, 99.7, 99.6, 99.7, 99.8, 99.9, 99.7, 99.6, 99.7] },
+]
+
+// System Load Average data (1m/5m/15m)
+const loadAverages = {
+  '1m': { value: 1.24, sparkData: [1.8, 1.5, 1.3, 1.6, 1.2, 1.1, 1.4, 1.3, 1.2, 1.1, 1.3, 1.24] },
+  '5m': { value: 1.58, sparkData: [2.1, 1.9, 1.7, 1.8, 1.6, 1.5, 1.7, 1.6, 1.5, 1.6, 1.5, 1.58] },
+  '15m': { value: 2.01, sparkData: [2.4, 2.3, 2.2, 2.1, 2.0, 2.1, 2.0, 2.1, 2.0, 1.9, 2.0, 2.01] },
+}
+
+// Constitutional Rules data
+const constitutionalRules = [
+  { id: 'CR-001', name: 'No Unattended Self-Modification', status: 'active', severity: 'critical' },
+  { id: 'CR-002', name: 'Human Approval for Destructive Actions', status: 'active', severity: 'critical' },
+  { id: 'CR-003', name: 'Token Budget Hard Limit', status: 'active', severity: 'warning' },
+  { id: 'CR-004', name: 'Trust Score Decay Enforcement', status: 'active', severity: 'info' },
+  { id: 'CR-005', name: 'Agent Autonomy Boundary', status: 'active', severity: 'critical' },
+  { id: 'CR-006', name: 'Rate Limit Circuit Breaker', status: 'active', severity: 'warning' },
 ]
 
 const agents = [
@@ -74,14 +99,15 @@ const modelPools = [
   { name: 'FAST', models: ['gemma-fast', 'nemotron-3-super'], health: 94, color: 'orange' },
 ]
 
-const recentActivity = [
-  { time: Date.now() - 2 * 60 * 1000, event: 'Governor blocked CRITICAL action', type: 'warning' as const, source: 'Governor' },
-  { time: Date.now() - 5 * 60 * 1000, event: 'StressLab test ISC-001 completed', type: 'success' as const, source: 'StressLab' },
-  { time: Date.now() - 10 * 60 * 1000, event: 'Token budget at 73.4%', type: 'info' as const, source: 'Tokens' },
-  { time: Date.now() - 15 * 60 * 1000, event: 'New research paper vetted: OR-Bench', type: 'success' as const, source: 'Research' },
-  { time: Date.now() - 20 * 60 * 1000, event: 'GMR pool FAST: all models healthy', type: 'success' as const, source: 'GMR' },
-  { time: Date.now() - 25 * 60 * 1000, event: 'Agent worker-3 trust score increased', type: 'info' as const, source: 'Governor' },
-  { time: Date.now() - 30 * 60 * 1000, event: 'Constitution check passed', type: 'success' as const, source: 'Vault' },
+// Static recent activity data (no Date.now() to avoid hydration mismatch)
+const recentActivityStatic = [
+  { offsetMs: 2 * 60 * 1000, event: 'Governor blocked CRITICAL action', type: 'warning' as const, source: 'Governor' },
+  { offsetMs: 5 * 60 * 1000, event: 'StressLab test ISC-001 completed', type: 'success' as const, source: 'StressLab' },
+  { offsetMs: 10 * 60 * 1000, event: 'Token budget at 73.4%', type: 'info' as const, source: 'Tokens' },
+  { offsetMs: 15 * 60 * 1000, event: 'New research paper vetted: OR-Bench', type: 'success' as const, source: 'Research' },
+  { offsetMs: 20 * 60 * 1000, event: 'GMR pool FAST: all models healthy', type: 'success' as const, source: 'GMR' },
+  { offsetMs: 25 * 60 * 1000, event: 'Agent worker-3 trust score increased', type: 'info' as const, source: 'Governor' },
+  { offsetMs: 30 * 60 * 1000, event: 'Constitution check passed', type: 'success' as const, source: 'Vault' },
 ]
 
 const typeStyles = {
@@ -102,16 +128,16 @@ const agentBorderStyles = {
   inactive: 'border-l-2 border-l-red-500',
 }
 
-// Alert feed data
-const alertFeedData = [
-  { id: 1, severity: 'warning' as const, message: 'Memory usage approaching 80% threshold', source: 'System', time: Date.now() - 30 * 1000 },
-  { id: 2, severity: 'info' as const, message: 'Model failover triggered for gemma-fast', source: 'ModelRelay', time: Date.now() - 90 * 1000 },
-  { id: 3, severity: 'critical' as const, message: 'Provider dashscope rate limit exceeded', source: 'Gateway', time: Date.now() - 180 * 1000 },
-  { id: 4, severity: 'success' as const, message: 'Constitutional check passed for all rules', source: 'Governor', time: Date.now() - 240 * 1000 },
-  { id: 5, severity: 'info' as const, message: 'Token budget reset for new cycle', source: 'Tokens', time: Date.now() - 360 * 1000 },
-  { id: 6, severity: 'warning' as const, message: 'Agent worker-2 trust score below 0.8', source: 'Governor', time: Date.now() - 480 * 1000 },
-  { id: 7, severity: 'success' as const, message: 'StressLab test completed successfully', source: 'StressLab', time: Date.now() - 600 * 1000 },
-  { id: 8, severity: 'info' as const, message: 'New provider sambanova added to pool', source: 'ModelRelay', time: Date.now() - 900 * 1000 },
+// Static alert feed data (offsets only, resolved client-side to avoid hydration mismatch)
+const alertFeedDataStatic = [
+  { id: 1, severity: 'warning' as const, message: 'Memory usage approaching 80% threshold', source: 'System', offsetMs: 30 * 1000 },
+  { id: 2, severity: 'info' as const, message: 'Model failover triggered for gemma-fast', source: 'ModelRelay', offsetMs: 90 * 1000 },
+  { id: 3, severity: 'critical' as const, message: 'Provider dashscope rate limit exceeded', source: 'Gateway', offsetMs: 180 * 1000 },
+  { id: 4, severity: 'success' as const, message: 'Constitutional check passed for all rules', source: 'Governor', offsetMs: 240 * 1000 },
+  { id: 5, severity: 'info' as const, message: 'Token budget reset for new cycle', source: 'Tokens', offsetMs: 360 * 1000 },
+  { id: 6, severity: 'warning' as const, message: 'Agent worker-2 trust score below 0.8', source: 'Governor', offsetMs: 480 * 1000 },
+  { id: 7, severity: 'success' as const, message: 'StressLab test completed successfully', source: 'StressLab', offsetMs: 600 * 1000 },
+  { id: 8, severity: 'info' as const, message: 'New provider sambanova added to pool', source: 'ModelRelay', offsetMs: 900 * 1000 },
 ]
 
 // Mock data for System Performance AreaChart
@@ -244,6 +270,19 @@ function NetworkTopology() {
     { from: 'fast', to: 'providers' },
   ]
 
+  const nodeDescriptions: Record<string, string> = {
+    dashboard: 'NEXUS-OS Dashboard UI',
+    gateway: 'API Gateway & Router',
+    worker1: 'Research Agent (trust: 0.92)',
+    worker2: 'Coding Agent (trust: 0.78)',
+    worker3: 'Analysis Agent (trust: 0.85)',
+    coord: 'Governance Coordinator',
+    premium: 'Premium Model Pool (97%)',
+    mid: 'Mid Model Pool (89%)',
+    fast: 'Fast Model Pool (94%)',
+    providers: '14 Active Providers',
+  }
+
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]))
 
   return (
@@ -266,9 +305,10 @@ function NetworkTopology() {
           />
         )
       })}
-      {/* Nodes */}
+      {/* Nodes with hover tooltips via <title> */}
       {nodes.map((node) => (
         <g key={node.id}>
+          <title>{node.label} — {nodeDescriptions[node.id] || ''}</title>
           <motion.circle
             cx={node.x}
             cy={node.y}
@@ -279,6 +319,7 @@ function NetworkTopology() {
             strokeWidth={1.5}
             animate={{ fillOpacity: [0.15, 0.3, 0.15] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ cursor: 'pointer' }}
           />
           <text
             x={node.x}
@@ -288,6 +329,7 @@ function NetworkTopology() {
             fontSize={8}
             fontWeight={600}
             fontFamily="monospace"
+            style={{ pointerEvents: 'none' }}
           >
             {node.label}
           </text>
@@ -303,13 +345,28 @@ function NetworkTopology() {
 }
 
 export function OverviewTab() {
+  // Hydration-safe mount detection
+  const [mounted, setMounted] = useState(false)
+
   // Live system metrics state
   const [activeConnections, setActiveConnections] = useState(247)
   const [requestsPerSec, setRequestsPerSec] = useState(34)
   const [tokensPerMin, setTokensPerMin] = useState(1420)
   const [errorRate, setErrorRate] = useState(0.3)
   const [rpsHistory, setRpsHistory] = useState<number[]>([32, 35, 28, 31, 34, 30, 33, 36, 29, 34])
-  const [alerts, setAlerts] = useState(alertFeedData)
+
+  // Initialize alerts with 0 timestamps (hydration-safe), will be updated on mount
+  const [alerts, setAlerts] = useState(() =>
+    alertFeedDataStatic.map(a => ({ ...a, time: 0 }))
+  )
+
+  // Resolve timestamps client-side after mount
+  useEffect(() => {
+    setMounted(true)
+    const now = Date.now()
+    setAlerts(alertFeedDataStatic.map(a => ({ ...a, time: now - a.offsetMs })))
+  }, [])
+
   const alertListRef = useRef<HTMLDivElement>(null)
 
   // Simulated live metric updates every 2 seconds
@@ -384,6 +441,112 @@ export function OverviewTab() {
         </span>
         <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">System Operational</span>
       </div>
+
+      {/* 8-Pillar Health Grid — larger cards with status badges */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        {[
+          { name: 'Bridge', health: 98, status: 'healthy', icon: '🔗', uptime: '4h 23m', version: 'v3.1.2' },
+          { name: 'Engine', health: 95, status: 'healthy', icon: '⚙️', uptime: '4h 23m', version: 'v2.8.1' },
+          { name: 'Governor', health: 100, status: 'healthy', icon: '🛡️', uptime: '4h 23m', version: 'v4.0.0' },
+          { name: 'Vault', health: 97, status: 'healthy', icon: '🔐', uptime: '4h 23m', version: 'v2.5.3' },
+          { name: 'GMR', health: 91, status: 'healthy', icon: '🚦', uptime: '4h 23m', version: 'v1.9.7' },
+          { name: 'Swarm', health: 82, status: 'degraded', icon: '🐝', uptime: '3h 15m', version: 'v1.3.2' },
+          { name: 'Monitor', health: 94, status: 'healthy', icon: '📊', uptime: '4h 23m', version: 'v2.1.0' },
+          { name: 'Config', health: 100, status: 'healthy', icon: '🔧', uptime: '4h 23m', version: 'v1.0.5' },
+        ].map((pillar) => (
+          <Tooltip key={pillar.name}>
+            <TooltipTrigger asChild>
+              <Card className={cn(
+                'bg-card/50 hover:scale-[1.03] transition-all duration-200 cursor-default',
+                pillar.status === 'degraded'
+                  ? 'border-yellow-600/30 bg-gradient-to-br from-yellow-600/5 to-transparent'
+                  : 'border-border/50 bg-gradient-to-br from-emerald-600/5 to-transparent'
+              )}>
+                <CardContent className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <span className="text-lg">{pillar.icon}</span>
+                    <Badge variant="outline" className={cn(
+                      'text-[7px] h-3.5 px-1',
+                      pillar.status === 'healthy' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400'
+                    )}>
+                      {pillar.status === 'healthy' ? 'OK' : 'WARN'}
+                    </Badge>
+                  </div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{pillar.name}</div>
+                  <div className={cn(
+                    'text-lg font-bold tabular-nums',
+                    pillar.health >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
+                    pillar.health >= 70 ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-red-600 dark:text-red-400'
+                  )}>
+                    {pillar.health}%
+                  </div>
+                  <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                    <motion.div
+                      className={cn(
+                        'h-full rounded-full',
+                        pillar.health >= 90 ? 'bg-emerald-500' :
+                        pillar.health >= 70 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      )}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pillar.health}%` }}
+                      transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }}
+                    />
+                  </div>
+                  <div className="text-[8px] text-muted-foreground/60 mt-1">{pillar.uptime} • {pillar.version}</div>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <div className="text-xs">
+                <p className="font-semibold">{pillar.name} Pillar</p>
+                <p className="text-muted-foreground">Health: {pillar.health}% • Status: {pillar.status}</p>
+                <p className="text-muted-foreground">Uptime: {pillar.uptime} • Version: {pillar.version}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+
+      {/* System Load Average Mini Card */}
+      <Card className="bg-card/50 border-border/50 bg-gradient-to-r from-emerald-600/5 via-transparent to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            System Load Average
+            <Badge variant="outline" className="text-[9px] ml-auto">1m / 5m / 15m</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="grid grid-cols-3 gap-4">
+            {(['1m', '5m', '15m'] as const).map((period) => (
+              <div key={period} className="bg-gradient-to-br from-emerald-600/5 to-transparent p-3 rounded-lg border border-border/30">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{period}</span>
+                  <Badge variant="outline" className={cn(
+                    'text-[8px] h-3.5',
+                    loadAverages[period].value > 2 ? 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400' :
+                    loadAverages[period].value > 1.5 ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' :
+                    'border-emerald-600/30 text-emerald-600 dark:text-emerald-400'
+                  )}>
+                    {loadAverages[period].value > 2 ? 'HIGH' : loadAverages[period].value > 1.5 ? 'MED' : 'LOW'}
+                  </Badge>
+                </div>
+                <div className={cn(
+                  'text-xl font-bold tabular-nums',
+                  loadAverages[period].value > 2 ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'
+                )}>
+                  {loadAverages[period].value.toFixed(2)}
+                </div>
+                <div className="mt-1 h-6">
+                  <MiniSparkline data={loadAverages[period].sparkData} color={loadAverages[period].value > 2 ? '#eab308' : '#10b981'} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Live System Metrics */}
       <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
@@ -539,7 +702,7 @@ export function OverviewTab() {
                       <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
                       <span className="text-xs flex-1 truncate">{alert.message}</span>
                       <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
-                      <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">{getRelativeTime(alert.time)}</span>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? getRelativeTime(alert.time) : '...'}</span>
                     </motion.div>
                   )
                 })}
@@ -620,7 +783,7 @@ export function OverviewTab() {
               </defs>
               <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="#6b7280" tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10 }} stroke="#6b7280" tickLine={false} axisLine={false} />
-              <Tooltip
+              <RechartsTooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
@@ -658,7 +821,7 @@ export function OverviewTab() {
                 </defs>
                 <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="#6b7280" tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10 }} stroke="#6b7280" tickLine={false} axisLine={false} />
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
@@ -698,7 +861,7 @@ export function OverviewTab() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
@@ -806,7 +969,7 @@ export function OverviewTab() {
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {recentActivity.map((item, i) => (
+            {recentActivityStatic.map((item, i) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
                 {item.type === 'success' ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -817,7 +980,75 @@ export function OverviewTab() {
                 )}
                 <span className="text-sm flex-1">{item.event}</span>
                 <Badge variant="outline" className="text-[10px] shrink-0">{item.source}</Badge>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{getRelativeTime(item.time)}</span>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap" suppressHydrationWarning>{mounted ? getRelativeTime(Date.now() - item.offsetMs) : '...'}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Constitutional Rules */}
+      <Card className="bg-card/50 border-border/50 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Constitutional Rules
+            <Badge variant="outline" className="text-[9px] ml-auto bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
+              {constitutionalRules.length} Active
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {constitutionalRules.map((rule) => (
+              <div key={rule.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/20 hover:border-emerald-600/20 transition-colors">
+                <Badge variant="outline" className="text-[8px] h-4 font-mono shrink-0">{rule.id}</Badge>
+                <span className="text-xs flex-1 truncate">{rule.name}</span>
+                <Badge className={cn('text-[8px] h-4 border-0 shrink-0', {
+                  'bg-red-600/20 text-red-600 dark:text-red-400': rule.severity === 'critical',
+                  'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400': rule.severity === 'warning',
+                  'bg-blue-600/20 text-blue-600 dark:text-blue-400': rule.severity === 'info',
+                })}>
+                  {rule.severity.toUpperCase()}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Deployments */}
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Rocket className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            Recent Deployments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {[
+              { id: 'DEP-012', service: 'Governor v4.0.0', status: 'success', env: 'prod', time: '25m ago' },
+              { id: 'DEP-011', service: 'GMR Router v1.9.7', status: 'success', env: 'prod', time: '1h ago' },
+              { id: 'DEP-010', service: 'StressLab v2.1.0', status: 'success', env: 'staging', time: '2h ago' },
+              { id: 'DEP-009', service: 'Vault v2.5.3', status: 'rolled-back', env: 'prod', time: '3h ago' },
+              { id: 'DEP-008', service: 'Bridge v3.1.2', status: 'success', env: 'prod', time: '5h ago' },
+            ].map((dep) => (
+              <div key={dep.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                {dep.status === 'success' ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                )}
+                <span className="text-xs font-mono text-muted-foreground shrink-0">{dep.id}</span>
+                <span className="text-sm flex-1">{dep.service}</span>
+                <Badge variant="outline" className={cn('text-[9px] h-4 shrink-0', dep.env === 'prod' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400')}>
+                  {dep.env}
+                </Badge>
+                <Badge className={cn('text-[8px] h-4 border-0 shrink-0', dep.status === 'success' ? 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400')}>
+                  {dep.status.toUpperCase()}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{dep.time}</span>
               </div>
             ))}
           </div>

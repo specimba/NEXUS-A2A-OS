@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Send, Bot, User, Trash2, Loader2, Sparkles, Copy, Check, AlertCircle, RotateCcw, Brain, Zap, Code, Scale } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface ChatMessage {
@@ -58,8 +59,10 @@ const TIER_CONFIG: Record<string, { label: string; icon: typeof Brain; color: st
 
 const TIER_ORDER = ['reasoning', 'balanced', 'fast', 'code']
 
+let msgCounter = 0
 function generateId() {
-  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  msgCounter++
+  return `msg-${msgCounter}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function CodeBlock({ code, language }: { code: string; language?: string }) {
@@ -228,8 +231,14 @@ export function AiChatTab() {
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [thinkingPhase, setThinkingPhase] = useState<'idle' | 'thinking' | 'responding'>('idle')
+  const [mounted, setMounted] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Hydration-safe: set mounted flag after first render
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -310,7 +319,7 @@ export function AiChatTab() {
         .map(m => ({ role: m.role, content: m.content }))
 
       // Try streaming first
-      const response = await fetch('/api/ai/chat?stream=true', {
+      const response = await fetch('/api/chat?stream=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,7 +330,7 @@ export function AiChatTab() {
 
       if (!response.ok) {
         // Try non-streaming fallback
-        const fallbackResponse = await fetch('/api/ai/chat', {
+        const fallbackResponse = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -335,18 +344,21 @@ export function AiChatTab() {
         }
 
         const data = await fallbackResponse.json()
+        if (data.error) {
+          throw new Error(data.error)
+        }
         clearTimeout(thinkingTimer)
         const assistantMessage: ChatMessage = {
           id: generateId(),
           role: 'assistant',
-          content: data.response || data.error || 'No response received',
+          content: data.response || 'No response received',
           timestamp: Date.now(),
           model: data.model || selectedModel,
-          error: !!data.error,
         }
         setMessages(prev => [...prev, assistantMessage])
         setIsLoading(false)
         setThinkingPhase('idle')
+        toast.success('Response received', { description: `From ${data.model || selectedModel}` })
         return
       }
 
@@ -386,6 +398,7 @@ export function AiChatTab() {
             setStreamingContent('')
             setIsLoading(false)
             setThinkingPhase('idle')
+            toast.success('Response received', { description: `From ${selectedModelInfo?.name || 'AI'}` })
             return
           }
 
@@ -426,6 +439,7 @@ export function AiChatTab() {
       clearTimeout(thinkingTimer)
       const errorMsg = err instanceof Error ? err.message : 'Failed to get response'
       setError(errorMsg)
+      toast.error('AI Assistant Error', { description: errorMsg })
       const errorMessage: ChatMessage = {
         id: generateId(),
         role: 'assistant',
@@ -622,7 +636,7 @@ export function AiChatTab() {
                             {msg.model || selectedModelInfo?.name}
                           </span>
                           <span className="text-[9px] text-muted-foreground">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {mounted ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                           </span>
                         </div>
                         {/* Regenerate button on last assistant message */}

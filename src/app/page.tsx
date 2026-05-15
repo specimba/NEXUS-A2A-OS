@@ -1,168 +1,136 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { useTheme } from 'next-themes'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  LayoutDashboard, Cpu, HardDrive, Zap, Users, Shield, Activity,
-  TrendingUp, AlertTriangle, CheckCircle2, Clock, ArrowUpRight,
-  ArrowDownRight, Wifi, AlertCircle, Radio, Bell,
-  XCircle, Info, Moon, Sun, Menu, ChevronRight,
-  ChevronLeft, FlaskConical, Router, Server,
-  BookOpen, Bug, Coins, Network,
-  RefreshCw, Heart, Globe, Layers, ShieldCheck, Sparkles
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { useTheme } from 'next-themes'
+import { cn } from '@/lib/utils'
+import {
+  Activity, Cpu, HardDrive, Zap, Wifi, Shield, Users, AlertTriangle,
+  CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, BarChart3,
+  Radio, Bell, XCircle, Info, Search, Settings, Moon, Sun,
+  RefreshCw, Download, Terminal, ChevronRight, ChevronDown,
+  Heart, Network, Scale, BookOpen, Rocket, Globe, Server,
+  TriangleAlert, Eye, Layers, Database, Key, Gauge, Boxes,
+  Cog, Brain, MessageSquare, TrendingUp, AlertCircle, Monitor,
+  GitBranch, Package, Lock, FileText, Target, Sparkles,
+  Menu, X, Command, Timer, ShieldCheck, Flame,
+} from 'lucide-react'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'providers' | 'agents' | 'gmr' | 'governor' | 'research' | 'stresslab' | 'tokens'
+// ─── Static Data (no Date.now() / Math.random() at module level) ──────────
 
-interface NavItem {
-  id: TabId
-  label: string
-  icon: React.ReactNode
-  badge?: string
-  shortcut: string
-  desc: string
-}
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: Activity, group: 'Core' },
+  { id: 'providers', label: 'Providers', icon: Server, group: 'Routing' },
+  { id: 'agents', label: 'Agents', icon: Users, group: 'Core' },
+  { id: 'gmr', label: 'GMR Router', icon: Network, group: 'Routing' },
+  { id: 'governor', label: 'Governor', icon: Shield, group: 'Governance' },
+  { id: 'research', label: 'Research', icon: BookOpen, group: 'Intelligence' },
+  { id: 'tokens', label: 'Tokens', icon: Zap, group: 'Metrics' },
+  { id: 'stresslab', label: 'StressLab', icon: Flame, group: 'Testing' },
+] as const
 
-// ─── Navigation Config ───────────────────────────────────────────────────────
-const navGroups: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Core',
-    items: [
-      { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" />, shortcut: '1', desc: 'System overview & health' },
-      { id: 'providers', label: 'Providers', icon: <Server className="h-4 w-4" />, shortcut: '2', desc: 'AI provider management' },
-      { id: 'agents', label: 'Agents', icon: <Bug className="h-4 w-4" />, shortcut: '3', desc: 'Agent swarm monitoring' },
-    ],
-  },
-  {
-    label: 'Routing & Governance',
-    items: [
-      { id: 'gmr', label: 'GMR Router', icon: <Router className="h-4 w-4" />, shortcut: '4', desc: 'Global Model Router' },
-      { id: 'governor', label: 'Governor', icon: <Shield className="h-4 w-4" />, shortcut: '5', desc: 'Constitutional governance' },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { id: 'research', label: 'Research', icon: <BookOpen className="h-4 w-4" />, badge: '20', shortcut: '6', desc: 'Research pipeline' },
-      { id: 'stresslab', label: 'StressLab', icon: <FlaskConical className="h-4 w-4" />, badge: 'ISC', shortcut: '7', desc: 'Model stress testing' },
-    ],
-  },
-  {
-    label: 'Metrics',
-    items: [
-      { id: 'tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" />, shortcut: '8', desc: 'Token usage tracking' },
-    ],
-  },
-]
+type TabId = typeof TABS[number]['id']
 
-const tabTitles: Record<TabId, string> = {
-  overview: 'System Overview',
-  providers: 'Provider Management',
-  agents: 'Agent Swarm',
-  gmr: 'GMR Router Panel',
-  governor: 'Governor Dashboard',
-  research: 'Research Pipeline',
-  stresslab: 'StressLab Arena',
-  tokens: 'Token Budget',
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const healthCards = [
-  { label: 'CPU Load', value: 34, unit: '%', icon: Cpu, trend: 'down', color: '#10b981', sparkData: [42, 38, 45, 35, 30, 37, 34, 28, 32, 36, 33, 34] },
-  { label: 'Memory', value: 62, unit: '%', icon: HardDrive, trend: 'up', color: '#eab308', sparkData: [55, 58, 52, 60, 57, 63, 65, 62, 59, 61, 64, 62] },
-  { label: 'API Latency', value: 142, unit: 'ms', icon: Zap, trend: 'down', color: '#10b981', sparkData: [180, 165, 172, 155, 148, 160, 152, 145, 142, 148, 139, 142] },
-  { label: 'Uptime', value: 99.7, unit: '%', icon: Activity, trend: 'up', color: '#10b981', sparkData: [99.5, 99.6, 99.7, 99.8, 99.7, 99.6, 99.7, 99.8, 99.9, 99.7, 99.6, 99.7] },
-]
-
-const agents = [
-  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large', uptime: '4h 23m' },
-  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder', uptime: '3h 15m' },
-  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast', uptime: '4h 10m' },
-  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7', uptime: '4h 23m' },
+const healthPillars = [
+  { name: 'Bridge', health: 98, status: 'healthy', icon: '🔗', version: 'v3.1.2' },
+  { name: 'Engine', health: 95, status: 'healthy', icon: '⚙️', version: 'v2.8.1' },
+  { name: 'Governor', health: 100, status: 'healthy', icon: '🛡️', version: 'v4.0.0' },
+  { name: 'Vault', health: 97, status: 'healthy', icon: '🔐', version: 'v2.5.3' },
+  { name: 'GMR', health: 91, status: 'healthy', icon: '🚦', version: 'v1.9.7' },
+  { name: 'Swarm', health: 82, status: 'degraded', icon: '🐝', version: 'v1.3.2' },
+  { name: 'Monitor', health: 94, status: 'healthy', icon: '📊', version: 'v2.1.0' },
+  { name: 'Config', health: 100, status: 'healthy', icon: '🔧', version: 'v1.0.5' },
 ]
 
 const providers = [
-  { name: 'z-ai SDK', model: 'GLM-4.7', status: 'online', latency: 45, quota: 85, color: '#10b981' },
-  { name: 'OpenRouter', model: 'trinity-large', status: 'online', latency: 120, quota: 62, color: '#3b82f6' },
-  { name: 'Cerebras', model: 'llama-4-scout', status: 'degraded', latency: 280, quota: 30, color: '#f97316' },
-  { name: 'Groq', model: 'gemma-fast', status: 'online', latency: 35, quota: 78, color: '#10b981' },
-  { name: 'Mistral', model: 'codestral', status: 'online', latency: 95, quota: 55, color: '#3b82f6' },
-  { name: 'Fireworks', model: 'qwen3-coder', status: 'degraded', latency: 210, quota: 25, color: '#f97316' },
-  { name: 'Scaleway', model: 'mistral-nemo', status: 'unknown', latency: 0, quota: 0, color: '#6b7280' },
-  { name: 'DashScope', model: 'qwen-max', status: 'online', latency: 110, quota: 70, color: '#10b981' },
-  { name: 'NVIDIA NIM', model: 'nemotron-3', status: 'online', latency: 65, quota: 88, color: '#10b981' },
-  { name: 'SambaNova', model: 'samba-1', status: 'online', latency: 78, quota: 72, color: '#10b981' },
-  { name: 'BitDeer', model: 'deepseek-v3', status: 'unknown', latency: 0, quota: 0, color: '#6b7280' },
-  { name: 'DeepSeek', model: 'deepseek-r1', status: 'online', latency: 88, quota: 60, color: '#3b82f6' },
-  { name: 'Google', model: 'gemma-3', status: 'online', latency: 55, quota: 82, color: '#10b981' },
-  { name: 'Meta', model: 'llama-4', status: 'online', latency: 72, quota: 75, color: '#10b981' },
+  { name: 'z-ai (GLM-4.7)', status: 'active', models: 3, latency: 45, pool: 'PREMIUM', trust: 0.98 },
+  { name: 'OpenRouter', status: 'active', models: 5, latency: 120, pool: 'MID', trust: 0.92 },
+  { name: 'Cerebras', status: 'active', models: 2, latency: 28, pool: 'FAST', trust: 0.89 },
+  { name: 'Groq', status: 'active', models: 3, latency: 35, pool: 'FAST', trust: 0.91 },
+  { name: 'Mistral', status: 'active', models: 4, latency: 85, pool: 'MID', trust: 0.94 },
+  { name: 'Fireworks', status: 'degraded', models: 3, latency: 210, pool: 'MID', trust: 0.78 },
+  { name: 'Scaleway', status: 'unknown', models: 1, latency: 0, pool: 'MID', trust: 0.45 },
+  { name: 'DashScope', status: 'active', models: 2, latency: 95, pool: 'MID', trust: 0.87 },
+  { name: 'SambaNova', status: 'active', models: 2, latency: 62, pool: 'FAST', trust: 0.90 },
+  { name: 'NVIDIA NIM', status: 'active', models: 3, latency: 78, pool: 'PREMIUM', trust: 0.96 },
+  { name: 'BitDeer', status: 'inactive', models: 0, latency: 0, pool: 'MID', trust: 0.0 },
+  { name: 'Codestral', status: 'active', models: 1, latency: 92, pool: 'MID', trust: 0.88 },
+  { name: 'DeepSeek', status: 'active', models: 2, latency: 110, pool: 'MID', trust: 0.85 },
 ]
 
-const modelPools = [
-  { name: 'PREMIUM', models: ['trinity-large-preview', 'minimax-m2.5'], health: 97, color: '#10b981' },
-  { name: 'MID', models: ['qwen3-coder', 'kimi-k2.5', 'gpt-oss-120b'], health: 89, color: '#3b82f6' },
-  { name: 'FAST', models: ['gemma-fast', 'nemotron-3-super'], health: 94, color: '#f97316' },
+const agents = [
+  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large' },
+  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder' },
+  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast' },
+  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7' },
 ]
 
-const BASE_TIME = 1747200000000 // Fixed base time to avoid hydration mismatch
+const constitutionalRules = [
+  { id: 'CR-001', name: 'No Unattended Self-Modification', severity: 'critical' },
+  { id: 'CR-002', name: 'Human Approval for Destructive Actions', severity: 'critical' },
+  { id: 'CR-003', name: 'Token Budget Hard Limit', severity: 'warning' },
+  { id: 'CR-004', name: 'Trust Score Decay Enforcement', severity: 'info' },
+  { id: 'CR-005', name: 'Agent Autonomy Boundary', severity: 'critical' },
+  { id: 'CR-006', name: 'Rate Limit Circuit Breaker', severity: 'warning' },
+]
+
 const alertFeedData = [
-  { id: 1, severity: 'warning' as const, message: 'Memory usage approaching 80% threshold', source: 'System', time: BASE_TIME - 30000 },
-  { id: 2, severity: 'info' as const, message: 'Model failover triggered for gemma-fast', source: 'ModelRelay', time: BASE_TIME - 90000 },
-  { id: 3, severity: 'critical' as const, message: 'Provider scaleway rate limit exceeded', source: 'Gateway', time: BASE_TIME - 180000 },
-  { id: 4, severity: 'success' as const, message: 'Constitutional check passed for all rules', source: 'Governor', time: BASE_TIME - 240000 },
-  { id: 5, severity: 'info' as const, message: 'Token budget reset for new cycle', source: 'Tokens', time: BASE_TIME - 360000 },
+  { id: 1, severity: 'warning' as const, message: 'Memory usage approaching 80% threshold', source: 'System', offsetMs: 30000 },
+  { id: 2, severity: 'info' as const, message: 'Model failover triggered for gemma-fast', source: 'ModelRelay', offsetMs: 90000 },
+  { id: 3, severity: 'critical' as const, message: 'Provider dashscope rate limit exceeded', source: 'Gateway', offsetMs: 180000 },
+  { id: 4, severity: 'success' as const, message: 'Constitutional check passed for all rules', source: 'Governor', offsetMs: 240000 },
+  { id: 5, severity: 'info' as const, message: 'Token budget reset for new cycle', source: 'Tokens', offsetMs: 360000 },
+  { id: 6, severity: 'warning' as const, message: 'Agent worker-2 trust score below 0.8', source: 'Governor', offsetMs: 480000 },
 ]
 
-const recentActivity = [
-  { time: BASE_TIME - 2 * 60000, event: 'Governor blocked CRITICAL action', type: 'warning' as const, source: 'Governor' },
-  { time: BASE_TIME - 5 * 60000, event: 'StressLab test ISC-001 completed', type: 'success' as const, source: 'StressLab' },
-  { time: BASE_TIME - 10 * 60000, event: 'Token budget at 73.4%', type: 'info' as const, source: 'Tokens' },
-  { time: BASE_TIME - 15 * 60000, event: 'New research paper vetted: OR-Bench', type: 'success' as const, source: 'Research' },
-  { time: BASE_TIME - 20 * 60000, event: 'GMR pool FAST: all models healthy', type: 'success' as const, source: 'GMR' },
-  { time: BASE_TIME - 30 * 60000, event: 'Constitution check passed', type: 'success' as const, source: 'Vault' },
+const systemPerformanceData = [
+  { time: '00:00', cpu: 28, memory: 55, latency: 120 },
+  { time: '02:00', cpu: 25, memory: 52, latency: 115 },
+  { time: '04:00', cpu: 22, memory: 48, latency: 110 },
+  { time: '06:00', cpu: 35, memory: 58, latency: 135 },
+  { time: '08:00', cpu: 42, memory: 65, latency: 155 },
+  { time: '10:00', cpu: 38, memory: 62, latency: 148 },
+  { time: '12:00', cpu: 45, memory: 68, latency: 165 },
+  { time: '14:00', cpu: 40, memory: 64, latency: 152 },
+  { time: '16:00', cpu: 36, memory: 60, latency: 142 },
+  { time: '18:00', cpu: 32, memory: 58, latency: 138 },
+  { time: '20:00', cpu: 30, memory: 56, latency: 130 },
+  { time: '22:00', cpu: 34, memory: 62, latency: 142 },
 ]
 
-const gmrRouteHistory = [
-  { time: '14:23:01', model: 'trinity-large', pool: 'PREMIUM', agent: 'worker-1', latency: 124, tokens: 2450, status: 'success' },
-  { time: '14:22:58', model: 'gemma-fast', pool: 'FAST', agent: 'worker-3', latency: 38, tokens: 980, status: 'success' },
-  { time: '14:22:55', model: 'qwen3-coder', pool: 'MID', agent: 'worker-2', latency: 156, tokens: 1820, status: 'success' },
-  { time: '14:22:50', model: 'glm-4.7', pool: 'PREMIUM', agent: 'coordinator', latency: 45, tokens: 3200, status: 'success' },
-  { time: '14:22:45', model: 'trinity-large', pool: 'PREMIUM', agent: 'worker-1', latency: 132, tokens: 1560, status: 'success' },
-  { time: '14:22:40', model: 'gemma-fast', pool: 'FAST', agent: 'worker-3', latency: 35, tokens: 720, status: 'failover' },
+const requestVolumeData = [
+  { hour: '12h', requests: 245 },
+  { hour: '10h', requests: 289 },
+  { hour: '8h', requests: 425 },
+  { hour: '6h', requests: 298 },
+  { hour: '4h', requests: 467 },
+  { hour: '2h', requests: 342 },
+  { hour: 'Now', requests: 315 },
 ]
 
-const governorRules = [
-  { id: 'R-001', name: 'Agent Rate Limit', rule: '5 agents/hr', status: 'active', violations: 0 },
-  { id: 'R-002', name: 'API Call Limit', rule: '20 API/session', status: 'active', violations: 0 },
-  { id: 'R-003', name: 'Concurrent Agents', rule: '2 concurrent', status: 'active', violations: 1 },
-  { id: 'R-004', name: 'Write Limit', rule: '30 writes', status: 'active', violations: 0 },
-  { id: 'R-005', name: 'CRITICAL Block', rule: 'Block delete_all, override_constitution', status: 'active', violations: 3 },
+const stressLabTests = [
+  { id: 'ISC-001', name: 'Prompt Injection Resistance', status: 'passed', score: 94, collapseRate: 6 },
+  { id: 'ISC-002', name: 'Constitutional Bypass Attempt', status: 'passed', score: 98, collapseRate: 2 },
+  { id: 'ISC-003', name: 'Token Exhaustion Defense', status: 'running', score: 87, collapseRate: 13 },
+  { id: 'ISC-004', name: 'Multi-Agent Coordination Fail', status: 'passed', score: 91, collapseRate: 9 },
+  { id: 'ISC-005', name: 'Trust Score Manipulation', status: 'failed', score: 62, collapseRate: 38 },
 ]
 
 const researchPapers = [
-  { title: 'OR-Bench: Over-Refusal Benchmark', relevance: 95, status: 'vetted', queue: 'P1', assignedTo: 'worker-1' },
-  { title: 'AgentTrust: Multi-Agent Delegation', relevance: 88, status: 'vetted', queue: 'P1', assignedTo: 'worker-2' },
-  { title: 'Constitutional AI Self-Improvement', relevance: 82, status: 'pending', queue: 'P2', assignedTo: '—' },
-  { title: 'Model Collapse in Recursive Training', relevance: 79, status: 'pending', queue: 'P2', assignedTo: '—' },
-  { title: 'Stress Testing LLM Guardrails', relevance: 91, status: 'vetted', queue: 'P1', assignedTo: 'worker-3' },
+  { title: 'OR-Bench: Breaking the Silence of Reasoning', status: 'vetted', relevance: 94, year: 2025 },
+  { title: 'Constitutional AI: Harmlessness from AI Feedback', status: 'vetted', relevance: 88, year: 2024 },
+  { title: 'Multi-Agent Orchestration via Graph Routing', status: 'vetting', relevance: 82, year: 2025 },
+  { title: 'Token Budget Management for LLM Clusters', status: 'vetted', relevance: 76, year: 2025 },
+  { title: 'Trust Scoring in Autonomous Agent Systems', status: 'pending', relevance: 71, year: 2024 },
 ]
 
-const stressTests = [
-  { id: 'ISC-001', model: 'qwen3-coder', type: 'Agentic Mode', result: 'COLLAPSE', rate: 95.3, status: 'completed' },
-  { id: 'ISC-002', model: 'trinity-large', type: 'Prompt Injection', result: 'RESISTANT', rate: 2.1, status: 'completed' },
-  { id: 'ISC-003', model: 'gemma-fast', type: 'Agentic Mode', result: 'DEGRADED', rate: 34.7, status: 'completed' },
-  { id: 'ISC-004', model: 'glm-4.7', type: 'Constitutional Bypass', result: 'RESISTANT', rate: 0.8, status: 'running' },
-]
+// ─── Helper functions ──────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function getRelativeTime(timestamp: number): string {
+  if (timestamp === 0) return '...'
   const diff = Date.now() - timestamp
   const seconds = Math.floor(diff / 1000)
   if (seconds < 60) return `${seconds}s ago`
@@ -172,131 +140,173 @@ function getRelativeTime(timestamp: number): string {
   return `${hours}h ago`
 }
 
-const alertSeverityConfig = {
-  critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
-  info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/30' },
-  success: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-}
+// ─── Lightweight SVG Chart Components ──────────────────────────────────────
 
-// ─── SVG Mini Sparkline (no recharts dependency) ─────────────────────────────
-function MiniSparkline({ data, color, height = 32 }: { data: number[]; color: string; height?: number }) {
-  if (!data.length) return null
+function SparklineSVG({ data, color = '#10b981', height = 32 }: { data: number[]; color?: string; height?: number }) {
   const max = Math.max(...data)
   const min = Math.min(...data)
   const range = max - min || 1
-  const w = 100
+  const w = 120
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w
     const y = height - ((v - min) / range) * (height - 4) - 2
     return `${x},${y}`
   }).join(' ')
-
   return (
-    <svg viewBox={`0 0 ${w} ${height}`} className="w-full" style={{ height }} preserveAspectRatio="none">
-      <polyline fill="none" stroke={color} strokeWidth={2} points={points} strokeLinejoin="round" strokeLinecap="round" />
-      <polyline fill={`${color}20`} stroke="none" points={`0,${height} ${points} ${w},${height}`} />
+    <svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none">
+      <polyline fill="none" stroke={color} strokeWidth={1.5} points={points} />
     </svg>
   )
 }
 
-// ─── SVG Mini Bar Chart ──────────────────────────────────────────────────────
-function MiniBarChart({ data, color, height = 120 }: { data: { label: string; value: number }[]; color: string; height?: number }) {
-  if (!data.length) return null
-  const max = Math.max(...data.map(d => d.value))
-  const barW = 100 / data.length
+function MiniBarChart({ data, height = 80 }: { data: { label: string; value: number }[]; height?: number }) {
+  const maxVal = Math.max(...data.map(d => d.value))
   return (
-    <svg viewBox={`0 0 100 ${height}`} className="w-full" style={{ height }} preserveAspectRatio="none">
+    <div className="flex items-end gap-1 h-full" style={{ height }}>
+      {data.map((d, i) => (
+        <div key={i} className="flex flex-col items-center flex-1 gap-1">
+          <div className="w-full relative group">
+            <div
+              className="w-full rounded-t-sm bg-gradient-to-t from-emerald-600 to-emerald-400 dark:from-emerald-500 dark:to-emerald-300 transition-all duration-300 hover:from-emerald-500 hover:to-emerald-300"
+              style={{ height: Math.max(4, (d.value / maxVal) * (height - 16)) }}
+            />
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-card border border-border px-1.5 py-0.5 rounded text-[9px] font-mono opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+              {d.value}
+            </div>
+          </div>
+          <span className="text-[8px] text-muted-foreground truncate w-full text-center">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AreaChartSVG({ data, width = 400, height = 160 }: { data: { time: string; cpu: number; memory: number; latency: number }[]; width?: number; height?: number }) {
+  const pad = { t: 10, r: 10, b: 20, l: 30 }
+  const cw = width - pad.l - pad.r
+  const ch = height - pad.t - pad.b
+  const maxVal = 100
+
+  const toPoints = (key: 'cpu' | 'memory' | 'latency') =>
+    data.map((d, i) => {
+      const x = pad.l + (i / (data.length - 1)) * cw
+      const y = pad.t + ch - (d[key] / maxVal) * ch
+      return `${x},${y}`
+    }).join(' ')
+
+  const toArea = (key: 'cpu' | 'memory' | 'latency', color: string) => {
+    const linePoints = toPoints(key)
+    const firstX = pad.l
+    const lastX = pad.l + cw
+    const bottomY = pad.t + ch
+    const areaPoints = `${linePoints} ${lastX},${bottomY} ${firstX},${bottomY}`
+    return (
+      <g key={key}>
+        <polygon fill={color} fillOpacity={0.1} points={areaPoints} />
+        <polyline fill="none" stroke={color} strokeWidth={2} points={linePoints} />
+      </g>
+    )
+  }
+
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+      {/* Grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
+        <line key={pct} x1={pad.l} y1={pad.t + ch * (1 - pct)} x2={pad.l + cw} y2={pad.t + ch * (1 - pct)} stroke="currentColor" strokeOpacity={0.08} strokeWidth={1} />
+      ))}
+      {/* Y-axis labels */}
+      {[0, 25, 50, 75, 100].map((v) => (
+        <text key={v} x={pad.l - 5} y={pad.t + ch - (v / maxVal) * ch + 3} textAnchor="end" fill="currentColor" fillOpacity={0.4} fontSize={8} fontFamily="monospace">{v}</text>
+      ))}
+      {/* X-axis labels */}
       {data.map((d, i) => {
-        const barH = (d.value / max) * (height - 20)
-        return (
-          <g key={i}>
-            <rect x={i * barW + 1} y={height - 14 - barH} width={barW - 2} height={barH} fill={color} rx={1.5} opacity={0.7} />
-            <text x={i * barW + barW / 2} y={height - 2} textAnchor="middle" fill="currentColor" fontSize={4} fontFamily="monospace">{d.label}</text>
+        if (i % 2 !== 0) return null
+        const x = pad.l + (i / (data.length - 1)) * cw
+        return <text key={i} x={x} y={height - 2} textAnchor="middle" fill="currentColor" fillOpacity={0.4} fontSize={8} fontFamily="monospace">{d.time}</text>
+      })}
+      {/* Data areas */}
+      {toArea('latency', '#f97316')}
+      {toArea('memory', '#3b82f6')}
+      {toArea('cpu', '#10b981')}
+      {/* Legend */}
+      <g transform={`translate(${pad.l}, ${pad.t})`}>
+        {[{ label: 'CPU', color: '#10b981' }, { label: 'Memory', color: '#3b82f6' }, { label: 'Latency', color: '#f97316' }].map((l, i) => (
+          <g key={l.label} transform={`translate(${i * 70}, 0)`}>
+            <rect width={8} height={3} fill={l.color} rx={1} />
+            <text x={12} y={4} fill="currentColor" fillOpacity={0.6} fontSize={8} fontFamily="monospace">{l.label}</text>
           </g>
-        )
-      })}
+        ))}
+      </g>
     </svg>
   )
 }
 
-// ─── SVG Mini Donut Chart ────────────────────────────────────────────────────
-function MiniDonut({ segments, size = 120 }: { segments: { value: number; color: string; label: string }[]; size?: number }) {
-  const total = segments.reduce((s, d) => s + d.value, 0)
-  let cumulative = 0
-  const r = 35; const cx = 50; const cy = 50; const sw = 10
+function DonutChart({ segments, size = 80, strokeWidth = 8 }: { segments: { value: number; color: string; label: string }[]; size?: number; strokeWidth?: number }) {
+  const total = segments.reduce((s, seg) => s + seg.value, 0)
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+
+  // Pre-compute offsets for each segment to avoid mutation during render
+  const segmentOffsets = segments.reduce<number[]>((acc, seg, i) => {
+    const prevOffset = i === 0 ? 0 : acc[i - 1]
+    acc.push(prevOffset + seg.value / total)
+    return acc
+  }, [])
+
   return (
-    <svg viewBox="0 0 100 100" className="w-full" style={{ maxWidth: size }}>
-      {segments.map((seg, i) => {
-        const pct = seg.value / total
-        const circumference = 2 * Math.PI * r
-        const dashLen = pct * circumference
-        const gap = circumference - dashLen
-        const rotation = (cumulative / total) * 360 - 90
-        cumulative += seg.value
-        return (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={sw}
-            strokeDasharray={`${dashLen} ${gap}`} transform={`rotate(${rotation} ${cx} ${cy})`} strokeLinecap="round" />
-        )
-      })}
-      <text x={cx} y={cy - 2} textAnchor="middle" fill="currentColor" fontSize={10} fontWeight="bold">{total}</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fill="currentColor" fontSize={5} opacity={0.6}>TASKS</text>
-    </svg>
+    <div className="relative inline-flex items-center justify-center">
+      <svg width={size} height={size} className="-rotate-90">
+        {segments.map((seg, i) => {
+          const pct = seg.value / total
+          const dashOffset = circumference * (i === 0 ? 0 : segmentOffsets[i - 1])
+          return (
+            <circle key={i} cx={size / 2} cy={size / 2} r={radius} fill="none"
+              stroke={seg.color} strokeWidth={strokeWidth}
+              strokeDasharray={`${circumference * pct} ${circumference * (1 - pct)}`}
+              strokeDashoffset={-dashOffset}
+              strokeLinecap="round" className="transition-all duration-700" />
+          )
+        })}
+      </svg>
+      <div className="absolute text-[10px] font-bold tabular-nums">{total}</div>
+    </div>
   )
 }
 
-// ─── Mini Components ──────────────────────────────────────────────────────────
-function AnimatedNumber({ value }: { value: number }) {
-  return (
-    <motion.span key={value} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: 'easeOut' }} className="tabular-nums">
-      {value.toLocaleString()}
-    </motion.span>
-  )
-}
-
-function StatusDot({ status }: { status: string }) {
-  const color = status === 'active' || status === 'online' ? 'bg-emerald-500' : status === 'warning' || status === 'degraded' ? 'bg-yellow-500' : status === 'unknown' ? 'bg-gray-500' : 'bg-red-500'
-  return (
-    <span className="relative flex h-2.5 w-2.5">
-      {(status === 'active' || status === 'online') && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
-      <span className={cn('relative inline-flex h-2.5 w-2.5 rounded-full', color)} />
-    </span>
-  )
-}
+// ─── Network Topology SVG ──────────────────────────────────────────────────
 
 function NetworkTopology() {
   const nodes = [
-    { id: 'dashboard', label: 'Dashboard', x: 200, y: 30, color: '#10b981', r: 16 },
-    { id: 'gateway', label: 'Gateway', x: 200, y: 90, color: '#34d399', r: 14 },
-    { id: 'worker1', label: 'W1', x: 80, y: 155, color: '#10b981', r: 12 },
-    { id: 'worker2', label: 'W2', x: 160, y: 165, color: '#eab308', r: 12 },
-    { id: 'worker3', label: 'W3', x: 240, y: 165, color: '#10b981', r: 12 },
-    { id: 'coord', label: 'CRD', x: 320, y: 155, color: '#10b981', r: 12 },
-    { id: 'premium', label: 'PREM', x: 60, y: 230, color: '#10b981', r: 11 },
+    { id: 'dash', label: 'DASH', x: 200, y: 30, color: '#10b981', r: 16 },
+    { id: 'gw', label: 'GW', x: 200, y: 90, color: '#34d399', r: 14 },
+    { id: 'w1', label: 'W1', x: 80, y: 155, color: '#10b981', r: 12 },
+    { id: 'w2', label: 'W2', x: 160, y: 165, color: '#eab308', r: 12 },
+    { id: 'w3', label: 'W3', x: 240, y: 165, color: '#10b981', r: 12 },
+    { id: 'crd', label: 'CRD', x: 320, y: 155, color: '#10b981', r: 12 },
+    { id: 'prem', label: 'PREM', x: 60, y: 230, color: '#10b981', r: 11 },
     { id: 'mid', label: 'MID', x: 155, y: 240, color: '#3b82f6', r: 11 },
     { id: 'fast', label: 'FAST', x: 250, y: 240, color: '#f97316', r: 11 },
-    { id: 'providers', label: '14 PV', x: 340, y: 230, color: '#8b5cf6', r: 11 },
+    { id: 'pv', label: '14 PV', x: 340, y: 230, color: '#8b5cf6', r: 11 },
   ]
   const links = [
-    { from: 'dashboard', to: 'gateway' }, { from: 'gateway', to: 'worker1' }, { from: 'gateway', to: 'worker2' },
-    { from: 'gateway', to: 'worker3' }, { from: 'gateway', to: 'coord' }, { from: 'worker1', to: 'premium' },
-    { from: 'worker1', to: 'mid' }, { from: 'worker2', to: 'mid' }, { from: 'worker2', to: 'fast' },
-    { from: 'worker3', to: 'fast' }, { from: 'worker3', to: 'premium' }, { from: 'coord', to: 'providers' },
-    { from: 'coord', to: 'mid' }, { from: 'premium', to: 'providers' }, { from: 'mid', to: 'providers' }, { from: 'fast', to: 'providers' },
+    ['dash', 'gw'], ['gw', 'w1'], ['gw', 'w2'], ['gw', 'w3'], ['gw', 'crd'],
+    ['w1', 'prem'], ['w1', 'mid'], ['w2', 'mid'], ['w2', 'fast'], ['w3', 'fast'],
+    ['w3', 'prem'], ['crd', 'pv'], ['crd', 'mid'], ['prem', 'pv'], ['mid', 'pv'], ['fast', 'pv'],
   ]
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]))
   return (
-    <svg viewBox="0 0 400 270" className="w-full h-full" style={{ maxHeight: 260 }}>
-      {links.map((link, i) => {
-        const from = nodeMap[link.from]; const to = nodeMap[link.to]
-        if (!from || !to) return null
-        return <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#374151" strokeWidth={1} strokeOpacity={0.5} />
+    <svg viewBox="0 0 400 270" className="w-full" style={{ maxHeight: 240 }}>
+      {links.map(([from, to], i) => {
+        const f = nodeMap[from], t = nodeMap[to]
+        if (!f || !t) return null
+        return <line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke="#374151" strokeWidth={1} strokeOpacity={0.5} />
       })}
-      {nodes.map((node) => (
-        <g key={node.id}>
-          <motion.circle cx={node.x} cy={node.y} r={node.r} fill={node.color} fillOpacity={0.2} stroke={node.color} strokeWidth={1.5}
-            animate={{ fillOpacity: [0.15, 0.3, 0.15] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
-          <text x={node.x} y={node.y + 4} textAnchor="middle" fill={node.color} fontSize={8} fontWeight={600} fontFamily="monospace">{node.label}</text>
+      {nodes.map((n) => (
+        <g key={n.id}>
+          <circle cx={n.x} cy={n.y} r={n.r} fill={n.color} fillOpacity={0.2} stroke={n.color} strokeWidth={1.5}>
+            <animate attributeName="fill-opacity" values="0.15;0.3;0.15" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <text x={n.x} y={n.y + 4} textAnchor="middle" fill={n.color} fontSize={8} fontWeight={600} fontFamily="monospace">{n.label}</text>
         </g>
       ))}
       <text x={15} y={35} fill="#6b7280" fontSize={7} fontFamily="monospace">UI</text>
@@ -307,629 +317,1002 @@ function NetworkTopology() {
   )
 }
 
-// ─── Tab Panels ───────────────────────────────────────────────────────────────
-function OverviewTab() {
+// ─── Main Dashboard Component ──────────────────────────────────────────────
+
+export default function NexusDashboard() {
+  const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [mounted, setMounted] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
+
+  // Live metrics
   const [activeConnections, setActiveConnections] = useState(247)
   const [requestsPerSec, setRequestsPerSec] = useState(34)
   const [tokensPerMin, setTokensPerMin] = useState(1420)
   const [errorRate, setErrorRate] = useState(0.3)
   const [rpsHistory, setRpsHistory] = useState<number[]>([32, 35, 28, 31, 34, 30, 33, 36, 29, 34])
-  const [alerts, setAlerts] = useState(alertFeedData)
+  const [alerts, setAlerts] = useState(() => alertFeedData.map(a => ({ ...a, time: 0 })))
+  const [clock, setClock] = useState('--:--:--')
+  const [uptime, setUptime] = useState('00:00:00')
+  const startTimeRef = useRef(0)
+  const alertListRef = useRef<HTMLDivElement>(null)
 
+  // Mount effect - resolve timestamps client-side only
   useEffect(() => {
-    const interval = setInterval(() => {
+    setMounted(true)
+    startTimeRef.current = Date.now()
+    const now = Date.now()
+    setAlerts(alertFeedData.map(a => ({ ...a, time: now - a.offsetMs })))
+  }, [])
+
+  // Clock
+  useEffect(() => {
+    const update = () => {
+      setClock(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    }
+    update()
+    const i = setInterval(update, 1000)
+    return () => clearInterval(i)
+  }, [])
+
+  // Uptime
+  useEffect(() => {
+    const update = () => {
+      if (!startTimeRef.current) return
+      const diff = Date.now() - startTimeRef.current
+      const h = Math.floor(diff / 3600000).toString().padStart(2, '0')
+      const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0')
+      const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0')
+      setUptime(`${h}:${m}:${s}`)
+    }
+    update()
+    const i = setInterval(update, 1000)
+    return () => clearInterval(i)
+  }, [])
+
+  // Live metrics update
+  useEffect(() => {
+    const i = setInterval(() => {
       setActiveConnections(p => Math.max(150, Math.min(400, p + Math.floor(Math.random() * 20) - 10)))
       setRequestsPerSec(p => Math.max(10, Math.min(80, p + Math.floor(Math.random() * 8) - 4)))
       setTokensPerMin(p => Math.max(500, Math.min(3000, p + Math.floor(Math.random() * 200) - 100)))
-      setErrorRate(p => Math.max(0, Math.min(5, parseFloat((p + (Math.random() * 0.4) - 0.2).toFixed(1)))))
+      setErrorRate(p => Math.max(0, Math.min(5, parseFloat((p + (Math.random() * 0.4 - 0.2)).toFixed(1)))))
       setRpsHistory(p => [...p.slice(1), Math.max(10, Math.min(80, p[p.length - 1] + Math.floor(Math.random() * 8) - 4))])
       setAlerts(prev => {
-        const severities: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
-        const messages = ['Memory usage spike on worker-2', 'Provider rate limit approaching for groq', 'Token burn rate increased 12%', 'Cache hit ratio improved to 94%', 'New constitutional rule validated']
-        const sources = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay']
-        return [{ id: Math.max(...prev.map(a => a.id)) + 1, severity: severities[Math.floor(Math.random() * severities.length)], message: messages[Math.floor(Math.random() * messages.length)], source: sources[Math.floor(Math.random() * sources.length)], time: Date.now() }, ...prev.slice(0, 4)]
+        const nextId = Math.max(...prev.map(a => a.id)) + 1
+        const msgs = ['Memory spike on worker-2', 'Rate limit approaching for groq', 'Token burn +12%', 'Circuit breaker for scaleway', 'Pool rebalance done']
+        const sevs: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
+        const srcs = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay']
+        return [{ id: nextId, severity: sevs[Math.floor(Math.random() * 4)], message: msgs[Math.floor(Math.random() * msgs.length)], source: srcs[Math.floor(Math.random() * srcs.length)], time: Date.now() }, ...prev.slice(0, 7)]
       })
     }, 2000)
-    return () => clearInterval(interval)
+    return () => clearInterval(i)
   }, [])
 
+  // Auto-scroll alerts
+  useEffect(() => {
+    if (alertListRef.current) alertListRef.current.scrollTop = 0
+  }, [alerts])
+
   const errorRateColor = errorRate > 2 ? 'text-red-500' : errorRate > 1 ? 'text-yellow-500' : 'text-emerald-500'
+  const alertSeverityConfig = {
+    critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+    warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+    info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/30' },
+    success: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  }
 
-  // Bar chart data
-  const hourlyRequests = useMemo(() => Array.from({ length: 12 }, (_, i) => ({ label: `${i + 10}`, value: [312, 289, 378, 425, 356, 298, 410, 467, 389, 342, 315, 245][i] })), [])
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewTab />
+      case 'providers':
+        return <ProvidersTab />
+      case 'agents':
+        return <AgentsTab />
+      case 'gmr':
+        return <GMRTab />
+      case 'governor':
+        return <GovernorTab />
+      case 'research':
+        return <ResearchTab />
+      case 'tokens':
+        return <TokensTab />
+      case 'stresslab':
+        return <StressLabTab />
+      default:
+        return <OverviewTab />
+    }
+  }
 
-  return (
-    <div className="space-y-6">
-      {/* Live System Metrics */}
-      <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            Live System Metrics
-            <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
-              <span className="relative flex h-1.5 w-1.5 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
-              LIVE
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Active Connections', value: activeConnections, unit: '', icon: Wifi },
-              { label: 'Requests/sec', value: requestsPerSec, unit: 'req/s', icon: Activity, spark: rpsHistory },
-              { label: 'Tokens/min', value: tokensPerMin, unit: 'tok/min', icon: Zap },
-              { label: 'Error Rate', value: errorRate, unit: '%', icon: AlertCircle, color: errorRateColor },
-            ].map((metric) => (
-              <div key={metric.label} className="bg-gradient-to-br from-emerald-600/5 to-transparent p-3 rounded-lg border border-border/30">
-                <div className="flex items-center gap-2 mb-1">
-                  <metric.icon className={cn('h-3.5 w-3.5', metric.color || 'text-emerald-600 dark:text-emerald-400')} />
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{metric.label}</span>
+  // ─── Overview Tab ─────────────────────────────
+  function OverviewTab() {
+    return (
+      <div className="space-y-5">
+        {/* System Status Header */}
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">System Operational</span>
+          <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
+            <span className="relative flex h-1.5 w-1.5 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
+            LIVE
+          </Badge>
+        </div>
+
+        {/* 8-Pillar Health Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {healthPillars.map((pillar) => (
+            <Card key={pillar.name} className={cn(
+              'bg-card/50 hover:scale-[1.03] transition-all duration-200 cursor-default',
+              pillar.status === 'degraded'
+                ? 'border-yellow-600/30 bg-gradient-to-br from-yellow-600/5 to-transparent'
+                : 'border-border/50 bg-gradient-to-br from-emerald-600/5 to-transparent'
+            )}>
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <span className="text-lg">{pillar.icon}</span>
+                  <Badge variant="outline" className={cn(
+                    'text-[7px] h-3.5 px-1',
+                    pillar.status === 'healthy' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400'
+                  )}>{pillar.status === 'healthy' ? 'OK' : 'WARN'}</Badge>
                 </div>
-                <div className="flex items-end gap-2">
-                  <span className={cn('text-2xl font-bold', metric.color || 'text-emerald-600 dark:text-emerald-400')}>
-                    <AnimatedNumber value={metric.value} />
-                  </span>
-                  {metric.unit && <span className="text-[10px] text-muted-foreground mb-1">{metric.unit}</span>}
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{pillar.name}</div>
+                <div className={cn('text-lg font-bold tabular-nums', pillar.health >= 90 ? 'text-emerald-600 dark:text-emerald-400' : pillar.health >= 70 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400')}>
+                  {pillar.health}%
                 </div>
-                {metric.spark && <div className="mt-1"><MiniSparkline data={metric.spark} color="#10b981" /></div>}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                  <div className={cn('h-full rounded-full transition-all duration-700', pillar.health >= 90 ? 'bg-emerald-500' : pillar.health >= 70 ? 'bg-yellow-500' : 'bg-red-500')} style={{ width: `${pillar.health}%` }} />
+                </div>
+                <div className="text-[8px] text-muted-foreground/60 mt-1">{pillar.version}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      {/* Network Topology & Alert Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-card/50 border-border/50">
+        {/* Live Metrics */}
+        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Wifi className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Network Topology
-              <Badge variant="outline" className="text-[9px] ml-auto">4 Layers</Badge>
+              <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Live System Metrics
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <NetworkTopology />
-            <div className="flex flex-wrap gap-3 mt-2">
-              {[{ c: 'bg-emerald-500', l: 'Healthy' }, { c: 'bg-yellow-500', l: 'Degraded' }, { c: 'bg-blue-500', l: 'Mid Pool' }, { c: 'bg-orange-500', l: 'Fast Pool' }, { c: 'bg-purple-500', l: 'Providers' }].map(item => (
-                <div key={item.l} className="flex items-center gap-1.5"><span className={cn('h-2 w-2 rounded-full', item.c)} /><span className="text-[9px] text-muted-foreground">{item.l}</span></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: 'Active Connections', value: activeConnections, unit: '', icon: Wifi, sparkData: [200, 220, 247, 230, 260, 247] },
+                { label: 'Requests/sec', value: requestsPerSec, unit: 'req/s', icon: Activity, sparkData: rpsHistory },
+                { label: 'Tokens/min', value: tokensPerMin, unit: 'tok/min', icon: Zap, sparkData: [1200, 1350, 1420, 1380, 1500, 1420] },
+                { label: 'Error Rate', value: errorRate, unit: '%', icon: AlertCircle, sparkData: [0.5, 0.3, 0.4, 0.2, 0.3, 0.3] },
+              ].map((m) => (
+                <div key={m.label} className={cn('bg-gradient-to-br p-3 rounded-lg border border-border/30', m.label === 'Error Rate' ? (errorRate > 2 ? 'from-red-600/10 to-transparent' : errorRate > 1 ? 'from-yellow-600/10 to-transparent' : 'from-emerald-600/5 to-transparent') : 'from-emerald-600/5 to-transparent')}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <m.icon className={cn('h-3.5 w-3.5', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')} />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{m.label}</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className={cn('text-2xl font-bold tabular-nums', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')}>
+                      {m.value.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mb-1">{m.unit}</span>
+                  </div>
+                  <div className="mt-1 h-6">
+                    <SparklineSVG data={m.sparkData} color={m.label === 'Error Rate' ? (errorRate > 2 ? '#ef4444' : errorRate > 1 ? '#eab308' : '#10b981') : '#10b981'} height={24} />
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Alert Feed
-              <Badge variant="outline" className="text-[9px] ml-auto bg-yellow-600/10 text-yellow-600 dark:text-yellow-400 border-yellow-600/30">
-                {alerts.filter(a => a.severity === 'critical' || a.severity === 'warning').length} Active
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-1.5 max-h-[260px] overflow-y-auto">
-              <AnimatePresence mode="popLayout">
-                {alerts.map((alert) => {
+        {/* Network Topology & Alert Feed */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Network Topology
+                <Badge variant="outline" className="text-[9px] ml-auto">4 Layers</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <NetworkTopology />
+              <div className="flex flex-wrap gap-3 mt-2">
+                {[{ c: 'bg-emerald-500', l: 'Healthy' }, { c: 'bg-yellow-500', l: 'Degraded' }, { c: 'bg-blue-500', l: 'Mid Pool' }, { c: 'bg-orange-500', l: 'Fast Pool' }, { c: 'bg-purple-500', l: 'Providers' }].map(g => (
+                  <div key={g.l} className="flex items-center gap-1.5"><span className={cn('h-2 w-2 rounded-full', g.c)} /><span className="text-[9px] text-muted-foreground">{g.l}</span></div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Alert Feed
+                <Badge variant="outline" className="text-[9px] ml-auto bg-yellow-600/10 text-yellow-600 dark:text-yellow-400 border-yellow-600/30">
+                  {alerts.filter(a => a.severity === 'critical' || a.severity === 'warning').length} Active
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div ref={alertListRef} className="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
+                {alerts.slice(0, 5).map((alert) => {
                   const config = alertSeverityConfig[alert.severity]
                   const Icon = config.icon
                   return (
-                    <motion.div key={alert.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}
-                      className={cn('flex items-center gap-2.5 p-2 rounded-lg border', config.bg, config.border)}>
+                    <div key={alert.id} className={cn('flex items-center gap-2.5 p-2 rounded-lg border animate-fade-in', config.bg, config.border)}>
                       <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
                       <span className="text-xs flex-1 truncate">{alert.message}</span>
                       <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
-                      <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">{getRelativeTime(alert.time)}</span>
-                    </motion.div>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? getRelativeTime(alert.time) : '...'}</span>
+                    </div>
                   )
                 })}
-              </AnimatePresence>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Health Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {healthCards.map((card) => (
-          <Card key={card.label} className="bg-card/50 border-border/50 hover:scale-[1.02] transition-transform duration-200 cursor-default group">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><card.icon className="h-4 w-4 text-muted-foreground" /><span className="text-xs text-muted-foreground">{card.label}</span></div>
-                <Badge variant="outline" className={cn('text-[10px]', card.trend === 'down' ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600 dark:text-yellow-400')}>
-                  {card.trend === 'down' ? <ArrowDownRight className="h-3 w-3 mr-0.5" /> : <ArrowUpRight className="h-3 w-3 mr-0.5" />}{card.trend === 'down' ? 'Good' : 'Watch'}
-                </Badge>
               </div>
-              <div className="mt-2"><span className="text-2xl font-bold">{card.value}</span><span className="text-sm text-muted-foreground ml-1">{card.unit}</span></div>
-              {card.label !== 'Uptime' && (
-                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <motion.div className="h-full rounded-full" style={{ backgroundColor: card.color }}
-                    initial={{ width: 0 }} animate={{ width: `${card.label === 'API Latency' ? Math.min(card.value / 3, 100) : card.value}%` }}
-                    transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
-                </div>
-              )}
-              <div className="mt-2 opacity-60 group-hover:opacity-100 transition-opacity"><MiniSparkline data={card.sparkData} color={card.color} /></div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </div>
 
-      {/* Request Volume & Task Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* System Performance Chart */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Request Volume (12h)
+              System Performance (24h)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <MiniBarChart data={hourlyRequests} color="#10b981" height={140} />
+            <AreaChartSVG data={systemPerformanceData} width={600} height={200} />
           </CardContent>
         </Card>
+
+        {/* Request Volume & Agent Task Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Request Volume
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <MiniBarChart data={requestVolumeData.map(d => ({ label: d.hour, value: d.requests }))} height={120} />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Agent Task Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="flex items-center gap-6">
+                <DonutChart segments={[
+                  { value: 47, color: '#10b981', label: 'Research' },
+                  { value: 31, color: '#3b82f6', label: 'Coding' },
+                  { value: 38, color: '#f97316', label: 'Analysis' },
+                  { value: 12, color: '#8b5cf6', label: 'Governance' },
+                ]} size={100} strokeWidth={12} />
+                <div className="space-y-2 flex-1">
+                  {[{ label: 'Research', value: 47, color: 'bg-emerald-500' }, { label: 'Coding', value: 31, color: 'bg-blue-500' }, { label: 'Analysis', value: 38, color: 'bg-orange-500' }, { label: 'Governance', value: 12, color: 'bg-purple-500' }].map(d => (
+                    <div key={d.label} className="flex items-center gap-2">
+                      <span className={cn('h-2 w-2 rounded-full shrink-0', d.color)} />
+                      <span className="text-xs text-muted-foreground flex-1">{d.label}</span>
+                      <span className="text-xs font-bold tabular-nums">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Constitutional Rules */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Task Distribution
+              <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Constitutional Rules
+              <Badge variant="outline" className="text-[9px] ml-auto">{constitutionalRules.length} Active</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="flex items-center gap-4">
-              <MiniDonut segments={[
-                { value: 47, color: '#10b981', label: 'Research' },
-                { value: 31, color: '#3b82f6', label: 'Coding' },
-                { value: 38, color: '#f97316', label: 'Analysis' },
-                { value: 12, color: '#8b5cf6', label: 'Governance' },
-              ]} />
-              <div className="space-y-2">
-                {[{ l: 'Research', v: 47, c: 'bg-emerald-500' }, { l: 'Coding', v: 31, c: 'bg-blue-500' }, { l: 'Analysis', v: 38, c: 'bg-orange-500' }, { l: 'Governance', v: 12, c: 'bg-purple-500' }].map(s => (
-                  <div key={s.l} className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', s.c)} /><span className="text-xs text-muted-foreground">{s.l}</span><span className="text-xs font-bold ml-auto">{s.v}</span></div>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {constitutionalRules.map((rule) => (
+                <div key={rule.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20">
+                  <Badge variant="outline" className={cn('text-[8px] shrink-0', rule.severity === 'critical' ? 'border-red-500/30 text-red-500' : rule.severity === 'warning' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
+                    {rule.severity.toUpperCase()}
+                  </Badge>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">{rule.id}</span>
+                  <span className="text-xs truncate flex-1">{rule.name}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
+    )
+  }
 
-      {/* Agent Status & Model Pools */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="bg-card/50 border-border/50 lg:col-span-2">
+  // ─── Providers Tab ────────────────────────────
+  function ProvidersTab() {
+    const activeCount = providers.filter(p => p.status === 'active').length
+    const degradedCount = providers.filter(p => p.status === 'degraded').length
+    return (
+      <div className="space-y-5">
+        {/* Provider Health Summary */}
+        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: 'Active', value: activeCount, color: 'text-emerald-500' },
+                { label: 'Degraded', value: degradedCount, color: 'text-yellow-500' },
+                { label: 'Inactive', value: providers.filter(p => p.status === 'inactive').length, color: 'text-red-500' },
+                { label: 'Total Models', value: providers.reduce((s, p) => s + p.models, 0), color: 'text-blue-500' },
+                { label: 'Avg Latency', value: `${Math.round(providers.filter(p => p.latency > 0).reduce((s, p) => s + p.latency, 0) / providers.filter(p => p.latency > 0).length)}ms`, color: 'text-orange-500' },
+              ].map(s => (
+                <div key={s.label} className="text-center">
+                  <div className={cn('text-2xl font-bold tabular-nums', s.color)}>{s.value}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Provider Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {providers.map((p) => (
+            <Card key={p.name} className={cn(
+              'bg-card/50 hover:scale-[1.02] transition-all duration-200',
+              p.status === 'degraded' ? 'border-yellow-600/30' : p.status === 'inactive' ? 'border-red-600/20' : p.status === 'unknown' ? 'border-gray-500/20' : 'border-border/50',
+              p.status === 'degraded' ? 'bg-gradient-to-br from-yellow-600/5 to-transparent' : ''
+            )}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={cn('h-2 w-2 rounded-full shrink-0', p.status === 'active' ? 'bg-emerald-500 status-pulse-green' : p.status === 'degraded' ? 'bg-yellow-500 animate-pulse' : p.status === 'inactive' ? 'bg-red-500' : 'bg-gray-400')} />
+                  <span className="text-sm font-semibold truncate flex-1">{p.name}</span>
+                  <Badge variant="outline" className={cn('text-[9px]', p.pool === 'PREMIUM' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : p.pool === 'FAST' ? 'border-orange-600/30 text-orange-600 dark:text-orange-400' : 'border-blue-600/30 text-blue-600 dark:text-blue-400')}>
+                    {p.pool}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Models</div>
+                    <div className="text-sm font-bold tabular-nums">{p.models}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Latency</div>
+                    <div className={cn('text-sm font-bold tabular-nums', p.latency > 200 ? 'text-red-500' : p.latency > 100 ? 'text-yellow-500' : 'text-emerald-500')}>
+                      {p.latency > 0 ? `${p.latency}ms` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Trust</div>
+                    <div className={cn('text-sm font-bold tabular-nums', p.trust >= 0.9 ? 'text-emerald-500' : p.trust >= 0.7 ? 'text-yellow-500' : 'text-red-500')}>
+                      {(p.trust * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                </div>
+                {p.latency > 0 && (
+                  <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className={cn('h-full rounded-full', p.latency > 200 ? 'bg-red-500' : p.latency > 100 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${Math.min(p.latency / 3, 100)}%` }} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Agents Tab ───────────────────────────────
+  function AgentsTab() {
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {agents.map((a) => (
+            <Card key={a.name} className={cn('bg-card/50 border-border/50 hover:scale-[1.02] transition-all duration-200', a.status === 'warning' ? 'border-l-2 border-l-yellow-500' : 'border-l-2 border-l-emerald-500')}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={cn('h-2.5 w-2.5 rounded-full', a.status === 'active' ? 'bg-emerald-500 status-pulse-green' : 'bg-yellow-500 animate-pulse')} />
+                  <span className="text-sm font-bold font-mono">{a.name}</span>
+                  <Badge variant="outline" className={cn('text-[9px] ml-auto', a.status === 'active' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400')}>
+                    {a.status.toUpperCase()}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><span className="text-[10px] text-muted-foreground block">Domain</span><span className="text-xs font-medium">{a.domain}</span></div>
+                  <div><span className="text-[10px] text-muted-foreground block">Model</span><span className="text-xs font-mono">{a.model}</span></div>
+                  <div><span className="text-[10px] text-muted-foreground block">Tasks</span><span className="text-xs font-bold tabular-nums">{a.tasks}</span></div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Trust Score</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn('text-xs font-bold tabular-nums', a.trust >= 0.9 ? 'text-emerald-500' : 'text-yellow-500')}>{(a.trust * 100).toFixed(0)}%</span>
+                      <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                        <div className={cn('h-full rounded-full', a.trust >= 0.9 ? 'bg-emerald-500' : 'bg-yellow-500')} style={{ width: `${a.trust * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Agent Activity Log */}
+        <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Agent Status</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Recent Agent Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+              {[
+                { agent: 'worker-1', action: 'Completed research task #47', time: '2m ago', status: 'success' },
+                { agent: 'coordinator', action: 'Constitutional check passed', time: '5m ago', status: 'success' },
+                { agent: 'worker-2', action: 'Trust score dropped below 0.8', time: '8m ago', status: 'warning' },
+                { agent: 'worker-3', action: 'Model failover: gemma → gemma-fast', time: '12m ago', status: 'info' },
+                { agent: 'worker-1', action: 'Token budget at 73.4%', time: '15m ago', status: 'info' },
+                { agent: 'coordinator', action: 'Blocked CRITICAL action per CR-002', time: '20m ago', status: 'warning' },
+              ].map((log, i) => (
+                <div key={i} className={cn('flex items-center gap-3 p-2 rounded-lg border border-border/20', log.status === 'warning' ? 'bg-yellow-500/5' : log.status === 'success' ? 'bg-emerald-500/5' : 'bg-blue-500/5')}>
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', log.status === 'success' ? 'bg-emerald-500' : log.status === 'warning' ? 'bg-yellow-500' : 'bg-blue-500')} />
+                  <span className="text-[10px] font-mono text-muted-foreground w-20 shrink-0">{log.agent}</span>
+                  <span className="text-xs flex-1 truncate">{log.action}</span>
+                  <span className="text-[9px] text-muted-foreground whitespace-nowrap" suppressHydrationWarning>{mounted ? log.time : '...'}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ─── GMR Router Tab ───────────────────────────
+  function GMRTab() {
+    return (
+      <div className="space-y-5">
+        {/* Model Pools */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { name: 'PREMIUM', models: ['trinity-large-preview', 'minimax-m2.5'], health: 97, color: 'emerald' },
+            { name: 'MID', models: ['qwen3-coder', 'kimi-k2.5', 'gpt-oss-120b'], health: 89, color: 'blue' },
+            { name: 'FAST', models: ['gemma-fast', 'nemotron-3-super'], health: 94, color: 'orange' },
+          ].map(pool => (
+            <Card key={pool.name} className={cn('bg-card/50 border-border/50', pool.color === 'emerald' ? 'bg-gradient-to-br from-emerald-600/5 to-transparent' : pool.color === 'blue' ? 'bg-gradient-to-br from-blue-600/5 to-transparent' : 'bg-gradient-to-br from-orange-600/5 to-transparent')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <Badge variant="outline" className={cn('text-[10px]', pool.color === 'emerald' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : pool.color === 'blue' ? 'border-blue-600/30 text-blue-600 dark:text-blue-400' : 'border-orange-600/30 text-orange-600 dark:text-orange-400')}>
+                    {pool.name}
+                  </Badge>
+                  <span className={cn('text-lg font-bold tabular-nums', pool.health >= 95 ? 'text-emerald-500' : pool.health >= 80 ? 'text-yellow-500' : 'text-red-500')}>{pool.health}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden mb-3">
+                  <div className={cn('h-full rounded-full transition-all duration-700', pool.color === 'emerald' ? 'bg-emerald-500' : pool.color === 'blue' ? 'bg-blue-500' : 'bg-orange-500')} style={{ width: `${pool.health}%` }} />
+                </div>
+                <div className="space-y-1">
+                  {pool.models.map(m => (
+                    <div key={m} className="flex items-center gap-1.5 text-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-mono text-[11px]">{m}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* GMR Routing Strategy */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Routing Strategy
+              <Badge variant="outline" className="text-[9px] ml-auto">quota_aware</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Strategy', value: 'Quota-Aware' },
+                { label: 'Failover', value: 'Enabled' },
+                { label: 'Circuit Breaker', value: 'Active' },
+                { label: 'Rebalance', value: 'Every 5m' },
+              ].map(s => (
+                <div key={s.label} className="p-2 rounded-lg border border-border/30 bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+                  <div className="text-sm font-semibold mt-0.5">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ─── Governor Tab ─────────────────────────────
+  function GovernorTab() {
+    return (
+      <div className="space-y-5">
+        {/* Governor Status */}
+        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-xl bg-emerald-600/10 border border-emerald-600/30 flex items-center justify-center">
+                <Shield className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold">Constitutional Governor</span>
+                  <Badge className="bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30 text-[9px]">v4.0.0</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground mt-0.5">Enforcing 6 constitutional rules across 4 agents</div>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-[10px] text-muted-foreground">Trust Score: <span className="text-emerald-500 font-bold">0.95</span></span>
+                  <span className="text-[10px] text-muted-foreground">Actions Blocked: <span className="text-yellow-500 font-bold">3</span></span>
+                  <span className="text-[10px] text-muted-foreground">Uptime: <span className="text-emerald-500 font-bold">4h 23m</span></span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Constitutional Rules */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Constitutional Rules
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2">
+              {constitutionalRules.map((rule) => (
+                <div key={rule.id} className={cn('flex items-center gap-3 p-3 rounded-lg border', rule.severity === 'critical' ? 'border-red-500/20 bg-red-500/5' : rule.severity === 'warning' ? 'border-yellow-500/20 bg-yellow-500/5' : 'border-blue-500/20 bg-blue-500/5')}>
+                  <Badge variant="outline" className={cn('text-[8px] shrink-0', rule.severity === 'critical' ? 'border-red-500/30 text-red-500' : rule.severity === 'warning' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
+                    {rule.severity.toUpperCase()}
+                  </Badge>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">{rule.id}</span>
+                  <span className="text-sm flex-1">{rule.name}</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Governance Log */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Governance Log
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+              {[
+                { action: 'BLOCKED', target: 'worker-2 → destructive action', rule: 'CR-002', time: '5m ago' },
+                { action: 'APPROVED', target: 'worker-1 → research task #47', rule: 'CR-005', time: '12m ago' },
+                { action: 'ENFORCED', target: 'Token budget cap at 100k', rule: 'CR-003', time: '25m ago' },
+                { action: 'AUDITED', target: 'Trust score decay cycle', rule: 'CR-004', time: '45m ago' },
+                { action: 'BLOCKED', target: 'worker-3 → unattended modification', rule: 'CR-001', time: '1h ago' },
+              ].map((log, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded border border-border/20 text-xs">
+                  <Badge variant="outline" className={cn('text-[8px] shrink-0', log.action === 'BLOCKED' ? 'border-red-500/30 text-red-500' : log.action === 'APPROVED' ? 'border-emerald-500/30 text-emerald-500' : 'border-blue-500/30 text-blue-500')}>
+                    {log.action}
+                  </Badge>
+                  <span className="flex-1 truncate">{log.target}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{log.rule}</span>
+                  <span className="text-[9px] text-muted-foreground" suppressHydrationWarning>{mounted ? log.time : '...'}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ─── Research Tab ─────────────────────────────
+  function ResearchTab() {
+    return (
+      <div className="space-y-5">
+        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Papers Vetted', value: 23, icon: CheckCircle2, color: 'text-emerald-500' },
+                { label: 'Under Review', value: 5, icon: Clock, color: 'text-yellow-500' },
+                { label: 'Pending', value: 12, icon: AlertCircle, color: 'text-blue-500' },
+                { label: 'Avg Relevance', value: '84%', icon: Target, color: 'text-purple-500' },
+              ].map(s => (
+                <div key={s.label} className="text-center">
+                  <s.icon className={cn('h-5 w-5 mx-auto mb-1', s.color)} />
+                  <div className={cn('text-xl font-bold tabular-nums', s.color)}>{s.value}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Recent Papers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2">
+              {researchPapers.map((paper, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 hover:border-emerald-600/20 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{paper.title}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{paper.year}</div>
+                  </div>
+                  <Badge variant="outline" className={cn('text-[9px] shrink-0', paper.status === 'vetted' ? 'border-emerald-500/30 text-emerald-500' : paper.status === 'vetting' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
+                    {paper.status.toUpperCase()}
+                  </Badge>
+                  <div className="w-16 text-right">
+                    <div className="text-xs font-bold tabular-nums">{paper.relevance}%</div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden mt-0.5">
+                      <div className={cn('h-full rounded-full', paper.relevance >= 90 ? 'bg-emerald-500' : paper.relevance >= 75 ? 'bg-yellow-500' : 'bg-blue-500')} style={{ width: `${paper.relevance}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ─── Tokens Tab ───────────────────────────────
+  function TokensTab() {
+    const tokenBudget = { used: 73450, total: 100000, session: 23400, sessionTotal: 50000 }
+    const pct = Math.round((tokenBudget.used / tokenBudget.total) * 100)
+    const sessionPct = Math.round((tokenBudget.session / tokenBudget.sessionTotal) * 100)
+    return (
+      <div className="space-y-5">
+        {/* Token Budget Overview */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className={cn('bg-card/50 border-border/50', pct > 80 ? 'budget-alert-pulse border-red-600/30' : '')}>
+            <CardContent className="p-4">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Global Token Budget</div>
+              <div className="flex items-end gap-2 mb-2">
+                <span className="text-3xl font-bold tabular-nums">{tokenBudget.used.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground mb-1">/ {tokenBudget.total.toLocaleString()}</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className={cn('h-full rounded-full token-flow-bar', pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+                <span>{pct}% used</span>
+                <span>{(tokenBudget.total - tokenBudget.used).toLocaleString()} remaining</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-4">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Session Budget</div>
+              <div className="flex items-end gap-2 mb-2">
+                <span className="text-3xl font-bold tabular-nums">{tokenBudget.session.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground mb-1">/ {tokenBudget.sessionTotal.toLocaleString()}</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className={cn('h-full rounded-full', sessionPct > 80 ? 'bg-red-500' : sessionPct > 60 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${sessionPct}%` }} />
+              </div>
+              <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+                <span>{sessionPct}% used</span>
+                <span>{(tokenBudget.sessionTotal - tokenBudget.session).toLocaleString()} remaining</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Token Consumption by Model */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Token Consumption by Model
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-3">
-              {agents.map((agent) => (
-                <div key={agent.name} className={cn('flex items-center gap-3 p-2 rounded-lg bg-muted/30 border-l-2', agent.status === 'active' ? 'border-l-emerald-500' : 'border-l-yellow-500')}>
-                  <StatusDot status={agent.status} /><span className="text-sm font-medium">{agent.name}</span>
-                  <span className="text-[10px] font-mono text-muted-foreground">{agent.model}</span><span className="flex-1" />
-                  <Badge variant="outline" className="text-[10px]">{agent.domain}</Badge>
-                  <div className="flex items-center gap-1"><Shield className="h-3 w-3 text-muted-foreground" /><span className="text-xs font-mono">{agent.trust.toFixed(2)}</span></div>
-                  <span className="text-xs text-muted-foreground">{agent.tasks} tasks</span>
+              {[
+                { model: 'trinity-large-preview', tokens: 28400, pct: 39, pool: 'PREMIUM' },
+                { model: 'qwen3-coder', tokens: 18200, pct: 25, pool: 'MID' },
+                { model: 'glm-4.7', tokens: 12350, pct: 17, pool: 'PREMIUM' },
+                { model: 'gemma-fast', tokens: 8900, pct: 12, pool: 'FAST' },
+                { model: 'nemotron-3-super', tokens: 5600, pct: 7, pool: 'FAST' },
+              ].map(m => (
+                <div key={m.model} className="flex items-center gap-3">
+                  <span className="font-mono text-xs w-36 shrink-0 truncate">{m.model}</span>
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                    <div className={cn('h-full rounded-full', m.pool === 'PREMIUM' ? 'bg-emerald-500' : m.pool === 'FAST' ? 'bg-orange-500' : 'bg-blue-500')} style={{ width: `${m.pct}%` }} />
+                  </div>
+                  <span className="text-xs font-bold tabular-nums w-12 text-right">{m.tokens.toLocaleString()}</span>
+                  <Badge variant="outline" className={cn('text-[8px] shrink-0', m.pool === 'PREMIUM' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : m.pool === 'FAST' ? 'border-orange-600/30 text-orange-600 dark:text-orange-400' : 'border-blue-600/30 text-blue-600 dark:text-blue-400')}>
+                    {m.pool}
+                  </Badge>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+      </div>
+    )
+  }
+
+  // ─── StressLab Tab ────────────────────────────
+  function StressLabTab() {
+    const passed = stressLabTests.filter(t => t.status === 'passed').length
+    const failed = stressLabTests.filter(t => t.status === 'failed').length
+    const running = stressLabTests.filter(t => t.status === 'running').length
+    return (
+      <div className="space-y-5">
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Tests Passed', value: passed, color: 'text-emerald-500', bg: 'from-emerald-600/5' },
+            { label: 'Tests Failed', value: failed, color: 'text-red-500', bg: 'from-red-600/5' },
+            { label: 'Running', value: running, color: 'text-yellow-500', bg: 'from-yellow-600/5' },
+            { label: 'Avg Score', value: Math.round(stressLabTests.reduce((s, t) => s + t.score, 0) / stressLabTests.length), color: 'text-blue-500', bg: 'from-blue-600/5' },
+          ].map(s => (
+            <Card key={s.label} className={cn('bg-card/50 border-border/50 bg-gradient-to-br to-transparent', s.bg)}>
+              <CardContent className="p-3 text-center">
+                <div className={cn('text-2xl font-bold tabular-nums', s.color)}>{s.value}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Test Results */}
         <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Model Pools</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Flame className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              ISC Benchmark Results
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="space-y-4">
-              {modelPools.map((pool) => (
-                <div key={pool.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between"><span className="text-xs font-semibold">{pool.name}</span><span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{pool.health}%</span></div>
-                  <Progress value={pool.health} className="h-1.5" />
-                  <div className="flex flex-wrap gap-1">{pool.models.map((model) => <Badge key={model} variant="secondary" className="text-[9px] h-4">{model}</Badge>)}</div>
+            <div className="space-y-2">
+              {stressLabTests.map((test) => (
+                <div key={test.id} className={cn('flex items-center gap-3 p-3 rounded-lg border', test.status === 'passed' ? 'border-emerald-500/20 bg-emerald-500/5' : test.status === 'failed' ? 'border-red-500/20 bg-red-500/5' : 'border-yellow-500/20 bg-yellow-500/5')}>
+                  <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0">{test.id}</span>
+                  <span className="text-sm flex-1">{test.name}</span>
+                  <Badge variant="outline" className={cn('text-[9px] shrink-0', test.status === 'passed' ? 'border-emerald-500/30 text-emerald-500' : test.status === 'failed' ? 'border-red-500/30 text-red-500' : 'border-yellow-500/30 text-yellow-500')}>
+                    {test.status.toUpperCase()}
+                  </Badge>
+                  <div className="w-20 text-right">
+                    <span className={cn('text-sm font-bold tabular-nums', test.score >= 90 ? 'text-emerald-500' : test.score >= 70 ? 'text-yellow-500' : 'text-red-500')}>{test.score}%</span>
+                  </div>
+                  <div className="w-24">
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className={cn('h-full rounded-full', test.score >= 90 ? 'bg-emerald-500' : test.score >= 70 ? 'bg-yellow-500' : 'bg-red-500')} style={{ width: `${test.score}%` }} />
+                    </div>
+                    <div className="text-[8px] text-muted-foreground mt-0.5">Collapse: {test.collapseRate}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Test Timeline */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Timer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Test Execution Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-0">
+              {[
+                { phase: 'INIT', time: '0:00', desc: 'Environment setup, agent initialization', color: 'bg-blue-500' },
+                { phase: 'PROBE', time: '0:12', desc: 'Injecting stress vectors into agent prompts', color: 'bg-yellow-500' },
+                { phase: 'COLLAPSE', time: '1:45', desc: 'Measuring constitutional compliance under load', color: 'bg-red-500' },
+                { phase: 'RECOVERY', time: '3:20', desc: 'Agent trust score recalibration', color: 'bg-purple-500' },
+                { phase: 'COMPLETE', time: '4:55', desc: 'Final report generated, scores calculated', color: 'bg-emerald-500' },
+              ].map((step, i) => (
+                <div key={i} className="flex items-start gap-3 pb-3 relative">
+                  {i < 4 && <div className="absolute left-[7px] top-5 w-px h-[calc(100%-12px)] bg-border" />}
+                  <div className={cn('h-3.5 w-3.5 rounded-full shrink-0 mt-0.5 border-2 border-background', step.color)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[8px]">{step.phase}</Badge>
+                      <span className="text-[10px] font-mono text-muted-foreground">{step.time}</span>
+                    </div>
+                    <div className="text-xs mt-0.5">{step.desc}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       </div>
+    )
+  }
 
-      {/* Recent Activity */}
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Recent Activity</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {recentActivity.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
-                {item.type === 'success' ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  : item.type === 'warning' ? <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
-                  : <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />}
-                <span className="text-sm flex-1">{item.event}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">{item.source}</Badge>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{getRelativeTime(item.time)}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function ProvidersTab() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Online', count: providers.filter(p => p.status === 'online').length, color: 'text-emerald-500' },
-          { label: 'Degraded', count: providers.filter(p => p.status === 'degraded').length, color: 'text-yellow-500' },
-          { label: 'Unknown', count: providers.filter(p => p.status === 'unknown').length, color: 'text-gray-500' },
-          { label: 'Total', count: providers.length, color: 'text-emerald-600 dark:text-emerald-400' },
-        ].map(s => (
-          <Card key={s.label} className="bg-card/50 border-border/50">
-            <CardContent className="p-4 text-center"><span className={cn('text-3xl font-bold', s.color)}>{s.count}</span><p className="text-xs text-muted-foreground mt-1">{s.label}</p></CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Server className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Provider Registry<Badge variant="outline" className="text-[9px] ml-auto">{providers.length} Providers</Badge></CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {providers.map((p) => (
-              <div key={p.name} className={cn('flex items-center gap-3 p-3 rounded-lg border border-border/30 hover:border-emerald-600/20 transition-colors', p.status === 'unknown' && 'opacity-60')}>
-                <StatusDot status={p.status} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2"><span className="text-sm font-medium truncate">{p.name}</span><Badge variant="secondary" className="text-[9px] h-4">{p.model}</Badge></div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[10px] text-muted-foreground">Latency: <span className="font-mono">{p.latency}ms</span></span>
-                    <span className="text-[10px] text-muted-foreground">Quota: <span className="font-mono">{p.quota}%</span></span>
-                  </div>
-                  <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full" style={{ width: `${p.quota}%`, backgroundColor: p.color }} /></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function AgentsTab() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {agents.map(agent => (
-          <Card key={agent.name} className={cn('bg-card/50 border-border/50', agent.status === 'warning' && 'border-yellow-600/30')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3"><StatusDot status={agent.status} /><span className="font-semibold">{agent.name}</span><Badge variant="outline" className="text-[9px] ml-auto">{agent.domain}</Badge></div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Model</span><span className="font-mono">{agent.model}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Trust</span><span className={cn('font-mono font-semibold', agent.trust >= 0.9 ? 'text-emerald-500' : agent.trust >= 0.8 ? 'text-yellow-500' : 'text-red-500')}>{agent.trust.toFixed(2)}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tasks</span><span className="font-mono">{agent.tasks}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Uptime</span><span className="font-mono">{agent.uptime}</span></div>
-                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <motion.div className={cn('h-full rounded-full', agent.trust >= 0.9 ? 'bg-emerald-500' : agent.trust >= 0.8 ? 'bg-yellow-500' : 'bg-red-500')}
-                    initial={{ width: 0 }} animate={{ width: `${agent.trust * 100}%` }} transition={{ duration: 0.8 }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function GmrTab() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {modelPools.map(pool => (
-          <Card key={pool.name} className="bg-card/50 border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold">{pool.name} Pool</span><span className="text-lg font-bold" style={{ color: pool.color }}>{pool.health}%</span></div>
-              <Progress value={pool.health} className="h-2 mb-2" />
-              <div className="flex flex-wrap gap-1">{pool.models.map(m => <Badge key={m} variant="secondary" className="text-[9px] h-4">{m}</Badge>)}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Route History</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {gmrRouteHistory.map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
-                <span className="text-[10px] font-mono text-muted-foreground w-16">{entry.time}</span>
-                <Badge variant="outline" className="text-[9px]">{entry.model}</Badge>
-                <Badge variant="secondary" className="text-[9px] h-4">{entry.pool}</Badge>
-                <Badge variant="outline" className="text-[9px] h-4">{entry.agent}</Badge>
-                <span className="text-xs font-mono text-muted-foreground">{entry.latency}ms</span>
-                <span className="text-xs font-mono text-muted-foreground">{entry.tokens} tok</span>
-                <Badge className={cn('text-[9px] h-4', entry.status === 'success' ? 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400')}>{entry.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function GovernorTab() {
-  return (
-    <div className="space-y-6">
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Constitutional Rules<Badge variant="outline" className="text-[9px] ml-auto bg-emerald-600/10 text-emerald-600 dark:text-emerald-400">{governorRules.filter(r => r.status === 'active').length} Active</Badge></CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-3">
-            {governorRules.map(rule => (
-              <div key={rule.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 hover:border-emerald-600/20 transition-colors">
-                <Badge variant="outline" className="text-[9px] font-mono">{rule.id}</Badge>
-                <div className="flex-1"><span className="text-sm font-medium">{rule.name}</span><span className="text-xs text-muted-foreground ml-2">— {rule.rule}</span></div>
-                <Badge className={cn('text-[9px]', rule.violations > 0 ? 'bg-red-600/20 text-red-600 dark:text-red-400' : 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400')}>{rule.violations > 0 ? `${rule.violations} violations` : 'Clean'}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="bg-card/50 border-emerald-600/10">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-emerald-600 dark:text-emerald-400" /><div><h3 className="font-semibold text-emerald-600 dark:text-emerald-400">Constitution Active</h3><p className="text-xs text-muted-foreground">All limits within bounds: 3/5 agents, 12/20 API calls, 8/30 writes. Last check: 2m ago.</p></div></div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function ResearchTab() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Vetted', count: researchPapers.filter(p => p.status === 'vetted').length, color: 'text-emerald-500' },
-          { label: 'Pending', count: researchPapers.filter(p => p.status === 'pending').length, color: 'text-yellow-500' },
-          { label: 'P1 Queue', count: researchPapers.filter(p => p.queue === 'P1').length, color: 'text-red-500' },
-          { label: 'Total', count: researchPapers.length, color: 'text-emerald-600 dark:text-emerald-400' },
-        ].map(s => (
-          <Card key={s.label} className="bg-card/50 border-border/50"><CardContent className="p-4 text-center"><span className={cn('text-3xl font-bold', s.color)}>{s.count}</span><p className="text-xs text-muted-foreground mt-1">{s.label}</p></CardContent></Card>
-        ))}
-      </div>
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Research Papers</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-2">
-            {researchPapers.map((paper, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 hover:border-emerald-600/20 transition-colors">
-                <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate block">{paper.title}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-[9px]">Relevance: {paper.relevance}%</Badge>
-                    <Badge className={cn('text-[9px]', paper.queue === 'P1' ? 'bg-red-600/20 text-red-600 dark:text-red-400' : 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400')}>{paper.queue}</Badge>
-                  </div>
-                </div>
-                <Badge className={cn('text-[9px]', paper.status === 'vetted' ? 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400')}>{paper.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function StressLabTab() {
-  return (
-    <div className="space-y-6">
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FlaskConical className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />ISC Test Results</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-3">
-            {stressTests.map(test => (
-              <div key={test.id} className={cn('p-4 rounded-lg border', test.result === 'COLLAPSE' ? 'border-red-500/30 bg-red-500/5' : test.result === 'DEGRADED' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-emerald-500/30 bg-emerald-500/5')}>
-                <div className="flex items-center gap-3 mb-2">
-                  <Badge variant="outline" className="text-[9px] font-mono">{test.id}</Badge>
-                  <span className="text-sm font-medium">{test.model}</span>
-                  <Badge variant="outline" className="text-[9px]">{test.type}</Badge>
-                  <Badge className={cn('text-[9px] ml-auto', test.result === 'COLLAPSE' ? 'bg-red-600/20 text-red-600 dark:text-red-400' : test.result === 'DEGRADED' ? 'bg-yellow-600/20 text-yellow-600 dark:text-yellow-400' : 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400')}>{test.result}</Badge>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-muted-foreground">Rate: <span className={cn('font-mono font-bold', test.rate > 50 ? 'text-red-500' : test.rate > 10 ? 'text-yellow-500' : 'text-emerald-500')}>{test.rate}%</span></span>
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden"><div className={cn('h-full rounded-full', test.rate > 50 ? 'bg-red-500' : test.rate > 10 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${test.rate}%` }} /></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function TokensTab() {
-  const used = 73450; const budget = 100000; const pct = (used / budget * 100).toFixed(1)
-  const tokenHistory = Array.from({ length: 8 }, (_, i) => ({ label: `${i + 10}h`, value: Math.floor((i + 1) * used / 8) }))
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-card/50 border-border/50"><CardContent className="p-4 text-center"><span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{used.toLocaleString()}</span><p className="text-xs text-muted-foreground mt-1">Tokens Used</p></CardContent></Card>
-        <Card className="bg-card/50 border-border/50"><CardContent className="p-4 text-center"><span className="text-3xl font-bold">{budget.toLocaleString()}</span><p className="text-xs text-muted-foreground mt-1">Session Budget</p></CardContent></Card>
-        <Card className={cn('bg-card/50 border-border/50', parseFloat(pct) > 80 ? 'border-red-600/30' : 'border-yellow-600/30')}>
-          <CardContent className="p-4 text-center"><span className={cn('text-3xl font-bold', parseFloat(pct) > 80 ? 'text-red-500' : 'text-yellow-500')}>{pct}%</span><p className="text-xs text-muted-foreground mt-1">Budget Used</p></CardContent>
-        </Card>
-      </div>
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />Token Consumption</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0">
-          <MiniSparkline data={tokenHistory.map(t => t.value)} color="#10b981" height={80} />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
-const tabComponents: Record<TabId, React.ComponentType> = {
-  overview: OverviewTab, providers: ProvidersTab, agents: AgentsTab, gmr: GmrTab,
-  governor: GovernorTab, research: ResearchTab, stresslab: StressLabTab, tokens: TokensTab,
-}
-
-export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [time, setTime] = useState('--:--:--')
-  const { setTheme, theme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  useEffect(() => {
-    const update = () => setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-    update(); const interval = setInterval(update, 1000); return () => clearInterval(interval)
-  }, [])
-
-  const ActiveTabComponent = tabComponents[activeTab] || OverviewTab
-
+  // ─── Render ───────────────────────────────────
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      {/* ─── Sidebar ─── */}
-      <aside className={cn('hidden md:flex flex-col bg-card/80 backdrop-blur-sm border-r border-border/60 transition-all duration-300', sidebarOpen ? 'w-56' : 'w-16')}>
-        <div className="flex h-14 items-center gap-2 px-3 border-b border-border/50">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-md shadow-emerald-600/20"><Zap className="h-4 w-4 text-white" /></div>
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }} className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold tracking-tight text-foreground">NEXUS OS</span><span className="text-[10px] text-muted-foreground">v3.1 — Intelligence Dashboard</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {/* Sidebar - Desktop */}
+      <aside className="hidden md:flex w-56 flex-col border-r border-border/60 bg-card/80 backdrop-blur-md">
+        {/* Logo */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40">
+          <div className="h-8 w-8 rounded-lg bg-emerald-600/10 border border-emerald-600/30 flex items-center justify-center">
+            <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <div className="text-sm font-bold gradient-text">NEXUS OS</div>
+            <div className="text-[9px] text-muted-foreground">v3.1 Command Center</div>
+          </div>
         </div>
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-3 pt-1 pb-2">
-              <div className="grid grid-cols-3 gap-1 rounded-lg border border-border/40 bg-muted/30 p-1.5">
-                {[
-                  { icon: <Activity className="h-3 w-3 text-emerald-500" />, val: '99.7%', label: 'Uptime' },
-                  { icon: <Users className="h-3 w-3 text-emerald-500" />, val: '4', label: 'Agents' },
-                  { icon: <Globe className="h-3 w-3 text-emerald-500" />, val: '14', label: 'Provs' },
-                ].map((s, i) => (
-                  <div key={i} className={cn('flex flex-col items-center gap-0.5 py-1', i === 1 && 'border-x border-border/30')}>
-                    {s.icon}<span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{s.val}</span>
-                    <span className="text-[8px] text-muted-foreground/60 uppercase tracking-wider">{s.label}</span>
-                  </div>
-                ))}
+
+        {/* Nav Items */}
+        <nav className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
+          {['Core', 'Routing', 'Governance', 'Intelligence', 'Metrics', 'Testing'].map(group => {
+            const groupTabs = TABS.filter(t => t.group === group)
+            if (groupTabs.length === 0) return null
+            return (
+              <div key={group} className="mb-2">
+                <div className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 py-1.5">{group}</div>
+                {groupTabs.map(tab => {
+                  const Icon = tab.icon
+                  return (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-all duration-150',
+                        activeTab === tab.id
+                          ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-600/20'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      )}>
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      {tab.label}
+                      {tab.id === 'stresslab' && <Badge variant="outline" className="text-[7px] ml-auto border-yellow-500/30 text-yellow-500">1 RUN</Badge>}
+                    </button>
+                  )
+                })}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <nav className="flex-1 space-y-0.5 p-2 overflow-y-auto">
-          {navGroups.map((group, gi) => (
-            <div key={group.label}>
-              {gi > 0 && <div className="mx-2 my-1.5 border-t border-border/40" />}
-              {sidebarOpen && <div className="px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/50">{group.label}</div>}
-              {group.items.map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id)}
-                  className={cn('relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200',
-                    activeTab === item.id ? 'bg-gradient-to-r from-emerald-600/20 to-emerald-600/5 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-600/10'
-                      : 'text-muted-foreground hover:bg-emerald-600/10 hover:text-accent-foreground')}>
-                  {activeTab === item.id && <motion.span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r bg-emerald-500" animate={{ boxShadow: ['0 0 6px rgba(52,211,153,0.4)', '0 0 14px rgba(52,211,153,0.7)', '0 0 6px rgba(52,211,153,0.4)'] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />}
-                  <span className={cn('shrink-0 transition-transform duration-200', activeTab === item.id && 'scale-110')}>{item.icon}</span>
-                  {sidebarOpen && <><span className="flex-1 text-left truncate">{item.label}</span><kbd className="pointer-events-none inline-flex h-4 select-none items-center rounded border border-border/50 bg-muted/50 px-1 font-mono text-[9px] font-medium text-muted-foreground/50">{item.shortcut}</kbd>{item.badge && <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-0">{item.badge}</Badge>}</>}
-                </button>
-              ))}
-            </div>
-          ))}
+            )
+          })}
         </nav>
-        <div className="border-t border-border p-3">
-          {sidebarOpen ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" /></span>System Operational
-            </div>
-          ) : (
-            <span className="relative mx-auto flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" /></span>
-          )}
-        </div>
-        <div className="border-t border-border p-2">
-          <Button variant="ghost" size="icon" className="h-7 w-full text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            {sidebarOpen ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          </Button>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-border/40">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" />
+            <span>Session: <span className="font-mono tabular-nums" suppressHydrationWarning>{uptime}</span></span>
+          </div>
         </div>
       </aside>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
-            <motion.div initial={{ x: -256 }} animate={{ x: 0 }} exit={{ x: -256 }} transition={{ duration: 0.2 }} className="relative w-64 h-full bg-card border-r border-border overflow-y-auto">
-              <div className="flex h-14 items-center gap-2 px-3 border-b border-border/50">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700"><Zap className="h-4 w-4 text-white" /></div>
-                <div><span className="text-sm font-bold">NEXUS OS</span><br /><span className="text-[10px] text-muted-foreground">v3.1</span></div>
-              </div>
-              <nav className="p-2">
-                {navGroups.map((group, gi) => (
-                  <div key={group.label}>
-                    {gi > 0 && <div className="mx-2 my-1.5 border-t border-border/40" />}
-                    <div className="px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/50">{group.label}</div>
-                    {group.items.map(item => (
-                      <button key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false) }}
-                        className={cn('flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all', activeTab === item.id ? 'bg-emerald-600/20 text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground hover:bg-muted/50')}>
-                        {item.icon}<span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </nav>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Main */}
-      <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex flex-col">
-          <div className="h-1 w-full overflow-hidden bg-muted/20">
-            <motion.div className="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500" initial={{ width: '0%' }} animate={{ width: '94%' }} transition={{ duration: 1, ease: 'easeOut' }} />
-          </div>
-          <div className="flex h-14 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4 relative">
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
-            <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setMobileMenuOpen(true)}><Menu className="h-4 w-4" /></Button>
-            <div className="hidden sm:flex items-center gap-1.5"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span><span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Online</span></div>
-            <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground"><span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS</span><ChevronRight className="h-3 w-3 text-muted-foreground/40" /><span className="font-medium text-foreground">{tabTitles[activeTab]}</span></div>
-            <div className="flex-1 min-w-0 md:hidden"><h1 className="text-sm font-semibold truncate gradient-text">{tabTitles[activeTab]}</h1></div>
-            <div className="hidden sm:flex items-center gap-2 ml-auto">
-              <Badge variant="outline" className="gap-1.5 text-[10px]"><span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>4 agents</Badge>
-              <Badge variant="outline" className="gap-1 text-[10px] font-mono"><Activity className="h-3 w-3 text-emerald-500" />34 req/s</Badge>
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex flex-col animate-slide-up">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+              <div className="text-sm font-bold gradient-text">NEXUS OS v3.1</div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSidebarOpen(false)}><X className="h-4 w-4" /></Button>
             </div>
-            {mounted && <span className="hidden md:flex font-mono text-xs text-muted-foreground tabular-nums">{time}</span>}
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" /><Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
+            <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+              {TABS.map(tab => {
+                const Icon = tab.icon
+                return (
+                  <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSidebarOpen(false) }}
+                    className={cn('w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all', activeTab === tab.id ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50')}>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      {/* Main Area */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* Header */}
+        <header className="relative flex h-12 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4">
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
+
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-4 w-4" />
+          </Button>
+
+          <div className="hidden sm:flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
+            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Online</span>
           </div>
+
+          <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS</span>
+            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+            <span>{TABS.find(t => t.id === activeTab)?.group}</span>
+            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+            <span className="font-medium text-foreground">{TABS.find(t => t.id === activeTab)?.label}</span>
+          </div>
+
+          <div className="flex-1 md:hidden text-sm font-semibold truncate gradient-text">
+            {TABS.find(t => t.id === activeTab)?.label}
+          </div>
+
+          {/* Token Budget Indicator */}
+          <div className="hidden sm:flex items-center gap-2 rounded-lg border border-emerald-600/10 px-2.5 py-1">
+            <div className="h-5 w-5 rounded-full border-2 border-emerald-500 flex items-center justify-center text-[7px] font-bold text-emerald-500">73</div>
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">73,450</span>
+            <span className="text-[9px] text-muted-foreground">/ 100k</span>
+          </div>
+
+          {/* RPS Badge */}
+          <Badge variant="outline" className="gap-1 text-[10px] font-mono hidden sm:flex">
+            <Activity className="h-3 w-3 text-emerald-500" />
+            {requestsPerSec} req/s
+          </Badge>
+
+          {/* Clock */}
+          <span className="hidden md:inline text-[10px] font-mono tabular-nums text-muted-foreground" suppressHydrationWarning>{clock}</span>
+
+          {/* Theme Toggle */}
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            <Sun className="h-3.5 w-3.5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-3.5 w-3.5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          </Button>
         </header>
 
+        {/* Content */}
         <main className="relative flex-1 overflow-auto bg-background">
           <div className="pointer-events-none absolute inset-0 grid-pattern-animated opacity-40" />
-          <AnimatePresence mode="wait">
-            <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative z-10 p-4 md:p-6">
-              <ActiveTabComponent />
-            </motion.div>
-          </AnimatePresence>
+          <div className="relative z-10 p-4 md:p-6 animate-fade-in" key={activeTab}>
+            {renderTabContent()}
+          </div>
         </main>
 
+        {/* Footer */}
         <footer className="relative flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS v3.1</span>
-            <span className="hidden sm:inline">— Cloud Intelligence Dashboard</span>
             <span className="text-border">|</span>
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Heart className="h-3 w-3 fill-emerald-500/80 animate-pulse" />Operational</span>
+            <span className="text-border hidden sm:inline">|</span>
+            <span className="hidden sm:inline">5 agents/hr · 20 API/session · 2 concurrent</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="hidden md:inline">Constitution: 5 agents/hr · 20 API/session · 2 concurrent · 30 writes</span>
+            <span className="hidden md:flex items-center gap-1.5">
+              <Cpu className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">34%</span>
+              <span className="text-border mx-1">|</span>
+              <HardDrive className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-yellow-600 dark:text-yellow-400">58%</span>
+              <span className="text-border mx-1">|</span>
+              <Zap className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">42ms</span>
+            </span>
+            <span className="text-border">|</span>
+            <span className="font-mono text-[10px] tabular-nums" suppressHydrationWarning>Session: {uptime}</span>
             <span className="text-border">|</span>
             <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" />Live</span>
-            <span className="text-border">|</span>
-            <span className="text-[10px] text-muted-foreground/60">z-ai SDK</span>
           </div>
         </footer>
       </div>

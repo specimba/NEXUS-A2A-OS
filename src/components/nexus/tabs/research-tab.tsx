@@ -275,11 +275,15 @@ const categoryIcons: Record<string, typeof Shield> = {
   Tools: Sparkles,
 }
 
+// ─── Hydration-safe reference time ─────────────────────────────────────────────
+
+const REFERENCE_TIME = new Date('2025-03-04T12:00:00.000Z').getTime()
+
 // ─── Chart mock data ──────────────────────────────────────────────────────────
 
-// Paper Trends (30 days)
+// Paper Trends (30 days) — uses fixed reference time to avoid hydration mismatch
 const paperTrendsData = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date()
+  const d = new Date(REFERENCE_TIME)
   d.setDate(d.getDate() - (29 - i))
   const label = `${d.getMonth() + 1}/${d.getDate()}`
   return {
@@ -453,6 +457,7 @@ function PaperCard({
 
 export function ResearchTab() {
   // ─── State ─────────────────────────────────────────────────────────────
+  const [mounted, setMounted] = useState(false)
   const [papers, setPapers] = useState<Paper[]>(mockPapers)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -519,16 +524,17 @@ export function ResearchTab() {
       .sort((a, b) => b.count - a.count)
   }, [papers])
 
-  // Recently vetted papers
+  // Recently vetted papers — use fixed reference time until mounted to avoid hydration mismatch
   const recentlyVetted = useMemo(() => {
+    const baseTime = mounted ? Date.now() : REFERENCE_TIME
     return papers
       .filter(p => p.status === 'vetted')
       .map((p, i) => ({
         ...p,
-        vettedDate: new Date(Date.now() - (i * 2 + 1) * 86400000), // simulated dates
+        vettedDate: new Date(baseTime - (i * 2 + 1) * 86400000), // simulated dates
       }))
       .sort((a, b) => b.vettedDate.getTime() - a.vettedDate.getTime())
-  }, [papers])
+  }, [papers, mounted])
 
   // Pipeline health
   const pipelineHealth = useMemo(() => {
@@ -548,6 +554,11 @@ export function ResearchTab() {
     if (!selectedPipelineStage) return []
     return papers.filter(p => p.status === selectedPipelineStage)
   }, [papers, selectedPipelineStage])
+
+  // ─── Hydration: set mounted after initial render ──────────────────────
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // ─── Auto-scroll chat ──────────────────────────────────────────────────
   useEffect(() => {
@@ -972,8 +983,8 @@ export function ResearchTab() {
                     </div>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-[9px] text-muted-foreground">{paper.authors.join(', ')}</span>
-                      <span className="text-[9px] text-muted-foreground font-mono">{getRelativeTime(paper.vettedDate)}</span>
-                      <span className="text-[9px] text-muted-foreground font-mono">{formatDate(paper.vettedDate)}</span>
+                      <span className="text-[9px] text-muted-foreground font-mono" suppressHydrationWarning>{getRelativeTime(paper.vettedDate)}</span>
+                      <span className="text-[9px] text-muted-foreground font-mono" suppressHydrationWarning>{formatDate(paper.vettedDate)}</span>
                     </div>
                   </div>
                   <div className="shrink-0 w-20">

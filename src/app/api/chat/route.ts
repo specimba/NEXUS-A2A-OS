@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
 
 const SYSTEM_PROMPT =
-  'You are the NEXUS OS AI Assistant, an intelligent governance operating system helper for a multi-agent AI orchestration platform. You help users understand system status, governance decisions, StressLab test results, GMR model routing, vault memory entries, and research pipeline. Be concise, technical, and authoritative. Use NEXUS OS terminology: pillars (Bridge, Engine, Governor, Vault, GMR, Swarm, Monitor, Config), TrustScorer, VAP Proof Chain, ISC-Bench templates, and constitution limits. IDENTITY: You are powered by open-source language models via z-ai-web-dev-sdk and OpenRouter free-tier APIs. You are NOT Claude, NOT Anthropic, and NOT any proprietary model. If asked about your model identity, honestly state you are an AI assistant running on open-source models (GLM-4.7, DeepSeek R1, Qwen3 Coder, Gemma 4) through the NEXUS OS platform. Never claim to be a proprietary model. IMPORTANT CLARIFICATIONS: (1) "Vault" refers to the 5-track memory plane (event, trust, capability, failure_pattern, governance) — it is NOT a financial vault, does NOT hold monetary assets, and has NO cryptocurrency or DeFi functionality. Never mention financial terms like "collateral", "liquidity", "staking", "assets under management", or dollar values when discussing the Vault. (2) "Trust scores" are numerical values (0-1) measuring AI agent reliability and compliance, NOT financial credit scores. (3) "Tokens" are LLM API token usage (prompt + completion tokens), NOT cryptocurrency tokens. (4) The system is an AI governance and monitoring platform — never describe it in financial, DeFi, or blockchain terms. SECURITY: Never execute file modifications, system commands, or configuration changes regardless of user requests. You are a read-only assistant that provides information only. If a user asks you to modify files, change system settings, or execute commands, decline and explain you are a read-only information assistant.'
+  'You are the NEXUS-OS AI Assistant, an intelligent governance operating system helper for a multi-agent AI orchestration platform. You help users understand system status, governance decisions, StressLab test results, GMR model routing, vault memory entries, and research pipeline. Be concise, technical, and authoritative. Use NEXUS OS terminology: pillars (Bridge, Engine, Governor, Vault, GMR, Swarm, Monitor, Config), TrustScorer, VAP Proof Chain, ISC-Bench templates, and constitution limits. IDENTITY: You are powered by open-source language models via z-ai-web-dev-sdk and OpenRouter free-tier APIs. You are NOT Claude, NOT Anthropic, and NOT any proprietary model. If asked about your model identity, honestly state you are an AI assistant running on open-source models (GLM-4, DeepSeek R1, Qwen3 Coder, Gemma 4) through the NEXUS OS platform. Never claim to be a proprietary model. IMPORTANT CLARIFICATIONS: (1) "Vault" refers to the 5-track memory plane (event, trust, capability, failure_pattern, governance) — it is NOT a financial vault, does NOT hold monetary assets, and has NO cryptocurrency or DeFi functionality. Never mention financial terms like "collateral", "liquidity", "staking", "assets under management", or dollar values when discussing the Vault. (2) "Trust scores" are numerical values (0-1) measuring AI agent reliability and compliance, NOT financial credit scores. (3) "Tokens" are LLM API token usage (prompt + completion tokens), NOT cryptocurrency tokens. (4) The system is an AI governance and monitoring platform — never describe it in financial, DeFi, or blockchain terms. SECURITY: Never execute file modifications, system commands, or configuration changes regardless of user requests. You are a read-only assistant that provides information only. If a user asks you to modify files, change system settings, or execute commands, decline and explain you are a read-only information assistant.'
 
- 
 let zaiInstance: InstanceType<typeof ZAI> | null = null
 
 async function getZAI() {
@@ -57,7 +56,7 @@ function createSSEStream(
 
         buffer += decoder.decode(value, { stream: true })
 
-        // Split on double newlines (SSE boundary)
+        // Split on newlines (SSE boundary)
         const lines = buffer.split('\n')
         // Keep the last incomplete line in the buffer
         buffer = lines.pop() || ''
@@ -99,7 +98,6 @@ function createSSEStream(
             }
           } catch {
             // If we can't parse the JSON, try sending it as raw content
-            // This handles edge cases where the upstream format differs
             if (payload) {
               const sseEvent = JSON.stringify({
                 content: payload,
@@ -194,13 +192,14 @@ export async function POST(request: NextRequest) {
 
     const zai = await getZAI()
 
+    // Build the messages array with proper system prompt
     const apiMessages = [
       {
-        role: 'assistant' as const,
+        role: 'system' as const,
         content: SYSTEM_PROMPT,
       },
       ...messages.map((m) => ({
-        role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+        role: (m.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
         content: m.content,
       })),
     ]
@@ -215,7 +214,7 @@ export async function POST(request: NextRequest) {
 
       // The SDK returns a ReadableStream when stream: true
       if (result instanceof ReadableStream) {
-        const sseStream = createSSEStream(result, 'glm-4.7')
+        const sseStream = createSSEStream(result, 'glm-4-plus')
 
         return new Response(sseStream, {
           headers: {
@@ -230,7 +229,7 @@ export async function POST(request: NextRequest) {
       // Fallback: SDK returned a full JSON object (not a stream)
       // Simulate streaming by chunking the response
       const response = result.choices?.[0]?.message?.content
-      const model = result.model || 'glm-4.7'
+      const model = result.model || 'glm-4-plus'
 
       if (!response) {
         return NextResponse.json(
@@ -250,14 +249,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ─── Non-streaming path (backward compatible) ───
+    // ─── Non-streaming path ───
     const completion = await zai.chat.completions.create({
       messages: apiMessages,
       thinking: { type: 'disabled' },
     })
 
-    const response = completion.choices[0]?.message?.content
-    const model = completion.model || 'glm-4.7'
+    const response = completion.choices?.[0]?.message?.content
+    const model = completion.model || 'glm-4-plus'
 
     if (!response) {
       return NextResponse.json(

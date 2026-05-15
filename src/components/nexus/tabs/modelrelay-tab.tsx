@@ -156,19 +156,19 @@ const INTENT_ICONS: Record<string, React.ReactNode> = {
 // Client-side data — no API call needed
 function getMockGatewayStatus(): GatewayStatus {
   const providers: Record<string, ProviderStatus> = {
-    zai: { name: 'Z-AI', state: 'up', latencyMs: 189, tier: 95, priority: 1, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 3 },
-    openrouter: { name: 'OpenRouter', state: 'up', latencyMs: 234, tier: 80, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 5 },
-    cerebras: { name: 'Cerebras', state: 'up', latencyMs: 40, tier: 65, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
-    groq: { name: 'Groq', state: 'up', latencyMs: 67, tier: 70, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 3 },
-    mistral: { name: 'Mistral', state: 'up', latencyMs: 210, tier: 72, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
-    codestral: { name: 'Codestral', state: 'up', latencyMs: 195, tier: 74, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
-    fireworks: { name: 'Fireworks', state: 'degraded', latencyMs: 320, tier: 68, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 2, lastCheck: Date.now(), modelCount: 1 },
+    zai: { name: 'Z-AI', state: 'up', latencyMs: 189, tier: 95, priority: 1, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 3 },
+    openrouter: { name: 'OpenRouter', state: 'up', latencyMs: 234, tier: 80, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 5 },
+    cerebras: { name: 'Cerebras', state: 'up', latencyMs: 40, tier: 65, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 2 },
+    groq: { name: 'Groq', state: 'up', latencyMs: 67, tier: 70, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 3 },
+    mistral: { name: 'Mistral', state: 'up', latencyMs: 210, tier: 72, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 2 },
+    codestral: { name: 'Codestral', state: 'up', latencyMs: 195, tier: 74, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 1 },
+    fireworks: { name: 'Fireworks', state: 'degraded', latencyMs: 320, tier: 68, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 2, lastCheck: 0, modelCount: 1 },
     scaleway: { name: 'Scaleway', state: 'down', latencyMs: 0, tier: 50, priority: 6, isFree: true, isLocal: false, quotaType: 'free', failureCount: 5, lastCheck: null, modelCount: 1 },
-    dashscope: { name: 'DashScope', state: 'up', latencyMs: 280, tier: 75, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
-    bitdeer: { name: 'BitDeer', state: 'up', latencyMs: 350, tier: 72, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
-    nvidia: { name: 'NVIDIA NIM', state: 'up', latencyMs: 156, tier: 88, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 2 },
-    sambanova: { name: 'SambaNova', state: 'up', latencyMs: 198, tier: 78, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: Date.now(), modelCount: 1 },
-    siliconflow: { name: 'SiliconFlow', state: 'degraded', latencyMs: 380, tier: 60, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 1, lastCheck: Date.now(), modelCount: 1 },
+    dashscope: { name: 'DashScope', state: 'up', latencyMs: 280, tier: 75, priority: 4, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 1 },
+    bitdeer: { name: 'BitDeer', state: 'up', latencyMs: 350, tier: 72, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 1 },
+    nvidia: { name: 'NVIDIA NIM', state: 'up', latencyMs: 156, tier: 88, priority: 2, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 2 },
+    sambanova: { name: 'SambaNova', state: 'up', latencyMs: 198, tier: 78, priority: 3, isFree: true, isLocal: false, quotaType: 'free', failureCount: 0, lastCheck: 0, modelCount: 1 },
+    siliconflow: { name: 'SiliconFlow', state: 'degraded', latencyMs: 380, tier: 60, priority: 5, isFree: true, isLocal: false, quotaType: 'free', failureCount: 1, lastCheck: 0, modelCount: 1 },
     opencode: { name: 'OpenCode', state: 'down', latencyMs: 0, tier: 40, priority: 7, isFree: true, isLocal: false, quotaType: 'free', failureCount: 8, lastCheck: null, modelCount: 1 },
   }
 

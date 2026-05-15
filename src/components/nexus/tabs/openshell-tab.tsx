@@ -97,7 +97,7 @@ const mockGatewayHealth: GatewayHealth = {
   activeConnections: 4,
   idleConnections: 2,
   maxPoolSize: 8,
-  lastHeartbeat: new Date(Date.now() - 1500).toISOString(),
+  lastHeartbeat: '2025-03-04T11:59:58.500Z',
   uptime: '4h 23m 17s',
 }
 
@@ -350,7 +350,7 @@ function StatusDashboard({ health, latency }: { health: GatewayHealth; latency: 
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Last Heartbeat</span>
                 <Activity className="h-4 w-4 text-emerald-400" />
               </div>
-              <p className="text-xl font-bold tabular-nums text-emerald-400">
+              <p className="text-xl font-bold tabular-nums text-emerald-400" suppressHydrationWarning>
                 {formatHeartbeat(health.lastHeartbeat)}
               </p>
               <div className="mt-1 flex items-center gap-2 text-[9px] text-muted-foreground">

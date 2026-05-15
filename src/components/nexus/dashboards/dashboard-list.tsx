@@ -67,7 +67,7 @@ const MOCK_DASHBOARDS: DashboardListItem[] = [
     widgetCount: 8,
     tags: ['system', 'health', 'monitoring'],
     isPublic: false,
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+    updatedAt: '2025-03-04T11:00:00.000Z',
   },
   {
     id: 'dash-2',
@@ -78,7 +78,7 @@ const MOCK_DASHBOARDS: DashboardListItem[] = [
     widgetCount: 6,
     tags: ['agents', 'performance', 'ai'],
     isPublic: true,
-    updatedAt: new Date(Date.now() - 7200000).toISOString(),
+    updatedAt: '2025-03-04T10:00:00.000Z',
   },
   {
     id: 'dash-3',
@@ -89,7 +89,7 @@ const MOCK_DASHBOARDS: DashboardListItem[] = [
     widgetCount: 5,
     tags: ['tokens', 'cost', 'budget'],
     isPublic: false,
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: '2025-03-03T12:00:00.000Z',
   },
   {
     id: 'dash-4',
@@ -100,7 +100,7 @@ const MOCK_DASHBOARDS: DashboardListItem[] = [
     widgetCount: 4,
     tags: ['governor', 'security', 'compliance'],
     isPublic: false,
-    updatedAt: new Date(Date.now() - 172800000).toISOString(),
+    updatedAt: '2025-03-02T12:00:00.000Z',
   },
 ]
 
@@ -366,7 +366,7 @@ export function DashboardList({ onEditDashboard, onShareDashboard }: DashboardLi
                       <Grid3x3 className="h-3 w-3" />
                       {dashboard.columns} cols
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" suppressHydrationWarning>
                       <Clock className="h-3 w-3" />
                       {formatTimeAgo(dashboard.updatedAt)}
                     </div>
@@ -459,7 +459,7 @@ export function DashboardList({ onEditDashboard, onShareDashboard }: DashboardLi
                       <Blocks className="h-3 w-3" />
                       {dashboard.widgetCount}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1" suppressHydrationWarning>
                       <Clock className="h-3 w-3" />
                       {formatTimeAgo(dashboard.updatedAt)}
                     </span>
