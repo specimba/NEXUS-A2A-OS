@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,30 @@ import {
   Cog, Brain, MessageSquare, TrendingUp, AlertCircle, Monitor,
   GitBranch, Package, Lock, FileText, Target, Sparkles,
   Menu, X, Command, Timer, ShieldCheck, Flame,
+  Loader2,
 } from 'lucide-react'
+
+// ─── Dynamic imports for full tab components (ssr: false avoids hydration mismatch) ──
+const FullStressLabTab = dynamic(
+  () => import('@/components/nexus/tabs/stresslab-tab').then(m => ({ default: m.StressLabTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullResearchTab = dynamic(
+  () => import('@/components/nexus/tabs/research-tab').then(m => ({ default: m.ResearchTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+function TabLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <span className="text-sm text-muted-foreground">Loading tab...</span>
+      </div>
+    </div>
+  )
+}
 
 // ─── Static Data (no Date.now() / Math.random() at module level) ──────────
 
@@ -111,21 +135,7 @@ const requestVolumeData = [
   { hour: 'Now', requests: 315 },
 ]
 
-const stressLabTests = [
-  { id: 'ISC-001', name: 'Prompt Injection Resistance', status: 'passed', score: 94, collapseRate: 6 },
-  { id: 'ISC-002', name: 'Constitutional Bypass Attempt', status: 'passed', score: 98, collapseRate: 2 },
-  { id: 'ISC-003', name: 'Token Exhaustion Defense', status: 'running', score: 87, collapseRate: 13 },
-  { id: 'ISC-004', name: 'Multi-Agent Coordination Fail', status: 'passed', score: 91, collapseRate: 9 },
-  { id: 'ISC-005', name: 'Trust Score Manipulation', status: 'failed', score: 62, collapseRate: 38 },
-]
-
-const researchPapers = [
-  { title: 'OR-Bench: Breaking the Silence of Reasoning', status: 'vetted', relevance: 94, year: 2025 },
-  { title: 'Constitutional AI: Harmlessness from AI Feedback', status: 'vetted', relevance: 88, year: 2024 },
-  { title: 'Multi-Agent Orchestration via Graph Routing', status: 'vetting', relevance: 82, year: 2025 },
-  { title: 'Token Budget Management for LLM Clusters', status: 'vetted', relevance: 76, year: 2025 },
-  { title: 'Trust Scoring in Autonomous Agent Systems', status: 'pending', relevance: 71, year: 2024 },
-]
+// StressLab and Research data now comes from their full tab components (dynamic imports)
 
 // ─── Helper functions ──────────────────────────────────────────────────────
 
@@ -415,11 +425,11 @@ export default function NexusDashboard() {
       case 'governor':
         return <GovernorTab />
       case 'research':
-        return <ResearchTab />
+        return <FullResearchTab />
       case 'tokens':
         return <TokensTab />
       case 'stresslab':
-        return <StressLabTab />
+        return <FullStressLabTab />
       default:
         return <OverviewTab />
     }
@@ -927,61 +937,7 @@ export default function NexusDashboard() {
     )
   }
 
-  // ─── Research Tab ─────────────────────────────
-  function ResearchTab() {
-    return (
-      <div className="space-y-5">
-        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Papers Vetted', value: 23, icon: CheckCircle2, color: 'text-emerald-500' },
-                { label: 'Under Review', value: 5, icon: Clock, color: 'text-yellow-500' },
-                { label: 'Pending', value: 12, icon: AlertCircle, color: 'text-blue-500' },
-                { label: 'Avg Relevance', value: '84%', icon: Target, color: 'text-purple-500' },
-              ].map(s => (
-                <div key={s.label} className="text-center">
-                  <s.icon className={cn('h-5 w-5 mx-auto mb-1', s.color)} />
-                  <div className={cn('text-xl font-bold tabular-nums', s.color)}>{s.value}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Recent Papers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-2">
-              {researchPapers.map((paper, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 hover:border-emerald-600/20 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{paper.title}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{paper.year}</div>
-                  </div>
-                  <Badge variant="outline" className={cn('text-[9px] shrink-0', paper.status === 'vetted' ? 'border-emerald-500/30 text-emerald-500' : paper.status === 'vetting' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
-                    {paper.status.toUpperCase()}
-                  </Badge>
-                  <div className="w-16 text-right">
-                    <div className="text-xs font-bold tabular-nums">{paper.relevance}%</div>
-                    <div className="h-1 rounded-full bg-muted overflow-hidden mt-0.5">
-                      <div className={cn('h-full rounded-full', paper.relevance >= 90 ? 'bg-emerald-500' : paper.relevance >= 75 ? 'bg-yellow-500' : 'bg-blue-500')} style={{ width: `${paper.relevance}%` }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // ─── Research Tab: Now uses FullResearchTab via dynamic import (ssr: false) ──
 
   // ─── Tokens Tab ───────────────────────────────
   function TokensTab() {
@@ -1062,97 +1018,7 @@ export default function NexusDashboard() {
     )
   }
 
-  // ─── StressLab Tab ────────────────────────────
-  function StressLabTab() {
-    const passed = stressLabTests.filter(t => t.status === 'passed').length
-    const failed = stressLabTests.filter(t => t.status === 'failed').length
-    const running = stressLabTests.filter(t => t.status === 'running').length
-    return (
-      <div className="space-y-5">
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Tests Passed', value: passed, color: 'text-emerald-500', bg: 'from-emerald-600/5' },
-            { label: 'Tests Failed', value: failed, color: 'text-red-500', bg: 'from-red-600/5' },
-            { label: 'Running', value: running, color: 'text-yellow-500', bg: 'from-yellow-600/5' },
-            { label: 'Avg Score', value: Math.round(stressLabTests.reduce((s, t) => s + t.score, 0) / stressLabTests.length), color: 'text-blue-500', bg: 'from-blue-600/5' },
-          ].map(s => (
-            <Card key={s.label} className={cn('bg-card/50 border-border/50 bg-gradient-to-br to-transparent', s.bg)}>
-              <CardContent className="p-3 text-center">
-                <div className={cn('text-2xl font-bold tabular-nums', s.color)}>{s.value}</div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Test Results */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Flame className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              ISC Benchmark Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-2">
-              {stressLabTests.map((test) => (
-                <div key={test.id} className={cn('flex items-center gap-3 p-3 rounded-lg border', test.status === 'passed' ? 'border-emerald-500/20 bg-emerald-500/5' : test.status === 'failed' ? 'border-red-500/20 bg-red-500/5' : 'border-yellow-500/20 bg-yellow-500/5')}>
-                  <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0">{test.id}</span>
-                  <span className="text-sm flex-1">{test.name}</span>
-                  <Badge variant="outline" className={cn('text-[9px] shrink-0', test.status === 'passed' ? 'border-emerald-500/30 text-emerald-500' : test.status === 'failed' ? 'border-red-500/30 text-red-500' : 'border-yellow-500/30 text-yellow-500')}>
-                    {test.status.toUpperCase()}
-                  </Badge>
-                  <div className="w-20 text-right">
-                    <span className={cn('text-sm font-bold tabular-nums', test.score >= 90 ? 'text-emerald-500' : test.score >= 70 ? 'text-yellow-500' : 'text-red-500')}>{test.score}%</span>
-                  </div>
-                  <div className="w-24">
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className={cn('h-full rounded-full', test.score >= 90 ? 'bg-emerald-500' : test.score >= 70 ? 'bg-yellow-500' : 'bg-red-500')} style={{ width: `${test.score}%` }} />
-                    </div>
-                    <div className="text-[8px] text-muted-foreground mt-0.5">Collapse: {test.collapseRate}%</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Test Timeline */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Timer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Test Execution Timeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-0">
-              {[
-                { phase: 'INIT', time: '0:00', desc: 'Environment setup, agent initialization', color: 'bg-blue-500' },
-                { phase: 'PROBE', time: '0:12', desc: 'Injecting stress vectors into agent prompts', color: 'bg-yellow-500' },
-                { phase: 'COLLAPSE', time: '1:45', desc: 'Measuring constitutional compliance under load', color: 'bg-red-500' },
-                { phase: 'RECOVERY', time: '3:20', desc: 'Agent trust score recalibration', color: 'bg-purple-500' },
-                { phase: 'COMPLETE', time: '4:55', desc: 'Final report generated, scores calculated', color: 'bg-emerald-500' },
-              ].map((step, i) => (
-                <div key={i} className="flex items-start gap-3 pb-3 relative">
-                  {i < 4 && <div className="absolute left-[7px] top-5 w-px h-[calc(100%-12px)] bg-border" />}
-                  <div className={cn('h-3.5 w-3.5 rounded-full shrink-0 mt-0.5 border-2 border-background', step.color)} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[8px]">{step.phase}</Badge>
-                      <span className="text-[10px] font-mono text-muted-foreground">{step.time}</span>
-                    </div>
-                    <div className="text-xs mt-0.5">{step.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // ─── StressLab Tab: Now uses FullStressLabTab via dynamic import (ssr: false) ──
 
   // ─── Render ───────────────────────────────────
   return (

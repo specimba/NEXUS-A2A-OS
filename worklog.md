@@ -299,3 +299,26 @@ Stage Summary:
 3. **Server stability**: The Next.js dev server sometimes dies when idle - a keepalive mechanism is running
 4. **Additional tabs**: Architecture, Vault, AI Assistant, Swarm, Rate Limits, KPI, Dashboards, ModelRelay tabs could be added back as lightweight implementations
 5. **AI Chat**: The AI Assistant functionality could be re-added as a lightweight panel
+---
+Task ID: 8
+Agent: Main
+Task: Replace simplified inline StressLab/Research tabs with full component versions via dynamic imports
+
+Work Log:
+- Diagnosed that page.tsx had simplified/butchered inline versions of StressLab (~90 lines) and Research (~53 lines)
+- The REAL component files were: stresslab-tab.tsx (335 lines, uses framer-motion + Tooltip) and research-tab.tsx (1,378 lines, uses recharts + framer-motion + Dialog + AnimatePresence)
+- Added `next/dynamic` imports with `ssr: false` for both tabs — this avoids hydration mismatch AND prevents OOM (lazy loading)
+- Added TabLoader component with Loader2 spinner
+- Replaced inline ResearchTab with FullResearchTab dynamic import
+- Replaced inline StressLabTab with FullStressLabTab dynamic import
+- Removed unused `researchPapers` and `stressLabTests` data constants
+- Added `Suspense` and `Loader2` to imports
+- Reduced page.tsx from 1,321 to 1,187 lines
+- Lint passes cleanly (only pre-existing supervisor.js errors)
+- Verified via agent-browser: both tabs render FULL rich versions
+
+Stage Summary:
+- StressLab tab now shows: Arena header, Run Test button, 4 stat cards, 5 Test Templates with difficulty badges, ISC Benchmark Leaderboard (7 models with grades), Test Execution Timeline (INIT→PROBE→COLLAPSE→COMPLETE phases), Recent Test Runs (6 tests)
+- Research tab now shows: Statistics Dashboard (5 cards), Pipeline Health (92%), Interactive Pipeline Visualization (3 stages), Paper Trends chart (30-day recharts), Top Research Domains chart (7 domains), 8 full paper cards with abstracts/Analyze/PDF, Research Chat with suggested prompts
+- Both tabs use dynamic imports with ssr: false — no hydration mismatch, no OOM
+- Dashboard is fully functional at http://localhost:3000/
