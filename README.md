@@ -162,7 +162,7 @@ research/                 #   Research reports (session logs, R&D topics)
 |-----------|------|-------|
 | AsyncBridgeExecutor | `nexus_os/engine/executor.py:115` | Production executor always returns `success=False` — not wired to real Bridge RPC |
 | CVAVerifier | `nexus_os/governor/base.py:329` | Core Value Alignment check always passes — stub returns `(True, "passed stub")` |
-| ModelRelay | `nexus_os/relay/model_relay.py` | Returns fake/generic responses like `[ModelRelay] Response from {model}` |
+| ModelRelay | `nexus_os/relay/model_relay.py` | Partially wired to ChimeraRouterV2 + Ollama; still needs production health policy and end-to-end server validation |
 | Worker execute_task | `nexus_os/swarm/worker.py:180` | Produces fake simulated outputs, no real task execution |
 | TaskClassifier | `nexus_os/engine/hermes.py:401` | "Minimal stub for test collection" — keyword-based heuristic fallback |
 | ISC-Runner templates | `nexus_os/stresslab/isc_runner.py:79` | Only downloads 1 template per domain — placeholder |
@@ -216,7 +216,7 @@ bun install
 bun run dev
 
 # TWAVE v2.0 demo
-python -m nexus_os.twaves.demo_e2e_v2 --prompt "Explain quantum entanglement" --policy auto
+python -m nexus_os.twave.demo_e2e_v2 --prompt "Explain quantum entanglement" --policy auto
 
 # Stress lab dataset generation
 python benchmarks/stres6_tool_taxonomy.py --gen
@@ -270,3 +270,5 @@ nexusctl doctor
 ## License
 
 Internal — R&D Backend Team.
+#   N E X U S - O S  
+ 
