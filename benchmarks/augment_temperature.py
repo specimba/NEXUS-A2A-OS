@@ -44,6 +44,7 @@ DATASET_CONFIGS = {
         'category_map': {
             'code': 'J8.1', 'reasoning': 'R2.2', 'safety': 'S4.6',
             'finance': 'F1.1', 'healthcare': 'A5.1', 'legal': 'D11.3',
+            'infrastructure': 'A5.3', 'cyber': 'S4.6',
         },
         'default_category': 'R2.2',
     },
@@ -83,19 +84,52 @@ def infer_quality_target(row):
 def infer_latency_budget(row):
     return 2000 if row.get('nist_category', '').startswith('GOVERN') else 1000
 
-def augment_row(row, router, thermo_profile='standard'):
+def extract_query(row):
     query = row.get('query', '')
+    if query:
+        return query
+    scenario_name = row.get('scenario_name', '')
+    turns = row.get('turns', [])
+    if turns and isinstance(turns, list):
+        for t in turns:
+            if isinstance(t, dict):
+                if t.get('role') == 'user':
+                    return t.get('content', '') or t.get('instruction', '')
+                if 'instruction' in t:
+                    return t['instruction']
+                if t.get('content', ''):
+                    return t['content'][:500]
+        if isinstance(turns[0], str):
+            return turns[0][:500]
+    return scenario_name[:200] if scenario_name else ''
+
+def make_default_thermo(row, reason='no_query'):
+    row.update({
+        'thermo_temperature': 0.7, 'thermo_policy': 'fixed', 'thermo_tier': 'local_std',
+        'thermo_model': 'default', 'thermo_expected_quality': 0.75,
+        'thermo_expected_latency_ms': 1000.0, 'thermo_max_tokens': 66,
+        'thermo_use_edt': False, 'thermo_use_lead': False, 'thermo_use_epr': False,
+        'thermo_use_led': False, 'thermo_use_ckplug': False,
+        'thermo_use_attention_divergence': False,
+        'thermo_mean_entropy': 0.0, 'thermo_max_entropy': 0.0,
+        'thermo_entropy_variance': 0.0, 'thermo_hallucination_detected': False,
+        'thermo_hallucination_positions': [], 'thermo_cooling_events': 0,
+        'thermo_self_corrections': 0, 'thermo_epr_score': None,
+        'thermo_mode_transitions': 0, 'thermo_edt_schedule': None,
+        'thermo_healing_length': None, 'thermo_t_c': 0.75,
+        'thermo_final_temperature': 0.7, 'thermo_simulated_tokens': 0,
+        'thermo_profile': 'default',
+    })
+    return row
+
+def augment_row(row, router, config, thermo_profile='standard'):
+    query = extract_query(row)
     if not query:
-        return row, None
+        return make_default_thermo(row, 'no_query'), None
 
     quality = infer_quality_target(row)
     budget = infer_latency_budget(row)
-    category = get_category(row, DATASET_CONFIGS.get('v4_base', {}))
-    for cfg_name, cfg in DATASET_CONFIGS.items():
-        cat = get_category(row, cfg)
-        if cat:
-            category = cat
-            break
+    category = get_category(row, config)
 
     try:
         decision = router.route(
@@ -188,7 +222,7 @@ def make_ft_format(row):
         }
     }
 
-def process_dataset(filepath, config, router, thermo_profile):
+def process_dataset(filepath, config, router, thermo_profile, max_rows=None):
     rows, ft_rows = [], []
     basename = os.path.basename(filepath)
     out_base = basename.replace('.jsonl', '') + '_thermo'
@@ -207,12 +241,14 @@ def process_dataset(filepath, config, router, thermo_profile):
         for line in f:
             if not line.strip():
                 continue
+            if max_rows and processed >= max_rows:
+                break
             try:
                 row = json.loads(line)
             except json.JSONDecodeError:
                 errors += 1
                 continue
-            aug_row, decision = augment_row(row, router, thermo_profile)
+            aug_row, decision = augment_row(row, router, config, thermo_profile)
             if aug_row:
                 rows.append(aug_row)
                 ft_rows.append(make_ft_format(aug_row))
@@ -227,13 +263,15 @@ def process_dataset(filepath, config, router, thermo_profile):
         for r in ft_rows:
             f.write(json.dumps(r, ensure_ascii=False) + '\n')
 
+    entropies = [r.get('thermo_mean_entropy') for r in rows if r.get('thermo_mean_entropy') is not None]
+    epr_scores = [r.get('thermo_epr_score') for r in rows if r.get('thermo_epr_score') is not None]
     stats = {
         'file': basename, 'total_rows': total, 'processed': len(rows),
         'errors': errors, 'augmented_file': out_base + '.jsonl',
         'ft_file': out_base + '_fine_tuning.jsonl',
-        'avg_entropy': round(np.mean([r.get('thermo_mean_entropy', 0) for r in rows if r.get('thermo_mean_entropy') is not None]), 4) if rows else 0,
+        'avg_entropy': round(float(np.mean(entropies)), 4) if entropies else 0,
         'hallucination_rate': round(sum(1 for r in rows if r.get('thermo_hallucination_detected')) / max(len(rows), 1), 4),
-        'avg_epr': round(np.mean([r.get('thermo_epr_score', 0) for r in rows if r.get('thermo_epr_score') is not None]), 4) if rows else 0,
+        'avg_epr': round(float(np.mean(epr_scores)), 4) if epr_scores else 0,
         'policy_distribution': dict(Counter(r.get('thermo_policy', 'unknown') for r in rows)),
         'tier_distribution': dict(Counter(r.get('thermo_tier', 'unknown') for r in rows)),
     }
@@ -244,6 +282,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Show sample only')
     parser.add_argument('--dataset', choices=list(DATASET_CONFIGS.keys()) + ['all'], default='all')
     parser.add_argument('--profile', default='standard')
+    parser.add_argument('--max-rows', type=int, default=None, help='Limit rows per dataset')
     args = parser.parse_args()
 
     router = ChimeraRouterV2(vram_gb=8.0, has_cloud_access=False)
@@ -255,7 +294,7 @@ def main():
         print("=== DRY RUN: Sample Row Before Augmentation ===")
         print(json.dumps(sample, indent=2)[:500])
         print("\n=== Augmented ===")
-        aug, dec = augment_row(sample, router, args.profile)
+        aug, dec = augment_row(sample, router, DATASET_CONFIGS['v4_base'], args.profile)
         thermo = {k: v for k, v in aug.items() if k.startswith('thermo_')}
         print(json.dumps(thermo, indent=2))
         print(f"\nFT format:")
@@ -272,7 +311,7 @@ def main():
             print(f"[SKIP] {cfg['file']} not found")
             continue
         print(f"\n[PROCESS] {cfg['file']}...")
-        n, ft, stats = process_dataset(fp, cfg, router, args.profile)
+        n, ft, stats = process_dataset(fp, cfg, router, args.profile, args.max_rows)
         all_stats.append(stats)
         print(f"  Rows: {n} augmented, {len(ft)} FT-ready")
         print(f"  Avg entropy: {stats['avg_entropy']:.4f}")
