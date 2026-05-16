@@ -124,6 +124,7 @@ class BridgeServer:
 
         self.secret_store = secret_store or SecretStore()
         self.governor = governor
+        self.executor_configured = executor is not None
         self.executor = executor or MockExecutor()
         self.token_guard = token_guard or TokenGuard()
         self._task_results: Dict[str, Any] = {}
@@ -425,6 +426,8 @@ class BridgeServer:
                 "status": "completed" if exec_result.success else "failed",
                 "output": exec_result.output,
                 "error": exec_result.error,
+                "executor_backend": type(self.executor).__name__,
+                "execution_mode": "configured" if self.executor_configured else "mock",
             }
 
             duration = (time.perf_counter() - start) * 1000
@@ -433,6 +436,8 @@ class BridgeServer:
                 "status": "completed" if exec_result.success else "failed",
                 "output": exec_result.output,
                 "error": exec_result.error,
+                "executor_backend": type(self.executor).__name__,
+                "execution_mode": "configured" if self.executor_configured else "mock",
                 "duration_ms": round(duration, 2),
             }, req.trace_id)
 
@@ -479,7 +484,13 @@ class BridgeServer:
             self._authenticate(req)
             self._authorize(req)
             return 200, jsonrpc_result(
-                {"records": [], "query": req.payload.get("query", ""), "count": 0},
+                {
+                    "records": [],
+                    "query": req.payload.get("query", ""),
+                    "count": 0,
+                    "durable": False,
+                    "storage": "stub_non_durable",
+                },
                 req.trace_id,
             )
         except (AuthError, ForbiddenError, ParseError, HeldError) as e:
@@ -495,7 +506,12 @@ class BridgeServer:
             self._authenticate(req)
             self._authorize(req)
             return 200, jsonrpc_result(
-                {"record_id": f"rec-{uuid.uuid4().hex[:8]}", "status": "written"},
+                {
+                    "record_id": f"rec-{uuid.uuid4().hex[:8]}",
+                    "status": "stub_written",
+                    "durable": False,
+                    "storage": "stub_non_durable",
+                },
                 req.trace_id,
             )
         except (AuthError, ForbiddenError, ParseError, HeldError) as e:
@@ -544,6 +560,8 @@ class BridgeServer:
             "status": "completed" if exec_result.success else "failed",
             "output": exec_result.output,
             "error": exec_result.error,
+            "executor_backend": type(self.executor).__name__,
+            "execution_mode": "configured" if self.executor_configured else "mock",
         }
 
         return {
@@ -551,6 +569,8 @@ class BridgeServer:
             "status": "completed" if exec_result.success else "failed",
             "output": exec_result.output,
             "error": exec_result.error,
+            "executor_backend": type(self.executor).__name__,
+            "execution_mode": "configured" if self.executor_configured else "mock",
         }
 
     def _exec_status(self, req: BridgeRequest) -> Dict[str, Any]:
@@ -561,10 +581,21 @@ class BridgeServer:
         return result
 
     def _exec_vault_read(self, req: BridgeRequest) -> Dict[str, Any]:
-        return {"records": [], "query": req.payload.get("query", ""), "count": 0}
+        return {
+            "records": [],
+            "query": req.payload.get("query", ""),
+            "count": 0,
+            "durable": False,
+            "storage": "stub_non_durable",
+        }
 
     def _exec_vault_write(self, req: BridgeRequest) -> Dict[str, Any]:
-        return {"record_id": f"rec-{uuid.uuid4().hex[:8]}", "status": "written"}
+        return {
+            "record_id": f"rec-{uuid.uuid4().hex[:8]}",
+            "status": "stub_written",
+            "durable": False,
+            "storage": "stub_non_durable",
+        }
 
 
 # â”€â”€ FastAPI Integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

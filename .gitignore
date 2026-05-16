@@ -40,6 +40,7 @@ fix_*.py
 # Canonical additions created under the current Nexus doctor workstream.
 !tests/monitoring/test_token_policy.py
 !tests/vault/test_zilliz_client.py
+!tests/test_model_relay.py
 
 # === Python ===
 __pycache__/

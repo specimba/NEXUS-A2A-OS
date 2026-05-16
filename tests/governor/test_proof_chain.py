@@ -22,3 +22,12 @@ def test_vap_chain_summary():
     chain.record("agent2", "action2", "res2", {}, "ok")
     assert len(chain.entries) == 2
     assert chain.verify_chain() is True
+
+def test_vap_chain_detects_tampered_record():
+    chain = VAPProofChain()
+    chain.record("agent1", "action1", "res1", {"scope": "project"}, "ok")
+    chain.record("agent2", "action2", "res2", {}, "ok")
+
+    chain.entries[0].ctx["scope"] = "system"
+
+    assert chain.verify_chain() is False

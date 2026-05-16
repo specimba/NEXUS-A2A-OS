@@ -87,7 +87,7 @@ src/                      # Next.js Frontend Dashboard
 
 prisma/                   #   Database schema — 12 models
 
-tests/                    #   Python test suite — 642 tests (632 passing)
+tests/                    #   Python test suite — 636 passing outside heartbeat infra tests
   governor/               #   Trust scoring, compliance, kaiju auth, proof chain
   vault/                  #   Memory, trust, cache, manager, adapter, tracks
   bridge/                 #   Server, SDK, MCP auth, token integration
@@ -130,7 +130,7 @@ research/                 #   Research reports (session logs, R&D topics)
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Python pytest | 642 tests | **632 passing** (10 heartbeat infra-dependent) |
+| Python pytest | **636 passing** with `tests/integration/test_heartbeat.py` ignored; heartbeat file collects 10 infra-dependent tests |
 | TWAVE v2.0 | 25 tests | All passing |
 | Security tests | 23 tests | All passing |
 | Dashboard lint | 0 errors | Clean |
@@ -160,15 +160,15 @@ research/                 #   Research reports (session logs, R&D topics)
 ### Stubs & Placeholders (critical)
 | Component | File | Issue |
 |-----------|------|-------|
-| AsyncBridgeExecutor | `nexus_os/engine/executor.py:115` | Production executor always returns `success=False` — not wired to real Bridge RPC |
-| CVAVerifier | `nexus_os/governor/base.py:329` | Core Value Alignment check always passes — stub returns `(True, "passed stub")` |
-| ModelRelay | `nexus_os/relay/model_relay.py` | Partially wired to ChimeraRouterV2 + Ollama; still needs production health policy and end-to-end server validation |
+| AsyncBridgeExecutor | `nexus_os/engine/executor.py:115` | Production executor still returns `success=False` — not wired to real Bridge RPC |
+| CVAVerifier | `nexus_os/governor/base.py:329` | Non-enforcing stub is now labeled in authorization reasons; real trait scoring is not implemented |
+| ModelRelay | `nexus_os/relay/model_relay.py` | Partially wired to ChimeraRouterV2 + Ollama with hard-fail when no local model is healthy; still needs end-to-end server validation and TWAVE tracker telemetry |
 | Worker execute_task | `nexus_os/swarm/worker.py:180` | Produces fake simulated outputs, no real task execution |
 | TaskClassifier | `nexus_os/engine/hermes.py:401` | "Minimal stub for test collection" — keyword-based heuristic fallback |
 | ISC-Runner templates | `nexus_os/stresslab/isc_runner.py:79` | Only downloads 1 template per domain — placeholder |
 
-### Missing API Endpoints (per FUSION_RECOMMENDATIONS.md)
-- `GET /health` — HIGH priority
+### API Endpoint Gaps (per FUSION_RECOMMENDATIONS.md)
+- `GET /health` — Implemented in `nexus_os/bridge/server.py` and `nexus_os/relay/model_relay.py`; still needs deployment-level probe validation
 - `POST /tasks/heartbeat` — HIGH priority
 - `POST /tasks/result` — HIGH priority
 - `GET /tasks/status/{id}` — MEDIUM priority

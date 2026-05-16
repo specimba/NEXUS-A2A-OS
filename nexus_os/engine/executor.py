@@ -108,18 +108,47 @@ class AsyncBridgeExecutor(ExecutorBackend):
         agent_id = context.get("agent_id")
         if not agent_id:
             return ExecutionResult(
-                task_id=task_id,
-                success=False,
+                task_id=task_id, success=False,
                 error="No agent_id in task context for bridge execution",
             )
-        # TODO: Implement actual Bridge RPC call
-        # For now, return a structured not-implemented result
-        return ExecutionResult(
-            task_id=task_id,
-            success=False,
-            error=f"BridgeExecutor not yet wired to Bridge at {self.bridge_url}",
-            agent_id=agent_id,
-        )
+        try:
+            import requests
+            resp = requests.post(f"{self.bridge_url}/api/tasks/execute", json={
+                "task_id": task_id, "description": description,
+                "agent_id": agent_id, "context": context,
+            }, timeout=self.timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                return ExecutionResult(
+                    task_id=task_id, success=data.get("success", True),
+                    output=data.get("output", ""),
+                    duration_ms=data.get("duration_ms", 0),
+                    agent_id=agent_id,
+                )
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge returned HTTP {resp.status_code}",
+                agent_id=agent_id,
+            )
+        except requests.exceptions.Timeout:
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge timeout ({self.timeout}s) at {self.bridge_url}",
+                agent_id=agent_id,
+            )
+        except requests.exceptions.ConnectionError:
+            host = self.bridge_url.replace("http://", "").replace("https://", "")
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge unreachable at {host} — is the governance server running?",
+                agent_id=agent_id,
+            )
+        except Exception as e:
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge call failed: {e}",
+                agent_id=agent_id,
+            )
 
 
 class MockExecutor(ExecutorBackend):

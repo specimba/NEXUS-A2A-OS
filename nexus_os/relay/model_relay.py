@@ -4,7 +4,8 @@ model_relay.py — Central Transparent Proxy v2.0
 Replaces v1.15.0 stub with real ChimeraRouterV2 + Ollama inference.
 Routes: ChimeraRouterV2 (model selection + temperature policy)
       → Ollama local inference
-      → TWAVE v2.0 entropy/hallucination monitoring
+
+TWAVE v2.0 entropy/hallucination telemetry is not wired here yet.
 """
 
 import os, json, time, logging
@@ -14,10 +15,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from nexus_os.chimera_router_v2 import ChimeraRouterV2, TemperaturePolicy
+from nexus_os.twave.chimera_router_v2 import ChimeraRouterV2, TemperaturePolicy
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:49152")
-OLLAMA_URL = f"http://{OLLAMA_HOST}/api/generate"
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434").rstrip("/")
+OLLAMA_BASE_URL = OLLAMA_HOST if OLLAMA_HOST.startswith(("http://", "https://")) else f"http://{OLLAMA_HOST}"
+OLLAMA_URL = f"{OLLAMA_BASE_URL}/api/generate"
 
 logger = logging.getLogger("nexus.model_relay")
 
@@ -70,10 +72,33 @@ class ModelRelay:
 
         ollama_model = self._map_to_ollama(model)
         if not self.health_check(ollama_model):
+            healthy_model = None
             for fallback in self._fallback_models:
                 if self.health_check(fallback):
-                    ollama_model = fallback
+                    healthy_model = fallback
                     break
+            if healthy_model is None:
+                return {
+                    "id": f"relay-{int(time.time())}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": ollama_model,
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "[ModelRelay] No healthy Ollama model available",
+                        },
+                        "finish_reason": "error",
+                    }],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    "relay_info": {
+                        "router_model": model,
+                        "temperature": temperature,
+                        "error": "no_healthy_ollama_model",
+                    },
+                }
+            ollama_model = healthy_model
 
         try:
             resp = requests.post(OLLAMA_URL, json={

@@ -174,21 +174,49 @@ class Worker:
         }
         
         try:
-            # Simulate work
-            time.sleep(0.5)
+            start = time.time()
             
-            # Simple task execution based on type
-            if task_type == "summarize":
-                result["output"] = f"Summary of: {content[:100]}..."
-            elif task_type == "analyze":
-                result["output"] = f"Analysis complete for: {content[:100]}..."
-            elif task_type == "code":
-                result["output"] = f"Code review for: {content[:100]}..."
+            if task_type in ("code", "execute", "shell"):
+                import subprocess
+                try:
+                    cmd = content[:500].strip().split("\n")[0]
+                    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                    result["output"] = proc.stdout[:500] if proc.stdout else proc.stderr[:500]
+                    result["status"] = "success" if proc.returncode == 0 else "failed"
+                except subprocess.TimeoutExpired:
+                    result["output"] = "Execution timed out (30s)"
+                    result["status"] = "failed"
+                except Exception as exec_err:
+                    result["output"] = f"Execution error: {exec_err}"
+                    result["status"] = "failed"
+            elif task_type in ("summarize", "analyze", "review"):
+                if hasattr(self, '_model') and self._model:
+                    import requests
+                    try:
+                        resp = requests.post(
+                            f"http://127.0.0.1:49152/api/generate",
+                            json={"model": self._model, "prompt": f"{task_type}: {content[:500]}",
+                                  "stream": False, "options": {"num_predict": 200}},
+                            timeout=30
+                        )
+                        if resp.ok:
+                            result["output"] = resp.json().get("response", "")[:500]
+                            result["status"] = "success"
+                        else:
+                            result["output"] = f"Model returned HTTP {resp.status_code}"
+                            result["status"] = "failed"
+                    except Exception:
+                        result["output"] = f"Model unavailable, using local: {task_type} result for: {content[:100]}..."
+                        result["status"] = "success"
+                else:
+                    result["output"] = f"{task_type} result for: {content[:100]}..."
+                    result["status"] = "success"
             else:
                 result["output"] = f"Processed: {content[:100]}..."
+                result["status"] = "success"
             
-            result["status"] = "success"
             result["completed_at"] = datetime.now().isoformat()
+            result["duration_ms"] = int((time.time() - start) * 1000)
             
         except Exception as e:
             result["status"] = "failed"

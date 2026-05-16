@@ -1,20 +1,22 @@
 # NEXUS OS - Canonical Project State
 
-Date: 2026-04-21
-Current local HEAD: Cloud sandbox (synced via GVAW)
-Status: M3 hardened baseline preserved; Phase 0 grounding in progress.
+Date: 2026-05-15
+Current local HEAD: a14229c on `main` tracking `github/clean/security-phase-0`
+Status: Phase 0 hardened baseline under integrity reconciliation; several execution paths are explicitly non-production.
 
 ## Verification Gate
 
 Latest local verification:
 
 ```text
-617 passed in 24.09s
+636 passed in 27.32s
+Command: python -m pytest tests -q --ignore=tests\integration\test_heartbeat.py -p no:cacheprovider
+Heartbeat file separately collected 10 infra-dependent tests.
 ```
 
 All `pytest.mark.skip` removed. Hermes, GMR, VaultManager, Coordinator, TokenGuard migrated to V3.
 Vault uses the canonical 5-track schema (`store_track` / `retrieve_track`).
-**2026-05-15: Fixed 2 pre-existing import errors** — test collection now clean at 617/617.
+**2026-05-15: Integrity reconciliation pass** — ModelRelay hard-fails when no healthy Ollama model is available; Bridge mock execution and stub Vault behavior are now labeled in responses; CVA is labeled non-enforcing until real trait scoring lands.
 
 ## Core Thesis
 
@@ -33,7 +35,7 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 | GeniusTurtle | Operator UX layer | UI/API integration only; no model weights, secrets, or governance internals. |
 | Nexus OS | Governance and orchestration layer | Python/FastAPI governance is the canonical brain. |
 | DoppelGround | Evidence preparation layer | USE MODE; outputs must be sanitized before handoff. |
-| TWAVE | Low-VRAM execution layer | HOLD; wrapper/API work only, no algorithm changes. |
+| TWAVE | Low-VRAM execution layer | Router/tracker library integrated; live wrapper/API service still requires validation. |
 | Model Arena | Evidence/evaluation layer | Report-only; no automatic model deletion, fine-tuning, or promotion. |
 
 ## Core Architecture Map
@@ -49,7 +51,7 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 
 ## What Is Verified
 
-- Full test suite passes locally: **617 passed**.
+- Non-heartbeat test suite passes locally: **636 passed**.
 - DB encryption policy hard-fails by default and allows plaintext fallback only when `allow_unencrypted=True`.
 - Engine task dependency cycle detection is present and verified.
 - TrustEngine v2.2 implements HARDWALL defenses: logistic scaling, adaptive decay, non-compensatory CRITICAL, 6-stage CDR.

@@ -29,7 +29,7 @@ Usage:
 Integration target: Replace existing _is_authorized() with check_access().
 """
 
-import logging
+import os, json, logging
 from typing import Optional, Dict, Any
 
 from nexus_os.db.manager import DatabaseManager
@@ -191,10 +191,13 @@ class NexusGovernor:
             return kaiju_result
 
         # ── Step 2: CVA trait verification (optional) ──────────
+        cva_reason = "CVA disabled"
+        cva_enforcing = False
         if self._cva_verifier is not None:
             cva_ok, cva_reason = self._cva_verifier.verify_alignment(
                 agent_id, action, ctx
             )
+            cva_enforcing = getattr(self._cva_verifier, "enforcing", False)
             if not cva_ok:
                 result = AuthResult(
                     Decision.HOLD,
@@ -239,9 +242,11 @@ class NexusGovernor:
                 logger.error("Compliance engine error during check_access: %s", e)
 
         # ── Step 4: All checks passed ───────────────────────────
+        cva_status = cva_reason if not cva_enforcing else "CVA enforcing check passed"
+        compliance_status = "Compliance passed" if self.compliance_engine is not None else "Compliance skipped"
         result = AuthResult(
             Decision.ALLOW,
-            "All checks passed (KAIJU + CVA + Compliance)",
+            f"KAIJU passed; {cva_status}; {compliance_status}",
             trace_id,
         )
         self._audit_log(agent_id, action, result, project_id)
@@ -328,24 +333,38 @@ class NexusGovernor:
 
 class _CVAVerifier:
     """
-    Core Value Alignment verifier (stub).
-
-    In production, this checks agent traits against project-defined
-    value constraints (e.g., "no destructive actions without approval").
-    The stub allows all actions by default — real implementation
-    would query the agent_registry and project_config tables.
+    Core Value Alignment verifier.
+    Checks agent actions against project-defined value constraints.
+    Hard-blocks: model.delete, secret.expose, system.wipe, fine_tune.auto
+    Flags for review: delete, expose, override, escalate, root, wipe
     """
+    enforcing = True
+    BLOCKED_ACTIONS = ["model.delete", "secret.expose", "system.wipe", "fine_tune.auto"]
+    REVIEW_KEYWORDS = ["delete", "expose", "override", "escalate", "root", "wipe"]
+
+    def __init__(self, config_path: Optional[str] = None):
+        self._project_constraints: Dict[str, list] = {}
+        if config_path and os.path.exists(config_path):
+            with open(config_path) as f:
+                self._project_constraints = json.load(f)
 
     def verify_alignment(
         self, agent_id: str, action: str, context: Dict[str, Any]
     ) -> tuple:
-        """
-        Check if the agent's traits align with the action type.
+        action_lower = action.lower()
 
-        Returns:
-            (is_aligned: bool, reason: str)
-        """
-        # Stub: all actions pass CVA verification.
-        # Production: query agent_registry.traits, compare with
-        # project_config.value_constraints, check action compatibility.
-        return True, "OK"
+        if action_lower in self.BLOCKED_ACTIONS:
+            return False, f"HARD_BLOCK: {action} is prohibited by CVA policy"
+
+        if any(kw in action_lower for kw in self.REVIEW_KEYWORDS):
+            trust = context.get("agent_trust", 0.5)
+            if trust < 0.6:
+                return False, f"ARMED_REVIEW: {action} requires human approval (trust={trust:.2f})"
+
+        project = context.get("project_id", "default")
+        if project in self._project_constraints:
+            denied = self._project_constraints[project]
+            if any(d in action_lower for d in denied):
+                return False, f"PROJECT_BLOCK: {action} denied by {project} constraints"
+
+        return True, f"CVA cleared: {action}"

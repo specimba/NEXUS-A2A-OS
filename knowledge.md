@@ -1,6 +1,6 @@
 # NEXUS OS — Canonical Knowledge Base
 
-**Compiled:** 2026-05-15 | **Branch:** clean/security-phase-0 | **HEAD:** b41bb37 (rewritten, no exposed keys)
+**Compiled:** 2026-05-15 | **Live check:** main tracking `github/clean/security-phase-0` | **HEAD:** a14229c
 
 ---
 
@@ -97,7 +97,7 @@ Closes the TAMAS tools gap: **240 tools across 12 categories** (vs TAMAS's 211).
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Python pytest | 642 tests (632 passed, 10 heartbeat infra-dependent) | 0 collection errors |
+| Python pytest | 636 passed with `tests/integration/test_heartbeat.py` ignored; heartbeat file collects 10 infra-dependent tests | 0 collection errors |
 | TWAVE v2.0 tests | 25 | All passing |
 | Dashboard lint | 0 errors | Clean |
 
@@ -143,12 +143,12 @@ Closes the TAMAS tools gap: **240 tools across 12 categories** (vs TAMAS's 211).
 ## CRITICAL BLOCKERS
 
 1. **Azure sub blocked** — All cloud model routing, Foundry pipelines dead. Need alternative inference strategy.
-2. ~~**2 test import errors**~~ ✅ **FIXED 2026-05-15** — 617/617 passing
+2. ~~**2 test import errors**~~ Fixed 2026-05-15; latest non-heartbeat verification is 636 passing
 3. **Dashboard needs real Python governance API** — Still using mock/proxy layer on port 3000
 4. **DoppelGround gitleaks** — Not resolved, blocks public repo flip
 5. **Key still in old branches** — master, main branches not scrubbed
 6. **AsyncBridgeExecutor is a stub** — `executor.py:115`, production executor not wired
-7. **CVAVerifier is a stub** — `governor/base.py:329`, CVA always passes
+7. **CVAVerifier is non-enforcing** — `governor/base.py:329`, authorization reasons now label this instead of claiming full CVA verification
 8. **43 repair scripts in scripts/** — evidence of ongoing breakage cycles
 
 ---
