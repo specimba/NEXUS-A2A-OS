@@ -18,7 +18,7 @@ import {
   Cog, Brain, MessageSquare, TrendingUp, AlertCircle, Monitor,
   GitBranch, Package, Lock, FileText, Target, Sparkles,
   Menu, X, Command, Timer, ShieldCheck, Flame,
-  Loader2,
+  Loader2, Archive, Bug, LayoutGrid,
 } from 'lucide-react'
 
 // ─── Dynamic imports for full tab components (ssr: false avoids hydration mismatch) ──
@@ -29,6 +29,36 @@ const FullStressLabTab = dynamic(
 
 const FullResearchTab = dynamic(
   () => import('@/components/nexus/tabs/research-tab').then(m => ({ default: m.ResearchTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullVaultTab = dynamic(
+  () => import('@/components/nexus/tabs/vault-tab').then(m => ({ default: m.VaultTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullSwarmTab = dynamic(
+  () => import('@/components/nexus/tabs/swarm-tab').then(m => ({ default: m.SwarmTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullArchitectureTab = dynamic(
+  () => import('@/components/nexus/tabs/architecture-tab').then(m => ({ default: m.ArchitectureTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullAIChatTab = dynamic(
+  () => import('@/components/nexus/tabs/ai-chat-tab').then(m => ({ default: m.AiChatTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullRateLimitTab = dynamic(
+  () => import('@/components/nexus/tabs/rate-limit-tab').then(m => ({ default: m.RateLimitTab })),
+  { ssr: false, loading: () => <TabLoader /> }
+)
+
+const FullKpiTab = dynamic(
+  () => import('@/components/nexus/tabs/kpi-tab').then(m => ({ default: m.KpiTab })),
   { ssr: false, loading: () => <TabLoader /> }
 )
 
@@ -47,12 +77,18 @@ function TabLoader() {
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Activity, group: 'Core' },
-  { id: 'providers', label: 'Providers', icon: Server, group: 'Routing' },
+  { id: 'architecture', label: 'Architecture', icon: LayoutGrid, group: 'Core' },
   { id: 'agents', label: 'Agents', icon: Users, group: 'Core' },
+  { id: 'providers', label: 'Providers', icon: Server, group: 'Routing' },
   { id: 'gmr', label: 'GMR Router', icon: Network, group: 'Routing' },
   { id: 'governor', label: 'Governor', icon: Shield, group: 'Governance' },
+  { id: 'vault', label: 'Vault', icon: Archive, group: 'Governance' },
   { id: 'research', label: 'Research', icon: BookOpen, group: 'Intelligence' },
+  { id: 'aichat', label: 'AI Assistant', icon: Brain, group: 'Intelligence' },
+  { id: 'swarm', label: 'Swarm', icon: Bug, group: 'Operations' },
   { id: 'tokens', label: 'Tokens', icon: Zap, group: 'Metrics' },
+  { id: 'ratelimits', label: 'Rate Limits', icon: Gauge, group: 'Metrics' },
+  { id: 'kpi', label: 'KPI Dashboard', icon: Target, group: 'Metrics' },
   { id: 'stresslab', label: 'StressLab', icon: Flame, group: 'Testing' },
 ] as const
 
@@ -416,6 +452,8 @@ export default function NexusDashboard() {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab />
+      case 'architecture':
+        return <FullArchitectureTab />
       case 'providers':
         return <ProvidersTab />
       case 'agents':
@@ -424,10 +462,20 @@ export default function NexusDashboard() {
         return <GMRTab />
       case 'governor':
         return <GovernorTab />
+      case 'vault':
+        return <FullVaultTab />
       case 'research':
         return <FullResearchTab />
+      case 'aichat':
+        return <FullAIChatTab />
+      case 'swarm':
+        return <FullSwarmTab />
       case 'tokens':
         return <TokensTab />
+      case 'ratelimits':
+        return <FullRateLimitTab />
+      case 'kpi':
+        return <FullKpiTab />
       case 'stresslab':
         return <FullStressLabTab />
       default:
@@ -1038,7 +1086,7 @@ export default function NexusDashboard() {
 
         {/* Nav Items */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
-          {['Core', 'Routing', 'Governance', 'Intelligence', 'Metrics', 'Testing'].map(group => {
+          {['Core', 'Routing', 'Governance', 'Intelligence', 'Operations', 'Metrics', 'Testing'].map(group => {
             const groupTabs = TABS.filter(t => t.group === group)
             if (groupTabs.length === 0) return null
             return (
@@ -1182,6 +1230,21 @@ export default function NexusDashboard() {
           </div>
         </footer>
       </div>
+
+      {/* AI Assistant FAB */}
+      {activeTab !== 'aichat' && (
+        <button
+          onClick={() => setActiveTab('aichat')}
+          className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
+          aria-label="Open AI Assistant"
+        >
+          <Brain className="h-5 w-5" />
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-300" />
+          </span>
+        </button>
+      )}
     </div>
   )
 }

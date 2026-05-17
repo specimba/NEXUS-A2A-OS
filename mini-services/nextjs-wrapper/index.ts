@@ -1,9 +1,15 @@
 import { spawn } from 'child_process'
 
-console.log('[nextjs-wrapper] Starting NEXUS-OS Next.js dev server...')
+// Use production mode to avoid OOM from dev server compilation
+const USE_PROD = true
+
+console.log(`[nextjs-wrapper] Starting NEXUS-OS Next.js ${USE_PROD ? 'production' : 'dev'} server...`)
 
 function startServer() {
-  const child = spawn('node', ['node_modules/.bin/next', 'dev', '-p', '3000'], {
+  const args = USE_PROD
+    ? ['node_modules/.bin/next', 'start', '-p', '3000']
+    : ['node_modules/.bin/next', 'dev', '-p', '3000']
+  const child = spawn('node', args, {
     cwd: '/home/z/my-project',
     stdio: 'inherit',
     env: { ...process.env },
