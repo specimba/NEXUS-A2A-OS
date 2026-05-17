@@ -762,7 +762,7 @@ export function ProviderTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border/40">

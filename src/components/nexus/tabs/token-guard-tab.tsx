@@ -145,7 +145,7 @@ function AgentBudgetTable({ agents }: { agents: AgentBudget[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto custom-scrollbar">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-[10px] text-muted-foreground uppercase tracking-wider">

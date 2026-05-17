@@ -471,7 +471,7 @@ export function ArchitectureTab() {
         </CardHeader>
         {showDataFlow && (
           <CardContent className="p-4 pt-0">
-            <div className="flex items-center justify-center gap-1 overflow-x-auto pb-2">
+            <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden custom-scrollbar pb-2">
               {[
                 { icon: Globe, label: 'Request', desc: 'User prompt received', color: 'emerald' },
                 { icon: Brain, label: 'Intent', desc: 'Classify: code/reason/speed', color: 'violet' },
@@ -579,7 +579,7 @@ export function ArchitectureTab() {
         {showGovernance && (
           <CardContent className="p-4 pt-0">
             {/* Governance flow */}
-            <div className="flex items-center justify-center gap-1 overflow-x-auto pb-2">
+            <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden custom-scrollbar pb-2">
               {[
                 { icon: Shield, label: 'Governor', desc: 'Constitutional AI', color: 'emerald', node: GOV_NODES[0] },
                 { icon: Lock, label: 'Rules Engine', desc: '7 constraints', color: 'violet', node: GOV_NODES[1] },

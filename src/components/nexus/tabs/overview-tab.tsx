@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -29,8 +29,11 @@ import {
   Scale,
   BookOpen,
   Rocket,
+  ListTodo,
+  CheckCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useApiData } from '@/hooks/use-api-data'
 import {
   Tooltip,
   TooltipTrigger,
@@ -156,8 +159,8 @@ const systemPerformanceData = [
   { time: '22:00', cpu: 34, memory: 62, latency: 142 },
 ]
 
-// Mock data for Request Volume BarChart
-const requestVolumeData = [
+// Fallback data for Request Volume BarChart (used when API data is unavailable)
+const requestVolumeDataFallback = [
   { hour: '12h ago', requests: 245 },
   { hour: '11h ago', requests: 312 },
   { hour: '10h ago', requests: 289 },
@@ -172,8 +175,8 @@ const requestVolumeData = [
   { hour: '1h ago', requests: 315 },
 ]
 
-// Mock data for Agent Task Distribution PieChart
-const agentTaskDistribution = [
+// Fallback data for Agent Task Distribution PieChart (used when API data is unavailable)
+const agentTaskDistributionFallback = [
   { name: 'Research', value: 47, color: '#10b981' },
   { name: 'Coding', value: 31, color: '#3b82f6' },
   { name: 'Analysis', value: 38, color: '#f97316' },
@@ -348,6 +351,109 @@ export function OverviewTab() {
   // Hydration-safe mount detection
   const [mounted, setMounted] = useState(false)
 
+  // ── Dynamic data from APIs ──────────────────────────────────────
+  // Fetch tasks data for Agent Task Distribution donut chart
+  const { data: tasksData } = useApiData<{ tasks: Array<{ category: string; status: string; priority: string }> }>('/api/tasks', 30000)
+
+  // Fetch rate-limit logs for Request Volume chart
+  const { data: rateLimitData } = useApiData<{ hourlyData: Array<{ hour: string; total: number }> }>('/api/rate-limit/logs?hours=24&limit=500', 60000)
+
+  // Fetch system data for recent activity
+  const { data: systemData } = useApiData<{ overview?: { recentActivity?: Array<{ event: string; type: string; time: string; source?: string }> } }>('/api/system', 30000)
+
+  // Derive Agent Task Distribution from tasks API
+  const agentTaskDistribution = useMemo(() => {
+    const tasks = tasksData?.tasks
+    if (!tasks || tasks.length === 0) return agentTaskDistributionFallback
+
+    // Group tasks by category and count
+    const categoryCount: Record<string, number> = {}
+    for (const t of tasks) {
+      const cat = t.category || 'general'
+      categoryCount[cat] = (categoryCount[cat] || 0) + 1
+    }
+
+    // Map categories to colors
+    const categoryColors: Record<string, string> = {
+      evaluation: '#10b981',
+      safety_review: '#ef4444',
+      implementation: '#f97316',
+      research: '#8b5cf6',
+      governance: '#6366f1',
+      security: '#ec4899',
+      general: '#6b7280',
+      context_processing: '#94a3b8',
+      memory_research: '#14b8a6',
+      harness_testing: '#84cc16',
+      compression: '#0ea5e9',
+      benchmark: '#a855f7',
+      survey_analysis: '#d946ef',
+      infra_build: '#78716c',
+      ics_testing: '#06b6d4',
+      fleet: '#f59e0b',
+      dashboard: '#ec4899',
+    }
+
+    const categoryLabels: Record<string, string> = {
+      evaluation: 'Evaluation',
+      safety_review: 'Safety',
+      implementation: 'Implementation',
+      research: 'Research',
+      governance: 'Governance',
+      security: 'Security',
+      general: 'General',
+      context_processing: 'Context',
+      memory_research: 'Memory',
+      harness_testing: 'Harness',
+      compression: 'Compression',
+      benchmark: 'Benchmark',
+      survey_analysis: 'Survey',
+      infra_build: 'Infra',
+      ics_testing: 'ICS Testing',
+      fleet: 'Fleet',
+      dashboard: 'Dashboard',
+    }
+
+    return Object.entries(categoryCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+      .map(([cat, count]) => ({
+        name: categoryLabels[cat] || cat,
+        value: count,
+        color: categoryColors[cat] || '#6b7280',
+      }))
+  }, [tasksData])
+
+  // Derive Request Volume from rate-limit API
+  const requestVolumeData = useMemo(() => {
+    const hourly = rateLimitData?.hourlyData
+    if (!hourly || hourly.length === 0) return requestVolumeDataFallback
+
+    // Take the last 12 hours and format
+    return hourly
+      .slice(-12)
+      .map((h) => ({
+        hour: h.hour.slice(11, 16), // Extract HH:MM
+        requests: h.total,
+      }))
+  }, [rateLimitData])
+
+  // Derive recent task completions from system API
+  const recentTaskActivity = useMemo(() => {
+    const activity = systemData?.overview?.recentActivity
+    if (!activity || activity.length === 0) return []
+    // Filter to task-related activity
+    return activity.slice(0, 6)
+  }, [systemData])
+
+  // Track last data refresh time for "Last updated" display
+  const [lastDataRefresh, setLastDataRefresh] = useState<Date | null>(null)
+  useEffect(() => {
+    if (tasksData || rateLimitData || systemData) {
+      setLastDataRefresh(new Date())
+    }
+  }, [tasksData, rateLimitData, systemData])
+
   // Live system metrics state
   const [activeConnections, setActiveConnections] = useState(247)
   const [requestsPerSec, setRequestsPerSec] = useState(34)
@@ -440,6 +546,10 @@ export function OverviewTab() {
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
         </span>
         <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">System Operational</span>
+        <span className="ml-auto text-[10px] text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
+          <Clock className="h-3 w-3" />
+          {mounted && lastDataRefresh ? `Last updated: ${lastDataRefresh.toLocaleTimeString()}` : '...'}
+        </span>
       </div>
 
       {/* 8-Pillar Health Grid — larger cards with status badges */}
@@ -1016,6 +1126,39 @@ export function OverviewTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Recent Task Activity — from /api/system */}
+      {recentTaskActivity.length > 0 && (
+        <Card className="bg-card/50 border-border/50 bg-gradient-to-br from-emerald-600/5 via-transparent to-transparent">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <ListTodo className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Recent Task Activity
+              <Badge variant="outline" className="text-[9px] ml-auto bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
+                {recentTaskActivity.length} Events
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+              {recentTaskActivity.map((item, i) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                  {item.type === 'success' ? (
+                    <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : item.type === 'warning' ? (
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                  ) : (
+                    <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  )}
+                  <span className="text-sm flex-1">{item.event}</span>
+                  {item.source && <Badge variant="outline" className="text-[10px] shrink-0">{item.source}</Badge>}
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? item.time : '...'}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Deployments */}
       <Card className="bg-card/50 border-border/50">

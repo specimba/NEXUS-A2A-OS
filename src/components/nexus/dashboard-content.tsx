@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
+import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
 import {
   Activity, Cpu, HardDrive, Zap, Wifi, Shield, Users, AlertTriangle,
   CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, BarChart3,
@@ -1215,15 +1216,15 @@ export function NexusDashboard() {
         </header>
 
         {/* Content */}
-        <main className="relative flex-1 overflow-auto bg-background">
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-background">
           <div className="pointer-events-none absolute inset-0 grid-pattern-animated opacity-40" />
-          <div className="relative z-10 p-4 md:p-6 animate-fade-in" key={activeTab}>
+          <div className="relative z-10 p-4 md:p-6 animate-fade-in min-h-[50vh]" key={activeTab}>
             {renderTabContent()}
           </div>
         </main>
 
         {/* Footer */}
-        <footer className="relative flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
+        <footer className="relative shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS v3.1</span>
@@ -1262,6 +1263,9 @@ export function NexusDashboard() {
           </span>
         </button>
       )}
+
+      {/* Quick Stats Floating Widget */}
+      <QuickStatsWidget />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
@@ -64,6 +65,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -476,6 +478,7 @@ export function ResearchTab() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [isChatLoading, setIsChatLoading] = useState(false)
+  const [streamingChatContent, setStreamingChatContent] = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Pipeline interactive state
@@ -563,19 +566,93 @@ export function ResearchTab() {
   // ─── Auto-scroll chat ──────────────────────────────────────────────────
   useEffect(() => {
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
-  }, [chatMessages])
+  }, [chatMessages, streamingChatContent])
 
   // ─── AI Search Handler ─────────────────────────────────────────────────
-  const handleSearch = useCallback(() => {
+  const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return
 
     setIsSearching(true)
     setShowSearchResults(true)
 
-    // Client-side data — no API call needed — simulated search with local filtering
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/ai/research/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery.trim(),
+          maxResults: 10,
+          depth: 'medium',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Search API returned ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Search failed')
+      }
+
+      const apiResults = data.data.results || []
+
+      // Map API results to Paper type — use enriched fields when available
+      const mappedPapers: Paper[] = apiResults.map((r: any, index: number) => ({
+        id: r.id || `search-${Date.now()}-${index}`,
+        title: r.title || 'Untitled Result',
+        authors: r.authors && r.authors.length > 0
+          ? r.authors
+          : (r.citations?.slice(0, 2).map((c: string) => c.split(',')[0]) || ['AI Research']),
+        abstract: r.abstract || r.summary || '',
+        category: r.category || r.domain || 'General',
+        priority: r.relevanceScore >= 0.85 ? 'P1' : r.relevanceScore >= 0.7 ? 'P2' : 'P3',
+        relevance: Math.round((r.relevanceScore || 0.5) * 100),
+        novelty: Math.round((r.noveltyScore || r.relevanceScore || 0.5) * 100),
+        status: 'vetted' as const,
+        year: r.year || new Date().getFullYear(),
+        citations: r.citationCount ?? (r.citations?.length || 0),
+        pdfUrl: r.pdfUrl || r.sourceUrl || undefined,
+        source: r.hostName || data.data.provider || 'z-ai',
+        researchRole: r.researchRole || r.domain || 'research',
+        dgScore: Math.round((r.relevanceScore || 0.5) * 15),
+      }))
+
+      // Build AI suggestions from suggestedActions across results
+      const aiSuggestions: AISuggestion[] = apiResults
+        .filter((r: any) => r.suggestedActions && r.suggestedActions.length > 0)
+        .slice(0, 3)
+        .map((r: any, i: number) => ({
+          title: r.suggestedActions[0] || r.title,
+          relevanceReason: r.keyFindings?.[0] || 'Related to your search query',
+          suggestedCategory: r.category || r.domain || 'General',
+          relevanceScore: Math.round((r.relevanceScore || 0.7) * 100),
+        }))
+
+      // Use sources metadata from API if available
+      const apiSources = data.data.sources || {}
+
+      const searchResult: SearchResult = {
+        papers: mappedPapers.length > 0 ? mappedPapers : papers.slice(0, 3),
+        aiSuggestions,
+        query: searchQuery.trim(),
+        totalFound: data.data.totalResults || mappedPapers.length,
+        sources: {
+          database: apiSources.database ?? mappedPapers.length,
+          arxiv: apiSources.arxiv ?? 0,
+          aiSuggestions: apiSources.aiSuggestions ?? aiSuggestions.length,
+        },
+      }
+
+      setSearchResults(searchResult)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Search failed'
+      toast.error('Search failed', { description: message })
+
+      // Fallback: local filtering on error
       const query = searchQuery.toLowerCase()
       const filteredPapers = papers.filter(p =>
         p.title.toLowerCase().includes(query) ||
@@ -584,51 +661,99 @@ export function ResearchTab() {
         p.authors.some(a => a.toLowerCase().includes(query))
       )
 
-      const aiSuggestions: AISuggestion[] = [
-        { title: 'Multi-Agent Orchestration with Tool Use', relevanceReason: 'Related to your query about agent systems', suggestedCategory: 'Agents', relevanceScore: 88 },
-        { title: 'Efficient Inference for Large Language Models', relevanceReason: 'Covers optimization techniques', suggestedCategory: 'Architecture', relevanceScore: 82 },
-      ]
-
-      const searchResult: SearchResult = {
-        papers: filteredPapers.length > 0 ? filteredPapers : papers.slice(0, 3),
-        aiSuggestions,
+      setSearchResults({
+        papers: filteredPapers,
+        aiSuggestions: [],
         query: searchQuery.trim(),
         totalFound: filteredPapers.length,
-        sources: { database: filteredPapers.length, arxiv: 0, aiSuggestions: aiSuggestions.length },
-      }
-
-      setSearchResults(searchResult)
+        sources: { database: filteredPapers.length, arxiv: 0, aiSuggestions: 0 },
+      })
+    } finally {
       setIsSearching(false)
-    }, 500 + Math.random() * 500)
-  }, [searchQuery, selectedCategory, papers])
+    }
+  }, [searchQuery, papers])
 
   // ─── AI Analysis Handler ───────────────────────────────────────────────
-  const handleAnalyze = useCallback((paper: Paper) => {
+  const handleAnalyze = useCallback(async (paper: Paper) => {
     setAnalyzingPaper(paper)
     setAnalyzingPaperId(paper.id)
     setAnalysisOpen(true)
     setAnalysisResult(null)
     setIsAnalyzing(true)
 
-    // Client-side data — no API call needed — simulated analysis
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/ai/research/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paperTitle: paper.title,
+          paperAbstract: paper.abstract,
+          analysisType: 'relevance',
+          focusAreas: ['multi-agent governance', 'safety evaluation', 'NEXUS-OS integration'],
+          targetProject: 'NEXUS-OS v3.1 multi-agent AI governance platform',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Analysis API returned ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Analysis failed')
+      }
+
+      const analysis = data.data.analysis || {}
+      const keyPoints: string[] = analysis.keyPoints || data.data.keyPoints || []
+
+      // Map API analysis to AnalysisResult structure
+      const result: AnalysisResult = {
+        summary: analysis.relevanceAnalysis || analysis.summary || paper.abstract || 'No analysis available.',
+        critique: [
+          analysis.implementationComplexity ? `Implementation Complexity: ${analysis.implementationComplexity}` : '',
+          analysis.overallAssessment || '',
+          analysis.methodologicalConcerns?.join('; ') || '',
+        ].filter(Boolean).join(' — ') || 'Analysis complete.',
+        relevance: [
+          analysis.suggestedIntegrationPath ? `Integration Path: ${analysis.suggestedIntegrationPath}` : '',
+          ...(analysis.relevantSubsystems || []).map((s: any) => `${s.subsystem}: ${s.relevance} — ${s.reason}`),
+          analysis.applicabilityScore != null ? `Applicability: ${Math.round(analysis.applicabilityScore * 100)}%` : '',
+        ].filter(Boolean).join('\n') || `Research Role: ${paper.researchRole || 'evaluation'}, Project Fit: NEXUS-OS agent governance`,
+        concepts: keyPoints.slice(0, 5).length > 0
+          ? keyPoints.slice(0, 5)
+          : (analysis.risksAndConsiderations || ['multi-agent systems', 'LLM orchestration']).slice(0, 3),
+        implementationTask: analysis.suggestedIntegrationPath
+          || (paper.relevance >= 85
+            ? `Integrate ${paper.category.toLowerCase()} insights into NEXUS agent pipeline — Priority: ${paper.priority}`
+            : `Archive for future reference — review when ${paper.category.toLowerCase()} module expands`),
+        priorityTier: analysis.priorityRecommendation?.split(' ')[0] || paper.priority,
+      }
+
+      setAnalysisResult(result)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Analysis failed'
+      toast.error('Analysis failed', { description: message })
+
+      // Fallback result on error
       setAnalysisResult({
         summary: paper.abstract || 'No abstract available.',
-        critique: `Novelty: ${Math.min(paper.novelty, 2)}/2, Evidence Quality: ${Math.floor(Math.random() * 2) + 3}/5 — ${paper.novelty >= 80 ? 'High novelty contribution with rigorous methodology.' : 'Moderate novelty with solid empirical support.'}`,
+        critique: 'AI analysis unavailable — showing basic paper info.',
         relevance: `Research Role: ${paper.researchRole || 'evaluation'}, Project Fit: ${paper.projectFit || 'NEXUS-OS agent governance'} — ${paper.relevance >= 85 ? 'Directly applicable to current architecture.' : 'Indirectly relevant, provides theoretical foundation.'}`,
-        concepts: ['multi-agent systems', 'LLM orchestration', 'safety evaluation'].slice(0, Math.floor(Math.random() * 3) + 1),
+        concepts: ['multi-agent systems', 'LLM orchestration', 'safety evaluation'].slice(0, 2),
         implementationTask: paper.relevance >= 85
           ? `Integrate ${paper.category.toLowerCase()} insights into NEXUS agent pipeline — Priority: ${paper.priority}`
           : `Archive for future reference — review when ${paper.category.toLowerCase()} module expands`,
         priorityTier: paper.priority,
       })
+    } finally {
       setIsAnalyzing(false)
       setAnalyzingPaperId(null)
-    }, 1000 + Math.random() * 1000)
+    }
   }, [])
 
   // ─── Research Chat Handler ─────────────────────────────────────────────
-  const handleChatSend = useCallback(() => {
+  const handleChatSend = useCallback(async () => {
     if (!chatInput.trim() || isChatLoading) return
 
     const userMessage: ChatMessage = {
@@ -640,38 +765,131 @@ export function ResearchTab() {
     setChatMessages(prev => [...prev, userMessage])
     setChatInput('')
     setIsChatLoading(true)
+    setStreamingChatContent('')
 
-    // Client-side data — no API call needed — simulated chat response
+    // Build context from current papers to include with the user message
     const paperContext = displayedPapers.slice(0, 5).map(p =>
       `- ${p.title} (${p.category}, ${p.priority}, Relevance: ${p.relevance}%)`
     ).join('\n')
 
-    setTimeout(() => {
-      const lowerInput = userMessage.content.toLowerCase()
-      let responseText = ''
+    // Include context inline with the user's message — not as a separate user message
+    const contextPrefix = `[Research Context — ${papers.length} papers in pipeline]\n${paperContext}\n\n`
+    const userContentWithContext = contextPrefix + userMessage.content
 
-      if (/saf|harm|risk|alignment/.test(lowerInput)) {
-        responseText = `Based on the current research pipeline, safety is well-covered with ${papers.filter(p => p.category === 'Safety').length} papers vetted. Key findings from OR-Bench suggest over-refusal rates are a concern for production systems. I recommend reviewing the Constitutional AI paper (Bai et al.) for alignment training approaches.`
-      } else if (/agent|multi.?agent|orchestrat/.test(lowerInput)) {
-        responseText = `The AgentBench evaluation (Liu et al.) provides excellent benchmarks for multi-agent systems. Our pipeline shows ${papers.filter(p => p.category === 'Agents').length} agent-related papers. The Mixture-of-Agents approach (Wang et al.) could be relevant for improving NEXUS agent coordination.`
-      } else if (/rag|retriev|memory/.test(lowerInput)) {
-        responseText = `Self-RAG (Asai et al.) presents a compelling approach for self-reflective retrieval augmentation. This could enhance NEXUS agent memory systems. Current pipeline includes ${papers.filter(p => p.category === 'RAG').length} RAG papers under review.`
-      } else if (/eval|bench|metric|score/.test(lowerInput)) {
-        responseText = `For evaluation, Chain-of-Thought Hub (Li et al.) offers a systematic reasoning evaluation framework. Combined with OR-Bench for safety metrics, these provide comprehensive coverage. ${papers.filter(p => p.category === 'Evaluation').length} evaluation papers are currently in the pipeline.`
-      } else {
-        responseText = `I've analyzed the current research pipeline with ${papers.length} papers across ${new Set(papers.map(p => p.category)).size} domains. The most relevant papers to your question are:\n\n${paperContext}\n\nWould you like me to analyze any specific paper in more detail?`
+    try {
+      const response = await fetch('/api/chat?stream=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            ...chatMessages
+              .map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: userContentWithContext },
+          ],
+        }),
+      })
+
+      if (!response.ok) {
+        // Fallback to non-streaming
+        const fallbackResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...chatMessages
+                .map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: userContentWithContext },
+            ],
+          }),
+        })
+
+        if (!fallbackResponse.ok) {
+          throw new Error(`Chat API returned ${fallbackResponse.status}`)
+        }
+
+        const fallbackData = await fallbackResponse.json()
+        if (fallbackData.error) {
+          throw new Error(fallbackData.error)
+        }
+
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: fallbackData.response || 'No response received',
+          timestamp: Date.now(),
+        }
+        setChatMessages(prev => [...prev, assistantMessage])
+        setIsChatLoading(false)
+        setStreamingChatContent('')
+        return
       }
 
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: responseText,
-        timestamp: Date.now(),
+      // Process SSE stream
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response stream')
+
+      const decoder = new TextDecoder()
+      let accumulated = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed || !trimmed.startsWith('data:')) continue
+
+          const payload = trimmed.slice(5).trim()
+          if (payload === '[DONE]') {
+            // Stream complete — finalize the message
+            const assistantMessage: ChatMessage = {
+              role: 'assistant',
+              content: accumulated,
+              timestamp: Date.now(),
+            }
+            setChatMessages(prev => [...prev, assistantMessage])
+            setIsChatLoading(false)
+            setStreamingChatContent('')
+            return
+          }
+
+          try {
+            const parsed = JSON.parse(payload)
+            if (parsed.error) {
+              toast.error('Chat error', { description: parsed.error })
+              continue
+            }
+            if (parsed.content) {
+              accumulated += parsed.content
+              setStreamingChatContent(accumulated)
+            }
+          } catch {
+            // Skip unparseable chunks
+          }
+        }
       }
 
-      setChatMessages(prev => [...prev, assistantMessage])
+      // If stream ended without [DONE], finalize what we have
+      if (accumulated) {
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: accumulated,
+          timestamp: Date.now(),
+        }
+        setChatMessages(prev => [...prev, assistantMessage])
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Chat failed'
+      toast.error('Chat failed', { description: message })
+    } finally {
       setIsChatLoading(false)
-    }, 800 + Math.random() * 1200)
-  }, [chatInput, isChatLoading, displayedPapers, papers])
+      setStreamingChatContent('')
+    }
+  }, [chatInput, isChatLoading, chatMessages, displayedPapers, papers])
 
   const handleChatKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1175,7 +1393,8 @@ export function ResearchTab() {
         </CardHeader>
         <CardContent className="p-4 pt-0">
           {/* Chat Messages */}
-          <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-3 mb-3">
+          <ScrollArea className="max-h-[400px] mb-3">
+            <div className="space-y-3">
             {chatMessages.length === 0 ? (
               <div className="text-center py-6">
                 <Bot className="h-8 w-8 mx-auto mb-2 text-emerald-500/50" />
@@ -1238,7 +1457,7 @@ export function ResearchTab() {
                 </div>
               ))
             )}
-            {isChatLoading && (
+            {isChatLoading && !streamingChatContent && (
               <div className="flex gap-2 justify-start">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
                   <Bot className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -1252,8 +1471,25 @@ export function ResearchTab() {
                 </div>
               </div>
             )}
+            {isChatLoading && streamingChatContent && (
+              <div className="flex gap-2 justify-start">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 mt-0.5">
+                  <Bot className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="max-w-[80%] rounded-xl rounded-tl-none bg-muted px-3 py-2 text-xs leading-relaxed break-words">
+                  {streamingChatContent.split('\n').map((line, j) => (
+                    <span key={j}>
+                      {j > 0 && <br />}
+                      {line}
+                    </span>
+                  ))}
+                  <span className="inline-block w-1 h-3 bg-emerald-500 animate-pulse ml-0.5 align-text-bottom" />
+                </div>
+              </div>
+            )}
             <div ref={chatEndRef} />
-          </div>
+            </div>
+          </ScrollArea>
 
           {/* Chat Input */}
           <div className="flex items-center gap-2">

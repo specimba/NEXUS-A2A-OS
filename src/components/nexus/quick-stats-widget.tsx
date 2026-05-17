@@ -88,7 +88,7 @@ export function QuickStatsWidget() {
   }
 
   return (
-    <div className="fixed bottom-16 left-4 z-40 hidden lg:block animate-slide-up">
+    <div className="fixed bottom-20 left-4 z-40 hidden lg:block animate-slide-up">
       <div className="glass-card rounded-xl border border-border/40 shadow-xl overflow-hidden min-w-[220px]">
         {/* Header with collapse toggle */}
         <button

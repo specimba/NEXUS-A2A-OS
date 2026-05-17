@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
     const completion = await zai.chat.completions.create({
       model: model.trim(),
       messages: [
-        { role: 'assistant', content: effectiveSystemPrompt },
+        { role: 'system', content: effectiveSystemPrompt },
         { role: 'user', content: prompt.trim() },
       ],
       thinking: { type: 'disabled' },

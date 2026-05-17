@@ -425,7 +425,7 @@ export function ArchivistTab() {
         </CardHeader>
         <CardContent className="relative p-4 pt-0 space-y-4">
           {/* Pipeline visualization */}
-          <div className="flex items-center justify-between gap-1 p-3 rounded-lg bg-muted/30 border border-border/30 overflow-x-auto">
+          <div className="flex items-center justify-between gap-1 p-3 rounded-lg bg-muted/30 border border-border/30 overflow-x-auto custom-scrollbar">
             {PROMOTION_STAGES.map((stage, idx) => {
               const StageIcon = stage.icon
               return (

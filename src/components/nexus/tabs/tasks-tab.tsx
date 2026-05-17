@@ -26,8 +26,9 @@ import {
   ListTodo, Loader2, RefreshCw, Sparkles, Plus, CheckCircle2, XCircle,
   AlertTriangle, Play, ChevronRight, Trash2, RotateCcw, ShieldOff,
   FolderOpen, TrendingUp, CalendarClock, Flag, Tag, User, FileText,
+  Clock,
 } from 'lucide-react'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -71,17 +72,28 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; ic
 
 const CATEGORY_META: Record<string, { label: string; color: string; bg: string }> = {
   ics_testing: { label: 'ICS Testing', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-600/15' },
+  evaluation: { label: 'Evaluation', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-600/15' },
+  safety_review: { label: 'Safety Review', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-600/15' },
+  implementation: { label: 'Implementation', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-600/15' },
   research: { label: 'Research', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-600/15' },
   fleet: { label: 'Fleet', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-600/15' },
   dashboard: { label: 'Dashboard', color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-600/15' },
   security: { label: 'Security', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-600/15' },
-  governance: { label: 'Governance', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/15' },
+  governance: { label: 'Governance', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-600/15' },
   general: { label: 'General', color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-600/15' },
+  context_processing: { label: 'Context', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-600/15' },
+  memory_research: { label: 'Memory', color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-600/15' },
+  harness_testing: { label: 'Harness', color: 'text-lime-600 dark:text-lime-400', bg: 'bg-lime-600/15' },
+  compression: { label: 'Compression', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-600/15' },
+  benchmark: { label: 'Benchmark', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/15' },
+  survey_analysis: { label: 'Survey', color: 'text-fuchsia-600 dark:text-fuchsia-400', bg: 'bg-fuchsia-600/15' },
+  infra_build: { label: 'Infra', color: 'text-stone-600 dark:text-stone-400', bg: 'bg-stone-600/15' },
 }
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
   const diffMin = Math.floor(diffMs / 60000)
@@ -165,7 +177,7 @@ function TaskCard({ task, onView, onStatusChange, onDelete }: {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <span className="text-[10px] text-muted-foreground">{formatDate(task.createdAt)}</span>
+            <span className="text-[10px] text-muted-foreground" suppressHydrationWarning>{formatDate(task.createdAt)}</span>
             <div className="flex items-center gap-1">
               {task.status === 'open' && (
                 <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => onStatusChange(task, 'start')}>
@@ -247,7 +259,7 @@ function TaskDetailDialog({ task, open, onOpenChange, onStatusChange, onDelete }
           {/* Description */}
           <div>
             <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Description</Label>
-            <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{task.description}</p>
+            <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{task.description || 'No description'}</p>
           </div>
 
           {/* Metadata */}
@@ -284,18 +296,18 @@ function TaskDetailDialog({ task, open, onOpenChange, onStatusChange, onDelete }
             </div>
             <div className="rounded-md bg-accent/20 p-2">
               <p className="text-[9px] text-muted-foreground">Created</p>
-              <p className="text-xs font-medium">{formatDate(task.createdAt)}</p>
+              <p className="text-xs font-medium" suppressHydrationWarning>{formatDate(task.createdAt)}</p>
             </div>
             {task.dueAt && (
               <div className="rounded-md bg-accent/20 p-2">
                 <p className="text-[9px] text-muted-foreground">Due</p>
-                <p className={`text-xs font-medium ${overdue ? 'text-red-600 dark:text-red-400' : ''}`}>{formatDate(task.dueAt)}</p>
+                <p className={`text-xs font-medium ${overdue ? 'text-red-600 dark:text-red-400' : ''}`} suppressHydrationWarning>{formatDate(task.dueAt)}</p>
               </div>
             )}
             {task.completedAt && (
               <div className="rounded-md bg-accent/20 p-2">
                 <p className="text-[9px] text-muted-foreground">Completed</p>
-                <p className="text-xs font-medium">{formatDate(task.completedAt)}</p>
+                <p className="text-xs font-medium" suppressHydrationWarning>{formatDate(task.completedAt)}</p>
               </div>
             )}
             {task.completedBy && (
@@ -306,7 +318,7 @@ function TaskDetailDialog({ task, open, onOpenChange, onStatusChange, onDelete }
             )}
           </div>
 
-          {/* Completion Proof (if completed/failed) */}
+          {/* Completion Proof */}
           {task.completionProof && (
             <div>
               <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -489,12 +501,13 @@ function NewTaskDialog({ open, onOpenChange, onCreate }: {
                 <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">General</SelectItem>
-                  <SelectItem value="ics_testing">ICS Testing</SelectItem>
+                  <SelectItem value="evaluation">Evaluation</SelectItem>
+                  <SelectItem value="safety_review">Safety Review</SelectItem>
+                  <SelectItem value="implementation">Implementation</SelectItem>
                   <SelectItem value="research">Research</SelectItem>
-                  <SelectItem value="fleet">Fleet</SelectItem>
-                  <SelectItem value="dashboard">Dashboard</SelectItem>
                   <SelectItem value="security">Security</SelectItem>
                   <SelectItem value="governance">Governance</SelectItem>
+                  <SelectItem value="benchmark">Benchmark</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -530,14 +543,23 @@ export function TasksTab() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [newTaskOpen, setNewTaskOpen] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  const fetchTasks = useCallback(async () => {
+  // Mount detection for hydration safety
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const fetchTasks = useCallback(async (silent = false) => {
     try {
+      if (!silent) setRefreshing(true)
       const params = new URLSearchParams()
       if (filterStatus !== 'all') params.set('status', filterStatus)
       if (filterPriority !== 'all') params.set('priority', filterPriority)
@@ -548,6 +570,7 @@ export function TasksTab() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setTasks(json.tasks || [])
+      setLastUpdated(new Date())
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -557,7 +580,18 @@ export function TasksTab() {
     }
   }, [filterStatus, filterPriority, filterCategory])
 
+  // Initial fetch
   useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    refreshTimerRef.current = setInterval(() => {
+      fetchTasks(true)
+    }, 30000)
+    return () => {
+      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current)
+    }
+  }, [fetchTasks])
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true)
@@ -639,9 +673,11 @@ export function TasksTab() {
       inProgress: tasks.filter((t) => t.status === 'in_progress').length,
       completedToday: tasks.filter((t) => t.status === 'completed' && t.completedAt && new Date(t.completedAt) >= todayStart).length,
       overdue: tasks.filter((t) => isOverdue(t)).length,
+      total: tasks.length,
     }
   }, [tasks])
 
+  // ── Loading State ─────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -653,6 +689,7 @@ export function TasksTab() {
     )
   }
 
+  // ── Error State ───────────────────────────────────────────────
   if (error && tasks.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -674,6 +711,12 @@ export function TasksTab() {
           <h2 className="text-lg font-bold flex items-center gap-2">
             <ListTodo className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             Task Management
+            {lastUpdated && (
+              <span className="text-[10px] font-normal text-muted-foreground ml-2 flex items-center gap-1" suppressHydrationWarning>
+                <Clock className="h-3 w-3" />
+                {mounted ? `Updated ${formatDate(lastUpdated.toISOString())}` : '...'}
+              </span>
+            )}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">Track, manage, and validate tasks across NEXUS OS — no task completes without proof</p>
         </div>
@@ -702,11 +745,12 @@ export function TasksTab() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCard label="Open Tasks" value={stats.open} icon={FolderOpen} gradient="from-blue-600/10 via-blue-600/5 to-transparent" border="border-blue-600/20" iconBg="bg-blue-600/15" iconColor="text-blue-600 dark:text-blue-400" />
         <StatCard label="In Progress" value={stats.inProgress} icon={TrendingUp} gradient="from-amber-600/10 via-amber-600/5 to-transparent" border="border-amber-600/20" iconBg="bg-amber-600/15" iconColor="text-amber-600 dark:text-amber-400" />
         <StatCard label="Completed Today" value={stats.completedToday} icon={CheckCircle2} gradient="from-emerald-600/10 via-emerald-600/5 to-transparent" border="border-emerald-600/20" iconBg="bg-emerald-600/15" iconColor="text-emerald-600 dark:text-emerald-400" />
         <StatCard label="Overdue" value={stats.overdue} icon={CalendarClock} gradient="from-red-600/10 via-red-600/5 to-transparent" border="border-red-600/20" iconBg="bg-red-600/15" iconColor="text-red-600 dark:text-red-400" />
+        <StatCard label="Total" value={stats.total} icon={ListTodo} gradient="from-slate-600/10 via-slate-600/5 to-transparent" border="border-slate-600/20" iconBg="bg-slate-600/15" iconColor="text-slate-600 dark:text-slate-400" />
       </div>
 
       {/* Filters */}
@@ -740,10 +784,10 @@ export function TasksTab() {
           <SelectTrigger className="h-7 w-[130px] text-[10px]"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Category</SelectItem>
-            <SelectItem value="ics_testing">ICS Testing</SelectItem>
+            <SelectItem value="evaluation">Evaluation</SelectItem>
+            <SelectItem value="safety_review">Safety Review</SelectItem>
+            <SelectItem value="implementation">Implementation</SelectItem>
             <SelectItem value="research">Research</SelectItem>
-            <SelectItem value="fleet">Fleet</SelectItem>
-            <SelectItem value="dashboard">Dashboard</SelectItem>
             <SelectItem value="security">Security</SelectItem>
             <SelectItem value="governance">Governance</SelectItem>
             <SelectItem value="general">General</SelectItem>
@@ -803,7 +847,8 @@ export function TasksTab() {
         <span>Completion proof required</span><span>·</span>
         <span>Priority-sorted queue</span><span>·</span>
         <span>Auto-generation from system state</span><span>·</span>
-        <span>Full audit trail</span>
+        <span>Full audit trail</span><span>·</span>
+        <span suppressHydrationWarning>Auto-refresh 30s</span>
       </div>
 
       {/* Task Detail Dialog */}

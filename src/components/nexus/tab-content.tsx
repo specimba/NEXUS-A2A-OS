@@ -20,6 +20,7 @@ const RateLimitTab = lazy(() => import('@/components/nexus/tabs/rate-limit-tab')
 const KpiTab = lazy(() => import('@/components/nexus/tabs/kpi-tab').then(m => ({ default: m.KpiTab })))
 const ModelRelayTab = lazy(() => import('@/components/nexus/tabs/modelrelay-tab').then(m => ({ default: m.ModelRelayTab })))
 const DashboardsTab = lazy(() => import('@/components/nexus/tabs/dashboards-tab').then(m => ({ default: m.DashboardsTab })))
+const TasksTab = lazy(() => import('@/components/nexus/tabs/tasks-tab').then(m => ({ default: m.TasksTab })))
 
 const tabComponents: Record<string, ComponentType> = {
   overview: OverviewTab, // Keep overview as eager import (default tab)
@@ -37,6 +38,7 @@ const tabComponents: Record<string, ComponentType> = {
   kpi: KpiTab,
   dashboards: DashboardsTab,
   modelrelay: ModelRelayTab,
+  tasks: TasksTab,
 }
 
 function TabLoader() {

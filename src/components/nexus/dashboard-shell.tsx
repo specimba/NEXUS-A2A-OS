@@ -22,7 +22,7 @@ export function NexusDashboard() {
         <NexusHeader />
 
         {/* Content with animated grid background */}
-        <main className="relative flex-1 overflow-auto bg-background">
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-background">
           {/* Subtle grid/particle background */}
           <div className="pointer-events-none absolute inset-0 grid-pattern-animated opacity-40" />
 

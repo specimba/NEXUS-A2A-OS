@@ -85,7 +85,7 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
           {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
         </button>
       </div>
-      <pre className="p-3 overflow-x-auto text-xs font-mono leading-relaxed">
+      <pre className="p-3 overflow-x-auto custom-scrollbar text-xs font-mono leading-relaxed">
         <code>{code}</code>
       </pre>
     </div>
@@ -232,7 +232,7 @@ export function AiChatTab() {
   const [error, setError] = useState<string | null>(null)
   const [thinkingPhase, setThinkingPhase] = useState<'idle' | 'thinking' | 'responding'>('idle')
   const [mounted, setMounted] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Hydration-safe: set mounted flag after first render
@@ -240,10 +240,10 @@ export function AiChatTab() {
     setMounted(true)
   }, [])
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom using sentinel div
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, streamingContent, thinkingPhase])
 
@@ -553,7 +553,7 @@ export function AiChatTab() {
       {/* Chat Area */}
       <Card className="flex-1 bg-card/50 border-border/50 flex flex-col overflow-hidden min-h-0">
         <CardContent className="flex-1 p-0 flex flex-col min-h-0">
-          <ScrollArea className="flex-1" ref={scrollRef}>
+          <ScrollArea className="flex-1">
             <div className="p-4 space-y-4">
               {messages.length === 0 && !streamingContent && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -728,6 +728,9 @@ export function AiChatTab() {
                   </div>
                 </div>
               )}
+
+              {/* Scroll sentinel - always at bottom */}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
         </CardContent>

@@ -76,6 +76,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
     items: [
       { id: 'governor', label: 'Governor', icon: <Shield className="h-4 w-4" />, shortcut: '6', description: 'Constitutional governance & rules' },
       { id: 'vault', label: 'Vault', icon: <Database className="h-4 w-4" />, shortcut: '7', description: 'Secure data vault & audit log' },
+      { id: 'tasks', label: 'Tasks', icon: <Activity className="h-4 w-4" />, badge: 'GOV', shortcut: 'S7', description: 'Task management & tracking' },
     ],
   },
   {

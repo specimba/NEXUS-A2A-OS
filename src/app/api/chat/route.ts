@@ -179,8 +179,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { messages } = body as {
+    const { messages, model: requestedModel } = body as {
       messages: { role: string; content: string }[]
+      model?: string
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -206,11 +207,15 @@ export async function POST(request: NextRequest) {
 
     // ─── Streaming path ───
     if (isStreaming) {
-      const result = await zai.chat.completions.create({
+      const createParams: Record<string, unknown> = {
         messages: apiMessages,
         thinking: { type: 'disabled' },
         stream: true,
-      })
+      }
+      if (requestedModel) {
+        createParams.model = requestedModel
+      }
+      const result = await zai.chat.completions.create(createParams)
 
       // The SDK returns a ReadableStream when stream: true
       if (result instanceof ReadableStream) {
@@ -250,10 +255,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Non-streaming path ───
-    const completion = await zai.chat.completions.create({
+    const createParams: Record<string, unknown> = {
       messages: apiMessages,
       thinking: { type: 'disabled' },
-    })
+    }
+    if (requestedModel) {
+      createParams.model = requestedModel
+    }
+    const completion = await zai.chat.completions.create(createParams)
 
     const response = completion.choices?.[0]?.message?.content
     const model = completion.model || 'glm-4-plus'
