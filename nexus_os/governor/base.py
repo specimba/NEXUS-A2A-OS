@@ -37,6 +37,7 @@ from nexus_os.governor.kaiju_auth import (
     KaijuAuthorizer, AuthRequest, AuthResult,
     ScopeLevel, ImpactLevel, ClearanceLevel, Decision,
 )
+from nexus_os.governor.trust_kernel import TrustDecisionKind, TrustKernel
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class NexusGovernor:
         compliance_engine=None,
         enable_cva: bool = True,
         token_guard=None,
+        trust_kernel: Optional[TrustKernel] = None,
     ):
         """
         Initialize the governor.
@@ -71,6 +73,7 @@ class NexusGovernor:
             compliance_engine: Optional ComplianceEngine for post-auth rule checks.
             enable_cva: Whether to run CVA trait verification (default True).
             token_guard: Optional TokenGuard instance for budget enforcement.
+            trust_kernel: Optional canonical TrustKernel. Created with db if None.
         """
         from nexus_os.monitoring.token_guard import TokenGuard
         self.db = db
@@ -78,6 +81,7 @@ class NexusGovernor:
         self.compliance_engine = compliance_engine
         self._cva_verifier = _CVAVerifier() if enable_cva else None
         self.token_guard = token_guard or TokenGuard()
+        self.trust_kernel = trust_kernel or TrustKernel(db=db)
         self._budget_warning_threshold = 0.75   # 75% → warn via VAP context
         self._budget_hardstop_threshold = 0.95  # 95% → DENY
 
@@ -140,7 +144,68 @@ class NexusGovernor:
             )
             return result
 
-        # ── Step 1: KAIJU 4-variable authorization ──────────────
+        # ── Step 1: Canonical trust gate ───────────────────────
+        trust_ctx = dict(ctx)
+        trust_ctx.update({
+            "project_id": project_id,
+            "intent": intent,
+            "requested_clearance": clearance,
+            "requested_impact": impact,
+            "scope": scope,
+        })
+        trust_lane = trust_ctx.get("lane") or action
+        try:
+            trust_decision = self.trust_kernel.evaluate(
+                agent_id=agent_id,
+                action=action,
+                lane=trust_lane,
+                context=trust_ctx,
+            )
+            trust_snapshot = trust_decision.snapshot
+            ctx["trust_decision"] = trust_decision.to_dict()
+            ctx["trust_snapshot"] = trust_snapshot.to_dict()
+            ctx["agent_trust"] = trust_snapshot.trust
+            ctx["trust_score"] = trust_snapshot.trust
+            logger.info(
+                "Governor.check_access: trust decision=%s agent=%s action=%s lane=%s trust=%.2f reason='%s'",
+                trust_decision.decision.value, agent_id, action,
+                trust_snapshot.lane, trust_snapshot.trust, trust_decision.reason[:100],
+            )
+
+            if trust_decision.decision in {
+                TrustDecisionKind.DENY,
+                TrustDecisionKind.QUARANTINE,
+            }:
+                result = AuthResult(
+                    Decision.DENY,
+                    trust_decision.reason,
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
+
+            if trust_decision.decision in {
+                TrustDecisionKind.HOLD,
+                TrustDecisionKind.ESCALATE,
+            }:
+                result = AuthResult(
+                    Decision.HOLD,
+                    trust_decision.reason,
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
+        except Exception as e:
+            result = AuthResult(
+                Decision.HOLD,
+                f"TrustKernel unavailable: {e}",
+                trace_id,
+            )
+            self._audit_log(agent_id, action, result, project_id)
+            logger.error("Governor.check_access: HELD because TrustKernel failed: %s", e)
+            return result
+
+        # ── Step 2: KAIJU 4-variable authorization ──────────────
         try:
             request = AuthRequest(
                 agent_id=agent_id,
@@ -190,7 +255,7 @@ class NexusGovernor:
             )
             return kaiju_result
 
-        # ── Step 2: CVA trait verification (optional) ──────────
+        # ── Step 3: CVA trait verification (optional) ──────────
         cva_reason = "CVA disabled"
         cva_enforcing = False
         if self._cva_verifier is not None:
@@ -211,7 +276,7 @@ class NexusGovernor:
                 )
                 return result
 
-        # ── Step 3: Compliance engine post-check (optional) ────
+        # ── Step 4: Compliance engine post-check (optional) ────
         if self.compliance_engine is not None:
             compliance_ctx = dict(ctx)
             compliance_ctx.update({
@@ -241,12 +306,13 @@ class NexusGovernor:
             except Exception as e:
                 logger.error("Compliance engine error during check_access: %s", e)
 
-        # ── Step 4: All checks passed ───────────────────────────
+        # ── Step 5: All checks passed ───────────────────────────
         cva_status = cva_reason if not cva_enforcing else "CVA enforcing check passed"
         compliance_status = "Compliance passed" if self.compliance_engine is not None else "Compliance skipped"
+        trust_status = ctx.get("trust_decision", {}).get("reason", "TrustKernel unavailable")
         result = AuthResult(
             Decision.ALLOW,
-            f"KAIJU passed; {cva_status}; {compliance_status}",
+            f"{trust_status}; KAIJU passed; {cva_status}; {compliance_status}",
             trace_id,
         )
         self._audit_log(agent_id, action, result, project_id)
@@ -357,9 +423,14 @@ class _CVAVerifier:
             return False, f"HARD_BLOCK: {action} is prohibited by CVA policy"
 
         if any(kw in action_lower for kw in self.REVIEW_KEYWORDS):
-            trust = context.get("agent_trust", 0.5)
+            snapshot = context.get("trust_snapshot") or {}
+            trust = snapshot.get("trust", context.get("agent_trust", 0.5))
+            source = snapshot.get("source", "context_agent_trust")
             if trust < 0.6:
-                return False, f"ARMED_REVIEW: {action} requires human approval (trust={trust:.2f})"
+                return False, (
+                    f"ARMED_REVIEW: {action} requires human approval "
+                    f"(trust={trust:.2f}, source={source})"
+                )
 
         project = context.get("project_id", "default")
         if project in self._project_constraints:

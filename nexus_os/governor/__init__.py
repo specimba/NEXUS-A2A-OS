@@ -7,3 +7,6 @@ from nexus_os.governor.compliance import (
     ComplianceEngine, ComplianceResult, ComplianceStatus,
     ComplianceLevel, ComplianceViolation, ComplianceRule, RuleSource,
 )
+from nexus_os.governor.trust_kernel import (
+    TrustDecision, TrustDecisionKind, TrustEvent, TrustKernel, TrustSnapshot,
+)
