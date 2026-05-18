@@ -10,6 +10,16 @@ PATTERNS = {
     "private_key": re.compile(r"-----BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY-----"),
 }
 
+SENSITIVE_PATTERNS = [
+    "sk-",
+    "pk-lf-",
+    "sk-lf-",
+    "Bearer ",
+    "AIza",
+    "ghp_",
+    "gho_",
+]
+
 def scan_file(filepath):
     findings = []
     try:
@@ -75,12 +85,12 @@ def main():
         files_to_scan = [args.target]
     else:
         files_to_scan = []
-        for root, _, files in os.walk(args.target):
-            # Skip only actual hidden dirs (not paths containing "." like speci.000)
-            # Check for .git, .kiro, .kilo, etc. as actual directory names
-            basename = os.path.basename(root)
-            if basename.startswith('.'):
-                continue  # Skip .git, .kilo, .kiro, .pi, etc.
+        for root, dirs, files in os.walk(args.target):
+            # Prune traversal INTO excluded dirs (must modify dirs in-place)
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in {'venv', 'node_modules', '.venv', '__pycache__'}]
+            # Check root basename too
+            if os.path.basename(root).startswith('.'):
+                continue
             for file in files:
                 if not file.startswith('.'):
                     files_to_scan.append(os.path.join(root, file))
