@@ -25,6 +25,8 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
+from nexus_os.governor.trust_kernel import TrustDecisionKind, TrustEvent, TrustKernel
+
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -302,6 +304,10 @@ class Mem0Adapter:
         cfg = config or {}
         self._force_local = cfg.get("force_local", False)
         self._storage_path = cfg.get("storage_path", LOCAL_BACKEND_PATH)
+        self._trust_gate_enabled = cfg.get("trust_gate", True)
+        self._trust_kernel = cfg.get("trust_kernel")
+        if self._trust_gate_enabled and self._trust_kernel is None:
+            self._trust_kernel = TrustKernel(cfg.get("trust_db"))
 
         self._mem0_client = None
         self._local: Optional[_LocalMemoryBackend] = None
@@ -374,14 +380,20 @@ class Mem0Adapter:
         if metadata:
             enriched_meta.update(metadata)
 
+        trust_decision = self._evaluate_memory_write(agent_id, content, enriched_meta, layer)
+        if trust_decision is not None:
+            enriched_meta["trust_decision"] = trust_decision.to_dict()
+
         try:
             if self._using_local:
-                return self._local.add(
+                memory_id = self._local.add(
                     content=content,
                     agent_id=agent_id,
                     metadata=enriched_meta,
                     layer=layer,
                 )
+                self._record_memory_write(agent_id, memory_id, layer, "success", enriched_meta)
+                return memory_id
             else:
                 result = self._mem0_client.add(
                     messages=content,
@@ -397,14 +409,79 @@ class Mem0Adapter:
                             "Stored mem0 memory: id=%s layer=%s agent=%s",
                             mid, layer, agent_id,
                         )
+                        self._record_memory_write(agent_id, str(mid), layer, "success", enriched_meta)
                         return str(mid)
                 # Fallback ID
                 fallback_id = uuid.uuid4().hex[:16]
                 logger.info("Stored mem0 memory (fallback id=%s): layer=%s agent=%s", fallback_id, layer, agent_id)
+                self._record_memory_write(agent_id, fallback_id, layer, "success", enriched_meta)
                 return fallback_id
         except Exception as e:
+            self._record_memory_write(agent_id, "", layer, "failure", {**enriched_meta, "error": str(e)})
             logger.error("Failed to store memory (layer=%s, agent=%s): %s", layer, agent_id, e)
             raise RuntimeError(f"Memory store failed: {e}") from e
+
+    def _evaluate_memory_write(
+        self,
+        agent_id: str,
+        content: str,
+        metadata: Dict[str, Any],
+        layer: str,
+    ) -> Any:
+        if not self._trust_gate_enabled or self._trust_kernel is None:
+            return None
+        decision = self._trust_kernel.evaluate(
+            agent_id=agent_id,
+            action="write",
+            lane="vault_write",
+            context={
+                "side_effect": True,
+                "memory_layer": layer,
+                "content_length": len(content),
+                "metadata_keys": sorted(metadata.keys()),
+            },
+        )
+        if decision.decision in {
+            TrustDecisionKind.DENY,
+            TrustDecisionKind.HOLD,
+            TrustDecisionKind.QUARANTINE,
+            TrustDecisionKind.ESCALATE,
+        }:
+            raise PermissionError(f"Memory write blocked by TrustKernel: {decision.reason}")
+        return decision
+
+    def _record_memory_write(
+        self,
+        agent_id: str,
+        memory_id: str,
+        layer: str,
+        outcome: str,
+        metadata: Dict[str, Any],
+    ) -> None:
+        if not self._trust_gate_enabled or self._trust_kernel is None:
+            return
+        self._trust_kernel.record_event(
+            TrustEvent(
+                agent_id=agent_id,
+                lane="vault_write",
+                event_type="memory_write",
+                action="write",
+                outcome=outcome,
+                Q=0.8 if outcome == "success" else 0.7,
+                U=0.5 if outcome == "success" else 0.0,
+                R=0.0 if outcome == "success" else 0.65,
+                D_plus=0.2 if outcome == "success" else 0.0,
+                D_minus=0.0 if outcome == "success" else 0.5,
+                hard_fail=outcome != "success",
+                source="mem0_adapter",
+                provenance="vault.memory_adapter",
+                metadata={
+                    "memory_id": memory_id,
+                    "memory_layer": layer,
+                    "metadata_keys": sorted(metadata.keys()),
+                },
+            )
+        )
 
     # ── Search ────────────────────────────────────────────────────
 
