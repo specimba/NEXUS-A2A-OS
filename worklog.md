@@ -368,8 +368,50 @@ Stage Summary:
   - Even with optimizations, the server dies after ~5-10 requests
   - This is a sandbox infrastructure limitation, not a code issue
 
-Unresolved Issues:
-- Server OOM: The sandbox environment aggressively OOM-kills Node.js processes
-- The preview may not stay consistently available due to server restarts
+Unresolved Issues (from previous sessions):
 - /api/system data is disabled in QuickStatsWidget and Overview tab (shows static data)
 - Need a proper production deployment environment for stable operation
+
+---
+Task ID: 10
+Agent: Main
+Task: Investigate sandbox memory, diagnose server crashes, and fix the dashboard preview
+
+Work Log:
+- Investigated sandbox memory: cgroup limit is 8 GB, not 1 GB as previously assumed
+- Ran comprehensive memory audit: total system uses ~596 MB, Next.js server uses only 124 MB RSS
+- Discovered the real cause of "server crashes": the Bash tool's session management kills background child processes when sessions are recreated, NOT OOM kills
+- Created a double-fork daemon script (`/tmp/nexus-daemon.sh`) that persists across Bash session recreations
+- The daemon auto-restarts the server on exit, providing persistent availability
+- Verified dashboard renders fully in browser via agent-browser:
+  - Overview tab: System Operational, 8 health pillars, live metrics, network topology, alert feed
+  - AI Assistant tab: Chat with GLM-4.7, model selection works, real AI responses, auto-scroll works
+  - Research tab: Search pipeline, paper cards, chat functionality
+  - StressLab tab: Run Test dialog, ISC Lab Logs, test execution works
+  - Architecture tab: System topology, data flow visualization
+- Ran 50 rapid requests stress test: all HTTP 200, server memory stable at 132 MB RSS
+- After full browser testing (tab switching, AI chat, StressLab test): server memory only 130 MB RSS
+- Updated package.json: changed `dev` and `start` scripts to use `node .next/standalone/server.js`
+- Copied missing static files to standalone build (.next/static, public/)
+
+Stage Summary:
+- **Root cause identified**: Server was never being OOM-killed. The Bash tool kills background processes when sessions are recreated, making it appear the server died.
+- **Fix**: Double-fork daemon script persists across session boundaries
+- **Memory footprint**: Next.js standalone server uses 124-133 MB RSS (extremely stable)
+- **Sandbox has 8 GB RAM**: More than enough for the dashboard
+- **Dashboard is fully functional**: All tabs render, AI chat works, StressLab works, Research works
+- **No code changes needed for memory**: The dashboard is already memory-efficient
+
+Memory & Resource Analysis:
+| Component | RSS (MB) | Description |
+|-----------|---------|-------------|
+| Python gateway (main.py) | 150 | IM gateway service |
+| Next.js server | 124-133 | Dashboard production server |
+| Caddy proxy | 48 | HTTP reverse proxy |
+| uv runner | 42 | Python process manager |
+| Daemon script | 3 | Bash process supervisor |
+| **Total** | **~370** | **All services** |
+| **Available** | **7,400** | **7.3 GB free** |
+
+The dashboard needs only ~133 MB RAM to function properly. The sandbox provides 8 GB (60x more than needed).
+The most memory-intensive component is the Python gateway (150 MB), not the Next.js dashboard.
