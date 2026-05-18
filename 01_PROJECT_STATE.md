@@ -1,17 +1,17 @@
 # NEXUS OS - Canonical Project State
 
-Date: 2026-04-21
-Current local HEAD: 8f928bd
-Branch: bugfix/p0-cycle-detection-encryption-hardfail
-Status: M3 hardened baseline preserved; Phase 0 grounding in progress.
+Date: 2026-05-18
+Current local HEAD: 6c729e7
+Branch: canonical-617
+Status: Safety consolidation merged from Codex github/main. 634 tests passing. ModelRelay + MCP server integrated.
 
 ## Verification Gate
 
 Latest local verification:
 
 ```text
-.\venv\Scripts\python.exe -m pytest tests/ -q --tb=short
-617 passed in 16.99s
+python3 -m pytest tests/ -q --tb=short
+634 passed in 15.13s
 ```
 
 The older report reference to commit `34c700b` is a historical/alternate-worktree marker. The current local repository HEAD is `8f928bd` after these follow-up commits:
@@ -52,11 +52,31 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 
 ## What Is Verified In This Repo
 
-- Full test suite passes locally: `617 passed`.
+- Full test suite passes locally: `634 passed` (17 new from safety merge).
 - DB encryption policy hard-fails by default and allows plaintext fallback only when `allow_unencrypted=True`.
 - Engine task dependency cycle detection is present and verified.
 - Project-level `AGENTS.md` now describes Nexus operating rules.
 - Codex connector hygiene is isolated to `.codex/plugin_hygiene_policy.md`.
+
+## Safety Consolidation (merged 2026-05-18)
+
+From Codex `github/main` — adapted to `src/nexus_os/` layout:
+
+| Module | File | Purpose |
+|---|---|---|
+| Security Sanitizer | `src/nexus_os/security/sanitizer.py` | Prompt injection + ANSI escape filtering on terminal output |
+| Token Policy | `src/nexus_os/monitoring/token_policy.py` | Rate limiting, budget enforcement per agent/lane |
+| Token Guard | `src/nexus_os/monitoring/token_guard.py` | Runtime token consumption tracking + hard stops |
+| Memory Adapter | `src/nexus_os/vault/memory_adapter.py` | Trust-scored memory storage/retrieval with layer promotion |
+| Trust Kernel v2 | `src/nexus_os/governor/trust_kernel.py` | CDR-stage trust decisions, lane isolation |
+| Trust Engine v2 | `src/nexus_os/governor/trust_engine_v2.py` | CDR stage machine (Contain→Detect→Respond) |
+| Proof Chain | `src/nexus_os/governor/proof_chain.py` | VAP chain creation/verification, tamper detection |
+| Compliance | `src/nexus_os/governor/compliance.py` | Policy enforcement engine |
+| Kaiju Auth | `src/nexus_os/governor/kaiju_auth.py` | Impact/intent-based authorization with hold queue |
+| MCP Server | `src/nexus_os/mcp/server.py` | NexusGovernanceMCP server |
+| FunctionGemma Router | `src/nexus_os/mcp/functiongemma_router.py` | Intent classifier + routing for function calling |
+
+All 82 new tests pass. No regressions on existing 552 tests.
 
 ## Appendix Assets Available But Not Yet Canonical
 
