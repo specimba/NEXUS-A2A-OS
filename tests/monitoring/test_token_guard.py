@@ -4,7 +4,7 @@ Nexus OS v3.0 - Token Monitoring Layer
 """
 
 import pytest
-from src.nexus_os.monitoring.token_guard import TokenGuard
+from nexus_os.monitoring.token_guard import TokenGuard
 
 
 class TestTokenGuard:

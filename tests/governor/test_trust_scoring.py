@@ -1,6 +1,6 @@
 import time, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src.nexus_os.governor.trust_scoring import (
+from nexus_os.governor.trust_scoring import (
     compute_score, ScoringInput, TrustScoringGate, AgentCard,
     AgentStatus, Lane, FindingState, ReasonCode,
 )

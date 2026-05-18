@@ -10,9 +10,19 @@ import hashlib
 import json
 import threading
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
+
+from .token_policy import (
+    BudgetScope,
+    ReservationStatus,
+    TokenEstimate,
+    TokenLedger,
+    TokenReservation,
+    TokenUsageActual,
+)
 
 
 class OperationType(Enum):
@@ -92,6 +102,8 @@ class TokenGuard:
         mode: str = 'local',
         warning_threshold: float = 80.0,
         hard_stop_threshold: float = 95.0,
+        agent_id: Optional[str] = None,
+        token_ledger_path: Optional[Path] = None,
     ):
         """
         Initialize TokenGuard.
@@ -102,10 +114,12 @@ class TokenGuard:
             mode: 'local' (ai-tokenizer) or 'cloud' (tokscale)
             warning_threshold: % usage to trigger warning
             hard_stop_threshold: % usage to trigger hard stop
+            token_ledger_path: Optional JSONL ledger path for reservation events
         """
         self.mode = mode
         self.warning_threshold = warning_threshold
         self.hard_stop_threshold = hard_stop_threshold
+        self._default_agent_id = agent_id
         
         # Initialize budgets
         default_budgets = {
@@ -131,6 +145,11 @@ class TokenGuard:
         
         # Model routing preferences
         self._routing_prefs: Dict[str, str] = {}
+
+        # Token Policy Plane v2 reservation ledger
+        self._reservations: Dict[str, TokenReservation] = {}
+        self._reservation_lock = threading.Lock()
+        self._token_ledger = TokenLedger(Path(token_ledger_path) if token_ledger_path else None)
     
     def track(
         self,
@@ -205,11 +224,30 @@ class TokenGuard:
         if budget.remaining < required_tokens:
             return False
         
-        # Check hard stop
-        if budget.percentage >= self.hard_stop_threshold:
+        # Check projected hard stop before execution.
+        projected_used = budget.used + required_tokens
+        if projected_used > budget.total:
+            return False
+
+        if budget.total and (projected_used / budget.total) * 100 >= self.hard_stop_threshold:
             return False
         
         return True
+
+    def can_spend(
+        self,
+        required_tokens: int,
+        agent_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Compatibility alias used by standalone/custom agents.
+
+        Falls back to the default agent_id passed at construction time so
+        callers like OPUSman can perform a pre-flight budget gate without
+        threading the agent identifier through every call.
+        """
+        resolved_agent_id = agent_id or self._default_agent_id or "agent"
+        return self.check(resolved_agent_id, required_tokens)
     
     def check_and_reserve(
         self,
@@ -230,31 +268,199 @@ class TokenGuard:
         Returns:
             {'allowed': True/False, 'reservation_id': str}
         """
-        if not self.check(agent_id, required_tokens):
-            return {
-                'allowed': False,
-                'reason': 'budget_exceeded',
-                'agent_id': agent_id,
-                'required': required_tokens,
-                'timestamp': datetime.now().isoformat(),
-            }
-        
-        # Reserve tokens
-        result = self.track(
+        return self.reserve(
             agent_id=agent_id,
-            tokens=required_tokens,
+            required_tokens=required_tokens,
             operation=operation,
             context=context,
+        )
+
+    def reserve(
+        self,
+        agent_id: str,
+        required_tokens: int,
+        operation: str = "inference",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Preflight and reserve tokens without pretending execution succeeded.
+
+        This is the Token Policy Plane v2 lifecycle entrypoint:
+        reserve -> commit_reservation or refund_reservation.
+        """
+        budget_key = self._get_budget_key(agent_id)
+        budget = self._budgets.get(budget_key)
+        estimate = TokenEstimate(input_tokens=required_tokens)
+        scope = self._scope_for_budget_key(budget_key)
+        redacted_context = context or {}
+
+        if not self.check(agent_id, required_tokens):
+            denied = TokenReservation.create(
+                scope=scope,
+                actor=agent_id,
+                estimate=estimate,
+                context={
+                    **redacted_context,
+                    "operation": operation,
+                    "budget_key": budget_key,
+                },
+                status=ReservationStatus.DENIED,
+                reason="budget_exceeded",
+            )
+            self._token_ledger.record(denied)
+            return {
+                'allowed': False,
+                'status': ReservationStatus.DENIED.value,
+                'reason': 'budget_exceeded',
+                'reservation_id': denied.reservation_id,
+                'agent_id': agent_id,
+                'required': required_tokens,
+                'remaining': budget.remaining if budget else 0,
+                'percentage': budget.percentage if budget else 0,
+                'timestamp': datetime.now().isoformat(),
+            }
+
+        reservation = TokenReservation.create(
+            scope=scope,
+            actor=agent_id,
+            estimate=estimate,
+            context={
+                **redacted_context,
+                "operation": operation,
+                "budget_key": budget_key,
+            },
+        )
+
+        with self._reservation_lock:
+            if budget:
+                budget.used += required_tokens
+            self._reservations[reservation.reservation_id] = reservation
+
+        self._token_ledger.record(reservation)
+        self._log_audit(
+            actor=agent_id,
+            action=f"{operation}:reserved",
+            input_tokens=required_tokens,
+            output_tokens=0,
+            context=context or {},
         )
         
         return {
             'allowed': True,
-            'reservation_id': self._hash(f"{agent_id}:{required_tokens}:{time.time()}"),
+            'status': ReservationStatus.RESERVED.value,
+            'reservation_id': reservation.reservation_id,
             'agent_id': agent_id,
             'tokens': required_tokens,
+            'budget_key': budget_key,
+            'remaining': budget.remaining if budget else 0,
+            'percentage': budget.percentage if budget else 0,
             'timestamp': datetime.now().isoformat(),
-            **result,
         }
+
+    def commit_reservation(
+        self,
+        reservation_id: str,
+        actual_input_tokens: int = 0,
+        actual_output_tokens: int = 0,
+        cached_tokens: int = 0,
+        cost_usd: float = 0.0,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Commit a reserved spend after the operation succeeds."""
+        with self._reservation_lock:
+            reservation = self._reservations.get(reservation_id)
+            if reservation is None:
+                return {
+                    'allowed': False,
+                    'status': 'missing',
+                    'reason': 'reservation_not_found',
+                    'reservation_id': reservation_id,
+                    'timestamp': datetime.now().isoformat(),
+                }
+
+            actual = TokenUsageActual(
+                input_tokens=actual_input_tokens,
+                output_tokens=actual_output_tokens,
+                cached_tokens=cached_tokens,
+                cost_usd=cost_usd,
+            )
+            committed = reservation.commit(actual)
+            budget_key = self._get_budget_key(reservation.actor)
+            budget = self._budgets.get(budget_key)
+            if budget:
+                budget.used = max(0, budget.used + actual.total - reservation.estimate.total)
+            self._reservations[reservation_id] = committed
+
+        self._token_ledger.record(committed)
+        self._log_audit(
+            actor=reservation.actor,
+            action="reservation:committed",
+            input_tokens=actual_input_tokens,
+            output_tokens=actual_output_tokens,
+            context=context or {},
+        )
+
+        return {
+            'allowed': True,
+            'status': committed.status.value,
+            'reason': committed.reason,
+            'reservation_id': reservation_id,
+            'agent_id': reservation.actor,
+            'estimated_tokens': reservation.estimate.total,
+            'actual_tokens': actual.total,
+            'remaining': budget.remaining if budget else 0,
+            'percentage': budget.percentage if budget else 0,
+            'timestamp': datetime.now().isoformat(),
+        }
+
+    def refund_reservation(
+        self,
+        reservation_id: str,
+        reason: str = "operation_failed",
+    ) -> Dict[str, Any]:
+        """Refund a reservation when execution fails or is cancelled."""
+        with self._reservation_lock:
+            reservation = self._reservations.get(reservation_id)
+            if reservation is None:
+                return {
+                    'allowed': False,
+                    'status': 'missing',
+                    'reason': 'reservation_not_found',
+                    'reservation_id': reservation_id,
+                    'timestamp': datetime.now().isoformat(),
+                }
+
+            refunded = reservation.refund(reason=reason)
+            budget_key = self._get_budget_key(reservation.actor)
+            budget = self._budgets.get(budget_key)
+            if budget:
+                budget.used = max(0, budget.used - reservation.estimate.total)
+            self._reservations[reservation_id] = refunded
+
+        self._token_ledger.record(refunded)
+        self._log_audit(
+            actor=reservation.actor,
+            action="reservation:refunded",
+            input_tokens=0,
+            output_tokens=0,
+            context={"reason": reason},
+        )
+
+        return {
+            'allowed': True,
+            'status': ReservationStatus.REFUNDED.value,
+            'reason': reason,
+            'reservation_id': reservation_id,
+            'agent_id': reservation.actor,
+            'refunded_tokens': reservation.estimate.total,
+            'remaining': budget.remaining if budget else 0,
+            'percentage': budget.percentage if budget else 0,
+            'timestamp': datetime.now().isoformat(),
+        }
+
+    def get_token_ledger(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return recent VAP-compatible token reservation ledger events."""
+        return [event.to_dict() for event in self._token_ledger.events[-limit:]]
     
     def trigger_fallback(self, agent_id: str) -> Dict[str, Any]:
         """
@@ -537,6 +743,13 @@ class TokenGuard:
         if 'swarm' in agent_id.lower() or 'foreman' in agent_id.lower():
             return 'swarm'
         return 'agent'
+
+    def _scope_for_budget_key(self, budget_key: str) -> BudgetScope:
+        """Map budget keys into Token Policy Plane scopes."""
+        try:
+            return BudgetScope(budget_key)
+        except ValueError:
+            return BudgetScope.AGENT
     
     def _log_audit(
         self,

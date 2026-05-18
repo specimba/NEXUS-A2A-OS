@@ -29,7 +29,7 @@ Usage:
 Integration target: Replace existing _is_authorized() with check_access().
 """
 
-import logging
+import os, json, logging
 from typing import Optional, Dict, Any
 
 from nexus_os.db.manager import DatabaseManager
@@ -37,6 +37,7 @@ from nexus_os.governor.kaiju_auth import (
     KaijuAuthorizer, AuthRequest, AuthResult,
     ScopeLevel, ImpactLevel, ClearanceLevel, Decision,
 )
+from nexus_os.governor.trust_kernel import TrustDecisionKind, TrustKernel
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class NexusGovernor:
         compliance_engine=None,
         enable_cva: bool = True,
         token_guard=None,
+        trust_kernel: Optional[TrustKernel] = None,
     ):
         """
         Initialize the governor.
@@ -71,6 +73,7 @@ class NexusGovernor:
             compliance_engine: Optional ComplianceEngine for post-auth rule checks.
             enable_cva: Whether to run CVA trait verification (default True).
             token_guard: Optional TokenGuard instance for budget enforcement.
+            trust_kernel: Optional canonical TrustKernel. Created with db if None.
         """
         from nexus_os.monitoring.token_guard import TokenGuard
         self.db = db
@@ -78,6 +81,7 @@ class NexusGovernor:
         self.compliance_engine = compliance_engine
         self._cva_verifier = _CVAVerifier() if enable_cva else None
         self.token_guard = token_guard or TokenGuard()
+        self.trust_kernel = trust_kernel or TrustKernel(db=db)
         self._budget_warning_threshold = 0.75   # 75% → warn via VAP context
         self._budget_hardstop_threshold = 0.95  # 95% → DENY
 
@@ -119,6 +123,14 @@ class NexusGovernor:
         """
         ctx = context or {}
 
+        # ── Log: Incoming access check request ──────────────────
+        logger.info(
+            "Governor.check_access: agent=%s action=%s scope=%s impact=%s "
+            "clearance=%s project=%s intent='%s' trace=%s",
+            agent_id, action, scope, impact, clearance, project_id,
+            intent[:80] if intent else "", trace_id or "none",
+        )
+
         # ── Step 0: Token budget check (pre-KAIJU) ─────────────
         budget_ok, budget_reason = self._check_token_budget(
             agent_id, action, ctx
@@ -126,9 +138,74 @@ class NexusGovernor:
         if not budget_ok:
             result = AuthResult(Decision.DENY, budget_reason, trace_id)
             self._audit_log(agent_id, action, result, project_id)
+            logger.info(
+                "Governor.check_access: DENIED agent=%s action=%s — budget: %s",
+                agent_id, action, budget_reason,
+            )
             return result
 
-        # ── Step 1: KAIJU 4-variable authorization ──────────────
+        # ── Step 1: Canonical trust gate ───────────────────────
+        trust_ctx = dict(ctx)
+        trust_ctx.update({
+            "project_id": project_id,
+            "intent": intent,
+            "requested_clearance": clearance,
+            "requested_impact": impact,
+            "scope": scope,
+        })
+        trust_lane = trust_ctx.get("lane") or action
+        try:
+            trust_decision = self.trust_kernel.evaluate(
+                agent_id=agent_id,
+                action=action,
+                lane=trust_lane,
+                context=trust_ctx,
+            )
+            trust_snapshot = trust_decision.snapshot
+            ctx["trust_decision"] = trust_decision.to_dict()
+            ctx["trust_snapshot"] = trust_snapshot.to_dict()
+            ctx["agent_trust"] = trust_snapshot.trust
+            ctx["trust_score"] = trust_snapshot.trust
+            logger.info(
+                "Governor.check_access: trust decision=%s agent=%s action=%s lane=%s trust=%.2f reason='%s'",
+                trust_decision.decision.value, agent_id, action,
+                trust_snapshot.lane, trust_snapshot.trust, trust_decision.reason[:100],
+            )
+
+            if trust_decision.decision in {
+                TrustDecisionKind.DENY,
+                TrustDecisionKind.QUARANTINE,
+            }:
+                result = AuthResult(
+                    Decision.DENY,
+                    trust_decision.reason,
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
+
+            if trust_decision.decision in {
+                TrustDecisionKind.HOLD,
+                TrustDecisionKind.ESCALATE,
+            }:
+                result = AuthResult(
+                    Decision.HOLD,
+                    trust_decision.reason,
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
+        except Exception as e:
+            result = AuthResult(
+                Decision.HOLD,
+                f"TrustKernel unavailable: {e}",
+                trace_id,
+            )
+            self._audit_log(agent_id, action, result, project_id)
+            logger.error("Governor.check_access: HELD because TrustKernel failed: %s", e)
+            return result
+
+        # ── Step 2: KAIJU 4-variable authorization ──────────────
         try:
             request = AuthRequest(
                 agent_id=agent_id,
@@ -147,23 +224,45 @@ class NexusGovernor:
                 trace_id,
             )
             self._audit_log(agent_id, action, result, project_id)
+            logger.info(
+                "Governor.check_access: DENIED agent=%s action=%s — invalid KAIJU variable: %s",
+                agent_id, action, e,
+            )
             return result
 
         kaiju_result = self.kaiju.authorize(request)
 
+        # Log KAIJU decision for every action checked
+        logger.info(
+            "Governor.check_access: KAIJU decision=%s agent=%s action=%s reason='%s'",
+            kaiju_result.decision.value, agent_id, action,
+            kaiju_result.reason[:100] if kaiju_result.reason else "",
+        )
+
         if kaiju_result.decision == Decision.DENY:
             self._audit_log(agent_id, action, kaiju_result, project_id)
+            logger.info(
+                "Governor.check_access: DENIED by KAIJU agent=%s action=%s scope=%s impact=%s",
+                agent_id, action, scope, impact,
+            )
             return kaiju_result
 
         if kaiju_result.decision == Decision.HOLD:
             self._audit_log(agent_id, action, kaiju_result, project_id)
+            logger.info(
+                "Governor.check_access: HELD by KAIJU agent=%s action=%s — pending review",
+                agent_id, action,
+            )
             return kaiju_result
 
-        # ── Step 2: CVA trait verification (optional) ──────────
+        # ── Step 3: CVA trait verification (optional) ──────────
+        cva_reason = "CVA disabled"
+        cva_enforcing = False
         if self._cva_verifier is not None:
             cva_ok, cva_reason = self._cva_verifier.verify_alignment(
                 agent_id, action, ctx
             )
+            cva_enforcing = getattr(self._cva_verifier, "enforcing", False)
             if not cva_ok:
                 result = AuthResult(
                     Decision.HOLD,
@@ -171,9 +270,13 @@ class NexusGovernor:
                     trace_id,
                 )
                 self._audit_log(agent_id, action, result, project_id)
+                logger.info(
+                    "Governor.check_access: HELD by CVA agent=%s action=%s — trait mismatch: %s",
+                    agent_id, action, cva_reason,
+                )
                 return result
 
-        # ── Step 3: Compliance engine post-check (optional) ────
+        # ── Step 4: Compliance engine post-check (optional) ────
         if self.compliance_engine is not None:
             compliance_ctx = dict(ctx)
             compliance_ctx.update({
@@ -194,17 +297,29 @@ class NexusGovernor:
                         trace_id,
                     )
                     self._audit_log(agent_id, action, result, project_id)
+                    logger.info(
+                        "Governor.check_access: DENIED by Compliance agent=%s action=%s — violations: %s",
+                        agent_id, action,
+                        "; ".join(v.message for v in comp_result.violations),
+                    )
                     return result
             except Exception as e:
                 logger.error("Compliance engine error during check_access: %s", e)
 
-        # ── Step 4: All checks passed ───────────────────────────
+        # ── Step 5: All checks passed ───────────────────────────
+        cva_status = cva_reason if not cva_enforcing else "CVA enforcing check passed"
+        compliance_status = "Compliance passed" if self.compliance_engine is not None else "Compliance skipped"
+        trust_status = ctx.get("trust_decision", {}).get("reason", "TrustKernel unavailable")
         result = AuthResult(
             Decision.ALLOW,
-            "All checks passed (KAIJU + CVA + Compliance)",
+            f"{trust_status}; KAIJU passed; {cva_status}; {compliance_status}",
             trace_id,
         )
         self._audit_log(agent_id, action, result, project_id)
+        logger.info(
+            "Governor.check_access: ALLOWED agent=%s action=%s scope=%s impact=%s — all checks passed",
+            agent_id, action, scope, impact,
+        )
         return result
 
     # ── Token Budget Guard ─────────────────────────────────────
@@ -284,24 +399,43 @@ class NexusGovernor:
 
 class _CVAVerifier:
     """
-    Core Value Alignment verifier (stub).
-
-    In production, this checks agent traits against project-defined
-    value constraints (e.g., "no destructive actions without approval").
-    The stub allows all actions by default — real implementation
-    would query the agent_registry and project_config tables.
+    Core Value Alignment verifier.
+    Checks agent actions against project-defined value constraints.
+    Hard-blocks: model.delete, secret.expose, system.wipe, fine_tune.auto
+    Flags for review: delete, expose, override, escalate, root, wipe
     """
+    enforcing = True
+    BLOCKED_ACTIONS = ["model.delete", "secret.expose", "system.wipe", "fine_tune.auto"]
+    REVIEW_KEYWORDS = ["delete", "expose", "override", "escalate", "root", "wipe"]
+
+    def __init__(self, config_path: Optional[str] = None):
+        self._project_constraints: Dict[str, list] = {}
+        if config_path and os.path.exists(config_path):
+            with open(config_path) as f:
+                self._project_constraints = json.load(f)
 
     def verify_alignment(
         self, agent_id: str, action: str, context: Dict[str, Any]
     ) -> tuple:
-        """
-        Check if the agent's traits align with the action type.
+        action_lower = action.lower()
 
-        Returns:
-            (is_aligned: bool, reason: str)
-        """
-        # Stub: all actions pass CVA verification.
-        # Production: query agent_registry.traits, compare with
-        # project_config.value_constraints, check action compatibility.
-        return True, "OK"
+        if action_lower in self.BLOCKED_ACTIONS:
+            return False, f"HARD_BLOCK: {action} is prohibited by CVA policy"
+
+        if any(kw in action_lower for kw in self.REVIEW_KEYWORDS):
+            snapshot = context.get("trust_snapshot") or {}
+            trust = snapshot.get("trust", context.get("agent_trust", 0.5))
+            source = snapshot.get("source", "context_agent_trust")
+            if trust < 0.6:
+                return False, (
+                    f"ARMED_REVIEW: {action} requires human approval "
+                    f"(trust={trust:.2f}, source={source})"
+                )
+
+        project = context.get("project_id", "default")
+        if project in self._project_constraints:
+            denied = self._project_constraints[project]
+            if any(d in action_lower for d in denied):
+                return False, f"PROJECT_BLOCK: {action} denied by {project} constraints"
+
+        return True, f"CVA cleared: {action}"
