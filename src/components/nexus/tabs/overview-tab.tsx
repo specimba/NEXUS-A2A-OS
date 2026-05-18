@@ -352,14 +352,16 @@ export function OverviewTab() {
   const [mounted, setMounted] = useState(false)
 
   // ── Dynamic data from APIs ──────────────────────────────────────
+  // NOTE: /api/system is disabled to prevent OOM (20+ DB queries)
   // Fetch tasks data for Agent Task Distribution donut chart
-  const { data: tasksData } = useApiData<{ tasks: Array<{ category: string; status: string; priority: string }> }>('/api/tasks', 30000)
+  const { data: tasksData } = useApiData<{ tasks: Array<{ category: string; status: string; priority: string }> }>('/api/tasks', 120000)
 
   // Fetch rate-limit logs for Request Volume chart
-  const { data: rateLimitData } = useApiData<{ hourlyData: Array<{ hour: string; total: number }> }>('/api/rate-limit/logs?hours=24&limit=500', 60000)
+  const { data: rateLimitData } = useApiData<{ hourlyData: Array<{ hour: string; total: number }> }>('/api/rate-limit/logs?hours=24&limit=100', 300000)
 
-  // Fetch system data for recent activity
-  const { data: systemData } = useApiData<{ overview?: { recentActivity?: Array<{ event: string; type: string; time: string; source?: string }> } }>('/api/system', 30000)
+  // System data disabled - too heavy for sandbox environment
+  // const { data: systemData } = useApiData<{ overview?: { recentActivity?: Array<{ event: string; type: string; time: string; source?: string }> } }>('/api/system', 300000)
+  const systemData = null as { overview?: { recentActivity?: Array<{ event: string; type: string; time: string; source?: string }> } } | null
 
   // Derive Agent Task Distribution from tasks API
   const agentTaskDistribution = useMemo(() => {

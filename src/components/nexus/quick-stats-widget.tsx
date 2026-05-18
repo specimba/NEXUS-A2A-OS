@@ -26,8 +26,10 @@ export function QuickStatsWidget() {
   const [collapsed, setCollapsed] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 1024px)')
 
-  // Fetch real data from /api/system with 15s refresh
-  const { data: systemData } = useApiData<SystemApiResponse>('/api/system', 15000)
+  // Use static data to prevent OOM from heavy /api/system queries
+  // The /api/system endpoint makes 20+ DB queries which causes OOM in sandbox
+  // const { data: systemData } = useApiData<SystemApiResponse>('/api/system', 300000)
+  const systemData = null as SystemApiResponse | null
 
   // Token budget from system API
   const tokenBudget = useMemo(() => ({
