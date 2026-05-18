@@ -69,23 +69,42 @@ class ISCRunner:
         # Simple download of known templates (you can expand this)
         base_url = "https://raw.githubusercontent.com/wuyoscar/ISC-Bench/main/templates"
         
-        # Example domains (expand as needed)
-        domains = ["cyber", "bio", "chem", "clinical", "finance"]
+        domains = ["cyber", "bio", "chem", "clinical", "finance", "infrastructure", "legal", "social"]
         
         for domain in domains:
             domain_dir = self.templates_dir / domain
             domain_dir.mkdir(exist_ok=True)
             
-            # Download one sample template per domain for now
+            # Try to get template listing from the ISC-Bench API
             try:
-                url = f"{base_url}/{domain}/template_001.json"
-                response = requests.get(url, timeout=10)
-                if response.status_code == 200:
-                    with open(domain_dir / "template_001.json", "w") as f:
-                        f.write(response.text)
-                    print(f"[ISC-Runner] Downloaded {domain}/template_001.json")
+                listing_url = f"https://api.github.com/repos/wuyoscar/ISC-Bench/contents/templates/{domain}"
+                listing_resp = requests.get(listing_url, timeout=10)
+                if listing_resp.status_code == 200:
+                    files = listing_resp.json()
+                    for file_info in files:
+                        if file_info["name"].endswith(".json"):
+                            dl_url = file_info["download_url"]
+                            dl_resp = requests.get(dl_url, timeout=10)
+                            if dl_resp.status_code == 200:
+                                filepath = domain_dir / file_info["name"]
+                                with open(filepath, "w") as f:
+                                    f.write(dl_resp.text)
+                                print(f"[ISC-Runner] Downloaded {domain}/{file_info['name']}")
+                else:
+                    # Fallback: download numbered templates 001-020
+                    for i in range(1, 21):
+                        try:
+                            fname = f"template_{i:03d}.json"
+                            url = f"{base_url}/{domain}/{fname}"
+                            resp = requests.get(url, timeout=10)
+                            if resp.status_code == 200:
+                                with open(domain_dir / fname, "w") as f:
+                                    f.write(resp.text)
+                                print(f"[ISC-Runner] Downloaded {domain}/{fname}")
+                        except Exception:
+                            pass
             except Exception as e:
-                print(f"[ISC-Runner] Warning: Could not download {domain} template: {e}")
+                print(f"[ISC-Runner] Warning: Could not download {domain} templates: {e}")
 
     def load_templates(self, domain: Optional[str] = None) -> List[ISCTemplate]:
         """Load TVD templates"""

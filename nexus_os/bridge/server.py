@@ -19,6 +19,7 @@ Endpoints:
 """
 
 import json
+import os
 import time
 import uuid
 import logging
@@ -202,6 +203,8 @@ class BridgeServer:
         from nexus_os.governor.kaiju_auth import Decision
 
         kaiju = request.kaiju
+        payload = request.payload if isinstance(request.payload, dict) else {}
+        trust_payload = payload.get("trust", {}) if isinstance(payload.get("trust"), dict) else {}
         result = self.governor.check_access(
             agent_id=request.agent_id,
             project_id=request.project_id,
@@ -215,6 +218,14 @@ class BridgeServer:
                 "signature_verified": True,
                 "has_secret": True,
                 "is_registered": True,
+                "lane": kaiju.get("lane") or payload.get("lane") or request.method,
+                "bridge_method": request.method,
+                "payload_keys": sorted(payload.keys()),
+                "requested_clearance": kaiju.get("clearance", "contributor"),
+                "requested_impact": kaiju.get("impact", "low"),
+                "trust_Q": trust_payload.get("Q"),
+                "trust_R": trust_payload.get("R"),
+                "trust_hard_fail": trust_payload.get("hard_fail", False),
             },
         )
 
@@ -279,7 +290,7 @@ class BridgeServer:
 
     # â”€â”€ Handler Dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    
+
     def get_agent_card(self, agent_id: str) -> Dict[str, Any]:
         """A2A v1.1: Expose agent capabilities for inter-agent negotiation."""
         # In production: pull from TrustScorer/AgentCard registry
@@ -290,7 +301,7 @@ class BridgeServer:
             "trust_band": "COMMUNITY_VERIFIED",
             "status": "active"
         }
-        
+
     def get_agent_card(self, agent_id: str) -> Dict[str, Any]:
         """A2A v1.1 Endpoint: Expose capabilities and trust score to external swarms."""
         # In production, this queries the Vault/Governor for dynamic, verified capabilities.
@@ -298,8 +309,8 @@ class BridgeServer:
             "agent_id": agent_id,
             "protocol": "A2A-v1.1",
             "capabilities": [
-                "code_generation", 
-                "governance_audit", 
+                "code_generation",
+                "governance_audit",
                 "swarm_orchestration"
             ],
             "negotiation_policies": {
@@ -308,7 +319,7 @@ class BridgeServer:
             },
             "status": "active"
         }
-    
+
     def handle_request(
         self,
         method: str,
@@ -600,7 +611,10 @@ class BridgeServer:
 
 # â”€â”€ FastAPI Integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
+def create_app(
+    bridge: Optional[BridgeServer] = None,
+    governance_db_path: Optional[str] = None,
+) -> "FastAPI":
     """
     Create a FastAPI application wrapping the BridgeServer.
 
@@ -705,7 +719,119 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "service": "nexus-bridge", "version": "1.0.0"}
+        return {
+            "status": "ok",
+            "service": "nexus-bridge",
+            "version": "1.0.0",
+            "governance_rest_wrapper": True,
+            "governance_db_path": _governance.db_path,
+        }
+
+    # â”€â”€ Governance API Extensions (Port 7352 Canonical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # These endpoints provide RESTful access to the NexusGovernanceMCP engine,
+    # complementing the stdio MCP transport for Claude Desktop/Cursor/Windsurf.
+
+    from nexus_os.mcp.server import NexusGovernanceMCP
+    resolved_governance_db = governance_db_path or os.environ.get("NEXUS_MCP_DB")
+    _governance = NexusGovernanceMCP(db_path=resolved_governance_db)
+
+    @app.post("/skills/propose")
+    async def skills_propose(request: Request):
+        """Submit a skill proposal for governance review."""
+        body = await request.json()
+        skill = body.get("skill", "")
+        params = body.get("params", {})
+        agent_id = body.get("agent_id", "anonymous")
+        provenance = body.get("provenance", "rest")
+        result = _governance.propose_skill(skill, params, agent_id, provenance)
+        return JSONResponse(content=result, status_code=200 if result.get("status") != "error" else 400)
+
+    @app.get("/skills/status/{proposal_id}")
+    async def skills_status(proposal_id: str):
+        """Get proposal status by ID."""
+        rows = _governance.conn.execute(
+            "SELECT * FROM proposals WHERE id=?", (proposal_id,)
+        ).fetchall()
+        if not rows:
+            return JSONResponse(content={"error": "not_found", "id": proposal_id}, status_code=404)
+        return JSONResponse(content=dict(rows[0]), status_code=200)
+
+    @app.get("/dashboard/stats")
+    async def dashboard_stats():
+        """Aggregated dashboard statistics for the Next.js UI."""
+        vault = _governance.get_vault_status()
+        agents = _governance.conn.execute(
+            "SELECT id, trust_score, state, kill_switch, last_heartbeat, resource_used, resource_quota FROM agents"
+        ).fetchall()
+        recent_proposals = _governance.conn.execute(
+            "SELECT id, skill, agent_id, status, verdict, timestamp FROM proposals ORDER BY timestamp DESC LIMIT 20"
+        ).fetchall()
+        return JSONResponse(content={
+            "vault": vault,
+            "agents": [dict(a) for a in agents],
+            "recent_proposals": [dict(p) for p in recent_proposals],
+            "service": "nexus-governance",
+            "version": "2.0.0-ARMED",
+            "rest_wrapper_only": True,
+            "governance_db_path": _governance.db_path,
+            "trust_source": "canonical_trust_kernel",
+        }, status_code=200)
+
+    @app.get("/governance/proposals")
+    async def governance_proposals(status: Optional[str] = None):
+        """List all proposals, optionally filtered by status."""
+        proposals = _governance.list_proposals(status)
+        return JSONResponse(content={"proposals": proposals, "count": len(proposals)}, status_code=200)
+
+    @app.post("/governance/approve")
+    async def governance_approve(request: Request):
+        """Approve or deny a pending proposal."""
+        body = await request.json()
+        proposal_id = body.get("proposal_id", "")
+        approver = body.get("approver", "system")
+        decision = body.get("decision", "deny")
+        result = _governance.approve_proposal(proposal_id, approver, decision)
+        return JSONResponse(content=result, status_code=200 if "error" not in result else 404)
+
+    @app.post("/tasks/heartbeat")
+    async def tasks_heartbeat(request: Request):
+        """Agent heartbeat endpoint. Returns ALIVE/KILLED/QUARANTINED/CIRCUIT_BROKEN."""
+        body = await request.json()
+        agent_id = body.get("agent_id", "")
+        result = _governance.heartbeat(agent_id)
+        return JSONResponse(content=result, status_code=200)
+
+    @app.post("/tasks/result")
+    async def tasks_result(request: Request):
+        """Submit a task result for provenance tracking."""
+        body = await request.json()
+        task_id = body.get("task_id", "")
+        agent_id = body.get("agent_id", "")
+        status = body.get("status", "completed")
+        output = body.get("output", "")
+        error = body.get("error", "")
+        trust_snapshot = _governance.record_task_result(
+            task_id=task_id,
+            agent_id=agent_id,
+            status=status,
+            error=error,
+            lane=body.get("lane", "implementation"),
+        )
+        _governance._log_vap("task_result", {
+            "task_id": task_id,
+            "agent_id": agent_id,
+            "status": status,
+            "output_preview": str(output)[:200],
+            "error_preview": str(error)[:200] if error else None,
+        })
+        return JSONResponse(content={
+            "task_id": task_id,
+            "status": "recorded",
+            "vap_logged": True,
+            "durable_storage": "sqlite",
+            "governance_db_path": _governance.db_path,
+            "trust_snapshot": trust_snapshot,
+        }, status_code=200)
 
     return app
 

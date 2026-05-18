@@ -144,12 +144,14 @@ Closes the TAMAS tools gap: **240 tools across 12 categories** (vs TAMAS's 211).
 
 1. **Azure sub blocked** — All cloud model routing, Foundry pipelines dead. Need alternative inference strategy.
 2. ~~**2 test import errors**~~ Fixed 2026-05-15; latest non-heartbeat verification is 636 passing
-3. **Dashboard needs real Python governance API** — Still using mock/proxy layer on port 3000
+3. **Dashboard needs live Python governance API proof** — REST wrappers on port 7352 now have focused in-process tests, but the dashboard on port 3000 still has not been verified end-to-end against them
 4. **DoppelGround gitleaks** — Not resolved, blocks public repo flip
 5. **Key still in old branches** — master, main branches not scrubbed
 6. **AsyncBridgeExecutor is a stub** — `executor.py:115`, production executor not wired
 7. **CVAVerifier is non-enforcing** — `governor/base.py:329`, authorization reasons now label this instead of claiming full CVA verification
 8. **43 repair scripts in scripts/** — evidence of ongoing breakage cycles
+9. **Cloudflare bypass remains research-only** — the tracked module is disabled by default and not policy-approved production functionality
+10. **Live stress runner now defaults to dry-run** — explicit `--live` is required before any provider call
 
 ---
 

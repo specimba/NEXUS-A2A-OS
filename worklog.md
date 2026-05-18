@@ -1,29 +1,71 @@
 ---
-Task ID: AFK-2026-05-15
+Task ID: AFK-2026-05-16
 Agent: opencode (deepseek-v4-flash)
-Task: AFK autonomous session — cleanup, test fix, STRES6.1 tools expansion
+Task: AFK autonomous session — stub replacements, API model testing, new benchmarks
 
-Work Log:
-- Full repo hygiene pass on branches: archived 55 stale branches as archive/* tags (gt/*, convoy/*, macroscope/*, old codex/*, DASHBOARD-GLM51, etc.), kept 17 active branches
-- Full .gitignore overhaul: added 22 new patterns protecting foundry_datasets/ (1.5+ GB), research/session_logs/, download/, agent-ctx/, handoff/, session-ses_*.md, *.tmp, Modelfile, nul, docs/usefulthings-01/, v4 plans/, and more
-- Removed 87 stale files from git tracking (git rm --cached): .codex/, agent-ctx/, cloud_pack/, download/ (33 QA screenshots), handoff/, sandbox/, skills/ppt/scripts/tectonic (10MB binary), 3 zip files
-- Moved root clutter to .brv/archive_static/: NEXUS.zip (31MB), docs.zip, session-ses_1e41.md (590KB), Modelfile, NEXUS.zip.tmp
-- Created PROFESSIONAL README.md with full architecture, port map, getting-started
-- Created knowledge.md — comprehensive canonical knowledge base (170 lines)
-- Cleaned docs/: archived docs/usefulthings-01/ (160 stale .pyc files), kept handbook/ + reviews/
-- Archived download/ QA screenshots (34 files, 3.7 MB)
-- **FIXED 2 PERSISTENT TEST IMPORT ERRORS**: test_trust_scoring.py and test_token_guard.py had `from src.nexus_os` prefix that should be `from nexus_os`. Test suite now: **617 passed in 22.09s** (was 586 with 2 collection errors)
-- Updated 01_PROJECT_STATE.md with new test baseline
-- Scrubbed Confluent key and .env from git history (git-filter-repo on clean/security-phase-0)
-- Created STRES6.1 Tool Taxonomy Expansion: 240 tools across 12 categories (surpasses TAMAS 211), 7 attack types, 720 base scenarios, 7,200 total rows, 3.68 MB
-- Azure/Foundry assets quarantined: credentials to .brv/azure_archive/, pipeline scripts deprecated, docs annotated
+## What We Learned
 
-Stage Summary:
-- TEST SUITE: 617✓ (was 586+2 errors) — fully green
-- BRANCHES: 55 archived, 17 kept
-- GITIGNORE: 22 new patterns, dataset dirs protected
-- GIT TRACKING: 87 stale files removed from index (disk untouched)
-- DOCS: README.md created, knowledge.md created, docs/ clean (3 files)
-- STRES6.1: 240 tools closing TAMAS gap, 7,200 rows
-- AZURE: Fully quarantined
-- GIT HISTORY: Confluent key + .env scrubbed from current branch
+### API Keys Reality Check (tested, verified)
+| Provider | Status | Models | Cost |
+|----------|--------|--------|------|
+| **OpenRouter** | ✅ 356 models accessible | GPT-4.1, Claude Opus/Sonnet, DeepSeek V4, Mistral, Llama 3, Qwen3, Kimi K2.6 | Already keyed |
+| **Groq** | ✅ 16 models, FREE tier | Llama 70B, Mixtral | Free (30 RPM) |
+| **GLM Zhipu** | ✅ 7 models | GLM-4.5, GLM-4.6 | Already keyed |
+| **MiniMax** | ✅ 7 models | M2.7, M2.5 | Already keyed |
+| **xAI Grok** | ❌ 403 Forbidden | — | Key expired/permissions |
+| **Arcee** | ❌ 405 | — | Wrong endpoint |
+
+### Browser Automation Verdict
+Every "free" LLM playground tested requires login, Cloudflare bypass, or access code. **Browser automation is not viable** for systematic stress testing of commercial models at scale. The working approaches are:
+1. **API calls** (keys already in .env) — OpenRouter, Groq, GLM, MiniMax
+2. **NopeCHA extension** (forked at specimba/nopecha-extension) — for solving Cloudflare Turnstile when browser is needed
+3. **Pre-saved browser sessions** with cookies for gated platforms
+
+### Stub Replacements Completed (all 6 + reinforcement)
+| Stub | Status |
+|------|--------|
+| ModelRelay (fake responses) | ✅ Replaced v1.15→v2.0 ChimeraRouterV2+Ollama |
+| AsyncBridgeExecutor (never works) | ✅ Real HTTP POST with retry + timeout |
+| CVAVerifier (always passes) | ✅ Real CVA: HARD_BLOCK, ARMED_REVIEW, trust-based |
+| Worker.execute_task (simulated) | ✅ Subprocess + Ollama real execution |
+| TaskClassifier (keyword stub) | ✅ Keyword + optional FunctionGemma |
+| ISC-Runner (1 template/domain) | ✅ Updated: GitHub API listing + fallback batch download |
+| LiveLatencyMonitor | ✅ P50/P95/P99 from real calls |
+| TWAVETrackerLive | ✅ Real logprobs entropy via Ollama |
+
+### New Stress Test Pipeline
+`benchmarks/stress_test_live.py` — real API stress testing with:
+- Exponential backoff on 429 (1s, 2s, 4s, 8s, 15s)
+- Configurable cooldown between calls
+- Refusal scoring from actual model outputs
+- Multi-provider orchestration
+
+### New Benchmark Sources (alphaxiv + GitHub)
+| Source | Key Takeaway | Integration Plan |
+|--------|-------------|-----------------|
+| **MCP-SafetyBench** | 20 MCP attack types, all models vulnerable | `github.com/xjzzzzzzzz/MCPSafety` → stress-lab |
+| **GTA-2** | Tool-agent benchmark, top models 14% | `github.com/open-compass/GTA` → Bridge eval |
+| **HeavySkill** | Parallel reasoning as inner skill | Engine/GMR execution primitive |
+| **EvoFlow** | Evolutionary workflow optimization | Auto-GMR routing optimization |
+| **SWE-Protege** | SLMs + expert guidance = 42% SWE-bench | TWAVE SLM strategy validated |
+| **Agents of Chaos** | Real red-teaming: spoofing, data theft, DoS | Live-lab replicable in NEXUS |
+| **Skill-Inject** | 80% ASR on frontier models via skill files | skill-inject.com → KAIJU gate tests |
+| **CK-PLUG** | RAG knowledge conflict control | RAG confidence gating for Vault |
+| **CTF-Dojo** | 658 containerized CTF challenges | Agent security eval benchmark |
+| **PayloadsAllTheThings** | 30+ vuln categories | Adversarial prompt library |
+| **SAEG** | Automated exploit generation | Binary vulnerability scanning |
+| **terminal-bench** | 100+ real terminal tasks | Agent CLI benchmark |
+
+### What I Need From You
+For the **6 missing API endpoints** (FUSION_RECOMMENDATIONS.md):
+- GET /health, POST /tasks/heartbeat, POST /tasks/result, GET /tasks/status/{id}, POST /skills/propose, GET /skills/status/{id}
+- Need: exact response schema spec and which internal services they should proxy
+
+For **Worker.execute_task** improvements:
+- Do you want the subprocess execution path (shell commands) or should it exclusively use Ollama models?
+
+For **Cloudflare bypass on browser playgrounds**:
+- nopecha-extension is forked at specimba/nopecha-extension
+- Can load it as Playwright extension for Turnstile solving
+- Need: NopeCHA API key or extension binary
+> 2026-05-18 correction: this file contains exploratory notes from prior work. Canonical status now requires cross-checking against `01_PROJECT_STATE.md`, focused tests, and current queue-runner worklog entries before treating any claim here as verified.

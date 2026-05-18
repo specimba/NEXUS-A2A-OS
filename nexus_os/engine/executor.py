@@ -254,14 +254,34 @@ class TaskExecutor:
     ) -> ExecutionResult:
         try:
             result = self.backend.execute(task_id, description, context)
+            agent_id = result.agent_id or context.get("agent_id")
             if result.success:
                 self._update_status(task_id, TaskStatus.COMPLETED)
-                if self.trust_scorer and result.agent_id:
-                    self.trust_scorer.record_success(result.agent_id)
+                if self.trust_scorer and agent_id:
+                    if hasattr(self.trust_scorer, "record_task_outcome"):
+                        self.trust_scorer.record_task_outcome(
+                            agent_id=agent_id,
+                            task_id=task_id,
+                            success=True,
+                            lane=context.get("lane", "implementation"),
+                            source="task_executor",
+                        )
+                    else:
+                        self.trust_scorer.record_success(agent_id)
             else:
                 self._update_status(task_id, TaskStatus.FAILED)
-                if self.trust_scorer and result.agent_id:
-                    self.trust_scorer.record_failure(result.agent_id)
+                if self.trust_scorer and agent_id:
+                    if hasattr(self.trust_scorer, "record_task_outcome"):
+                        self.trust_scorer.record_task_outcome(
+                            agent_id=agent_id,
+                            task_id=task_id,
+                            success=False,
+                            lane=context.get("lane", "implementation"),
+                            error=result.error,
+                            source="task_executor",
+                        )
+                    else:
+                        self.trust_scorer.record_failure(agent_id)
             logger.info(
                 "Task %s: %s (%.1fms)",
                 task_id, "OK" if result.success else f"FAIL: {result.error}",

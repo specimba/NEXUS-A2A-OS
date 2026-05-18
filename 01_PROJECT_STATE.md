@@ -1,8 +1,8 @@
 # NEXUS OS - Canonical Project State
 
-Date: 2026-05-15
-Current local HEAD: a14229c on `main` tracking `github/clean/security-phase-0`
-Status: Phase 0 hardened baseline under integrity reconciliation; several execution paths are explicitly non-production.
+Date: 2026-05-17
+Current local HEAD: main (post-governance-endpoints)
+Status: Phase 0 hardened baseline; governance REST wrappers on port 7352 are focused-test verified against an isolated SQLite path; Cloudflare bypass code is present but disabled-by-default and research-only.
 
 ## Verification Gate
 
@@ -90,7 +90,7 @@ Port 3000 — Full 8-pillar command center:
 ## Critical Blockers
 
 1. DoppelGround leak status must be resolved before external handoff or public repo flip.
-2. Dashboard/relay still needs real governance API wiring.
+2. Dashboard/relay still needs live governance API wiring proof in the running dashboard. Port 7352 REST wrappers exist and pass focused in-process tests, but that is not the same as end-to-end dashboard verification.
 3. GSPP reference assets need reconciliation before they become canonical.
 4. Public launch files still need security/legal review before staging.
 5. Sandbox/mock env files must not be committed without an explicit policy decision.
@@ -101,21 +101,45 @@ Port 3000 — Full 8-pillar command center:
 2. Keep Git clean with explicit-path staging only.
 3. Triage DoppelGround gitleaks report to real secret vs false positive.
 4. Add or update a canonical integration ledger for repos, ports, APIs, and protected files.
-5. Build Python/FastAPI governance endpoints: `/skills/propose`, `/skills/status/{id}`, `/dashboard/stats`, `/governance/proposals`, `/governance/approve`.
+5. Python/FastAPI governance REST wrappers now exist for `/skills/propose`, `/skills/status/{id}`, `/dashboard/stats`, `/governance/proposals`, `/governance/approve`, `/tasks/heartbeat`, and `/tasks/result`. Focused verification is in-process via `python -m pytest tests/bridge/test_governance_api.py -q -p no:cacheprovider`; public server binding was not part of this verification.
 6. Update dashboard/relay to consume the Python governance API.
 7. Add `nexus-scan.py` as dry-run provenance inventory only.
 8. Add `model_arena/mini_arena.py` as report-only evidence collection.
 9. Build `nexus_knowledge_base/` from sanitized DoppelGround exports with evidence hashes and quality labels.
 10. Handoff to external teams only after security and governance API gates pass.
+11. Keep Cloudflare bypass research isolated and disabled by default unless policy explicitly approves a local-only use case.
 
 ## Port Map
 
-| Port | Service | Protocol |
-|------|---------|----------|
-| 3000 | Next.js Dashboard (Cloud) | HTTP |
-| 7352 | Nexus governance/control API | FastAPI |
-| 7353 | TWAVE wrapper (`/twave/*`) | HTTP |
-| 11434 | Local Ollama (internal only) | HTTP |
+| Port | Service | Protocol | Key Endpoints |
+|------|---------|----------|---------------|
+| 3000 | Next.js Dashboard (Cloud) | HTTP | Overview, StressLab, GMR, Governor, Vault, Research, Swarm, Token Budget |
+| 7352 | Nexus governance/control API | FastAPI | `/skills/propose`, `/skills/status/{id}`, `/dashboard/stats`, `/governance/proposals`, `/governance/approve`, `/tasks/heartbeat`, `/tasks/result`, `/tasks/submit`, `/tasks/status`, `/vault/read`, `/vault/write`, `/health` |
+| 7353 | TWAVE wrapper (`/twave/*`) | HTTP | Low-VRAM execution, ChimeraRouterV2, QWAVE budget allocator |
+| 11434 | Local Ollama (internal only) | HTTP | Model inference, embeddings, token-level entropy |
+
+## New Modules (2026-05-17)
+
+### Cloudflare Bypass Stack (`nexus_os/bridge/cloudflare_bypass.py`)
+Research-only module for Cloudflare-protected API experiments. Current status:
+- **Layer 1**: cloudscraper25 (enhanced fork) — JS challenges, v3 support
+- **Layer 2**: curl_cffi — TLS fingerprint impersonation (Chrome/Safari/Edge)
+- **Layer 3**: FlareSolverr — Docker-based headless browser for heavy protection
+- **Layer 4**: nexCHA — Open-source Turnstile solver (from NopeCHALLC, forked at specimba/nopecha-extension)
+
+The module now hard-fails closed unless `NEXUS_ENABLE_CLOUDFLARE_BYPASS=1` is set for approved local research, and the CLI output no longer prints cookie values.
+
+Usage:
+```python
+from nexus_os.bridge.cloudflare_bypass import CloudflareBypassStack
+os.environ["NEXUS_ENABLE_CLOUDFLARE_BYPASS"] = "1"
+bypass = CloudflareBypassStack()
+result = bypass.fetch("https://api.cloudflare-protected.com/v1")
+```
+
+### Governance API Runner (`run_governance_api.py`)
+Single-command launcher for the canonical FastAPI governance server on port 7352.
+All endpoints proxy to the `NexusGovernanceMCP` engine (same as stdio MCP server). Current proof is wrapper-level only, with isolated SQLite test coverage rather than a long-lived production durability claim.
 
 ## TrustEngine v2.2 Configuration
 
@@ -123,9 +147,9 @@ Port 3000 — Full 8-pillar command center:
 |-----------|-------|---------|
 | Baseline Score | 25.0 | Starting trust for new agents |
 | Max Score | 99.5 | Asymptotic plateau (never 100) |
-| Success Delta | 4.0 × logistic(T) | Anti-gaming via logistic scaling |
+| Success Delta | 4.0 x logistic(T) | Anti-gaming via logistic scaling |
 | Failure Delta | -10.0 | Standard failure penalty |
 | CRITICAL Delta | -20.0 | Non-compensatory hard block |
-| Base Decay λ | 0.02 | Temporal decay rate |
+| Base Decay | 0.02 | Temporal decay rate |
 | CDR Collapse | <15.0 | Minimum trust for collapse |
 | CDR Escalation | <30.0 | Threshold for degraded reasoning |

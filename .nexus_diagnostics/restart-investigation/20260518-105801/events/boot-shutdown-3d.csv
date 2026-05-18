@@ -1,0 +1,26 @@
+"TimeCreated","ProviderName","Id","Message"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","12","LSASS.exe was started as a protected process with level: 4."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-Kernel-Power","41","The system has rebooted without cleanly shutting down first. This error could be caused if the system stopped responding, crashed, or lost power unexpectedly."
+"05/18/2026 2:08:58 AM","EventLog","6008","The previous system shutdown at 1:07:16 AM on ‎5/‎18/‎2026 was unexpected."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-General","12","The operating system started at system time ‎2026‎-‎05‎-‎17T23:08:34.500000000Z."
+"05/17/2026 1:07:12 PM","Microsoft-Windows-Wininit","12","LSASS.exe was started as a protected process with level: 4."
+"05/17/2026 1:06:51 PM","Microsoft-Windows-Kernel-General","12","The operating system started at system time ‎2026‎-‎05‎-‎17T10:06:50.500000000Z."
+"05/17/2026 11:05:09 AM","Microsoft-Windows-Kernel-General","13","The operating system is shutting down at system time ‎2026‎-‎05‎-‎17T08:05:09.304149900Z."
+"05/17/2026 11:04:59 AM","User32","1074","The process C:\Windows\servicing\TrustedInstaller.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Upgrade (Planned)
+ Reason Code: 0x80020003
+ Shutdown Type: restart
+ Comment: "
+"05/17/2026 11:04:36 AM","Microsoft-Windows-Wininit","12","LSASS.exe was started as a protected process with level: 4."
+"05/17/2026 11:04:06 AM","Microsoft-Windows-Kernel-General","12","The operating system started at system time ‎2026‎-‎05‎-‎17T08:04:03.500000000Z."
+"05/17/2026 7:29:01 AM","Microsoft-Windows-Kernel-General","13","The operating system is shutting down at system time ‎2026‎-‎05‎-‎17T04:29:01.424108000Z."
+"05/17/2026 7:28:53 AM","User32","1074","The process C:\Windows\servicing\TrustedInstaller.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Upgrade (Planned)
+ Reason Code: 0x80020003
+ Shutdown Type: restart
+ Comment: "
+"05/17/2026 7:28:23 AM","Microsoft-Windows-Wininit","12","LSASS.exe was started as a protected process with level: 4."
+"05/17/2026 7:28:00 AM","Microsoft-Windows-Kernel-General","12","The operating system started at system time ‎2026‎-‎05‎-‎17T04:27:59.500000000Z."
+"05/17/2026 7:26:59 AM","Microsoft-Windows-Kernel-General","13","The operating system is shutting down at system time ‎2026‎-‎05‎-‎17T04:26:59.681884900Z."
+"05/17/2026 7:26:05 AM","User32","1074","The process C:\Windows\uus\AMD64\MoUsoCoreWorker.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Service pack (Planned)
+ Reason Code: 0x80020010
+ Shutdown Type: restart
+ Comment: "

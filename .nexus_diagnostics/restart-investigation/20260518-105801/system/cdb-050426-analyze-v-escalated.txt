@@ -1,0 +1,10 @@
+
+Microsoft (R) Windows Debugger Version 10.0.19041.685 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+
+Loading Dump File [C:\Windows\Minidump\050426-23750-01.dmp]
+Could not open dump file [C:\Windows\Minidump\050426-23750-01.dmp], Win32 error 0n5
+    "Access is denied."
+Debuggee initialization failed, Win32 error 0n5
+Access is denied.
