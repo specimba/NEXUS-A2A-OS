@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { CommandDialog, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty, CommandShortcut } from '@/components/ui/command'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
@@ -20,6 +23,8 @@ import {
   GitBranch, Package, Lock, FileText, Target, Sparkles,
   Menu, X, Command, Timer, ShieldCheck, Flame,
   Loader2, Archive, Bug, LayoutGrid,
+  ArrowUp, ArrowDown, Disc, RadioTower, Stethoscope,
+  CheckCheck, Trash2, ExternalLink,
 } from 'lucide-react'
 
 // ─── Dynamic imports for full tab components (ssr: false avoids hydration mismatch) ──
@@ -364,6 +369,21 @@ function NetworkTopology() {
   )
 }
 
+type TrendDirection = 'up' | 'down'
+
+interface HealthMetric {
+  value: number
+  trend: TrendDirection
+  history: number[]
+}
+
+interface HealthMetrics {
+  cpu: HealthMetric
+  memory: HealthMetric
+  diskIO: HealthMetric
+  networkIO: HealthMetric
+}
+
 // ─── Main Dashboard Component ──────────────────────────────────────────────
 
 export function NexusDashboard() {
@@ -383,6 +403,26 @@ export function NexusDashboard() {
   const [uptime, setUptime] = useState('00:00:00')
   const startTimeRef = useRef(0)
   const alertListRef = useRef<HTMLDivElement>(null)
+
+  // Notification Center state
+  const [notifications, setNotifications] = useState<Array<{
+    id: number; severity: 'critical' | 'warning' | 'info' | 'success';
+    message: string; source: string; time: number; read: boolean;
+  }>>([])
+  const [notifOpen, setNotifOpen] = useState(false)
+
+  // Command Palette state
+  const [commandOpen, setCommandOpen] = useState(false)
+
+  // Diagnostics state
+  const [diagRunning, setDiagRunning] = useState(false)
+  const [diagProgress, setDiagProgress] = useState(0)
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetrics>({
+    cpu: { value: 34, trend: 'up', history: [28, 30, 32, 31, 34] },
+    memory: { value: 58, trend: 'down', history: [62, 60, 59, 61, 58] },
+    diskIO: { value: 42, trend: 'up', history: [35, 38, 40, 39, 42] },
+    networkIO: { value: 67, trend: 'up', history: [55, 60, 63, 65, 67] },
+  })
 
   // Mount effect - resolve timestamps client-side only
   useEffect(() => {
@@ -441,6 +481,106 @@ export function NexusDashboard() {
     if (alertListRef.current) alertListRef.current.scrollTop = 0
   }, [alerts])
 
+  // Initialize notifications from alert data
+  useEffect(() => {
+    const now = Date.now()
+    setNotifications(alertFeedData.map(a => ({
+      id: a.id,
+      severity: a.severity,
+      message: a.message,
+      source: a.source,
+      time: now - a.offsetMs,
+      read: false,
+    })))
+  }, [])
+
+  // Sync new alerts to notifications
+  useEffect(() => {
+    if (alerts.length === 0) return
+    const latestAlert = alerts[0]
+    setNotifications(prev => {
+      if (prev.some(n => n.id === latestAlert.id)) return prev
+      return [{ ...latestAlert, read: false }, ...prev].slice(0, 20)
+    })
+  }, [alerts])
+
+  // Update health metrics periodically
+  useEffect(() => {
+    const i = setInterval(() => {
+      const getTrend = (): TrendDirection => Math.random() > 0.5 ? 'up' : 'down'
+      setHealthMetrics(prev => ({
+        cpu: {
+          value: Math.max(5, Math.min(95, prev.cpu.value + Math.floor(Math.random() * 10) - 5)),
+          trend: getTrend(),
+          history: [...prev.cpu.history.slice(1), Math.max(5, Math.min(95, prev.cpu.value + Math.floor(Math.random() * 10) - 5))],
+        },
+        memory: {
+          value: Math.max(30, Math.min(90, prev.memory.value + Math.floor(Math.random() * 6) - 3)),
+          trend: getTrend(),
+          history: [...prev.memory.history.slice(1), Math.max(30, Math.min(90, prev.memory.value + Math.floor(Math.random() * 6) - 3))],
+        },
+        diskIO: {
+          value: Math.max(10, Math.min(80, prev.diskIO.value + Math.floor(Math.random() * 8) - 4)),
+          trend: getTrend(),
+          history: [...prev.diskIO.history.slice(1), Math.max(10, Math.min(80, prev.diskIO.value + Math.floor(Math.random() * 8) - 4))],
+        },
+        networkIO: {
+          value: Math.max(20, Math.min(90, prev.networkIO.value + Math.floor(Math.random() * 10) - 5)),
+          trend: getTrend(),
+          history: [...prev.networkIO.history.slice(1), Math.max(20, Math.min(90, prev.networkIO.value + Math.floor(Math.random() * 10) - 5))],
+        },
+      }))
+    }, 3000)
+    return () => clearInterval(i)
+  }, [])
+
+  // Keyboard shortcut for command palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Notification helpers
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications])
+
+  const markAllRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  }, [])
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([])
+  }, [])
+
+  const markAsRead = useCallback((id: number) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  }, [])
+
+  // Run diagnostics
+  const runDiagnostics = useCallback(() => {
+    if (diagRunning) return
+    setDiagRunning(true)
+    setDiagProgress(0)
+    let progress = 0
+    const interval = setInterval(() => {
+      progress += Math.random() * 15 + 5
+      if (progress >= 100) {
+        progress = 100
+        clearInterval(interval)
+        setTimeout(() => {
+          setDiagRunning(false)
+          setDiagProgress(0)
+        }, 800)
+      }
+      setDiagProgress(Math.min(100, Math.round(progress)))
+    }, 400)
+  }, [diagRunning])
+
   const errorRateColor = errorRate > 2 ? 'text-red-500' : errorRate > 1 ? 'text-yellow-500' : 'text-emerald-500'
   const alertSeverityConfig = {
     critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
@@ -487,7 +627,7 @@ export function NexusDashboard() {
   // ─── Overview Tab ─────────────────────────────
   function OverviewTab() {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 stagger-grid">
         {/* System Status Header */}
         <div className="flex items-center gap-3">
           <span className="relative flex h-2.5 w-2.5">
@@ -495,7 +635,7 @@ export function NexusDashboard() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
           <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">System Operational</span>
-          <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30">
+          <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30 live-badge-glow">
             <span className="relative flex h-1.5 w-1.5 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
             LIVE
           </Badge>
@@ -505,7 +645,7 @@ export function NexusDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {healthPillars.map((pillar) => (
             <Card key={pillar.name} className={cn(
-              'bg-card/50 hover:scale-[1.03] transition-all duration-200 cursor-default',
+              'glass-card-hover hover:scale-[1.03] cursor-default',
               pillar.status === 'degraded'
                 ? 'border-yellow-600/30 bg-gradient-to-br from-yellow-600/5 to-transparent'
                 : 'border-border/50 bg-gradient-to-br from-emerald-600/5 to-transparent'
@@ -532,7 +672,7 @@ export function NexusDashboard() {
         </div>
 
         {/* Live Metrics */}
-        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+        <Card className="glass-card-hover border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -569,7 +709,7 @@ export function NexusDashboard() {
 
         {/* Network Topology & Alert Feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="bg-card/50 border-border/50">
+          <Card className="glass-card-hover border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Wifi className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -587,7 +727,7 @@ export function NexusDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card className="glass-card-hover border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -617,7 +757,7 @@ export function NexusDashboard() {
         </div>
 
         {/* System Performance Chart */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -631,7 +771,7 @@ export function NexusDashboard() {
 
         {/* Request Volume & Agent Task Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="bg-card/50 border-border/50">
+          <Card className="glass-card-hover border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -643,7 +783,7 @@ export function NexusDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card className="glass-card-hover border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -672,29 +812,174 @@ export function NexusDashboard() {
           </Card>
         </div>
 
-        {/* Constitutional Rules */}
-        <Card className="bg-card/50 border-border/50">
+        {/* System Health Diagnostics */}
+        <Card className="glass-card-hover border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Constitutional Rules
-              <Badge variant="outline" className="text-[9px] ml-auto">{constitutionalRules.length} Active</Badge>
+              <Stethoscope className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              System Health Diagnostics
+              {diagRunning && (
+                <Badge className="text-[9px] bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-0 animate-pulse">
+                  Scanning...
+                </Badge>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto h-6 text-[9px] gap-1 border-emerald-600/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+                onClick={runDiagnostics}
+                disabled={diagRunning}
+              >
+                {diagRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                {diagRunning ? `${diagProgress}%` : 'Run Diagnostics'}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {constitutionalRules.map((rule) => (
-                <div key={rule.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20">
-                  <Badge variant="outline" className={cn('text-[8px] shrink-0', rule.severity === 'critical' ? 'border-red-500/30 text-red-500' : rule.severity === 'warning' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
-                    {rule.severity.toUpperCase()}
-                  </Badge>
-                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">{rule.id}</span>
-                  <span className="text-xs truncate flex-1">{rule.name}</span>
-                </div>
-              ))}
+            {diagRunning && (
+              <div className="mb-3">
+                <Progress value={diagProgress} className="h-1.5 [&>div]:bg-emerald-500" />
+              </div>
+            )}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { key: 'cpu', label: 'CPU Usage', icon: Cpu, unit: '%', data: healthMetrics.cpu },
+                { key: 'memory', label: 'Memory', icon: HardDrive, unit: '%', data: healthMetrics.memory },
+                { key: 'diskIO', label: 'Disk I/O', icon: Disc, unit: 'MB/s', data: healthMetrics.diskIO },
+                { key: 'networkIO', label: 'Network I/O', icon: RadioTower, unit: 'MB/s', data: healthMetrics.networkIO },
+              ].map((metric) => {
+                const val = metric.data.value
+                const color = val >= 80 ? 'red' : val >= 60 ? 'yellow' : 'emerald'
+                const TrendIcon = metric.data.trend === 'up' ? ArrowUp : ArrowDown
+                return (
+                  <div key={metric.key} className={cn(
+                    'p-3 rounded-lg border transition-all duration-500',
+                    color === 'red' ? 'border-red-500/30 bg-red-500/5' :
+                    color === 'yellow' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                    'border-emerald-500/30 bg-emerald-500/5'
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <metric.icon className={cn('h-3.5 w-3.5', color === 'red' ? 'text-red-500' : color === 'yellow' ? 'text-yellow-500' : 'text-emerald-500')} />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{metric.label}</span>
+                      <TrendIcon className={cn(
+                        'h-3 w-3 ml-auto',
+                        metric.data.trend === 'up'
+                          ? (val >= 80 ? 'text-red-500' : 'text-emerald-500')
+                          : 'text-yellow-500'
+                      )} />
+                    </div>
+                    <div className="flex items-end gap-1 mb-2">
+                      <span className={cn('text-2xl font-bold tabular-nums smooth-number', color === 'red' ? 'text-red-500' : color === 'yellow' ? 'text-yellow-500' : 'text-emerald-500')}>
+                        {val}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground mb-1">{metric.unit}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full transition-all duration-700', color === 'red' ? 'bg-red-500' : color === 'yellow' ? 'bg-yellow-500' : 'bg-emerald-500')}
+                        style={{ width: `${val}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 h-5">
+                      <SparklineSVG
+                        data={metric.data.history}
+                        color={color === 'red' ? '#ef4444' : color === 'yellow' ? '#eab308' : '#10b981'}
+                        height={20}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
+
+        {/* Activity Timeline & Constitutional Rules */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Activity Timeline */}
+          <Card className="glass-card-hover border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Activity Timeline
+                <Badge variant="outline" className="text-[9px] ml-auto">Live</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <ScrollArea className="max-h-[320px]">
+                <div className="relative pl-6 space-y-0">
+                  {/* Timeline line */}
+                  <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
+
+                  {[
+                    { time: '2s ago', type: 'success', icon: CheckCircle2, desc: 'Health check passed — all pillars OK', source: 'Monitor' },
+                    { time: '15s ago', type: 'info', icon: Info, desc: 'Model failover triggered for gemma-fast', source: 'ModelRelay' },
+                    { time: '32s ago', type: 'warning', icon: AlertTriangle, desc: 'Memory usage approaching 80%', source: 'System' },
+                    { time: '1m ago', type: 'success', icon: CheckCircle2, desc: 'Constitutional check passed for all rules', source: 'Governor' },
+                    { time: '2m ago', type: 'info', icon: Info, desc: 'Token budget reset for new cycle', source: 'Tokens' },
+                    { time: '3m ago', type: 'critical', icon: XCircle, desc: 'Provider dashscope rate limit exceeded', source: 'Gateway' },
+                    { time: '5m ago', type: 'warning', icon: AlertTriangle, desc: 'Agent worker-2 trust score below 0.8', source: 'Governor' },
+                    { time: '8m ago', type: 'success', icon: CheckCircle2, desc: 'Pool rebalance completed successfully', source: 'GMR' },
+                    { time: '12m ago', type: 'info', icon: Info, desc: 'Research task #47 completed by worker-1', source: 'Swarm' },
+                    { time: '15m ago', type: 'success', icon: CheckCircle2, desc: 'Circuit breaker reset for scaleway', source: 'Gateway' },
+                  ].map((event, i) => {
+                    const colorMap = {
+                      success: { dot: 'bg-emerald-500', ring: 'ring-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
+                      warning: { dot: 'bg-yellow-500', ring: 'ring-yellow-500/20', text: 'text-yellow-600 dark:text-yellow-400' },
+                      critical: { dot: 'bg-red-500', ring: 'ring-red-500/20', text: 'text-red-600 dark:text-red-400' },
+                      info: { dot: 'bg-blue-500', ring: 'ring-blue-500/20', text: 'text-blue-600 dark:text-blue-400' },
+                    }
+                    const c = colorMap[event.type as keyof typeof colorMap]
+                    return (
+                      <div key={i} className="relative pb-4 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+                        {/* Timeline dot */}
+                        <div className={cn('absolute -left-6 top-0.5 h-[18px] w-[18px] rounded-full border-2 border-background ring-2 flex items-center justify-center', c.dot, c.ring)}>
+                          <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-background" />
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <event.icon className={cn('h-3 w-3 shrink-0', c.text)} />
+                              <span className="text-xs font-medium truncate">{event.desc}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[7px] h-4">{event.source}</Badge>
+                              <span className="text-[9px] text-muted-foreground" suppressHydrationWarning>{mounted ? event.time : '...'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Constitutional Rules */}
+          <Card className="glass-card-hover border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Constitutional Rules
+                <Badge variant="outline" className="text-[9px] ml-auto">{constitutionalRules.length} Active</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {constitutionalRules.map((rule) => (
+                  <div key={rule.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20">
+                    <Badge variant="outline" className={cn('text-[8px] shrink-0', rule.severity === 'critical' ? 'border-red-500/30 text-red-500' : rule.severity === 'warning' ? 'border-yellow-500/30 text-yellow-500' : 'border-blue-500/30 text-blue-500')}>
+                      {rule.severity.toUpperCase()}
+                    </Badge>
+                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">{rule.id}</span>
+                    <span className="text-xs truncate flex-1">{rule.name}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -706,7 +991,7 @@ export function NexusDashboard() {
     return (
       <div className="space-y-5">
         {/* Provider Health Summary */}
-        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+        <Card className="glass-card-hover border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardContent className="p-4">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
@@ -729,7 +1014,7 @@ export function NexusDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {providers.map((p) => (
             <Card key={p.name} className={cn(
-              'bg-card/50 hover:scale-[1.02] transition-all duration-200',
+              'glass-card-hover hover:scale-[1.02] transition-all duration-200',
               p.status === 'degraded' ? 'border-yellow-600/30' : p.status === 'inactive' ? 'border-red-600/20' : p.status === 'unknown' ? 'border-gray-500/20' : 'border-border/50',
               p.status === 'degraded' ? 'bg-gradient-to-br from-yellow-600/5 to-transparent' : ''
             )}>
@@ -778,7 +1063,7 @@ export function NexusDashboard() {
       <div className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {agents.map((a) => (
-            <Card key={a.name} className={cn('bg-card/50 border-border/50 hover:scale-[1.02] transition-all duration-200', a.status === 'warning' ? 'border-l-2 border-l-yellow-500' : 'border-l-2 border-l-emerald-500')}>
+            <Card key={a.name} className={cn('glass-card-hover border-border/50 hover:scale-[1.02] transition-all duration-200', a.status === 'warning' ? 'border-l-2 border-l-yellow-500' : 'border-l-2 border-l-emerald-500')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className={cn('h-2.5 w-2.5 rounded-full', a.status === 'active' ? 'bg-emerald-500 status-pulse-green' : 'bg-yellow-500 animate-pulse')} />
@@ -807,7 +1092,7 @@ export function NexusDashboard() {
         </div>
 
         {/* Agent Activity Log */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -849,7 +1134,7 @@ export function NexusDashboard() {
             { name: 'MID', models: ['qwen3-coder', 'kimi-k2.5', 'gpt-oss-120b'], health: 89, color: 'blue' },
             { name: 'FAST', models: ['gemma-fast', 'nemotron-3-super'], health: 94, color: 'orange' },
           ].map(pool => (
-            <Card key={pool.name} className={cn('bg-card/50 border-border/50', pool.color === 'emerald' ? 'bg-gradient-to-br from-emerald-600/5 to-transparent' : pool.color === 'blue' ? 'bg-gradient-to-br from-blue-600/5 to-transparent' : 'bg-gradient-to-br from-orange-600/5 to-transparent')}>
+            <Card key={pool.name} className={cn('glass-card-hover border-border/50', pool.color === 'emerald' ? 'bg-gradient-to-br from-emerald-600/5 to-transparent' : pool.color === 'blue' ? 'bg-gradient-to-br from-blue-600/5 to-transparent' : 'bg-gradient-to-br from-orange-600/5 to-transparent')}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <Badge variant="outline" className={cn('text-[10px]', pool.color === 'emerald' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : pool.color === 'blue' ? 'border-blue-600/30 text-blue-600 dark:text-blue-400' : 'border-orange-600/30 text-orange-600 dark:text-orange-400')}>
@@ -874,7 +1159,7 @@ export function NexusDashboard() {
         </div>
 
         {/* GMR Routing Strategy */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -907,7 +1192,7 @@ export function NexusDashboard() {
     return (
       <div className="space-y-5">
         {/* Governor Status */}
-        <Card className="bg-card/50 border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
+        <Card className="glass-card-hover border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-xl bg-emerald-600/10 border border-emerald-600/30 flex items-center justify-center">
@@ -930,7 +1215,7 @@ export function NexusDashboard() {
         </Card>
 
         {/* Constitutional Rules */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Scale className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -954,7 +1239,7 @@ export function NexusDashboard() {
         </Card>
 
         {/* Governance Log */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -997,7 +1282,7 @@ export function NexusDashboard() {
       <div className="space-y-5">
         {/* Token Budget Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className={cn('bg-card/50 border-border/50', pct > 80 ? 'budget-alert-pulse border-red-600/30' : '')}>
+          <Card className={cn('glass-card-hover border-border/50', pct > 80 ? 'budget-alert-pulse border-red-600/30' : '')}>
             <CardContent className="p-4">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Global Token Budget</div>
               <div className="flex items-end gap-2 mb-2">
@@ -1014,7 +1299,7 @@ export function NexusDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card className="glass-card-hover border-border/50">
             <CardContent className="p-4">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Session Budget</div>
               <div className="flex items-end gap-2 mb-2">
@@ -1033,7 +1318,7 @@ export function NexusDashboard() {
         </div>
 
         {/* Token Consumption by Model */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="glass-card-hover border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1108,16 +1393,16 @@ export function NexusDashboard() {
             const groupTabs = TABS.filter(t => t.group === group)
             if (groupTabs.length === 0) return null
             return (
-              <div key={group} className="mb-2">
+              <div key={group} className="sidebar-group-bg mb-2">
                 <div className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 py-1.5">{group}</div>
                 {groupTabs.map(tab => {
                   const Icon = tab.icon
                   return (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-all duration-150',
+                        'sidebar-item-hover w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-all duration-200',
                         activeTab === tab.id
-                          ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-600/20'
+                          ? 'sidebar-active-item bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-600/20'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                       )}>
                       <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -1168,15 +1453,14 @@ export function NexusDashboard() {
       {/* Main Area */}
       <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <header className="relative flex h-12 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4">
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
+        <header className="header-gradient-border relative flex h-12 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4">
 
           <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-4 w-4" />
           </Button>
 
           <div className="hidden sm:flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
+            <span className="relative flex h-2 w-2 online-status-glow"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
             <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Online</span>
           </div>
 
@@ -1206,7 +1490,88 @@ export function NexusDashboard() {
           </Badge>
 
           {/* Clock */}
-          <span className="hidden md:inline text-[10px] font-mono tabular-nums text-muted-foreground" suppressHydrationWarning>{clock}</span>
+          <span className="hidden md:inline text-[10px] font-mono tabular-nums text-muted-foreground clock-digit" suppressHydrationWarning>{clock}</span>
+
+          {/* Notification Center */}
+          <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 relative">
+                <Bell className="h-3.5 w-3.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[7px] font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-semibold">Notifications</span>
+                  {unreadCount > 0 && (
+                    <Badge className="text-[8px] bg-red-500/15 text-red-600 dark:text-red-400 border-0 px-1.5">{unreadCount} new</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1.5 gap-0.5" onClick={markAllRead}>
+                      <CheckCheck className="h-3 w-3" /> Read all
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1.5 gap-0.5 text-red-500 hover:text-red-400" onClick={clearAllNotifications}>
+                      <Trash2 className="h-3 w-3" /> Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <Bell className="h-6 w-6 text-muted-foreground/30" />
+                    <span className="text-xs text-muted-foreground">No notifications</span>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {notifications.slice(0, 10).map((notif) => {
+                      const config = alertSeverityConfig[notif.severity]
+                      const Icon = config.icon
+                      return (
+                        <button
+                          key={notif.id}
+                          className={cn(
+                            'w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-accent/30 transition-colors',
+                            !notif.read && 'bg-emerald-500/5'
+                          )}
+                          onClick={() => markAsRead(notif.id)}
+                        >
+                          <Icon className={cn('h-3.5 w-3.5 shrink-0 mt-0.5', config.color)} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={cn('text-xs', !notif.read && 'font-semibold')}>{notif.message}</span>
+                              {!notif.read && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge variant="outline" className="text-[7px] h-3.5 px-1">{notif.source}</Badge>
+                              <span className="text-[9px] text-muted-foreground" suppressHydrationWarning>{mounted ? getRelativeTime(notif.time) : '...'}</span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+
+          {/* Search / Command Palette Trigger */}
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-[10px] text-muted-foreground hidden sm:flex" onClick={() => setCommandOpen(true)}>
+            <Search className="h-3 w-3" />
+            <span className="hidden lg:inline">Search...</span>
+            <kbd className="hidden lg:inline-flex h-4 items-center gap-0.5 rounded border border-border/50 bg-muted px-1 text-[8px] font-mono">⌘K</kbd>
+          </Button>
 
           {/* Theme Toggle */}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
@@ -1218,14 +1583,13 @@ export function NexusDashboard() {
         {/* Content */}
         <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-background">
           <div className="pointer-events-none absolute inset-0 grid-pattern-animated opacity-40" />
-          <div className="relative z-10 p-4 md:p-6 animate-fade-in min-h-[50vh]" key={activeTab}>
+          <div className="relative z-10 p-4 md:p-6 tab-content-transition min-h-[50vh]" key={activeTab}>
             {renderTabContent()}
           </div>
         </main>
 
         {/* Footer */}
-        <footer className="relative shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent" />
+        <footer className="footer-gradient-top footer-bg-gradient relative shrink-0 flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS v3.1</span>
             <span className="text-border">|</span>
@@ -1244,7 +1608,7 @@ export function NexusDashboard() {
             <span className="text-border">|</span>
             <span className="font-mono text-[10px] tabular-nums" suppressHydrationWarning>Session: {uptime}</span>
             <span className="text-border">|</span>
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" />Live</span>
+            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 live-pulse-indicator" />Live</span>
           </div>
         </footer>
       </div>
@@ -1253,7 +1617,7 @@ export function NexusDashboard() {
       {activeTab !== 'aichat' && (
         <button
           onClick={() => setActiveTab('aichat')}
-          className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
+          className="interactive-hover fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
           aria-label="Open AI Assistant"
         >
           <Brain className="h-5 w-5" />
@@ -1266,6 +1630,81 @@ export function NexusDashboard() {
 
       {/* Quick Stats Floating Widget */}
       <QuickStatsWidget />
+
+      {/* Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen} title="NEXUS OS Command Palette" description="Search tabs, settings, and documentation">
+        <CommandInput placeholder="Search tabs, settings, actions..." />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Navigation">
+            {TABS.map(tab => {
+              const Icon = tab.icon
+              return (
+                <CommandItem
+                  key={tab.id}
+                  value={`${tab.label} ${tab.group}`}
+                  onSelect={() => { setActiveTab(tab.id); setCommandOpen(false) }}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                  <Badge variant="outline" className="text-[8px] ml-1">{tab.group}</Badge>
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+          <CommandGroup heading="Quick Actions">
+            <CommandItem value="Run Diagnostics" onSelect={() => { runDiagnostics(); setCommandOpen(false) }}>
+              <Stethoscope className="h-4 w-4" />
+              <span>Run System Diagnostics</span>
+            </CommandItem>
+            <CommandItem value="Toggle Theme" onSelect={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setCommandOpen(false) }}>
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>Toggle Theme</span>
+              <CommandShortcut>⌘D</CommandShortcut>
+            </CommandItem>
+            <CommandItem value="Mark All Notifications Read" onSelect={() => { markAllRead(); setCommandOpen(false) }}>
+              <CheckCheck className="h-4 w-4" />
+              <span>Mark All Notifications Read</span>
+            </CommandItem>
+            <CommandItem value="Clear Notifications" onSelect={() => { clearAllNotifications(); setCommandOpen(false) }}>
+              <Trash2 className="h-4 w-4" />
+              <span>Clear All Notifications</span>
+            </CommandItem>
+          </CommandGroup>
+          <CommandGroup heading="Documentation">
+            <CommandItem value="Architecture Overview" onSelect={() => { setActiveTab('architecture'); setCommandOpen(false) }}>
+              <LayoutGrid className="h-4 w-4" />
+              <span>Architecture Overview</span>
+              <CommandShortcut>Docs</CommandShortcut>
+            </CommandItem>
+            <CommandItem value="API Reference" onSelect={() => { setActiveTab('providers'); setCommandOpen(false) }}>
+              <Server className="h-4 w-4" />
+              <span>API & Provider Reference</span>
+              <CommandShortcut>Docs</CommandShortcut>
+            </CommandItem>
+            <CommandItem value="Constitutional Rules" onSelect={() => { setActiveTab('governor'); setCommandOpen(false) }}>
+              <Shield className="h-4 w-4" />
+              <span>Constitutional Rules & Governance</span>
+              <CommandShortcut>Docs</CommandShortcut>
+            </CommandItem>
+            <CommandItem value="Token Guard" onSelect={() => { setActiveTab('tokens'); setCommandOpen(false) }}>
+              <Zap className="h-4 w-4" />
+              <span>Token Budget & Guard</span>
+              <CommandShortcut>Docs</CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+          <CommandGroup heading="Settings">
+            <CommandItem value="Settings API Keys" onSelect={() => { setActiveTab('aichat'); setCommandOpen(false) }}>
+              <Key className="h-4 w-4" />
+              <span>Manage API Keys</span>
+            </CommandItem>
+            <CommandItem value="Settings Rate Limits" onSelect={() => { setActiveTab('ratelimits'); setCommandOpen(false) }}>
+              <Gauge className="h-4 w-4" />
+              <span>Configure Rate Limits</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </div>
   )
 }

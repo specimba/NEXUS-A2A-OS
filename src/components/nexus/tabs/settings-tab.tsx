@@ -48,6 +48,7 @@ import {
   Monitor,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { staggerContainer, staggerItem } from '@/components/nexus/tab-content'
@@ -324,6 +325,7 @@ export function SettingsTab() {
     notificationsEnabled?: boolean
     notificationTypes?: Record<string, boolean>
     constitution?: ConstitutionalRules
+    dashboardLayout?: 'compact' | 'comfortable' | 'spacious'
   } | null => {
     try {
       const saved = localStorage.getItem('nexus-settings')
@@ -346,6 +348,7 @@ export function SettingsTab() {
     return initial
   })
   const [constitution, setConstitution] = useState<ConstitutionalRules>(() => loadSavedSettings()?.constitution ?? DEFAULT_CONSTITUTION)
+  const [dashboardLayout, setDashboardLayout] = useState<'compact' | 'comfortable' | 'spacious'>(() => loadSavedSettings()?.dashboardLayout ?? 'comfortable')
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   // Save settings to localStorage whenever they change
@@ -358,11 +361,12 @@ export function SettingsTab() {
         notificationsEnabled,
         notificationTypes,
         constitution,
+        dashboardLayout,
       }))
     } catch {
       // Ignore storage errors
     }
-  }, [apiKeys, rateLimits, autoRefresh, notificationsEnabled, notificationTypes, constitution])
+  }, [apiKeys, rateLimits, autoRefresh, notificationsEnabled, notificationTypes, constitution, dashboardLayout])
 
   // Handlers
   const handleUpdateKey = useCallback((id: string, key: string) => {
@@ -418,6 +422,7 @@ export function SettingsTab() {
       notificationsEnabled,
       notificationTypes,
       constitution,
+      dashboardLayout,
       exportedAt: new Date().toISOString(),
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -428,7 +433,7 @@ export function SettingsTab() {
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Settings exported', { description: 'Download started.' })
-  }, [apiKeys, rateLimits, autoRefresh, notificationsEnabled, notificationTypes, constitution])
+  }, [apiKeys, rateLimits, autoRefresh, notificationsEnabled, notificationTypes, constitution, dashboardLayout])
 
   const handleResetDefaults = useCallback(() => {
     setApiKeys({})
@@ -439,6 +444,7 @@ export function SettingsTab() {
     NOTIFICATION_TYPES.forEach(t => { initial[t.id] = t.defaultEnabled })
     setNotificationTypes(initial)
     setConstitution(DEFAULT_CONSTITUTION)
+    setDashboardLayout('comfortable')
     setResetDialogOpen(false)
     toast.success('Settings reset', { description: 'All settings restored to defaults.' })
   }, [])
@@ -576,6 +582,54 @@ export function SettingsTab() {
             </Card>
           </motion.div>
 
+          {/* Dashboard Layout */}
+          <motion.div variants={staggerItem}>
+            <Card className="border-teal-600/15">
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Monitor}
+                  title="Dashboard Layout"
+                  description="Adjust card density and spacing preferences"
+                />
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'compact' as const, label: 'Compact', desc: 'Tighter spacing', icon: '⊞' },
+                    { value: 'comfortable' as const, label: 'Comfortable', desc: 'Default spacing', icon: '⊡' },
+                    { value: 'spacious' as const, label: 'Spacious', desc: 'More breathing room', icon: '☐' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDashboardLayout(opt.value)}
+                      className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all duration-200 ${
+                        dashboardLayout === opt.value
+                          ? 'border-emerald-600/40 bg-emerald-600/10 shadow-sm shadow-emerald-600/10'
+                          : 'border-border/50 bg-card/50 hover:bg-accent/30'
+                      }`}
+                    >
+                      <span className="text-lg">{opt.icon}</span>
+                      <span className="text-[10px] font-medium">{opt.label}</span>
+                      <span className="text-[8px] text-muted-foreground">{opt.desc}</span>
+                      {dashboardLayout === opt.value && (
+                        <span className="h-1 w-1 rounded-full bg-emerald-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <Info className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <p className="text-[10px] text-muted-foreground">
+                    Layout preference affects card padding, grid gaps, and font sizes across the dashboard.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Auto-Refresh & Data Refresh Row */}
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Auto-Refresh Interval */}
           <motion.div variants={staggerItem}>
             <Card className="border-cyan-600/15">
@@ -617,6 +671,39 @@ export function SettingsTab() {
                     <p className="text-[10px] text-muted-foreground">Auto-refresh is disabled. You will need to manually refresh data.</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Dashboard Info Card */}
+          <motion.div variants={staggerItem}>
+            <Card className="border-emerald-600/15">
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Shield}
+                  title="Session & Security"
+                  description="Current session information and security status"
+                />
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2.5">
+                  {[
+                    { label: 'Session Mode', value: 'Sandbox', badge: 'Active' },
+                    { label: 'Constitution Version', value: 'v3.2', badge: 'Latest' },
+                    { label: 'Dashboard Layout', value: dashboardLayout.charAt(0).toUpperCase() + dashboardLayout.slice(1), badge: 'Saved' },
+                    { label: 'Auto-Refresh', value: autoRefresh === 'off' ? 'Disabled' : `Every ${autoRefresh}s`, badge: autoRefresh !== 'off' ? 'On' : 'Off' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{item.value}</span>
+                        <Badge variant="outline" className={cn('text-[8px]', item.badge === 'Active' || item.badge === 'On' || item.badge === 'Latest' || item.badge === 'Saved' ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400' : 'border-yellow-600/30 text-yellow-600 dark:text-yellow-400')}>
+                          {item.badge}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </motion.div>

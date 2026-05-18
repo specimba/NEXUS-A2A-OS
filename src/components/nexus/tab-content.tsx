@@ -1,9 +1,23 @@
 'use client'
 
 import { lazy, Suspense, type ComponentType } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useNexusStore } from '@/store/nexus-store'
 import { OverviewTab } from '@/components/nexus/tabs/overview-tab'
+
+// ── Shared Framer Motion Variants ──
+export const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+}
+
+export const staggerItem: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+}
 
 // Lazy-load all tab components to reduce initial bundle size and memory usage
 const ArchitectureTab = lazy(() => import('@/components/nexus/tabs/architecture-tab').then(m => ({ default: m.ArchitectureTab })))

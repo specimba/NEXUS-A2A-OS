@@ -1328,3 +1328,420 @@
 :root .log-entry-simulated {
   border-left: 3px solid oklch(0.7 0.02 155 / 25%);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Task 11-a: Dashboard UI Polish — New Animation & Utility Classes
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Tab Content Transition (fade + slight slide) ────────────────── */
+@keyframes tabFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-content-transition {
+  animation: tabFadeSlideIn 280ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ── Staggered Entrance with Delay Children ──────────────────────── */
+.stagger-grid > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-grid > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-grid > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-grid > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-grid > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-grid > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-grid > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-grid > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-grid > *:nth-child(n+9) { animation-delay: 400ms; }
+
+.stagger-grid > * {
+  opacity: 0;
+  animation: fadeSlideUp 0.4s ease forwards;
+}
+
+/* ── Smooth Number Transition for Tabular Data ───────────────────── */
+.smooth-number {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.smooth-number-updating {
+  opacity: 0.6;
+  transform: translateY(-1px);
+}
+
+/* ── Header Animated Gradient Border ─────────────────────────────── */
+@keyframes headerGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.header-gradient-border {
+  position: relative;
+}
+
+.header-gradient-border::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.65 0.2 155 / 0%),
+    oklch(0.65 0.2 155 / 50%),
+    oklch(0.82 0.12 155 / 60%),
+    oklch(0.65 0.2 155 / 50%),
+    oklch(0.65 0.2 155 / 0%)
+  );
+  background-size: 200% 100%;
+  animation: headerGradientShift 4s ease-in-out infinite;
+}
+
+:root .header-gradient-border::after {
+  background: linear-gradient(
+    90deg,
+    oklch(0.508 0.164 155 / 0%),
+    oklch(0.508 0.164 155 / 40%),
+    oklch(0.35 0.1 155 / 50%),
+    oklch(0.508 0.164 155 / 40%),
+    oklch(0.508 0.164 155 / 0%)
+  );
+  background-size: 200% 100%;
+  animation: headerGradientShift 4s ease-in-out infinite;
+}
+
+/* ── Online Status Indicator — Enhanced Glow ─────────────────────── */
+@keyframes onlineStatusGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px oklch(0.65 0.2 155 / 40%), 0 0 8px oklch(0.65 0.2 155 / 20%);
+  }
+  50% {
+    box-shadow: 0 0 6px oklch(0.65 0.2 155 / 60%), 0 0 14px oklch(0.65 0.2 155 / 30%);
+  }
+}
+
+.online-status-glow {
+  animation: onlineStatusGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes onlineStatusGlowLight {
+  0%, 100% {
+    box-shadow: 0 0 4px oklch(0.508 0.164 155 / 30%), 0 0 8px oklch(0.508 0.164 155 / 15%);
+  }
+  50% {
+    box-shadow: 0 0 6px oklch(0.508 0.164 155 / 45%), 0 0 14px oklch(0.508 0.164 155 / 20%);
+  }
+}
+
+:root .online-status-glow {
+  animation: onlineStatusGlowLight 2.5s ease-in-out infinite;
+}
+
+/* ── Sidebar Active Tab Indicator — Left Border Glow ─────────────── */
+@keyframes sidebarActiveGlow {
+  0%, 100% {
+    box-shadow: 2px 0 8px oklch(0.65 0.2 155 / 15%);
+  }
+  50% {
+    box-shadow: 2px 0 12px oklch(0.65 0.2 155 / 25%);
+  }
+}
+
+.sidebar-active-item {
+  position: relative;
+}
+
+.sidebar-active-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, oklch(0.65 0.2 155), oklch(0.82 0.12 155));
+  animation: sidebarActiveGlow 3s ease-in-out infinite;
+}
+
+:root .sidebar-active-item::before {
+  background: linear-gradient(180deg, oklch(0.508 0.164 155), oklch(0.35 0.1 155));
+}
+
+@keyframes sidebarActiveGlowLight {
+  0%, 100% { box-shadow: 2px 0 8px oklch(0.508 0.164 155 / 10%); }
+  50% { box-shadow: 2px 0 12px oklch(0.508 0.164 155 / 20%); }
+}
+
+:root .sidebar-active-item::before {
+  animation: sidebarActiveGlowLight 3s ease-in-out infinite;
+}
+
+/* ── Sidebar Hover Glow Trail ────────────────────────────────────── */
+.sidebar-item-hover {
+  position: relative;
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-item-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at 0% 50%,
+    oklch(0.65 0.2 155 / 8%) 0%,
+    transparent 70%
+  );
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.sidebar-item-hover:hover::after {
+  opacity: 1;
+}
+
+/* ── Sidebar Group Gradient Background ───────────────────────────── */
+.sidebar-group-bg {
+  background: linear-gradient(
+    135deg,
+    oklch(0.155 0.008 155 / 30%) 0%,
+    transparent 100%
+  );
+  border-radius: 8px;
+  border: 1px solid oklch(1 0 0 / 3%);
+  padding: 6px;
+  margin-bottom: 6px;
+}
+
+:root .sidebar-group-bg {
+  background: linear-gradient(
+    135deg,
+    oklch(0.88 0.01 155 / 30%) 0%,
+    transparent 100%
+  );
+  border-color: oklch(0.82 0.01 155 / 30%);
+}
+
+/* ── Enhanced Glass Morphism Card ────────────────────────────────── */
+.glass-card-hover {
+  background: oklch(0.155 0.008 155 / 60%);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid oklch(1 0 0 / 8%);
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 250ms ease,
+              background 250ms ease;
+}
+
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px oklch(0 0 0 / 15%),
+    0 0 0 1px oklch(0.65 0.2 155 / 15%),
+    0 0 16px oklch(0.65 0.2 155 / 8%);
+  border-color: oklch(0.65 0.2 155 / 25%);
+  background: oklch(0.18 0.01 155 / 65%);
+}
+
+:root .glass-card-hover {
+  background: oklch(1 0 0 / 85%);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid oklch(0.85 0.01 155);
+}
+
+:root .glass-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px oklch(0 0 0 / 8%),
+    0 0 0 1px oklch(0.508 0.164 155 / 12%),
+    0 0 16px oklch(0.508 0.164 155 / 6%);
+  border-color: oklch(0.508 0.164 155 / 20%);
+  background: oklch(1 0 0 / 90%);
+}
+
+/* ── Footer Gradient Enhancement ─────────────────────────────────── */
+@keyframes footerGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.footer-gradient-top {
+  position: relative;
+}
+
+.footer-gradient-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.65 0.2 155 / 0%),
+    oklch(0.65 0.2 155 / 50%),
+    oklch(0.82 0.12 155 / 60%),
+    oklch(0.65 0.2 155 / 50%),
+    oklch(0.65 0.2 155 / 0%)
+  );
+  background-size: 200% 100%;
+  animation: footerGradientShift 5s ease-in-out infinite;
+}
+
+:root .footer-gradient-top::before {
+  background: linear-gradient(
+    90deg,
+    oklch(0.508 0.164 155 / 0%),
+    oklch(0.508 0.164 155 / 40%),
+    oklch(0.35 0.1 155 / 50%),
+    oklch(0.508 0.164 155 / 40%),
+    oklch(0.508 0.164 155 / 0%)
+  );
+  background-size: 200% 100%;
+  animation: footerGradientShift 5s ease-in-out infinite;
+}
+
+.footer-bg-gradient {
+  background: linear-gradient(
+    180deg,
+    oklch(0.13 0.008 155 / 80%),
+    oklch(0.155 0.008 155)
+  );
+}
+
+:root .footer-bg-gradient {
+  background: linear-gradient(
+    180deg,
+    oklch(0.985 0.002 155 / 80%),
+    oklch(1 0 0)
+  );
+}
+
+/* ── Live Pulse Indicator — Footer/Widget ────────────────────────── */
+@keyframes livePulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 3px oklch(0.65 0.2 155 / 30%);
+  }
+  50% {
+    box-shadow: 0 0 8px oklch(0.65 0.2 155 / 60%), 0 0 14px oklch(0.65 0.2 155 / 25%);
+  }
+}
+
+.live-pulse-indicator {
+  animation: livePulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes livePulseGlowLight {
+  0%, 100% {
+    box-shadow: 0 0 3px oklch(0.508 0.164 155 / 20%);
+  }
+  50% {
+    box-shadow: 0 0 8px oklch(0.508 0.164 155 / 40%), 0 0 14px oklch(0.508 0.164 155 / 15%);
+  }
+}
+
+:root .live-pulse-indicator {
+  animation: livePulseGlowLight 2s ease-in-out infinite;
+}
+
+/* ── Clock Smooth Number Transition ──────────────────────────────── */
+.clock-digit {
+  display: inline-block;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+/* ── Card Micro-Interaction: Hover Scale + Border Glow ───────────── */
+.card-micro-hover {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms ease;
+}
+
+.card-micro-hover:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow:
+    0 4px 16px oklch(0 0 0 / 12%),
+    0 0 0 1px oklch(0.65 0.2 155 / 12%);
+  border-color: oklch(0.65 0.2 155 / 20%);
+}
+
+:root .card-micro-hover:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow:
+    0 4px 16px oklch(0 0 0 / 6%),
+    0 0 0 1px oklch(0.508 0.164 155 / 8%);
+  border-color: oklch(0.508 0.164 155 / 15%);
+}
+
+/* ── Skeleton Loading Block — Enhanced with Gradient ─────────────── */
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    oklch(0.22 0.015 155 / 30%) 0%,
+    oklch(0.28 0.025 155 / 45%) 50%,
+    oklch(0.22 0.015 155 / 30%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+:root .skeleton-block {
+  background: linear-gradient(
+    90deg,
+    oklch(0.88 0.01 155 / 40%) 0%,
+    oklch(0.82 0.02 155 / 55%) 50%,
+    oklch(0.88 0.01 155 / 40%) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Interactive Element Hover — Subtle Scale + Glow ─────────────── */
+.interactive-hover {
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.interactive-hover:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 10px oklch(0.65 0.2 155 / 15%);
+}
+
+.interactive-hover:active {
+  transform: scale(0.98);
+}
+
+:root .interactive-hover:hover {
+  box-shadow: 0 0 10px oklch(0.508 0.164 155 / 10%);
+}
+
+/* ── Quick Stats Widget Enhancement ──────────────────────────────── */
+.quickstats-live-dot {
+  position: relative;
+}
+
+.quickstats-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: oklch(0.65 0.2 155 / 30%);
+  animation: liveBadgePulse 2s ease-in-out infinite;
+}
+
+:root .quickstats-live-dot::after {
+  background: oklch(0.508 0.164 155 / 20%);
+  animation: liveBadgePulseLight 2s ease-in-out infinite;
+}
