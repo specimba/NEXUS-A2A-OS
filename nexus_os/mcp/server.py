@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from nexus_os.governor.trust_kernel import TrustDecisionKind, TrustKernel
+
 ARMED_DB = os.environ.get("NEXUS_MCP_DB", str(Path(__file__).parent / "nexus_mcp.db"))
 
 BLOCKED_SKILLS = ["model.delete", "secret.expose", "fine_tune.auto", "system.wipe"]
@@ -28,8 +30,9 @@ LANE_PARAMS = {
     "autonomous": {"qmin": 0.6, "n0": 8, "Rcrit": 0.3, "bias": -0.2},
 }
 
-def get_db():
-    conn = sqlite3.connect(ARMED_DB)
+def get_db(db_path: Optional[str] = None):
+    db_target = db_path or os.environ.get("NEXUS_MCP_DB") or ARMED_DB
+    conn = sqlite3.connect(db_target, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("""
         CREATE TABLE IF NOT EXISTS vap_log (
@@ -59,10 +62,11 @@ def get_db():
 
 class NexusGovernanceMCP:
     def __init__(self, db_path=None):
-        self.db_path = db_path or ARMED_DB
-        self.conn = get_db()
+        self.db_path = db_path or os.environ.get("NEXUS_MCP_DB") or ARMED_DB
+        self.conn = get_db(self.db_path)
         self._init_defaults()
         self._defcon_level = self._load_defcon()
+        self.trust_kernel = TrustKernel(db=self.conn)
 
     def _init_defaults(self):
         for aid in ["codex", "grok", "neo", "speci"]:
@@ -94,16 +98,43 @@ class NexusGovernanceMCP:
                     "provenance": provenance, "timestamp": datetime.now(timezone.utc).isoformat()}
         if skill in BLOCKED_SKILLS:
             proposal.update({"status": "denied", "verdict": "HARD_BLOCK"})
-        elif any(kw in skill for kw in REVIEW_KEYWORDS):
-            proposal.update({"status": "needs_review", "verdict": "ARMED_REVIEW"})
-            if self._defcon_level <= 2:
-                proposal["verdict"] = "HARD_BLOCK"
         else:
-            proposal.update({"status": "approved", "verdict": "CLEARED"})
+            lane = params.get("lane", "orchestration") if isinstance(params, dict) else "orchestration"
+            trust_decision = self.trust_kernel.evaluate(
+                agent_id=agent_id,
+                action="execute" if "." in skill else skill,
+                lane=lane,
+                context={"skill": skill, "side_effect": True},
+            )
+            proposal["trust"] = trust_decision.to_dict()
+            if trust_decision.decision == TrustDecisionKind.DENY:
+                proposal.update({"status": "denied", "verdict": "TRUST_DENY"})
+            elif trust_decision.decision in {
+                TrustDecisionKind.HOLD,
+                TrustDecisionKind.ESCALATE,
+                TrustDecisionKind.QUARANTINE,
+            }:
+                proposal.update({"status": "needs_review", "verdict": "TRUST_HOLD"})
+            elif any(kw in skill for kw in REVIEW_KEYWORDS):
+                proposal.update({"status": "needs_review", "verdict": "ARMED_REVIEW"})
+                if self._defcon_level <= 2:
+                    proposal["verdict"] = "HARD_BLOCK"
+            else:
+                proposal.update({"status": "approved", "verdict": "CLEARED"})
         self.conn.execute(
             "INSERT OR REPLACE INTO proposals (id, skill, params, agent_id, provenance, timestamp, status, verdict) VALUES (?,?,?,?,?,?,?,?)",
             (pid, skill, json.dumps(params), agent_id, provenance, proposal["timestamp"], proposal["status"], proposal["verdict"]))
         self.conn.commit()
+        snapshot = self.trust_kernel.record_proposal_outcome(
+            agent_id=agent_id,
+            proposal_id=pid,
+            status=proposal["status"],
+            verdict=proposal["verdict"],
+            skill=skill,
+            lane=params.get("lane", "orchestration") if isinstance(params, dict) else "orchestration",
+        )
+        self._sync_agent_trust(agent_id, snapshot.trust)
+        proposal["trust_snapshot"] = snapshot.to_dict()
         self._log_vap("propose", {"id": pid, "skill": skill, "status": proposal["status"]})
         return proposal
 
@@ -115,31 +146,38 @@ class NexusGovernanceMCP:
         self.conn.execute("UPDATE proposals SET status=?, approved_by=?, approved_at=? WHERE id=?",
                           (new_status, approver, datetime.now(timezone.utc).isoformat(), pid))
         self.conn.commit()
+        snapshot = self.trust_kernel.record_proposal_outcome(
+            agent_id=p["agent_id"],
+            proposal_id=pid,
+            status=new_status,
+            verdict="HUMAN_APPROVED" if new_status == "approved" else "HUMAN_DENIED",
+            skill=p["skill"],
+            lane="orchestration",
+        )
+        self._sync_agent_trust(p["agent_id"], snapshot.trust)
         self._log_vap("approve", {"id": pid, "decision": decision, "by": approver})
-        return {"proposal_id": pid, "status": new_status, "approved_by": approver}
+        return {
+            "proposal_id": pid,
+            "status": new_status,
+            "approved_by": approver,
+            "trust_snapshot": snapshot.to_dict(),
+        }
 
     def get_trust(self, agent_id: str, lane: str = "general") -> dict:
-        params = LANE_PARAMS.get(lane, LANE_PARAMS["general"])
         row = self.conn.execute("SELECT * FROM agents WHERE id=?", (agent_id,)).fetchone()
         if not row:
             return {"error": "agent_not_found", "agent_id": agent_id}
-        base = row["trust_score"]
-        Qeff = max(0, (base - params["qmin"]) / (1 - params["qmin"] + 1e-10))
-        n_factor = 1 - math.exp(-max(row["resource_used"], 1) / params["n0"])
-        raw = math.tanh(Qeff * n_factor + params["bias"])
-        R = self.conn.execute(
-            "SELECT COUNT(*) as c FROM proposals WHERE agent_id=? AND status='denied'",
-            (agent_id,)).fetchone()["c"]
-        rejection_rate = R / max(row["resource_used"], 1)
-        finding = "ESCALATED" if rejection_rate > params["Rcrit"] else "CONFIRMED"
-        if finding == "ESCALATED":
-            raw = -1.0
+        snapshot = self.trust_kernel.get_snapshot(agent_id, lane)
         return {
-            "agent": agent_id, "lane": lane, "raw": round(raw, 3),
-            "scaled": round((raw + 1) / 2, 3), "finding": finding,
+            "agent": agent_id, "lane": snapshot.lane,
+            "raw": snapshot.latest_score if snapshot.latest_score is not None else 0.0,
+            "scaled": round(snapshot.trust, 3),
+            "finding": snapshot.finding_state.upper(),
             "state": row["state"], "kill_switch": bool(row["kill_switch"]),
             "resource_used": row["resource_used"], "resource_quota": row["resource_quota"],
             "last_heartbeat": row["last_heartbeat"],
+            "trust_snapshot": snapshot.to_dict(),
+            "source": "canonical_trust_kernel",
         }
 
     def quarantine_agent(self, agent_id: str, reason: str) -> dict:
@@ -156,6 +194,26 @@ class NexusGovernanceMCP:
         self.conn.commit()
         self._log_vap("kill_switch", {"agent_id": agent_id, "reason": reason})
         return {"agent_id": agent_id, "action": "KILL_SWITCH_ACTIVATED", "reason": reason}
+
+    def record_task_result(
+        self,
+        task_id: str,
+        agent_id: str,
+        status: str,
+        error: str = "",
+        lane: str = "implementation",
+    ) -> dict:
+        success = status in {"completed", "success", "ok"}
+        snapshot = self.trust_kernel.record_task_outcome(
+            agent_id=agent_id,
+            task_id=task_id,
+            success=success,
+            lane=lane,
+            error=error or None,
+            source="governance_rest",
+        )
+        self._sync_agent_trust(agent_id, snapshot.trust)
+        return snapshot.to_dict()
 
     def heartbeat(self, agent_id: str) -> dict:
         row = self.conn.execute("SELECT * FROM agents WHERE id=?", (agent_id,)).fetchone()
@@ -208,6 +266,7 @@ class NexusGovernanceMCP:
             "total_proposals": total, "proposal_breakdown": statuses,
             "total_agents": len(agents), "agent_breakdown": agent_breakdown,
             "vap_entries": vap_count, "chain_integrity": {"valid": chain_valid, "entries": vap_count},
+            "trust_source": "canonical_trust_kernel",
         }
 
     def _verify_chain(self) -> bool:
@@ -225,6 +284,14 @@ class NexusGovernanceMCP:
         else:
             rows = self.conn.execute("SELECT * FROM proposals ORDER BY timestamp DESC")
         return [dict(r) for r in rows]
+
+    def _sync_agent_trust(self, agent_id: str, trust: float) -> None:
+        self.conn.execute(
+            "INSERT OR IGNORE INTO agents (id, trust_score, state) VALUES (?, ?, ?)",
+            (agent_id, trust, "active"),
+        )
+        self.conn.execute("UPDATE agents SET trust_score=? WHERE id=?", (trust, agent_id))
+        self.conn.commit()
 
     def close(self):
         self.conn.close()
