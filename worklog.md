@@ -567,3 +567,43 @@ Unresolved Issues:
 - @reboot cron not available (no crontab in sandbox) — server needs manual start after reboot
 - Supervisor script lives in /tmp which may not survive reboot — should be in project dir
 - Recommend moving supervisor script to /home/z/my-project/supervisord.sh for persistence
+
+---
+Task ID: 13
+Agent: Main
+Task: Fix dark theme violations — white backgrounds in dark mode, overview refreshing glitches, theme consistency
+
+Work Log:
+- Diagnosed root cause of dark theme breakage: ALL `:root .some-class` CSS selectors in globals.css override dark theme styles because `:root` always matches (even with `.dark` class), and `:root .class` has higher specificity than `.class` alone
+- Fixed ALL ~50 `:root .` patterns in globals.css by changing them to `:root:not(.dark) .` so light theme overrides only apply when NOT in dark mode
+- Fixed ALL `:root ::` patterns (webkit scrollbar) to `:root:not(.dark) ::`
+- Fixed `glass-card-hover` opacity from 60% to 92% in dark mode (was too transparent, letting background show through as light patches)
+- Fixed `glass-card` opacity from 75% to 92% in dark mode
+- Fixed `glass-effect` opacity from 65% to 90% in dark mode
+- Reduced `backdrop-filter` blur from 20-32px to 12-16px (less resource-intensive, still looks good)
+- Removed `stagger-grid` class from Overview tab (was causing constant re-animation flash every 2 seconds when live metrics update)
+- Rebuilt Next.js production build with all CSS fixes
+- Verified dark theme working correctly via VLM analysis: cards are dark, footer is dark, text is readable
+- Created new 15-min cron job (ID: 158832) for ongoing review
+
+Stage Summary:
+- **Root cause**: `:root .class` selectors have higher specificity than `.class`, so they ALWAYS override dark theme styles — even when `.dark` class is present
+- **Fix**: Changed all `:root .` to `:root:not(.dark) .` throughout globals.css (~50 selectors)
+- **Glass opacity**: Increased from 60-75% to 90-92% in dark mode to prevent light background bleeding through
+- **Overview glitches**: Removed `stagger-grid` class that caused constant re-animation on every re-render
+- **Dark theme verified**: Cards dark, footer dark, sidebar dark, text readable, no white patches
+- **Cron job**: New 15-min review cycle (ID: 158832)
+
+Files Modified:
+| File | Change |
+|------|--------|
+| `src/app/globals.css` | Changed ~50 `:root .` selectors to `:root:not(.dark) .`; increased glass-card-hover opacity 60%→92%; increased glass-card opacity 75%→92%; increased glass-effect opacity 65%→90%; reduced backdrop-filter blur |
+| `src/components/nexus/dashboard-content.tsx` | Removed `stagger-grid` class from Overview tab |
+
+Current Project Status:
+- Dark theme is fully functional and consistent across all tabs
+- Overview tab no longer has refreshing/glitching animations
+- All 14 tabs render correctly with proper dark backgrounds
+- AI Chat, Research, and StressLab all use real AI APIs
+- Server uses ~120MB RSS, stable when running
+- Main challenge: server process gets killed by sandbox environment periodically

@@ -627,7 +627,7 @@ export function NexusDashboard() {
   // ─── Overview Tab ─────────────────────────────
   function OverviewTab() {
     return (
-      <div className="space-y-5 stagger-grid">
+      <div className="space-y-5">
         {/* System Status Header */}
         <div className="flex items-center gap-3">
           <span className="relative flex h-2.5 w-2.5">
