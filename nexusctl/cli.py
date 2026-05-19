@@ -3,6 +3,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -78,24 +79,42 @@ def run_cycle_check() -> int:
     halt_path = state_dir / "halt_report.json"
 
     if halt_path.exists():
-        halt = json.loads(halt_path.read_text(encoding="utf-8"))
-        _json_print({
-            "status": "halted",
-            "reason": halt.get("failed_check", "unknown"),
-            "recovery_hint": halt.get("recovery_hint"),
-            "source": str(halt_path),
-        })
-        return 1
+        try:
+            halt = json.loads(halt_path.read_text(encoding="utf-8"))
+            _json_print({
+                "status": "halted",
+                "reason": halt.get("failed_check", "unknown"),
+                "recovery_hint": halt.get("recovery_hint"),
+                "source": str(halt_path),
+            })
+            return 1
+        except (json.JSONDecodeError, OSError) as exc:
+            _json_print({
+                "status": "unavailable",
+                "reason": "malformed_state",
+                "source": str(halt_path),
+                "error": str(exc),
+            })
+            return 2
 
     if compact_path.exists():
-        compact = json.loads(compact_path.read_text(encoding="utf-8"))
-        _json_print({
-            "status": "ok",
-            "source": str(compact_path),
-            "last_cycle": compact.get("last_cycle"),
-            "updated_at": compact.get("updated_at"),
-        })
-        return 0
+        try:
+            compact = json.loads(compact_path.read_text(encoding="utf-8"))
+            _json_print({
+                "status": "ok",
+                "source": str(compact_path),
+                "last_cycle": compact.get("last_cycle"),
+                "updated_at": compact.get("updated_at"),
+            })
+            return 0
+        except (json.JSONDecodeError, OSError) as exc:
+            _json_print({
+                "status": "unavailable",
+                "reason": "malformed_state",
+                "source": str(compact_path),
+                "error": str(exc),
+            })
+            return 2
 
     _json_print({
         "status": "unavailable",
@@ -174,7 +193,7 @@ def run_doctor_version(report_only: bool, refresh: bool) -> int:
     project_state = repo_root / "01_PROJECT_STATE.md"
     project_state_text = project_state.read_text(encoding="utf-8") if project_state.exists() else ""
     head_short = head.get("stdout", "")
-    project_state_current_date = "Date: 2026-05-19" in project_state_text
+    project_state_current_date = f"Date: {date.today().isoformat()}" in project_state_text
     obsolete_project_state_claim = "617 passed" in project_state_text or "636 passed" in project_state_text
 
     payload = {

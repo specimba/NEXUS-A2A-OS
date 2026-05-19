@@ -6,7 +6,7 @@ Scope: `nexus-kafka-bridge`, `nexus-kafka-consumer`, `redis-nexus`, and `supabas
 ## Verified Current State
 
 - `nexus-kafka-bridge` is created from the host-managed compose file:
-  `C:\Users\speci.000\.docker\cagent\working_directories\docker-gordon-v7\d9efce88-e41e-49fd-9b9d-6e79359e8bb4\default\docker-compose-kafka-bridge.yml`
+  `%USERPROFILE%\.docker\cagent\working_directories\docker-gordon-v7\d9efce88-e41e-49fd-9b9d-6e79359e8bb4\default\docker-compose-kafka-bridge.yml`
 - That compose file still stores `KAFKA_API_KEY`, `KAFKA_API_SECRET`, and `POSTGRES_PASSWORD` inline.
 - `docker inspect nexus-kafka-bridge` still exposes those secret variable names through container environment metadata.
 - `redis-nexus` still publishes `0.0.0.0:6379` and `[::]:6379`.
@@ -16,8 +16,8 @@ Scope: `nexus-kafka-bridge`, `nexus-kafka-consumer`, `redis-nexus`, and `supabas
 
 ## Repo-Local Operator Assets Added
 
-- [`scripts/nexus_docker_profile.ps1`](/C:/Users/speci.000/Documents/NEXUS/scripts/nexus_docker_profile.ps1)
-- [`scripts/nexus_docker_secret_audit.ps1`](/C:/Users/speci.000/Documents/NEXUS/scripts/nexus_docker_secret_audit.ps1)
+- [`scripts/nexus_docker_profile.ps1`](../../scripts/nexus_docker_profile.ps1)
+- [`scripts/nexus_docker_secret_audit.ps1`](../../scripts/nexus_docker_secret_audit.ps1)
 
 Safe verification command:
 
@@ -36,7 +36,7 @@ It does not print secret values.
 
 ## Why The Task Did Not Fully Close
 
-- The active Kafka bridge and Redis definitions live under `C:\Users\speci.000\.docker\cagent\working_directories\...`, outside this repo.
+- The active Kafka bridge and Redis definitions live under `%USERPROFILE%\.docker\cagent\working_directories\...`, outside this repo.
 - Rotating the exposed Kafka credential pair requires access to the upstream Confluent Cloud credential owner.
 - The verification gate requires `docker inspect nexus-kafka-bridge` to stop exposing raw secret-backed variables and requires `6379` / `54322` to stop publishing beyond localhost. Neither condition is satisfied yet.
 

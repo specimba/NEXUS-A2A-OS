@@ -14,15 +14,23 @@ function Get-DockerJson {
 
     $errorText = $null
     $raw = & docker @Arguments 2>&1
-    if (-not $raw) {
-        return $null
-    }
     $rawText = ($raw | Out-String).Trim()
+
     if ($LASTEXITCODE -ne 0) {
         $dockerErrors.Add($rawText) | Out-Null
         return $null
     }
-    return $rawText | ConvertFrom-Json
+
+    if (-not $rawText) {
+        return $null
+    }
+
+    try {
+        return $rawText | ConvertFrom-Json
+    } catch {
+        $dockerErrors.Add("JSON parse error for $($Arguments -join ' '): $rawText - $_") | Out-Null
+        return $null
+    }
 }
 
 function Get-DockerInspect {
@@ -77,9 +85,32 @@ $supabaseLabels = if ($supabaseInspect) { $supabaseInspect.Config.Labels } else 
 $supabasePorts = if ($supabaseInspect) { $supabaseInspect.HostConfig.PortBindings } else { $null }
 $redisPorts = if ($redisInspect) { $redisInspect.HostConfig.PortBindings } else { $null }
 
-$bridgeComposePath = $bridgeLabels.'com.docker.compose.project.config_files'
+$bridgeComposePathRaw = $bridgeLabels.'com.docker.compose.project.config_files'
 $bridgeWorkingDir = $bridgeLabels.'com.docker.compose.project.working_dir'
 $redisComposePath = if ($bridgeWorkingDir) { Join-Path $bridgeWorkingDir 'docker-compose-redis.yml' } else { $null }
+
+$bridgeComposePaths = @()
+$bridgeComposeUsesInlineSecrets = $false
+
+if ($bridgeComposePathRaw) {
+    $bridgeComposePaths = $bridgeComposePathRaw -split ',' | ForEach-Object {
+        $path = $_.Trim()
+        if ([System.IO.Path]::IsPathRooted($path)) {
+            $path
+        } elseif ($bridgeWorkingDir) {
+            Join-Path $bridgeWorkingDir $path
+        } else {
+            $path
+        }
+    }
+
+    foreach ($path in $bridgeComposePaths) {
+        if (Test-ComposeInlineSecret -Path $path) {
+            $bridgeComposeUsesInlineSecrets = $true
+            break
+        }
+    }
+}
 
 $bridgeSecretKeysPresent = @(
     'KAFKA_API_KEY',
@@ -88,9 +119,9 @@ $bridgeSecretKeysPresent = @(
 ) | Where-Object { $bridgeEnv -match "^$_=" }
 
 $result = [pscustomobject]@{
-    BridgeComposePath = $bridgeComposePath
+    BridgeComposePath = ($bridgeComposePaths -join ',')
     BridgeInlineSecretKeysPresent = $bridgeSecretKeysPresent
-    BridgeComposeUsesInlineSecrets = if ($bridgeComposePath) { Test-ComposeInlineSecret -Path $bridgeComposePath } else { $false }
+    BridgeComposeUsesInlineSecrets = $bridgeComposeUsesInlineSecrets
     RedisComposePath = $redisComposePath
     RedisLocalhostOnlyConfigured = if ($redisComposePath) { Test-ComposeLocalhostBind -Path $redisComposePath -Port '6379' } else { $false }
     RedisPublishedHostIp = if ($redisPorts.'6379/tcp') { $redisPorts.'6379/tcp'[0].HostIp } else { $null }
