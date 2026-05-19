@@ -17,8 +17,9 @@ from nexus_os.engine.heartbeat import HeartbeatMonitor
 
 
 @pytest.fixture
-def db():
-    config = DBConfig(db_path="test_heartbeat.db", passphrase="x", encrypted=False)
+def db(tmp_path):
+    db_path = tmp_path / "test_heartbeat.db"
+    config = DBConfig(db_path=str(db_path), passphrase="x", encrypted=False)
     db_mgr = DatabaseManager(config)
     db_mgr.setup_schema()
     # Register test agents
@@ -34,8 +35,6 @@ def db():
     conn.commit()
     yield db_mgr
     db_mgr.close()
-    if os.path.exists("test_heartbeat.db"):
-        os.remove("test_heartbeat.db")
 
 
 @pytest.fixture
