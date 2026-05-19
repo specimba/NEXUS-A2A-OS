@@ -62,6 +62,7 @@ import {
   Calendar,
   Hash,
   XCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -460,7 +461,7 @@ function PaperCard({
 export function ResearchTab() {
   // ─── State ─────────────────────────────────────────────────────────────
   const [mounted, setMounted] = useState(false)
-  const [papers, setPapers] = useState<Paper[]>(mockPapers)
+  const [papers, setPapers] = useState<Paper[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
@@ -483,6 +484,7 @@ export function ResearchTab() {
 
   // Pipeline interactive state
   const [selectedPipelineStage, setSelectedPipelineStage] = useState<string | null>(null)
+  const [dataLoadedFrom, setDataLoadedFrom] = useState<'none' | 'search' | 'fallback'>('none')
 
   // ─── Computed Values ───────────────────────────────────────────────────
   const displayedPapers = showSearchResults && searchResults
@@ -520,8 +522,10 @@ export function ResearchTab() {
       else if (cat === 'Architecture') domainMap['Architecture']++
       else if (cat === 'Tools') domainMap['Tools']++
     })
-    // Ensure minimum values for visual interest
-    Object.keys(domainMap).forEach(k => { if (domainMap[k] === 0) domainMap[k] = Math.floor(Math.random() * 3) + 1 })
+    // Ensure minimum values for visual interest only when papers exist
+    if (papers.length > 0) {
+      Object.keys(domainMap).forEach(k => { if (domainMap[k] === 0) domainMap[k] = Math.floor(Math.random() * 3) + 1 })
+    }
     return Object.entries(domainMap)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
@@ -571,18 +575,20 @@ export function ResearchTab() {
   }, [chatMessages, streamingChatContent])
 
   // ─── AI Search Handler ─────────────────────────────────────────────────
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return
+  const handleSearch = useCallback(async (overrideQuery?: string) => {
+    const query = (overrideQuery ?? searchQuery).trim()
+    if (!query) return
 
     setIsSearching(true)
     setShowSearchResults(true)
+    if (overrideQuery) setSearchQuery(overrideQuery)
 
     try {
       const response = await fetch('/api/ai/research/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: searchQuery.trim(),
+          query,
           maxResults: 10,
           depth: 'medium',
         }),
@@ -636,9 +642,9 @@ export function ResearchTab() {
       const apiSources = data.data.sources || {}
 
       const searchResult: SearchResult = {
-        papers: mappedPapers.length > 0 ? mappedPapers : papers.slice(0, 3),
+        papers: mappedPapers.length > 0 ? mappedPapers : [],
         aiSuggestions,
-        query: searchQuery.trim(),
+        query,
         totalFound: data.data.totalResults || mappedPapers.length,
         sources: {
           database: apiSources.database ?? mappedPapers.length,
@@ -648,26 +654,39 @@ export function ResearchTab() {
       }
 
       setSearchResults(searchResult)
+      // Update main papers list with real search results
+      if (mappedPapers.length > 0) {
+        setPapers(mappedPapers)
+        setDataLoadedFrom('search')
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Search failed'
       toast.error('Search failed', { description: message })
 
-      // Fallback: local filtering on error
-      const query = searchQuery.toLowerCase()
+      // Fallback: local filtering on error, then mock data as last resort
+      const queryLower = query.toLowerCase()
       const filteredPapers = papers.filter(p =>
-        p.title.toLowerCase().includes(query) ||
-        p.abstract.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query) ||
-        p.authors.some(a => a.toLowerCase().includes(query))
+        p.title.toLowerCase().includes(queryLower) ||
+        p.abstract.toLowerCase().includes(queryLower) ||
+        p.category.toLowerCase().includes(queryLower) ||
+        p.authors.some(a => a.toLowerCase().includes(queryLower))
       )
 
+      // If no local results, fall back to mock data
+      const fallbackPapers = filteredPapers.length > 0 ? filteredPapers : mockPapers
+      setDataLoadedFrom(filteredPapers.length > 0 ? 'search' : 'fallback')
+
       setSearchResults({
-        papers: filteredPapers,
+        papers: fallbackPapers,
         aiSuggestions: [],
-        query: searchQuery.trim(),
-        totalFound: filteredPapers.length,
-        sources: { database: filteredPapers.length, arxiv: 0, aiSuggestions: 0 },
+        query,
+        totalFound: fallbackPapers.length,
+        sources: { database: fallbackPapers.length, arxiv: 0, aiSuggestions: 0 },
       })
+
+      if (filteredPapers.length === 0) {
+        setPapers(mockPapers)
+      }
     } finally {
       setIsSearching(false)
     }
@@ -769,11 +788,12 @@ export function ResearchTab() {
 
     // Build context from current papers to include with the user message
     const paperContext = displayedPapers.slice(0, 5).map(p =>
-      `- ${p.title} (${p.category}, ${p.priority}, Relevance: ${p.relevance}%)`
+      `- ${p.title} (${p.category}, ${p.priority}, Relevance: ${p.relevance}%${p.source ? `, Source: ${p.source}` : ''})`
     ).join('\n')
 
-    // Include context inline with the user's message — not as a separate user message
-    const contextPrefix = `[Research Context — ${papers.length} papers in pipeline]\n${paperContext}\n\n`
+    // Include context inline with the user's message — indicate data source so AI doesn't fabricate
+    const dataSourceLabel = dataLoadedFrom === 'search' ? 'LIVE WEB SEARCH' : dataLoadedFrom === 'fallback' ? 'FALLBACK/DEMO DATA' : 'NO DATA LOADED'
+    const contextPrefix = `[Research Context — ${papers.length} papers | Data Source: ${dataSourceLabel}]\n${paperContext || '(No papers loaded yet — search first to load real data)'}\n\nWhen answering, reference the papers listed above if relevant. If no papers are loaded or data is FALLBACK/DEMO, tell the user to search first for current data rather than inventing paper titles.\n\n`
     const userContentWithContext = contextPrefix + userMessage.content
 
     try {
@@ -889,7 +909,7 @@ export function ResearchTab() {
       setIsChatLoading(false)
       setStreamingChatContent('')
     }
-  }, [chatInput, isChatLoading, chatMessages, displayedPapers, papers])
+  }, [chatInput, isChatLoading, chatMessages, displayedPapers, papers, dataLoadedFrom])
 
   const handleChatKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -904,6 +924,11 @@ export function ResearchTab() {
     setSearchResults(null)
     setShowSearchResults(false)
   }, [])
+
+  // ─── Refresh Research ────────────────────────────────────────────────────
+  const handleRefreshResearch = useCallback(async () => {
+    await handleSearch('latest trending AI ML research papers 2025')
+  }, [handleSearch])
 
   // ─── Format date helper ────────────────────────────────────────────────
   const formatDate = (date: Date) => {
@@ -922,17 +947,46 @@ export function ResearchTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
         <h2 className="text-lg font-semibold">Research Pipeline</h2>
         <Badge variant="secondary" className="text-[10px] bg-emerald-600/20 text-emerald-600 dark:text-emerald-400">
           {papers.length} papers
         </Badge>
+        {dataLoadedFrom === 'search' && (
+          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+            ● Live Data
+          </Badge>
+        )}
+        {dataLoadedFrom === 'fallback' && (
+          <Badge variant="outline" className="text-[9px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">
+            ● Fallback Data
+          </Badge>
+        )}
+        {dataLoadedFrom === 'none' && (
+          <Badge variant="outline" className="text-[9px] bg-muted text-muted-foreground border-border/50">
+            No data loaded
+          </Badge>
+        )}
         {showSearchResults && searchResults && (
           <Badge variant="outline" className="text-[10px]">
             Search: {searchResults.totalFound} results
           </Badge>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefreshResearch}
+          disabled={isSearching}
+          className="h-7 text-[10px] gap-1.5 ml-auto border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+        >
+          {isSearching ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+          Refresh Research
+        </Button>
       </div>
 
       {/* ─── 1. Research Statistics Dashboard ──────────────────────────────── */}
@@ -1364,8 +1418,8 @@ export function ResearchTab() {
           {displayedPapers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No papers found</p>
-              <p className="text-xs mt-1">Try a different search query or category</p>
+              <p className="text-sm">No papers loaded yet</p>
+              <p className="text-xs mt-1">Search for a topic or click “Refresh Research” to discover the latest AI/ML research</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
@@ -1403,10 +1457,10 @@ export function ResearchTab() {
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center">
                   {[
-                    'What are the top safety papers?',
-                    'Explain Self-RAG',
-                    'Compare evaluation methods',
-                    'What is OR-Bench?',
+                    'What are the latest AI safety papers?',
+                    'Trending ML research this week',
+                    'Compare recent evaluation methods',
+                    'Latest multi-agent architectures',
                   ].map((prompt) => (
                     <button
                       key={prompt}

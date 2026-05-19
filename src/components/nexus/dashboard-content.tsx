@@ -457,7 +457,7 @@ export function NexusDashboard() {
     return () => clearInterval(i)
   }, [])
 
-  // Live metrics update
+  // Live metrics update — every 10 seconds to avoid UI flashing
   useEffect(() => {
     const i = setInterval(() => {
       setActiveConnections(p => Math.max(150, Math.min(400, p + Math.floor(Math.random() * 20) - 10)))
@@ -465,14 +465,17 @@ export function NexusDashboard() {
       setTokensPerMin(p => Math.max(500, Math.min(3000, p + Math.floor(Math.random() * 200) - 100)))
       setErrorRate(p => Math.max(0, Math.min(5, parseFloat((p + (Math.random() * 0.4 - 0.2)).toFixed(1)))))
       setRpsHistory(p => [...p.slice(1), Math.max(10, Math.min(80, p[p.length - 1] + Math.floor(Math.random() * 8) - 4))])
-      setAlerts(prev => {
-        const nextId = Math.max(...prev.map(a => a.id)) + 1
-        const msgs = ['Memory spike on worker-2', 'Rate limit approaching for groq', 'Token burn +12%', 'Circuit breaker for scaleway', 'Pool rebalance done']
-        const sevs: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
-        const srcs = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay']
-        return [{ id: nextId, severity: sevs[Math.floor(Math.random() * 4)], message: msgs[Math.floor(Math.random() * msgs.length)], source: srcs[Math.floor(Math.random() * srcs.length)], time: Date.now() }, ...prev.slice(0, 7)]
-      })
-    }, 2000)
+      // Only add a new alert occasionally (30% chance per tick)
+      if (Math.random() < 0.3) {
+        setAlerts(prev => {
+          const nextId = Math.max(...prev.map(a => a.id)) + 1
+          const msgs = ['Memory spike on worker-2', 'Rate limit approaching for groq', 'Token burn +12%', 'Circuit breaker for scaleway', 'Pool rebalance done']
+          const sevs: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
+          const srcs = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay']
+          return [{ id: nextId, severity: sevs[Math.floor(Math.random() * 4)], message: msgs[Math.floor(Math.random() * msgs.length)], source: srcs[Math.floor(Math.random() * srcs.length)], time: Date.now() }, ...prev.slice(0, 7)]
+        })
+      }
+    }, 10000)
     return () => clearInterval(i)
   }, [])
 
@@ -504,7 +507,7 @@ export function NexusDashboard() {
     })
   }, [alerts])
 
-  // Update health metrics periodically
+  // Update health metrics periodically — every 10 seconds
   useEffect(() => {
     const i = setInterval(() => {
       const getTrend = (): TrendDirection => Math.random() > 0.5 ? 'up' : 'down'
@@ -530,7 +533,7 @@ export function NexusDashboard() {
           history: [...prev.networkIO.history.slice(1), Math.max(20, Math.min(90, prev.networkIO.value + Math.floor(Math.random() * 10) - 5))],
         },
       }))
-    }, 3000)
+    }, 10000)
     return () => clearInterval(i)
   }, [])
 
@@ -743,7 +746,7 @@ export function NexusDashboard() {
                   const config = alertSeverityConfig[alert.severity]
                   const Icon = config.icon
                   return (
-                    <div key={alert.id} className={cn('flex items-center gap-2.5 p-2 rounded-lg border animate-fade-in', config.bg, config.border)}>
+                    <div key={alert.id} className={cn('flex items-center gap-2.5 p-2 rounded-lg border transition-opacity duration-300', config.bg, config.border)}>
                       <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
                       <span className="text-xs flex-1 truncate">{alert.message}</span>
                       <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
@@ -906,22 +909,20 @@ export function NexusDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <ScrollArea className="max-h-[320px]">
+              <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
                 <div className="relative pl-6 space-y-0">
                   {/* Timeline line */}
                   <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
 
                   {[
-                    { time: '2s ago', type: 'success', icon: CheckCircle2, desc: 'Health check passed — all pillars OK', source: 'Monitor' },
-                    { time: '15s ago', type: 'info', icon: Info, desc: 'Model failover triggered for gemma-fast', source: 'ModelRelay' },
-                    { time: '32s ago', type: 'warning', icon: AlertTriangle, desc: 'Memory usage approaching 80%', source: 'System' },
-                    { time: '1m ago', type: 'success', icon: CheckCircle2, desc: 'Constitutional check passed for all rules', source: 'Governor' },
-                    { time: '2m ago', type: 'info', icon: Info, desc: 'Token budget reset for new cycle', source: 'Tokens' },
-                    { time: '3m ago', type: 'critical', icon: XCircle, desc: 'Provider dashscope rate limit exceeded', source: 'Gateway' },
-                    { time: '5m ago', type: 'warning', icon: AlertTriangle, desc: 'Agent worker-2 trust score below 0.8', source: 'Governor' },
-                    { time: '8m ago', type: 'success', icon: CheckCircle2, desc: 'Pool rebalance completed successfully', source: 'GMR' },
-                    { time: '12m ago', type: 'info', icon: Info, desc: 'Research task #47 completed by worker-1', source: 'Swarm' },
-                    { time: '15m ago', type: 'success', icon: CheckCircle2, desc: 'Circuit breaker reset for scaleway', source: 'Gateway' },
+                    { time: '2m ago', type: 'success', icon: CheckCircle2, desc: 'Health check passed — all pillars OK', source: 'Monitor' },
+                    { time: '5m ago', type: 'info', icon: Info, desc: 'Model failover triggered for gemma-fast', source: 'ModelRelay' },
+                    { time: '12m ago', type: 'warning', icon: AlertTriangle, desc: 'Memory usage approaching 80%', source: 'System' },
+                    { time: '18m ago', type: 'success', icon: CheckCircle2, desc: 'Constitutional check passed for all rules', source: 'Governor' },
+                    { time: '25m ago', type: 'info', icon: Info, desc: 'Token budget reset for new cycle', source: 'Tokens' },
+                    { time: '32m ago', type: 'critical', icon: XCircle, desc: 'Provider dashscope rate limit exceeded', source: 'Gateway' },
+                    { time: '45m ago', type: 'warning', icon: AlertTriangle, desc: 'Agent worker-2 trust score below 0.8', source: 'Governor' },
+                    { time: '1h ago', type: 'success', icon: CheckCircle2, desc: 'Pool rebalance completed successfully', source: 'GMR' },
                   ].map((event, i) => {
                     const colorMap = {
                       success: { dot: 'bg-emerald-500', ring: 'ring-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
@@ -931,7 +932,7 @@ export function NexusDashboard() {
                     }
                     const c = colorMap[event.type as keyof typeof colorMap]
                     return (
-                      <div key={i} className="relative pb-4 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+                      <div key={i} className="relative pb-3">
                         {/* Timeline dot */}
                         <div className={cn('absolute -left-6 top-0.5 h-[18px] w-[18px] rounded-full border-2 border-background ring-2 flex items-center justify-center', c.dot, c.ring)}>
                           <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-background" />
@@ -952,7 +953,7 @@ export function NexusDashboard() {
                     )
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
 

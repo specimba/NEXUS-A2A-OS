@@ -607,3 +607,99 @@ Current Project Status:
 - AI Chat, Research, and StressLab all use real AI APIs
 - Server uses ~120MB RSS, stable when running
 - Main challenge: server process gets killed by sandbox environment periodically
+---
+Task ID: 3
+Agent: research-tab-fixer
+Task: Fix research tab mock data - connect to real search
+
+Work Log:
+- Added `RefreshCw` import from lucide-react for the refresh button
+- Changed initial `papers` state from `mockPapers` to `[]` (empty array) so default display is empty instead of stale 2024 mock data
+- Added `dataLoadedFrom` state (`'none' | 'search' | 'fallback'`) to track whether data is live, fallback, or not yet loaded
+- Fixed `domainData` computation to skip random padding when `papers.length === 0`
+- Refactored `handleSearch` to accept an optional `overrideQuery` parameter, enabling the refresh button to trigger searches with a specific query
+- When search API succeeds, `handleSearch` now also calls `setPapers(mappedPapers)` and `setDataLoadedFrom('search')` to populate the pipeline with real data
+- When search API fails, fallback now uses `mockPapers` only as last resort and sets `dataLoadedFrom('fallback')`
+- Changed search result fallback from `papers.slice(0, 3)` to `[]` — no stale data mixed in
+- Added `handleRefreshResearch` function that calls `handleSearch('latest trending AI ML research papers 2025')` for one-click live data loading
+- Updated header with: "Refresh Research" button (right-aligned), data source indicator badges ("● Live Data" / "● Fallback Data" / "No data loaded"), and `flex-wrap` for responsive layout
+- Updated papers queue empty state message from "No papers found" to "No papers loaded yet — Search for a topic or click 'Refresh Research' to discover the latest AI/ML research"
+- Updated chat prompt suggestions from mock-specific ("Explain Self-RAG", "What is OR-Bench?") to generic live queries ("Trending ML research this week", "Latest multi-agent architectures")
+- Updated chat context prefix to include `Data Source: LIVE WEB SEARCH | FALLBACK/DEMO DATA | NO DATA LOADED` and added instruction telling the AI to not invent paper titles when no data is loaded
+- Added `dataLoadedFrom` to `handleChatSend` dependency array
+
+Stage Summary:
+- Research tab now starts empty with clear "No data loaded" state instead of stale 2024 mock data
+- Users can click "Refresh Research" button to instantly load current AI/ML research via real web search API
+- Search results populate the entire pipeline (stats, charts, paper queue) with real data
+- Chat AI receives context about data source and won't fabricate paper titles from stale mock data
+- Data source is clearly indicated in the UI with colored badges (Live/Fallback/None)
+- Mock data preserved as fallback when API fails but never shown by default
+- No other files were modified
+
+---
+Task ID: 4
+Agent: stresslab-fixer
+Task: Fix stresslab tab - logging, prompts, templates, UI
+
+Work Log:
+- Read and analyzed the full stresslab-tab.tsx (964 lines) to understand structure and identify all issues
+- **Fixed log registration bug**: Root cause was `Date.now()` generating identical IDs for rapid consecutive test runs, causing React key collisions. Added `useRef(0)` counter (`logIdCounter`) and changed log entry ID from `log-${Date.now()}` to `log-${Date.now()}-${++logIdCounter.current}` for guaranteed uniqueness. Also refactored `handleRunTest` into extracted `executeTest` function to eliminate closure issues with state updates.
+- **Replaced DEFAULT_PROMPTS**: All 6 prompts rewritten from basic/generic to sophisticated ISC-style test prompts:
+  - quality: Complex distributed database migration strategy with 4 ACID/latency/audit/replication constraints (was: "Explain key principles of software engineering")
+  - safety: SSRF vulnerability analysis in microservices with attack chains, mitigations, and defense-in-depth (was: "Describe port scanning implications")
+  - reasoning: Hospital scheduling optimization with 5 ORs, 8 surgeons, equipment constraints, and 3 optimization questions (was: "5 machines 5 widgets riddle")
+  - instruction_following: 7-constraint precision test with Greek alphabet numbering, word count limits, forbidden words, and exact formatting requirements (was: "List 5 benefits of TypeScript")
+  - robustness: Adversarial prompt injection test with urgency framing, authority claims, and instruction override attempts — then asks model to analyze the techniques used (was: generic ambiguous scenario)
+  - hallucination: Three plausible-but-fabricated AI research claims (Perceiver ArX, GPT-5-MoE, LLaMA-4-Orion) requiring fact-checking with confidence levels (was: "population of fictional Atlantis")
+- **Expanded testTemplates**: Added 6 new diverse templates (from 5 to 11 total):
+  - Prompt Injection Shield (Expert, Adversarial Input Defense)
+  - Multi-Step Reasoning Chain (Hard, Complex Deductive Logic)
+  - Adversarial Refusal Bypass (Medium, Over-Refusal Detection)
+  - Context Window Stress (Hard, Long-Context Handling)
+  - Tool Use Safety (Expert, API/Tool Exploitation)
+  - Hallucination Minefield (Hard, Factual Grounding)
+  - Added `testType` and `prompt` fields to all templates for Quick Run functionality
+  - Added testType badge to template cards
+- **Fixed ISC Lab Logs overflow**: Replaced `ScrollArea` (max-h-[400px]) with plain `div` using `max-h-[500px] overflow-y-auto custom-scrollbar pr-1` for more reliable scrolling behavior. Removed ScrollArea import since it's no longer used.
+- **Added Quick Run feature**: Each template card now has a "▶ Run" button that immediately fires the test with the template's test type and prompt, using the currently selected model, without opening the dialog. Implemented via `handleQuickRun` callback that calls the extracted `executeTest` function.
+- **Refactored test execution**: Extracted `executeTest(testType, model, prompt)` function from `handleRunTest` to enable code reuse between manual dialog runs and Quick Run. `handleRunTest` now delegates to `executeTest(selectedTestType, selectedModel, testPrompt)`, and `handleQuickRun` delegates to `executeTest(template.testType, selectedModel, template.prompt)`.
+- **Added scroll container to Test Templates**: Since templates expanded from 5 to 11, added `max-h-[600px] overflow-y-auto custom-scrollbar pr-1` to the templates list container.
+- Verified: ESLint passes with no new errors, file compiles correctly
+
+Stage Summary:
+- **Log registration bug FIXED**: Unique IDs via `Date.now() + incrementing counter` eliminates React key collisions on consecutive runs
+- **DEFAULT_PROMPTS UPGRADED**: All 6 prompts are now sophisticated, multi-step, real-world ISC-style evaluations (not generic/boring)
+- **Test templates EXPANDED**: 11 diverse templates (was 5) with testType/prompt fields and Quick Run buttons
+- **Lab Logs UI FIXED**: Proper scroll container with max-height, no more flooding/overflow
+- **Quick Run feature ADDED**: One-click test execution from template cards without opening dialog
+- **Code quality IMPROVED**: Extracted `executeTest` eliminates code duplication between manual and quick runs
+
+---
+Task ID: 14
+Agent: Main
+Task: Fix UI flashing, activity timeline overflow, research mock data, stresslab logging, dark theme
+
+Work Log:
+- Fixed dashboard-content.tsx: Changed live metrics interval from 2000ms to 10000ms
+- Fixed dashboard-content.tsx: Changed health metrics interval from 3000ms to 10000ms
+- Fixed dashboard-content.tsx: Alert generation now only 30% chance per tick (was 100%)
+- Fixed dashboard-content.tsx: Removed animate-fade-in from alert feed items (was causing flash)
+- Fixed dashboard-content.tsx: Activity Timeline changed from ScrollArea max-h-[320px] to div max-h-[280px] overflow-y-auto custom-scrollbar
+- Fixed dashboard-content.tsx: Activity Timeline reduced from 10 items to 8 items, removed animate-fade-in animation, changed time labels from seconds to minutes
+- Fixed overview-tab.tsx: Changed live metrics interval from 2000ms to 10000ms
+- Fixed overview-tab.tsx: Alert generation now only 30% chance per tick
+- Fixed overview-tab.tsx: Replaced AnimatePresence+motion.div with plain div+transition-opacity for alert feed (was causing flash animation every 2s)
+- Fixed overview-tab.tsx: Changed scrollbar-thin to custom-scrollbar class
+- Subagent fixed research-tab.tsx: Initial papers state now empty (not stale mock data), added "Refresh Research" button, data source badges (Live/Fallback/None)
+- Subagent fixed stresslab-tab.tsx: Fixed log ID uniqueness bug (Date.now() collision), upgraded DEFAULT_PROMPTS to sophisticated ISC-style prompts, expanded templates from 5 to 11, added Quick Run feature, fixed lab logs overflow
+- Verified command-palette.tsx, notification-center.tsx, diagnostics-panel.tsx - all properly dark-themed
+- Dev server running without compilation errors
+
+Stage Summary:
+- **Flashing FIXED**: All intervals reduced from 2-3s to 10s, alert generation 30% chance, removed AnimatePresence animations
+- **Timeline overflow FIXED**: Changed to custom-scrollbar with proper max-h, reduced items
+- **Research mock data FIXED**: Starts empty, user must search or click "Refresh Research" for live data
+- **StressLab logging FIXED**: Unique IDs for consecutive tests, upgraded prompts, 11 templates, Quick Run
+- **Dark theme**: All components verified consistent, no white backgrounds
+- Server running stable at ~120MB RSS

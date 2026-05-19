@@ -477,7 +477,7 @@ export function OverviewTab() {
 
   const alertListRef = useRef<HTMLDivElement>(null)
 
-  // Simulated live metric updates every 2 seconds
+  // Simulated live metric updates every 10 seconds (reduces UI flashing)
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveConnections(prev => {
@@ -500,31 +500,33 @@ export function OverviewTab() {
         const newVal = Math.max(10, Math.min(80, prev[prev.length - 1] + Math.floor(Math.random() * 8) - 4))
         return [...prev.slice(1), newVal]
       })
-      // Rotate alerts - shift and add new one at top
-      setAlerts(prev => {
-        const nextId = Math.max(...prev.map(a => a.id)) + 1
-        const severities: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
-        const messages = [
-          'Memory usage spike detected on worker-2',
-          'Provider rate limit approaching for groq',
-          'Token burn rate increased by 12%',
-          'Circuit breaker triggered for scaleway',
-          'Model pool rebalance completed',
-          'New constitutional rule validated',
-          'Agent coordinator heartbeat received',
-          'Cache hit ratio improved to 94%',
-        ]
-        const sources = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay', 'Vault', 'StressLab']
-        const newAlert = {
-          id: nextId,
-          severity: severities[Math.floor(Math.random() * severities.length)],
-          message: messages[Math.floor(Math.random() * messages.length)],
-          source: sources[Math.floor(Math.random() * sources.length)],
-          time: Date.now(),
-        }
-        return [newAlert, ...prev.slice(0, 7)]
-      })
-    }, 2000)
+      // Only add a new alert occasionally (30% chance per tick) to reduce flashing
+      if (Math.random() < 0.3) {
+        setAlerts(prev => {
+          const nextId = Math.max(...prev.map(a => a.id)) + 1
+          const severities: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
+          const messages = [
+            'Memory usage spike detected on worker-2',
+            'Provider rate limit approaching for groq',
+            'Token burn rate increased by 12%',
+            'Circuit breaker triggered for scaleway',
+            'Model pool rebalance completed',
+            'New constitutional rule validated',
+            'Agent coordinator heartbeat received',
+            'Cache hit ratio improved to 94%',
+          ]
+          const sources = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay', 'Vault', 'StressLab']
+          const newAlert = {
+            id: nextId,
+            severity: severities[Math.floor(Math.random() * severities.length)],
+            message: messages[Math.floor(Math.random() * messages.length)],
+            source: sources[Math.floor(Math.random() * sources.length)],
+            time: Date.now(),
+          }
+          return [newAlert, ...prev.slice(0, 7)]
+        })
+      }
+    }, 10000)
 
     return () => clearInterval(interval)
   }, [])
@@ -797,28 +799,22 @@ export function OverviewTab() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div ref={alertListRef} className="space-y-1.5 max-h-[260px] overflow-y-auto scrollbar-thin">
-              <AnimatePresence mode="popLayout">
-                {alerts.slice(0, 5).map((alert) => {
-                  const config = alertSeverityConfig[alert.severity]
-                  const Icon = config.icon
-                  return (
-                    <motion.div
-                      key={alert.id}
-                      initial={{ opacity: 0, x: -20, height: 0 }}
-                      animate={{ opacity: 1, x: 0, height: 'auto' }}
-                      exit={{ opacity: 0, x: 20, height: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeOut' }}
-                      className={cn('flex items-center gap-2.5 p-2 rounded-lg border', config.bg, config.border)}
-                    >
-                      <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
-                      <span className="text-xs flex-1 truncate">{alert.message}</span>
-                      <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
-                      <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? getRelativeTime(alert.time) : '...'}</span>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
+            <div ref={alertListRef} className="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
+              {alerts.slice(0, 5).map((alert) => {
+                const config = alertSeverityConfig[alert.severity]
+                const Icon = config.icon
+                return (
+                  <div
+                    key={alert.id}
+                    className={cn('flex items-center gap-2.5 p-2 rounded-lg border transition-opacity duration-300', config.bg, config.border)}
+                  >
+                    <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
+                    <span className="text-xs flex-1 truncate">{alert.message}</span>
+                    <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
+                    <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? getRelativeTime(alert.time) : '...'}</span>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
