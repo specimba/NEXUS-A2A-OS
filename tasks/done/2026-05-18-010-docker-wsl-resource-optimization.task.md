@@ -77,7 +77,7 @@ sparseVhd=true
 - Started the corrected `core` profile: `nexus-kafka-bridge`, `nexus-kafka-consumer`, `redis-nexus`, and `supabase_db_NEO_agent`.
 - Verified the corrected core profile: about 113 MiB total container memory, low CPU, and `vmmemWSL` later reclaimed to about 502 MB working set / 3.7 GB private memory.
 - Found that Docker Desktop auto-restarted extension containers after restart; rerunning `scripts\nexus_docker_profile.ps1 -Mode core` was required to re-enforce core mode.
-- Attempted to block `6379` and `54322` with Windows Firewall, including the approved command path, but rule creation failed with `Access is denied`.
+- Attempted to block `6379` and `54322` with Windows Firewall, including the approved command path, but rule creation failed with `Access is denied`. Windows Firewall commands must be run from an Administrator PowerShell session.
 - Found a separate security issue: `nexus-kafka-bridge` container metadata includes raw connection secrets. Follow-up task: `2026-05-18-011-docker-secret-hardening`.
 
 ## Remaining Work
@@ -85,7 +85,7 @@ sparseVhd=true
 - Create durable Docker profiles or compose files for `core`, `observability`, `supabase-dev`, and `ai-tools`; the current repo-local script is the active control surface.
 - Decide which Docker Desktop extensions should be uninstalled rather than merely stopped.
 - Disable Docker Desktop extension auto-start where possible, or enforce `core` mode after Docker Desktop restarts.
-- Fix `6379` and `54322` all-interface exposure with localhost-only compose binds or Windows Firewall rules from an Administrator PowerShell session.
+- Fix `6379` and `54322` all-interface exposure with localhost-only compose binds or run Windows Firewall commands from an Administrator PowerShell session to block these ports.
 - Complete Docker secret hardening and credential rotation.
 
 ## Verification Gate

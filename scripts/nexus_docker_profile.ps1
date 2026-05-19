@@ -75,9 +75,9 @@ function Resolve-DesiredSet {
 $statusMap = Get-ContainerStatusMap
 
 if ($Mode -eq 'status') {
-    foreach ($profile in $profileMap.Keys) {
-        Write-Output "[$profile]"
-        foreach ($name in $profileMap[$profile]) {
+    foreach ($profileKey in $profileMap.Keys) {
+        Write-Output "[$profileKey]"
+        foreach ($name in $profileMap[$profileKey]) {
             if ($statusMap.ContainsKey($name)) {
                 $item = $statusMap[$name]
                 Write-Output ("{0}`t{1}`t{2}" -f $item.Name, $item.State, $item.Status)
@@ -95,7 +95,11 @@ $toStart = @()
 $toStop = @()
 
 foreach ($name in $desired) {
-    if ($statusMap.ContainsKey($name) -and $statusMap[$name].State -ne 'running') {
+    if (-not $statusMap.ContainsKey($name)) {
+        Write-Error "Container '$name' is not present in Docker"
+        exit 1
+    }
+    if ($statusMap[$name].State -ne 'running') {
         $toStart += $name
     }
 }
@@ -111,16 +115,32 @@ if (-not $toStart -and -not $toStop) {
     exit 0
 }
 
+$failures = @()
+
 foreach ($name in $toStop) {
     if ($PSCmdlet.ShouldProcess($name, 'docker stop')) {
         docker stop $name | Out-Null
-        Write-Output "stopped`t$name"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Output "stopped`t$name"
+        } else {
+            Write-Error "Failed to stop container '$name'"
+            $failures += $name
+        }
     }
 }
 
 foreach ($name in $toStart) {
     if ($PSCmdlet.ShouldProcess($name, 'docker start')) {
         docker start $name | Out-Null
-        Write-Output "started`t$name"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Output "started`t$name"
+        } else {
+            Write-Error "Failed to start container '$name'"
+            $failures += $name
+        }
     }
+}
+
+if ($failures.Count -gt 0) {
+    exit 1
 }
