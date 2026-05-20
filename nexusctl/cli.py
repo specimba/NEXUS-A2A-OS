@@ -8,7 +8,9 @@ from pathlib import Path
 
 
 def _state_dir() -> Path:
-    return Path(".nexus_pi") / "state"
+    repo_root = _find_repo_root()
+    base = repo_root if repo_root is not None else Path.cwd()
+    return base / ".nexus_pi" / "state"
 
 
 def _protected_workloads() -> list[str]:
@@ -53,7 +55,13 @@ def _count_task_files(repo_root: Path, queue: str) -> int:
     task_dir = repo_root / "tasks" / queue
     if not task_dir.exists():
         return 0
-    return len(list(task_dir.glob("*.task.md")))
+    task_files = set(task_dir.glob("*.task.md"))
+    task_files.update(task_dir.glob("TASK-*.json"))
+    return len(task_files)
+
+
+def _as_dict(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
 
 
 def _module_presence(module_names: list[str]) -> dict:
@@ -80,7 +88,7 @@ def run_cycle_check() -> int:
 
     if halt_path.exists():
         try:
-            halt = json.loads(halt_path.read_text(encoding="utf-8"))
+            halt = _as_dict(json.loads(halt_path.read_text(encoding="utf-8")))
             _json_print({
                 "status": "halted",
                 "reason": halt.get("failed_check", "unknown"),
@@ -99,7 +107,7 @@ def run_cycle_check() -> int:
 
     if compact_path.exists():
         try:
-            compact = json.loads(compact_path.read_text(encoding="utf-8"))
+            compact = _as_dict(json.loads(compact_path.read_text(encoding="utf-8")))
             _json_print({
                 "status": "ok",
                 "source": str(compact_path),
@@ -191,13 +199,17 @@ def run_doctor_version(report_only: bool, refresh: bool) -> int:
 
     porcelain_lines = [line for line in status.get("stdout", "").splitlines() if line]
     project_state = repo_root / "01_PROJECT_STATE.md"
-    project_state_text = project_state.read_text(encoding="utf-8") if project_state.exists() else ""
+    try:
+        project_state_text = project_state.read_text(encoding="utf-8") if project_state.exists() else ""
+    except OSError:
+        project_state_text = ""
     head_short = head.get("stdout", "")
+    git_ok = all(probe.get("ok") for probe in (head, branch, status))
     project_state_current_date = f"Date: {date.today().isoformat()}" in project_state_text
     obsolete_project_state_claim = "617 passed" in project_state_text or "636 passed" in project_state_text
 
     payload = {
-        "status": "ok" if not missing and project_state_current_date and not obsolete_project_state_claim else "degraded",
+        "status": "ok" if git_ok and not missing and project_state_current_date and not obsolete_project_state_claim else "degraded",
         "command": "doctor version",
         "report_only": report_only,
         "refresh_requested": refresh,
@@ -213,6 +225,7 @@ def run_doctor_version(report_only: bool, refresh: bool) -> int:
             "count": len(porcelain_lines),
             "entries": porcelain_lines[:50],
             "truncated": len(porcelain_lines) > 50,
+            "git_ok": git_ok,
         },
         "queue": {
             "pending": _count_task_files(repo_root, "pending"),

@@ -22,6 +22,39 @@ def test_cycle_check_reports_unavailable_when_no_state(tmp_path):
     assert payload["status"] == "unavailable"
 
 
+def test_cycle_check_handles_non_dict_halt_payload_from_repo_subdir(tmp_path, monkeypatch, capsys):
+    from nexusctl import cli
+
+    repo_root = tmp_path / "repo"
+    nested = repo_root / "nested"
+    state_dir = repo_root / ".nexus_pi" / "state"
+    nested.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
+    state_dir.mkdir(parents=True)
+    halt_path = state_dir / "halt_report.json"
+    halt_path.write_text("[]", encoding="utf-8")
+
+    monkeypatch.chdir(nested)
+    assert cli.run_cycle_check() == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "halted"
+    assert payload["reason"] == "unknown"
+    assert payload["recovery_hint"] is None
+    assert payload["source"] == str(halt_path)
+
+
+def test_count_task_files_includes_json_queue_entries(tmp_path):
+    from nexusctl.cli import _count_task_files
+
+    pending = tmp_path / "tasks" / "pending"
+    pending.mkdir(parents=True)
+    (pending / "TASK-001.json").write_text("{}", encoding="utf-8")
+    (pending / "2026-05-20-example.task.md").write_text("# task\n", encoding="utf-8")
+    (pending / "notes.json").write_text("{}", encoding="utf-8")
+
+    assert _count_task_files(tmp_path, "pending") == 2
+
+
 def test_doctor_report_only_has_intentional_failure_mode(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
