@@ -17,6 +17,7 @@ Move NEXUS Docker runtime secrets out of inspectable container environment metad
 ## Remediation Strategy
 
 ### Secret Migration
+
 - Move secrets from inline environment variables in docker-compose files to a secrets management solution:
   - Option 1: Docker Secrets (requires swarm mode or compose v3.1+)
   - Option 2: External secrets store/vault (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault)
@@ -25,11 +26,13 @@ Move NEXUS Docker runtime secrets out of inspectable container environment metad
 - Update docker-compose files to use `secrets:` blocks or `env_file:` with ignored `.env` files
 
 ### Network Exposure
+
 - Redis (`redis-nexus`): Change port binding from `0.0.0.0:6379:6379` to `127.0.0.1:6379:6379`
 - Postgres (`supabase_db_NEO_agent`): Change port binding from `0.0.0.0:54322:5432` to `127.0.0.1:54322:5432`
 - Alternative: Apply Windows Firewall rules from Administrator PowerShell to block external access to ports 6379 and 54322
 
 ### Credential Rotation
+
 1. Generate new Kafka API key/secret pair in Confluent Cloud
 2. Update secrets store or `.env` with new credentials
 3. Recreate `nexus-kafka-bridge` and `nexus-kafka-consumer` containers
@@ -40,6 +43,7 @@ Move NEXUS Docker runtime secrets out of inspectable container environment metad
 8. Recreate `supabase_db_NEO_agent` container
 
 ### Access Controls
+
 - Restrict Docker socket access to authorized users only
 - Implement least-privilege IAM roles for secrets access
 - Enable audit logging for secrets access

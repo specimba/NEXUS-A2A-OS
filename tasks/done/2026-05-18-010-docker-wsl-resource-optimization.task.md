@@ -53,8 +53,8 @@ autoMemoryReclaim=gradual
 sparseVhd=true
 ```
 
-7. Restart WSL/Docker only after active Docker missions are released. Completed during this pass.
-8. Re-measure `vmmemWSL`, Docker stats, open ports, OBS/streaming stability, and NEXUS agent latency. Docker/WSL/open-port checks completed; OBS stability remains operator-observed.
+1. Restart WSL/Docker only after active Docker missions are released. Completed during this pass.
+2. Re-measure `vmmemWSL`, Docker stats, open ports, OBS/streaming stability, and NEXUS agent latency. Docker/WSL/open-port checks completed; OBS stability remains operator-observed.
 
 ## First Pass Executed
 

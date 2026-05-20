@@ -42,7 +42,20 @@ $profileMap = [ordered]@{
 $managedContainers = $profileMap.Values | ForEach-Object { $_ } | Sort-Object -Unique
 
 function Get-ContainerStatusMap {
-    $rows = @(& docker ps -a --format '{{.Names}}|{{.State}}|{{.Status}}' 2>$null)
+    $stderrFile = [System.IO.Path]::GetTempFileName()
+    try {
+        $rows = @(& docker ps -a --format '{{.Names}}|{{.State}}|{{.Status}}' 2>$stderrFile)
+        if ($LASTEXITCODE -ne 0) {
+            $stderr = Get-Content -LiteralPath $stderrFile -Raw -ErrorAction SilentlyContinue
+            if ([string]::IsNullOrWhiteSpace($stderr)) {
+                $stderr = "docker ps -a exited with code $LASTEXITCODE"
+            }
+            throw "Failed to inspect Docker containers: $stderr"
+        }
+    } finally {
+        Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+    }
+
     $map = @{}
     foreach ($row in $rows) {
         $parts = $row -split '\|', 3
