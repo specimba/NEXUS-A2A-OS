@@ -1,6 +1,12 @@
 #!/bin/bash
 cd /home/z/my-project
 
+# Ensure dependencies exist
+if [ ! -d "node_modules/next" ]; then
+    echo "Installing dependencies..."
+    bun install --frozen-lockfile 2>/dev/null || bun install
+fi
+
 # Ensure build exists
 if [ ! -f ".next/standalone/server.js" ]; then
     echo "No standalone build found, building..."

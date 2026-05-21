@@ -770,3 +770,39 @@ Unresolved Issues:
 - Server process gets killed by sandbox after ~15s — fundamental infrastructure limitation
 - Sidebar tab switching may not work with agent-browser (automation issue, likely works for real users)
 - The cron job will handle server restarts and ongoing development
+
+---
+Task ID: 15
+Agent: Main
+Task: Fix preview not loading, handle dependency/build issues, reference GitHub branch
+
+Work Log:
+- Discovered .next build directory was completely gone again (sandbox wiped it)
+- Discovered node_modules was also completely empty (0 packages)
+- Full dependency reinstall: bun install (834 packages)
+- Pinned Next.js version to 16.1.3 (was ^16.1.1 which auto-upgraded to 16.2.6, breaking the build)
+- Fixed Turbopack build error: added turbopack.root config in next.config.ts
+- Rebuilt production bundle successfully
+- Updated .zscripts/dev.sh to handle full lifecycle: install deps → build → start server
+- Attempted to read GitHub PR #34 and DASHBOARD-GLM51 branch — repo is private, got 404
+- Server confirmed working: HTTP 200, dashboard HTML renders with NEXUS-OS branding
+- Created cron job 161775 for 15-minute automated review
+
+Stage Summary:
+- **Build system stabilized**: Pinned Next.js 16.1.3, added turbopack.root config
+- **Dependency management**: .zscripts/dev.sh now handles full install + build + start cycle
+- **Server confirmed working**: Returns 200 with proper HTML content
+- **GitHub branch inaccessible**: The specimba/nexusalpha repo is private — cannot read PR or branch
+- **Ongoing issue**: Sandbox kills server process after ~15-20 seconds
+
+Files Modified:
+| File | Change |
+|------|--------|
+| package.json | Pinned next to 16.1.3 (was ^16.1.1) |
+| next.config.ts | Added turbopack.root: "/home/z/my-project" |
+| .zscripts/dev.sh | Added dependency install check before build |
+
+Note to user: The GitHub repo at https://github.com/specimba/nexusalpha appears to be private.
+I cannot access the PR #34 comment or the DASHBOARD-GLM51 branch.
+If there are specific changes or files from that branch you want me to incorporate,
+please share them directly or make the repo public.
