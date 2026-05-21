@@ -47,6 +47,48 @@ The NEXUS-OS v3.1 dashboard is now **operational** with real data from the SQLit
 3. **Some lint errors exist** in pre-existing code (swarm-tab.tsx ref update, dashboards-tab.tsx setState in effect)
 4. **Branch integration incomplete**: DASHBOARD-GLM51 branch new files were checked out, but conflicting files still need manual comparison and merge.
 
+### UI/UX Grounding Point (2026-04-18)
+
+Created a comprehensive disaster recovery snapshot for the current good UI/UX state:
+
+1. **Created `GROUNDING.md`** — Comprehensive UI/UX grounding document covering:
+   - Architecture overview (Next.js 16 + React 19 + Zustand + SWR + Framer Motion)
+   - Complete color scheme in oklch (dark theme CSS variables)
+   - NEXUS custom colors (emerald accent system)
+   - Full component file structure (shell, tabs, features, MCP, dashboards, UI primitives)
+   - Sidebar design with all 13 navigation items and active state styles
+   - Header design with all elements and system config dialog
+   - Footer design with pool status, errors, rate limits, uptime
+   - AI Assistant design (floating button, SSE streaming, model selector, localStorage persistence)
+   - Zustand state management structure
+   - Key design pattern code snippets (cards, badges, status dots, progress bars, ping dots)
+   - All CSS animation classes documented
+   - API routes reference
+   - Keyboard shortcuts reference
+   - Responsive design breakpoints
+   - Recovery instructions
+   - Dependency versions
+
+2. **Git tag `grounding-uiux-v3.1`** — Annotated tag pushed to remote
+   - Commit: `feat: NEXUS-OS v3.1 UI/UX grounding point - working dashboard with real data`
+   - Pushed to `origin/grounding-uiux-v3.1` on GitHub
+
+3. **Created `scripts/backup-ui-snapshot.sh`** — Backup script that:
+   - Archives 159 key UI files (components, styles, config, store, hooks, lib)
+   - Saves as `backups/ui-snapshot-YYYYMMDD-HHMMSS.tar.gz`
+   - Generates SHA-256 manifest for all included files
+   - Tested successfully: 448K archive created
+
+4. **Tested backup script** — Confirmed working:
+   - Archive: `backups/ui-snapshot-20260521-231132.tar.gz` (448K)
+   - Manifest: `backups/MANIFEST-20260521-231132.txt`
+
+### Recovery Procedure
+- `git checkout grounding-uiux-v3.1` — full restore to grounding point
+- `git diff grounding-uiux-v3.1 -- <file>` — compare specific files
+- `bash scripts/backup-ui-snapshot.sh` — create new timestamped snapshot
+- `tar -xzf backups/ui-snapshot-*.tar.gz -C /path/to/project` — restore from archive
+
 ## Previous Session Summary
 
 - Built NEXUS-OS v3.1 dashboard with Next.js 16.1.3 + Turbopack
