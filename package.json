@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "node .next/standalone/server.js",
+    "dev": "node supervisor.js",
     "build": "next build && node scripts/copy-next-standalone.mjs",
     "start": "node .next/standalone/server.js",
     "lint": "eslint .",

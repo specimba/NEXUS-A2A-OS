@@ -8,6 +8,7 @@ import { NexusAssistant } from '@/components/nexus/ai-assistant'
 import { NexusCommandPalette } from '@/components/nexus/command-palette'
 import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
 import { KeyboardShortcuts } from '@/components/nexus/keyboard-shortcuts'
+import { TabErrorBoundary } from '@/components/nexus/tab-error-boundary'
 import { useState, useEffect } from 'react'
 
 export default function Home() {
@@ -38,7 +39,9 @@ export default function Home() {
 
         {/* Content */}
         <main className="flex-1 overflow-auto bg-background">
-          <TabContent />
+          <TabErrorBoundary>
+            <TabContent />
+          </TabErrorBoundary>
         </main>
 
         {/* Sticky Footer */}

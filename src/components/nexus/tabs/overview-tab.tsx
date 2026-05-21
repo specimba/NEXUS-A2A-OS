@@ -264,16 +264,24 @@ export default function OverviewTab()
     refreshInterval: 60_000,
   })
 
+  // Destructure overview data (API returns { overview: { pillars, stats, ... } })
+  const overview = data?.overview
+  const pillars = overview?.pillars || []
+  const stats = overview?.stats || { tokenBudget: { remaining: 0, total: 0, used: 0, pct: 0 }, activeAgents: { total: 0, busy: 0, idle: 0, error: 0, max: 5 }, stressLab: { runs: 0, templates: 0, passRate: 0, collapseRate: 0 }, collapseRate: 0 }
+  const recentDecisions = overview?.recentDecisions || []
+  const healthTimeline = overview?.healthTimeline || []
+  const tokenHistory = overview?.tokenHistory || []
+
   // Generate sparklines from health timeline
-  const pillarSparklines = data?.pillars.map(p => {
-    const values = data.healthTimeline
+  const pillarSparklines = pillars.map(p => {
+    const values = healthTimeline
       .map(row => Number(row[p.name]))
       .filter(v => !isNaN(v))
     return {
       name: p.name,
       data: values.map(v => ({ value: v })),
     }
-  }) || []
+  })
 
   // Diagnostic state
   const [diagOpen, setDiagOpen] = useState(false)
@@ -322,10 +330,6 @@ export default function OverviewTab()
     )
   }
 
-  const { overview } = data || {}
-  const pillars = overview?.pillars || []
-  const stats = overview?.stats || { tokenBudget: { remaining: 0, total: 0, used: 0, pct: 0 }, activeAgents: { total: 0, busy: 0, idle: 0, error: 0, max: 5 }, stressLab: { runs: 0, templates: 0, passRate: 0, collapseRate: 0 }, collapseRate: 0 }
-  const recentDecisions = overview?.recentDecisions || []
   const activeAgents = agents?.filter(a => a.status !== 'offline') || []
   const busyCount = activeAgents.filter(a => a.status === 'busy').length
   const errorCount = activeAgents.filter(a => a.status === 'error').length
@@ -408,11 +412,11 @@ export default function OverviewTab()
             <Shield className="h-3 w-3 text-red-400" /> Governance
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-white/90">{overview.avgTrust.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-white/90">{(overview?.avgTrust ?? 0).toFixed(2)}</span>
             <span className="text-xs text-white/30">trust avg</span>
           </div>
           <div className="mt-2 flex gap-2 text-[10px]">
-            <span className="text-blue-400">{overview.totalVaultEntries} vault entries</span>
+            <span className="text-blue-400">{overview?.totalVaultEntries ?? 0} vault entries</span>
             <span className="text-white/20">·</span>
             <span className="text-white/50">{recentDecisions.length} decisions</span>
           </div>
@@ -461,8 +465,8 @@ export default function OverviewTab()
             </div>
           </CardHeader>
           <CardContent>
-            {data.healthTimeline.length > 0 ? (
-              <MiniHealthTimeline data={data.healthTimeline} />
+            {healthTimeline.length > 0 ? (
+              <MiniHealthTimeline data={healthTimeline} />
             ) : (
               <p className="text-xs text-white/30 py-8 text-center">No timeline data yet</p>
             )}
@@ -499,7 +503,7 @@ export default function OverviewTab()
       </div>
 
       {/* ── Token History ──────────────────────────────────────── */}
-      {data.tokenHistory.length > 0 && (
+      {tokenHistory.length > 0 && (
         <Card className="border-white/5 bg-white/[0.02]">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -512,8 +516,8 @@ export default function OverviewTab()
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-1 h-20">
-              {data.tokenHistory.map((t, i) => {
-                const maxVal = Math.max(...data.tokenHistory.map(x => x.value), 1)
+              {tokenHistory.map((t, i) => {
+                const maxVal = Math.max(...tokenHistory.map(x => x.value), 1)
                 const h = (t.value / maxVal) * 100
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center gap-1">
