@@ -307,12 +307,13 @@ export default function OverviewTab()
     )
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-3 text-center">
           <Radiation className="h-10 w-10 text-red-400" />
           <p className="text-sm text-red-400">Failed to load system data</p>
+          <p className="text-xs text-red-400/60">{error.message}</p>
           <Button variant="outline" size="sm" onClick={() => mutate()}>
             <RefreshCw className="h-3 w-3 mr-1" /> Retry
           </Button>
@@ -321,8 +322,10 @@ export default function OverviewTab()
     )
   }
 
-  const { overview } = data
-  const { pillars, stats, recentDecisions } = overview
+  const { overview } = data || {}
+  const pillars = overview?.pillars || []
+  const stats = overview?.stats || { tokenBudget: { remaining: 0, total: 0, used: 0, pct: 0 }, activeAgents: { total: 0, busy: 0, idle: 0, error: 0, max: 5 }, stressLab: { runs: 0, templates: 0, passRate: 0, collapseRate: 0 }, collapseRate: 0 }
+  const recentDecisions = overview?.recentDecisions || []
   const activeAgents = agents?.filter(a => a.status !== 'offline') || []
   const busyCount = activeAgents.filter(a => a.status === 'busy').length
   const errorCount = activeAgents.filter(a => a.status === 'error').length
