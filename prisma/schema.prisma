@@ -320,3 +320,99 @@ model TokenSnapshot {
   topAgent        String?  // agent consuming most tokens
   recordedAt      DateTime @default(now())
 }
+
+// ─── Custom Dashboards (user-defined widget canvases) ───
+
+model CustomDashboard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String   @default("operator")
+  ownerName   String   @default("Operator")
+  icon        String   @default("layout-dashboard")
+  color       String   @default("emerald")
+  isFavorite  Boolean  @default(false)
+  isPinned    Boolean  @default(false)
+  sharedWith  String   @default("[]")
+  tags        String   @default("[]")
+  lastViewed  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  widgets     CustomWidget[]
+
+  @@index([ownerId])
+  @@index([isPinned])
+}
+
+model CustomWidget {
+  id          String   @id @default(cuid())
+  dashboardId String
+  dashboard   CustomDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  subtitle    String?
+  dataSource  String
+  config      String   @default("{}")
+  posX        Int      @default(0)
+  posY        Int      @default(0)
+  width       Int      @default(4)
+  height      Int      @default(2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dashboardId])
+}
+
+// ─── MCP Hub (connections + telemetry) ───
+// Store an environment variable reference only. Never persist raw connector
+// credentials in this database table.
+
+model McpConnection {
+  id            String   @id @default(cuid())
+  name          String
+  endpoint      String
+  apiKeyRef     String?
+  transport     String   @default("websocket")
+  status        String   @default("disconnected")
+  lastError     String?
+  topicMap      String   @default("{}")
+  autoReconnect Boolean  @default(true)
+  enabled       Boolean  @default(true)
+  totalEvents   Int      @default(0)
+  errorCount    Int      @default(0)
+  lastEventAt   DateTime?
+  connectedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  events        McpEvent[]
+
+  @@index([status])
+  @@index([enabled])
+}
+
+model McpEvent {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  topic        String
+  level        String        @default("info")
+  payload      String        @default("{}")
+  occurredAt   DateTime      @default(now())
+
+  @@index([connectionId])
+  @@index([occurredAt])
+  @@index([level])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String   @default("operator")
+  action    String
+  target    String?
+  metadata  String   @default("{}")
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}

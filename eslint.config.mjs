@@ -44,7 +44,27 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: [
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills/**",
+    ".pytest_cache/**",
+    ".mypy_cache/**",
+    ".ruff_cache/**",
+    ".venv/**",
+    "venv/**",
+    "__pycache__/**",
+    "tests_tmp/**",
+    ".kilo/**",
+    ".devin/**",
+    ".autoclaw/**",
+    ".pi/**",
+    "nexus-os-v2/**",
+  ],
 }];
 
 export default eslintConfig;

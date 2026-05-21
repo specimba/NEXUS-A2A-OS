@@ -7,13 +7,7 @@ export async function GET() {
     const p0 = papers.filter(p => p.priorityTier === 'P0')
     const p1 = papers.filter(p => p.priorityTier === 'P1')
     const p2 = papers.filter(p => p.priorityTier === 'P2')
-    return NextResponse.json({
-      papers,
-      p0,
-      p1,
-      p2,
-      total: papers.length,
-    })
+    return NextResponse.json({ papers, p0, p1, p2, total: papers.length })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
@@ -22,12 +16,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const {
-      title, externalId, priorityTier, relevanceScore, implementationTask, deliverable,
-      type, pdfUrl, repoUrl, abstractSummary,
-      admissionTier, researchRole, conceptIds, projectFit,
-      dgFinalScore, noveltyScore, evidenceQuality, promotable,
-    } = body
+    const { title, externalId, priorityTier, relevanceScore, implementationTask, deliverable, type, pdfUrl, repoUrl, abstractSummary } = body
 
     if (!title) {
       return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 })
@@ -59,14 +48,6 @@ export async function POST(request: NextRequest) {
         implementationTask: implementationTask || 'Pending review',
         deliverable: deliverable || null,
         isVetted: false,
-        admissionTier: admissionTier || 'source_stub',
-        researchRole: researchRole || 'context_only',
-        conceptIds: conceptIds || null,
-        projectFit: projectFit || 'general',
-        dgFinalScore: dgFinalScore ?? 0,
-        noveltyScore: noveltyScore ?? 0,
-        evidenceQuality: evidenceQuality ?? 0,
-        promotable: promotable ?? false,
       },
     })
 

@@ -1,22 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NEXUS-OS v3.1 — Security-First .gitignore
-# NEVER commit secrets, keys, .env files, or runtime data.
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# ── SECRETS & CREDENTIALS (NEVER COMMIT) ───────────────────────
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.secret
-credentials.json
-service-account*.json
-.secrets
-
-# ── Dependencies ───────────────────────────────────────────────
+# dependencies
 node_modules
 /.pnp
 .pnp.*
@@ -26,89 +10,59 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
-# ── Testing ────────────────────────────────────────────────────
+# testing
 /coverage
+__pycache__/
+*.py[cod]*
 
-# ── Next.js ────────────────────────────────────────────────────
+# next.js
 /.next/
 /out/
 
-# ── Production ─────────────────────────────────────────────────
+# production
 /build
 
-# ── OS & Misc ──────────────────────────────────────────────────
+# misc
 .DS_Store
-Thumbs.db
+*.pem
 
-# ── Debug logs ─────────────────────────────────────────────────
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-*.log
-dev.log
-dev.out.log
-server.log
 
-# ── TypeScript ─────────────────────────────────────────────────
-*.tsbuildinfo
-next-env.d.ts
+# env files (can opt-in for committing if needed)
+.env*
 
-# ── Vercel ─────────────────────────────────────────────────────
+# vercel
 .vercel
 
-# ── Local / Dev-only ──────────────────────────────────────────
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 local-*
 .claude
 .z-ai-config
-
-# ── Python ─────────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
-ENV/
-
-# ── Database (runtime data — team runs bun run db:push) ───────
-/db/
-*.db
-*.sqlite
-*.sqlite3
-
-# ── Upload directory (user data) ──────────────────────────────
-/upload/
-
-# ── Agent context (development artifacts) ─────────────────────
-/agent-ctx/
-
-# ── Mini services runtime ─────────────────────────────────────
-/mini-services/*/node_modules/
-
-# ── Sandbox ────────────────────────────────────────────────────
-/sandbox/
-
-# ── Handoff ────────────────────────────────────────────────────
-/handoff/
-
-# ── Download ───────────────────────────────────────────────────
-/download/
-
-# ── Temp files ─────────────────────────────────────────────────
-package.json.tmp
+*.log
+dev.log
+dev.out.log
 test
 prompt
 
-# ── Server PID ─────────────────────────────────────────────────
-server.pid
-
-# ── Prisma ─────────────────────────────────────────────────────
-prisma/migration_lock.toml
-
-# ── Skills directory ──────────────────────────────────────────
+server.log
+# Skills directory
 /skills/
+
+# Local confidential research corpus: scientific papers, red-team material,
+# DERDDRE-related source PDFs, and dataset-creation inputs stay off Git.
+/research/Papers/
+/docs/research/papers/
+/docs/research/Papers/
+/MIXED/
+/.nexus-worktrees/
+
+# Local hygiene backup artifacts stay inspectable on disk but off Git.
+/docs/handoff/nexus-tidiness/**/tracked-diff-before.patch
+/docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv

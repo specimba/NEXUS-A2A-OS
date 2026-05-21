@@ -1,209 +1,249 @@
 'use client'
 
-import { useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Check, Copy, Link2, Loader2, Globe, Lock } from 'lucide-react'
-import type { Dashboard, ShareResponse } from '@/lib/dashboard-types'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import { Users, X, Eye, Pencil, Copy, Check } from 'lucide-react'
+import { parseSharedWith, type SharedMember, type CustomDashboardDTO } from './types'
 
-interface ShareDialogProps {
+// Common teammates suggestions (in a multi-tenant deployment these come from a /api/team endpoint)
+const SUGGESTED_TEAMMATES: { id: string; name: string }[] = [
+  { id: 'op-2', name: 'Avery Quinn' },
+  { id: 'op-3', name: 'Jordan Park' },
+  { id: 'op-4', name: 'Sam Rivera' },
+  { id: 'op-5', name: 'Morgan Chen' },
+  { id: 'op-6', name: 'Riley Hayes' },
+]
+
+interface Props {
+  dashboard: CustomDashboardDTO
   open: boolean
   onOpenChange: (open: boolean) => void
-  dashboard: Dashboard | null
+  onUpdated: () => void
 }
 
-export function ShareDialog({ open, onOpenChange, dashboard }: ShareDialogProps) {
-  const [shareUrl, setShareUrl] = useState<string | null>(null)
-  const [isPublic, setIsPublic] = useState(dashboard?.isPublic ?? false)
-  const [generating, setGenerating] = useState(false)
+export function ShareDialog({ dashboard, open, onOpenChange, onUpdated }: Props) {
+  const [members, setMembers] = useState<SharedMember[]>(() => parseSharedWith(dashboard.sharedWith))
+  const [newName, setNewName] = useState('')
+  const [newRole, setNewRole] = useState<'viewer' | 'editor'>('viewer')
+  const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [toggling, setToggling] = useState(false)
 
-  const handleGenerateLink = async () => {
-    if (!dashboard) return
-    setGenerating(true)
-    try {
-      const res = await fetch(`/api/dashboards/${dashboard.id}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic }),
-      })
-      if (res.ok) {
-        const data: ShareResponse = await res.json()
-        setShareUrl(data.shareUrl)
-        setIsPublic(data.isPublic)
-      }
-    } catch {
-      // Error handled silently — share URL remains null
+  // Reset members only when the upstream sharing data actually changes —
+  // depending on the whole `dashboard` object would also reset on every poll
+  // (15s) and silently discard in-flight edits in the dialog.
+  useEffect(() => {
+    setMembers(parseSharedWith(dashboard.sharedWith))
+  }, [dashboard.sharedWith])
+
+  const shareLink =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/?dashboard=${dashboard.id}`
+      : `?dashboard=${dashboard.id}`
+
+  function addMember(name: string, role: 'viewer' | 'editor') {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (members.some((m) => m.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('Already shared with that person')
+      return
     }
-    setGenerating(false)
+    setMembers([
+      ...members,
+      {
+        id: `op-${Date.now()}`,
+        name: trimmed,
+        role,
+      },
+    ])
+    setNewName('')
   }
 
-  const handleCopyLink = async () => {
-    if (!shareUrl) return
+  function removeMember(id: string) {
+    setMembers(members.filter((m) => m.id !== id))
+  }
+
+  function updateRole(id: string, role: 'viewer' | 'editor') {
+    setMembers(members.map((m) => (m.id === id ? { ...m, role } : m)))
+  }
+
+  async function handleSave() {
+    setSaving(true)
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      const res = await fetch(`/api/dashboards/${dashboard.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sharedWith: members }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      toast.success(`Shared with ${members.length} ${members.length === 1 ? 'person' : 'people'}`)
+      onUpdated()
+      onOpenChange(false)
+    } catch {
+      toast.error('Failed to update sharing')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(shareLink)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Clipboard write failed — user can copy manually
+      toast.error('Could not copy link')
     }
   }
 
-  const handleTogglePublic = async (checked: boolean) => {
-    if (!dashboard) return
-    setToggling(true)
-    try {
-      const res = await fetch(`/api/dashboards/${dashboard.id}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic: checked }),
-      })
-      if (res.ok) {
-        const data: ShareResponse = await res.json()
-        setIsPublic(data.isPublic)
-        if (data.shareUrl) {
-          setShareUrl(data.shareUrl)
-        }
-      }
-    } catch {
-      // Error handled silently
-    }
-    setToggling(false)
-  }
+  const availableSuggestions = SUGGESTED_TEAMMATES.filter(
+    (s) =>
+      !members.some(
+        (m) => m.id === s.id || m.name.toLowerCase() === s.name.toLowerCase(),
+      ),
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            Share Dashboard
+            <Users className="h-4 w-4 text-primary" />
+            Share &ldquo;{dashboard.name}&rdquo;
           </DialogTitle>
           <DialogDescription>
-            Share &quot;{dashboard?.name || 'Dashboard'}&quot; with others via a link.
+            Invite teammates to view or edit this dashboard.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Public/Private Toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-            <div className="flex items-center gap-3">
-              {isPublic ? (
-                <Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Lock className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div>
-                <Label className="text-sm font-medium">
-                  {isPublic ? 'Public' : 'Private'}
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {isPublic
-                    ? 'Anyone with the link can view this dashboard'
-                    : 'Only you can access this dashboard'}
-                </p>
-              </div>
-            </div>
+          {/* Link */}
+          <div className="grid gap-2">
+            <Label>Share link</Label>
             <div className="flex items-center gap-2">
-              {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-              <Switch
-                checked={isPublic}
-                onCheckedChange={handleTogglePublic}
-                disabled={toggling}
-                className="data-[state=checked]:bg-emerald-600"
-              />
+              <Input value={shareLink} readOnly className="font-mono text-xs flex-1" />
+              <Button size="sm" variant="outline" onClick={copyLink}>
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
             </div>
           </div>
 
-          {/* Share Link */}
-          {shareUrl ? (
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Share Link</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={shareUrl}
-                  className="text-xs font-mono h-9 flex-1"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 px-3 gap-1.5 shrink-0"
-                  onClick={handleCopyLink}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      <span className="text-xs">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      <span className="text-xs">Copy</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className={`text-[9px] h-4 ${
-                    isPublic
-                      ? 'border-emerald-600/30 text-emerald-600 dark:text-emerald-400'
-                      : 'border-border text-muted-foreground'
-                  }`}
-                >
-                  {isPublic ? 'PUBLIC' : 'PRIVATE'}
-                </Badge>
-                <span className="text-[10px] text-muted-foreground">
-                  Link generated successfully
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-600/10 flex items-center justify-center mb-3">
-                <Link2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                Generate a shareable link for this dashboard
-              </p>
-              <Button
-                onClick={handleGenerateLink}
-                disabled={generating}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-              >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Link2 className="h-4 w-4" />
-                )}
-                Generate Share Link
+          {/* Add by name */}
+          <div className="grid gap-2">
+            <Label>Add by name</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Teammate name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addMember(newName, newRole)
+                  }
+                }}
+                className="flex-1"
+              />
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as 'viewer' | 'editor')}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => addMember(newName, newRole)} disabled={!newName.trim()}>
+                Add
               </Button>
             </div>
+          </div>
+
+          {/* Suggestions */}
+          {availableSuggestions.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">Suggested teammates</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {availableSuggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => addMember(s.name, 'viewer')}
+                    className="text-[11px] px-2 py-1 rounded-md border border-border/60 hover:border-primary/40 hover:bg-accent transition-colors"
+                  >
+                    + {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Current members */}
+          <div className="space-y-1.5">
+            <Label>Shared with ({members.length})</Label>
+            {members.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">
+                Not shared yet. Only you can see this dashboard.
+              </p>
+            ) : (
+              <div className="space-y-1 max-h-48 overflow-auto custom-scrollbar">
+                {members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-2 p-2 rounded-md border border-border/40 bg-card/50"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                      {m.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0 text-sm truncate">{m.name}</div>
+                    <Select
+                      value={m.role}
+                      onValueChange={(v) => updateRole(m.id, v as 'viewer' | 'editor')}
+                    >
+                      <SelectTrigger className="h-7 w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="viewer">
+                          <span className="flex items-center gap-1.5">
+                            <Eye className="h-3 w-3" /> Viewer
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="editor">
+                          <span className="flex items-center gap-1.5">
+                            <Pencil className="h-3 w-3" /> Editor
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => removeMember(m.id)}
+                      aria-label="Remove member"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <DialogFooter className="sm:justify-start">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-xs"
-          >
-            Done
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save sharing'}
           </Button>
         </DialogFooter>
       </DialogContent>

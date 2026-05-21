@@ -1,312 +1,360 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { useNexusStore } from '@/store/nexus-store'
-import { Moon, Sun, Menu, Activity, Settings, Bell, Wifi, Search, ChevronRight } from 'lucide-react'
+import { Moon, Sun, Menu, Activity, Settings, Terminal, Download } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
 import { NotificationCenter } from '@/components/nexus/notification-center'
-import { SettingsPanel } from '@/components/nexus/settings-panel'
-import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { SystemLogsPanel } from '@/components/nexus/system-logs'
+import { GlobalExportDialog } from '@/components/nexus/global-export-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
+// useMounted removed — using useState+useEffect for hydration safety
 
 const tabTitles: Record<string, string> = {
   overview: 'System Overview',
-  architecture: 'System Architecture',
   stresslab: 'StressLab Arena',
   gmr: 'GMR Router Panel',
-  providers: 'Provider Management',
   governor: 'Governor Dashboard',
   vault: 'Vault Browser',
   research: 'Research Pipeline',
-  aichat: 'AI Assistant',
   swarm: 'Swarm Monitor',
   tokens: 'Token Budget',
   kpi: 'KPI Dashboard',
   ratelimit: 'Rate Limit Control Center',
-  dashboards: 'Dashboards',
-  modelrelay: 'ModelRelay Gateway',
 }
 
-// Map each tab to its group name for breadcrumbs
-const tabGroups: Record<string, string> = {
-  overview: 'Core',
-  architecture: 'Core',
-  stresslab: 'Testing & Routing',
-  gmr: 'Testing & Routing',
-  providers: 'Testing & Routing',
-  governor: 'Governance',
-  vault: 'Governance',
-  research: 'Intelligence',
-  aichat: 'Intelligence',
-  swarm: 'Intelligence',
-  tokens: 'Metrics',
-  ratelimit: 'Metrics',
-  kpi: 'Metrics',
-  dashboards: 'Metrics',
-  modelrelay: 'Metrics',
+interface SystemConfig {
+  maxAgents: number
+  apiCallsLimit: number
+  fileWritesLimit: number
+  maxConcurrent: number
+  healthCheckInterval: number
+  fallbackEnabled: boolean
+  autoBlockCrit: boolean
+  trustDecayRate: number
+  sensitivity: string
 }
 
-/** Circular progress ring for token budget */
-function TokenRing({ percent, size = 28, strokeWidth = 3 }: { percent: number; size?: number; strokeWidth?: number }) {
-  const radius = (size - strokeWidth) / 2
-  const circumference = radius * 2 * Math.PI
-  const offset = circumference - (percent / 100) * circumference
+const defaultConfig: SystemConfig = {
+  maxAgents: 5,
+  apiCallsLimit: 20,
+  fileWritesLimit: 30,
+  maxConcurrent: 2,
+  healthCheckInterval: 30,
+  fallbackEnabled: true,
+  autoBlockCrit: true,
+  trustDecayRate: 0.02,
+  sensitivity: 'med',
+}
+
+function SystemConfigDialog({ open, onOpenChange }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const [config, setConfig] = useState<SystemConfig>(defaultConfig)
+
+  const handleSave = useCallback(() => {
+    toast.success('System configuration saved', {
+      description: 'Changes will take effect on next session cycle.',
+    })
+    onOpenChange(false)
+  }, [onOpenChange])
 
   return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        className="text-muted/30"
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="url(#tokenGradient)"
-        strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        className="transition-all duration-700"
-      />
-      <defs>
-        <linearGradient id="tokenGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#10b981" />
-          <stop offset="50%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#22d3ee" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            System Configuration
+          </DialogTitle>
+          <DialogDescription>
+            Configure NEXUS OS constitution limits, GMR settings, and Governor behavior
+          </DialogDescription>
+        </DialogHeader>
 
-/** Animated number for requests/sec */
-function AnimatedRps({ value }: { value: number }) {
-  return (
-    <motion.span
-      key={value}
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
-      transition={{ duration: 0.15 }}
-      className="inline-block tabular-nums"
-    >
-      {value}
-    </motion.span>
+        <div className="space-y-6 py-2">
+          {/* Constitution Limits */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Constitution Limits</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Max Agents / hr</label>
+                <Input
+                  type="number"
+                  value={config.maxAgents}
+                  onChange={(e) => setConfig((c) => ({ ...c, maxAgents: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">API Calls / session</label>
+                <Input
+                  type="number"
+                  value={config.apiCallsLimit}
+                  onChange={(e) => setConfig((c) => ({ ...c, apiCallsLimit: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">File Writes / session</label>
+                <Input
+                  type="number"
+                  value={config.fileWritesLimit}
+                  onChange={(e) => setConfig((c) => ({ ...c, fileWritesLimit: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Max Concurrent</label>
+                <Input
+                  type="number"
+                  value={config.maxConcurrent}
+                  onChange={(e) => setConfig((c) => ({ ...c, maxConcurrent: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* GMR Settings */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GMR Settings</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium">Health Check Interval (s)</label>
+                <Input
+                  type="number"
+                  value={config.healthCheckInterval}
+                  onChange={(e) => setConfig((c) => ({ ...c, healthCheckInterval: parseInt(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-5">
+                <Switch
+                  checked={config.fallbackEnabled}
+                  onCheckedChange={(checked) => setConfig((c) => ({ ...c, fallbackEnabled: checked }))}
+                />
+                <span className="text-xs">Pool Fallback</span>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Governor Settings */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Governor Settings</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-medium">Auto-Block CRIT Actions</span>
+                  <p className="text-[10px] text-muted-foreground">Automatically deny CRITICAL impact actions</p>
+                </div>
+                <Switch
+                  checked={config.autoBlockCrit}
+                  onCheckedChange={(checked) => setConfig((c) => ({ ...c, autoBlockCrit: checked }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Trust Decay Rate</label>
+                  <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">{config.trustDecayRate.toFixed(3)}/hr</span>
+                </div>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  max="0.1"
+                  value={config.trustDecayRate}
+                  onChange={(e) => setConfig((c) => ({ ...c, trustDecayRate: parseFloat(e.target.value) || 0 }))}
+                  className="h-8 text-xs font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">Rate at which trust scores decay per hour of inactivity</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Danger Pattern Sensitivity</label>
+                <div className="flex gap-2">
+                  {(['low', 'med', 'high'] as const).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setConfig((c) => ({ ...c, sensitivity: level }))}
+                      className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all duration-200 ${
+                        config.sensitivity === level
+                          ? level === 'high'
+                            ? 'bg-red-600 text-white shadow-sm shadow-red-600/30'
+                            : level === 'med'
+                            ? 'bg-yellow-600 text-white shadow-sm shadow-yellow-600/30'
+                            : 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      {level.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setConfig(defaultConfig)
+              onOpenChange(false)
+            }}
+          >
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleSave}
+          >
+            Save Configuration
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 export function NexusHeader() {
-  const { activeTab, setSidebarOpen } = useNexusStore()
+  const { activeTab, setSidebarOpen, isExportDialogOpen, setExportDialogOpen } = useNexusStore()
   const { setTheme, theme } = useTheme()
   const [time, setTime] = useState('--:--:--')
-  const [date, setDate] = useState('')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [rps, setRps] = useState(42)
-  const [healthPercent, setHealthPercent] = useState(94)
+  const [configOpen, setConfigOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
 
-  // Clock + Date
+  // Ctrl+L shortcut for logs
   useEffect(() => {
-    const update = () => {
-      const now = new Date()
-      setTime(
-        now.toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      )
-      setDate(
-        now.toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-        })
-      )
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
+        e.preventDefault()
+        setLogsOpen(prev => !prev)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault()
+        setExportDialogOpen(true)
+      }
     }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setExportDialogOpen])
+
+  // Clock hydration-safe: useState initial value matches placeholder, useEffect sets real time
+  useEffect(() => {
+    const update = () =>
+      setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
     update()
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)
   }, [])
 
-  // Simulated requests/sec counter
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRps(prev => Math.max(1, prev + Math.floor(Math.random() * 11) - 5))
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // Simulated health fluctuation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHealthPercent(prev => Math.min(100, Math.max(60, prev + (Math.random() - 0.45) * 4)))
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // Health bar color
-  const healthColor = healthPercent >= 90 ? 'from-emerald-500 via-emerald-400 to-emerald-500'
-    : healthPercent >= 70 ? 'from-emerald-500 via-yellow-400 to-yellow-500'
-    : 'from-yellow-500 via-red-400 to-red-500'
-
-  // Breadcrumb path
-  const breadcrumbGroup = tabGroups[activeTab] || ''
-  const breadcrumbTab = tabTitles[activeTab] || 'NEXUS OS'
-
-  // Open command palette via custom event
-  const openCommandPalette = useCallback(() => {
-    // Dispatch a keyboard shortcut Cmd+K
-    const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      metaKey: true,
-      ctrlKey: true,
-      bubbles: true,
-    })
-    document.dispatchEvent(event)
-  }, [])
-
   return (
-    <>
-      <header className="relative flex flex-col">
-        {/* System Health indicator bar — thin gradient at very top */}
-        <div className="h-1 w-full overflow-hidden bg-muted/20">
-          <motion.div
-            className={cn('h-full bg-gradient-to-r', healthColor)}
-            initial={{ width: '0%' }}
-            animate={{ width: `${healthPercent}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-          />
-        </div>
+    <header className="relative flex h-14 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-sm px-4">
+      {/* Gradient bottom border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
 
-        <div className="flex h-14 items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4">
-          {/* Gradient bottom border */}
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent" />
+      {/* Mobile menu trigger */}
+      <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSidebarOpen(true)}>
+        <Menu className="h-4 w-4" />
+      </Button>
 
-          {/* Mobile menu trigger */}
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-4 w-4" />
-          </Button>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-sm font-semibold text-foreground truncate">{tabTitles[activeTab] || 'NEXUS OS'}</h1>
+      </div>
 
-          {/* System status indicator */}
-          <div className="hidden items-center gap-1.5 sm:flex">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Online</span>
-          </div>
+      {/* Token budget indicator */}
+      <div className="hidden items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600/10 to-emerald-600/5 border border-emerald-600/10 px-3 py-1.5 sm:flex">
+        <Activity className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">73,450</span>
+        <span className="text-[10px] text-muted-foreground">/ 100,000</span>
+      </div>
 
-          {/* Breadcrumb navigation */}
-          <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">NEXUS OS</span>
-            {breadcrumbGroup && (
-              <>
-                <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                <span className="shrink-0 truncate">{breadcrumbGroup}</span>
-              </>
-            )}
-            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-            <span className="font-medium text-foreground truncate">{breadcrumbTab}</span>
-          </div>
+      {/* Active agents */}
+      <Badge variant="outline" className="hidden gap-1.5 sm:flex text-[10px]">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        3 agents
+      </Badge>
 
-          <div className="flex-1 min-w-0 md:hidden">
-            <h1 className="text-sm font-semibold truncate gradient-text">
-              {tabTitles[activeTab] || 'NEXUS OS'}
-            </h1>
-          </div>
+      {/* Notification center */}
+      <NotificationCenter />
 
-          {/* Search input — opens command palette */}
-          <button
-            onClick={openCommandPalette}
-            className="hidden lg:flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 hover:border-emerald-600/20 transition-colors duration-200 cursor-pointer"
-          >
-            <Search className="h-3 w-3" />
-            <span>Search...</span>
-            <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/50 bg-muted px-1 font-mono text-[9px] font-medium text-muted-foreground/60">
-              ⌘K
-            </kbd>
-          </button>
+      {/* Export Dashboard */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="hidden h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground sm:flex"
+        onClick={() => setExportDialogOpen(true)}
+        aria-label="Export Dashboard"
+      >
+        <Download className="h-3.5 w-3.5" />
+        <span className="hidden lg:inline">Export</span>
+      </Button>
 
-          {/* Token budget indicator with circular progress ring */}
-          <div className="hidden items-center gap-2.5 rounded-lg border border-emerald-600/10 px-3 py-1.5 sm:flex relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/15 via-emerald-600/10 to-cyan-500/10" />
-            <div className="relative flex items-center gap-2">
-              <TokenRing percent={73} size={28} strokeWidth={3} />
-              <div className="flex flex-col gap-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">73,450</span>
-                  <span className="text-[9px] text-muted-foreground">/ 100k</span>
-                </div>
-                <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full w-[73%] rounded-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 transition-all duration-500" />
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* System Logs */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        onClick={() => setLogsOpen(true)}
+        aria-label="System Logs"
+      >
+        <Terminal className="h-4 w-4" />
+      </Button>
 
-          {/* Active agents + Requests/sec */}
-          <div className="hidden sm:flex items-center gap-2">
-            <Badge variant="outline" className="gap-1.5 text-[10px]">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-              3 agents
-            </Badge>
-            <Badge variant="outline" className="gap-1 text-[10px] font-mono">
-              <Activity className="h-3 w-3 text-emerald-500" />
-              <AnimatePresence mode="wait">
-                <AnimatedRps value={rps} />
-              </AnimatePresence>
-              <span className="text-muted-foreground">req/s</span>
-            </Badge>
-          </div>
+      {/* Clock */}
+      <span className="hidden font-mono text-xs text-muted-foreground md:block tabular-nums">{time}</span>
 
-          {/* Notifications bell — uses real NotificationCenter */}
-          <NotificationCenter />
+      {/* System Config */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        onClick={() => setConfigOpen(true)}
+        aria-label="System Settings"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
 
-          {/* Clock with date */}
-          <div className="hidden md:flex flex-col items-end">
-            <span className="font-mono text-xs text-muted-foreground tabular-nums leading-tight">{time}</span>
-            <span className="text-[9px] text-muted-foreground/60 leading-tight">{date}</span>
-          </div>
+      {/* Theme toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      >
+        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      </Button>
 
-          {/* Settings */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="System Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+      {/* System Config Dialog */}
+      <SystemConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
 
-          {/* Theme toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
-        </div>
-      </header>
+      {/* Global Export Dialog */}
+      <GlobalExportDialog open={isExportDialogOpen} onOpenChange={setExportDialogOpen} />
 
-      {/* Settings Sheet */}
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </>
+      {/* System Logs Panel */}
+      <SystemLogsPanel open={logsOpen} onOpenChange={setLogsOpen} />
+    </header>
   )
 }

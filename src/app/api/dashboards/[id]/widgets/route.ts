@@ -1,100 +1,151 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
-// ─── Widget CRUD ───
-// GET  /api/dashboards/[id]/widgets — List widgets for a dashboard
-// POST /api/dashboards/[id]/widgets — Add a widget to a dashboard
-
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
-
-export async function GET(
-  _request: NextRequest,
-  context: RouteContext
-) {
-  try {
-    const { id } = await context.params
-
-    const dashboard = await db.dashboard.findUnique({ where: { id } })
-    if (!dashboard) {
-      return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 })
-    }
-
-    const widgets = await db.widget.findMany({
-      where: { dashboardId: id },
-      orderBy: { order: 'asc' },
-    })
-
-    const parsed = widgets.map((w) => ({
-      ...w,
-      config: JSON.parse(w.config),
-      gridPos: JSON.parse(w.gridPos),
-    }))
-
-    return NextResponse.json({ widgets: parsed })
-  } catch (error) {
-    console.error('Widgets GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch widgets' }, { status: 500 })
-  }
-}
-
 export async function POST(
-  request: NextRequest,
-  context: RouteContext
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params
-    const body = await request.json()
+    const { id } = await params
+    const body = await req.json()
+    const {
+      type,
+      title,
+      subtitle,
+      dataSource,
+      config = {},
+      posX = 0,
+      posY,
+      width = 4,
+      height = 2,
+    } = body
 
-    const dashboard = await db.dashboard.findUnique({ where: { id } })
-    if (!dashboard) {
-      return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 })
+    if (!type || !title || !dataSource) {
+      return NextResponse.json(
+        { error: 'type, title, and dataSource are required' },
+        { status: 400 },
+      )
+    }
+    if (![posX, width, height].every(isNonNegativeNumber)) {
+      return NextResponse.json(
+        { error: 'posX, width, and height must be non-negative numbers' },
+        { status: 400 },
+      )
+    }
+    if (posY !== undefined && !isNonNegativeNumber(posY)) {
+      return NextResponse.json({ error: 'posY must be a non-negative number' }, { status: 400 })
     }
 
-    const { type, title, subtitle, dataSource, config, gridPos, refreshMs } = body
-
-    if (!type || typeof type !== 'string') {
-      return NextResponse.json({ error: 'Widget type is required' }, { status: 400 })
-    }
-    if (!title || typeof title !== 'string') {
-      return NextResponse.json({ error: 'Widget title is required' }, { status: 400 })
-    }
-    if (!dataSource || typeof dataSource !== 'string') {
-      return NextResponse.json({ error: 'Widget dataSource is required' }, { status: 400 })
-    }
-
-    // Determine the next order value
-    const maxOrderWidget = await db.widget.findFirst({
+    // Auto-assign posY (used as the layout order index) so new widgets land at
+    // the end of the canvas in a stable position. `posX` defaults to 0.
+    const last = await db.customWidget.findFirst({
       where: { dashboardId: id },
-      orderBy: { order: 'desc' },
-      select: { order: true },
+      orderBy: { posY: 'desc' },
+      select: { posY: true },
     })
-    const nextOrder = (maxOrderWidget?.order ?? -1) + 1
+    const nextPosY = posY === undefined ? (last ? last.posY + 1 : 0) : posY
 
-    const widget = await db.widget.create({
+    const widget = await db.customWidget.create({
       data: {
         dashboardId: id,
         type,
-        title: title.trim(),
-        subtitle: subtitle?.trim() || null,
+        title,
+        subtitle: subtitle ?? null,
         dataSource,
-        config: config ? JSON.stringify(config) : '{}',
-        gridPos: gridPos ? JSON.stringify(gridPos) : '{}',
-        refreshMs: refreshMs || 30000,
-        order: nextOrder,
+        config: JSON.stringify(config),
+        posX,
+        posY: nextPosY,
+        width,
+        height,
       },
     })
-
-    const parsed = {
-      ...widget,
-      config: JSON.parse(widget.config),
-      gridPos: JSON.parse(widget.gridPos),
-    }
-
-    return NextResponse.json({ widget: parsed }, { status: 201 })
+    return NextResponse.json(widget)
   } catch (error) {
-    console.error('Widgets POST error:', error)
-    return NextResponse.json({ error: 'Failed to create widget' }, { status: 500 })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
+}
+
+// Batch update layout (PATCH /api/dashboards/[id]/widgets with { layout: [{id,posX,posY,width,height}] })
+// All updates run in a single transaction and are scoped to the dashboard in the
+// URL so widget IDs from other dashboards cannot be modified through this endpoint.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params
+    const body = await req.json()
+    const layout = body.layout as Array<{
+      id: string
+      posX?: number
+      posY?: number
+      width?: number
+      height?: number
+    }>
+    if (!Array.isArray(layout)) {
+      return NextResponse.json({ error: 'layout array required' }, { status: 400 })
+    }
+    if (!layout.every(isValidLayoutPatch)) {
+      return NextResponse.json(
+        { error: 'layout entries must include id and non-negative numeric positions/sizes' },
+        { status: 400 },
+      )
+    }
+    const results = await db.$transaction(
+      layout.map((w) =>
+        // updateMany lets us filter by both id and dashboardId; mismatches are
+        // rejected below instead of corrupting widgets on other dashboards.
+        db.customWidget.updateMany({
+          where: { id: w.id, dashboardId: id },
+          data: {
+            ...(w.posX !== undefined && { posX: w.posX }),
+            ...(w.posY !== undefined && { posY: w.posY }),
+            ...(w.width !== undefined && { width: w.width }),
+            ...(w.height !== undefined && { height: w.height }),
+          },
+        }),
+      ),
+    )
+    if (results.some((result) => result.count !== 1)) {
+      return NextResponse.json(
+        { error: 'layout contains unknown or cross-dashboard widget ids' },
+        { status: 409 },
+      )
+    }
+    const dashboard = await db.customDashboard.findUnique({
+      where: { id },
+      include: { widgets: { orderBy: [{ posY: 'asc' }, { createdAt: 'asc' }] } },
+    })
+    return NextResponse.json(dashboard)
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+function isValidLayoutPatch(value: unknown): value is {
+  id: string
+  posX?: number
+  posY?: number
+  width?: number
+  height?: number
+} {
+  if (!value || typeof value !== 'object') return false
+  const entry = value as {
+    id?: unknown
+    posX?: unknown
+    posY?: unknown
+    width?: unknown
+    height?: unknown
+  }
+  return (
+    typeof entry.id === 'string' &&
+    entry.id.length > 0 &&
+    [entry.posX, entry.posY, entry.width, entry.height]
+      .filter((item) => item !== undefined)
+      .every(isNonNegativeNumber)
+  )
 }

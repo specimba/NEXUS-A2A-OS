@@ -1,290 +1,135 @@
 'use client'
 
-import { useState } from 'react'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { cn } from '@/lib/utils'
-import {
-  TrendingUp,
-  BarChart3,
-  Activity,
-  Gauge,
-  Hash,
-  PieChart,
-  Table,
-  ScrollText,
-  FileText,
-  Grid3x3,
-  Search,
-  Plus,
+  BarChart3, LineChart, PieChart, Table as TableIcon, Gauge, Search, Plus,
 } from 'lucide-react'
-import type { DashboardWidget, WidgetType, GridPosition } from '@/lib/dashboard-types'
-import { WIDGET_TYPE_DEFINITIONS, DATA_SOURCES } from '@/lib/dashboard-types'
+import { useMemo, useState } from 'react'
+import { DATA_SOURCES, WIDGET_TYPE_META, type WidgetType } from './widget-catalog'
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  TrendingUp,
-  BarChart3,
-  Activity,
-  Gauge,
-  Hash,
-  PieChart,
-  Table,
-  ScrollText,
-  FileText,
-  Grid3x3,
+function typeIcon(t: WidgetType) {
+  switch (t) {
+    case 'kpi':   return <Gauge className="h-3.5 w-3.5" />
+    case 'line':  return <LineChart className="h-3.5 w-3.5" />
+    case 'bar':   return <BarChart3 className="h-3.5 w-3.5" />
+    case 'pie':   return <PieChart className="h-3.5 w-3.5" />
+    case 'table': return <TableIcon className="h-3.5 w-3.5" />
+  }
 }
 
-interface WidgetLibraryProps {
+interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  columns: number
-  existingWidgets: DashboardWidget[]
-  onAddWidget: (widget: DashboardWidget) => void
+  onAdd: (sourceKey: string, type: WidgetType) => Promise<void> | void
 }
 
-export function WidgetLibrary({
-  open,
-  onOpenChange,
-  columns,
-  existingWidgets,
-  onAddWidget,
-}: WidgetLibraryProps) {
-  const [search, setSearch] = useState('')
-  const [selectedType, setSelectedType] = useState<WidgetType | null>(null)
-  const [widgetTitle, setWidgetTitle] = useState('')
-  const [widgetDataSource, setWidgetDataSource] = useState('')
-  const [widgetRefreshMs, setWidgetRefreshMs] = useState('30000')
+export function WidgetLibrary({ open, onOpenChange, onAdd }: Props) {
+  const [query, setQuery] = useState('')
 
-  const filteredTypes = WIDGET_TYPE_DEFINITIONS.filter(
-    (def) =>
-      def.label.toLowerCase().includes(search.toLowerCase()) ||
-      def.description.toLowerCase().includes(search.toLowerCase()) ||
-      def.type.toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return DATA_SOURCES
+    return DATA_SOURCES.filter(
+      (s) =>
+        s.label.toLowerCase().includes(q) ||
+        s.group.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q),
+    )
+  }, [query])
 
-  const categories = ['chart', 'display', 'data'] as const
-  const selectedDef = WIDGET_TYPE_DEFINITIONS.find((d) => d.type === selectedType)
-
-  const getNextGridPos = (): GridPosition => {
-    const maxY = existingWidgets.reduce((max, w) => Math.max(max, w.gridPos.y + w.gridPos.h), 0)
-    const maxRowY = existingWidgets
-      .filter((w) => w.gridPos.y + w.gridPos.h === maxY)
-      .reduce((maxX, w) => Math.max(maxX, w.gridPos.x + w.gridPos.w), 0)
-
-    const w = selectedDef?.defaultW ?? 2
-    const h = selectedDef?.defaultH ?? 2
-
-    if (maxRowY + w <= columns) {
-      return { x: maxRowY, y: maxY, w, h }
-    }
-    return { x: 0, y: maxY, w, h }
-  }
-
-  const handleAdd = () => {
-    if (!selectedType) return
-    const def = WIDGET_TYPE_DEFINITIONS.find((d) => d.type === selectedType)
-    if (!def) return
-
-    const widget: DashboardWidget = {
-      id: `w-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      type: selectedType,
-      title: widgetTitle || def.label,
-      dataSource: widgetDataSource || DATA_SOURCES[0].key,
-      config: {},
-      gridPos: getNextGridPos(),
-      refreshMs: parseInt(widgetRefreshMs) || def.defaultRefreshMs,
-    }
-
-    onAddWidget(widget)
-    handleReset()
-    onOpenChange(false)
-  }
-
-  const handleReset = () => {
-    setSelectedType(null)
-    setWidgetTitle('')
-    setWidgetDataSource('')
-    setWidgetRefreshMs('30000')
-    setSearch('')
-  }
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof DATA_SOURCES>()
+    filtered.forEach((s) => {
+      const list = map.get(s.group) ?? []
+      list.push(s)
+      map.set(s.group, list)
+    })
+    return Array.from(map.entries())
+  }, [filtered])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            Widget Library
-          </SheetTitle>
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+        <SheetHeader className="p-6 pb-3 border-b">
+          <SheetTitle>Widget Library</SheetTitle>
           <SheetDescription>
-            Choose a widget type and configure it for your dashboard.
+            Pick a NEXUS data source. We&apos;ll add it to your dashboard.
           </SheetDescription>
-        </SheetHeader>
-
-        <div className="space-y-4 mt-4 px-4 pb-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search widgets..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-8 text-xs"
+              placeholder="Search agents, tokens, governor..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-9"
             />
           </div>
+        </SheetHeader>
 
-          {!selectedType ? (
-            /* Widget Type Grid by Category */
-            <div className="space-y-4">
-              {categories.map((category) => {
-                const items = filteredTypes.filter((d) => d.category === category)
-                if (items.length === 0) return null
-                return (
-                  <div key={category}>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      {category === 'chart' ? 'Charts' : category === 'display' ? 'Display' : 'Data'}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {items.map((def) => {
-                        const Icon = ICON_MAP[def.icon] || Activity
-                        return (
-                          <button
-                            key={def.type}
+        <ScrollArea className="flex-1">
+          <div className="p-6 pt-3 space-y-5">
+            {grouped.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-12">
+                No data sources match &ldquo;{query}&rdquo;.
+              </p>
+            )}
+            {grouped.map(([group, items]) => (
+              <div key={group}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  {group}
+                </div>
+                <div className="space-y-1.5">
+                  {items.map((s) => (
+                    <div
+                      key={s.key}
+                      className="group p-3 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{s.label}</div>
+                          <div className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                            {s.description}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {s.compatibleTypes.map((t) => (
+                          <Button
+                            key={t}
+                            size="sm"
+                            variant={t === s.defaultType ? 'default' : 'outline'}
+                            className="h-7 px-2.5 text-[11px] gap-1"
                             onClick={() => {
-                              setSelectedType(def.type)
-                              setWidgetTitle(def.label)
-                              setWidgetRefreshMs(String(def.defaultRefreshMs))
+                              onAdd(s.key, t)
                             }}
-                            className="flex flex-col items-start gap-1.5 p-3 rounded-lg border border-border/50 hover:border-emerald-600/30 hover:bg-emerald-600/5 transition-all text-left"
                           >
-                            <div className="flex items-center gap-2 w-full">
-                              <div className="p-1.5 rounded bg-emerald-600/10">
-                                <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                              </div>
-                              <span className="text-xs font-medium">{def.label}</span>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
-                              {def.description}
-                            </span>
-                            <div className="flex gap-1">
-                              <Badge variant="outline" className="text-[8px] h-3 px-1">
-                                {def.defaultW}×{def.defaultH}
+                            {typeIcon(t)}
+                            {WIDGET_TYPE_META[t].label}
+                            {t === s.defaultType && (
+                              <Badge
+                                variant="secondary"
+                                className="ml-0.5 h-3.5 px-1 text-[8px] font-normal"
+                              >
+                                rec
                               </Badge>
-                              {def.defaultRefreshMs > 0 && (
-                                <Badge variant="outline" className="text-[8px] h-3 px-1">
-                                  {def.defaultRefreshMs / 1000}s
-                                </Badge>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
+                            )}
+                          </Button>
+                        ))}
+                        <Plus className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            /* Widget Configuration Form */
-            <div className="space-y-4">
-              <button
-                onClick={() => setSelectedType(null)}
-                className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-              >
-                ← Back to widget types
-              </button>
-
-              <div className="p-3 rounded-lg border border-emerald-600/20 bg-emerald-600/5">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const Icon = ICON_MAP[selectedDef?.icon || 'Activity'] || Activity
-                    return <Icon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  })()}
-                  <div>
-                    <div className="text-sm font-semibold">{selectedDef?.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{selectedDef?.description}</div>
-                  </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Title</Label>
-                  <Input
-                    value={widgetTitle}
-                    onChange={(e) => setWidgetTitle(e.target.value)}
-                    placeholder="Widget title"
-                    className="h-8 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Data Source</Label>
-                  <Select value={widgetDataSource} onValueChange={setWidgetDataSource}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select data source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DATA_SOURCES.map((ds) => (
-                        <SelectItem key={ds.key} value={ds.key} className="text-xs">
-                          {ds.label}
-                          <span className="text-muted-foreground ml-1">({ds.unit})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Refresh Interval</Label>
-                  <Select value={widgetRefreshMs} onValueChange={setWidgetRefreshMs}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5000" className="text-xs">5 seconds</SelectItem>
-                      <SelectItem value="10000" className="text-xs">10 seconds</SelectItem>
-                      <SelectItem value="15000" className="text-xs">15 seconds</SelectItem>
-                      <SelectItem value="30000" className="text-xs">30 seconds</SelectItem>
-                      <SelectItem value="60000" className="text-xs">1 minute</SelectItem>
-                      <SelectItem value="300000" className="text-xs">5 minutes</SelectItem>
-                      <SelectItem value="0" className="text-xs">Manual only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="p-2 rounded bg-muted/30 text-[10px] text-muted-foreground">
-                  Grid position: {getNextGridPos().x},{getNextGridPos().y} —
-                  Size: {selectedDef?.defaultW}×{selectedDef?.defaultH}
-                </div>
-              </div>
-
-              <Button
-                onClick={handleAdd}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Widget
-              </Button>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   )

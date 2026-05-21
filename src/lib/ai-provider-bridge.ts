@@ -23,7 +23,7 @@ export interface ModelRoute {
   tier: ModelTier
   displayName: string
   actualModel: string
-  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway' | 'dashscope' | 'bitdeer' | 'nvidia' | 'sambanova' | 'siliconflow' | 'opencode'
+  provider: 'z-ai' | 'openrouter' | 'cerebras' | 'groq' | 'mistral' | 'codestral' | 'fireworks' | 'scaleway'
   providerLabel: string
   isFree: boolean
   rateLimitPerMin: number
@@ -81,7 +81,7 @@ const MODEL_ROUTES: ModelRoute[] = [
     rateLimitPerMin: 40,
     contextWindow: 128000,
     capabilities: ['code', 'reasoning', 'tools'],
-    health: 'healthy',
+    health: 'unknown',
     latencyMs: 0,
     totalCalls: 0,
     successRate: 100,
@@ -374,38 +374,6 @@ const MODEL_ROUTES: ModelRoute[] = [
     totalCalls: 0,
     successRate: 100,
   },
-  {
-    id: 'llama4-maverick-fireworks',
-    tier: 'reasoning',
-    displayName: 'Llama 4 Maverick (Fireworks)',
-    actualModel: 'accounts/fireworks/models/llama4-maverick-instruct-basic',
-    provider: 'fireworks',
-    providerLabel: 'Fireworks Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 1048576,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-235b-fireworks',
-    tier: 'reasoning',
-    displayName: 'Qwen3 235B (Fireworks)',
-    actualModel: 'accounts/fireworks/models/qwen3-235b-a22b',
-    provider: 'fireworks',
-    providerLabel: 'Fireworks Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning', 'tools'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
 
   // ── Scaleway — EU-Hosted (1M tok ONE-TIME, USE SPARINGLY) ──
   {
@@ -417,338 +385,6 @@ const MODEL_ROUTES: ModelRoute[] = [
     providerLabel: 'Scaleway Free (EU)',
     isFree: true,
     rateLimitPerMin: 5,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── Alibaba Cloud DashScope — Qwen (100+ models, 1M free tokens each!) ──
-  {
-    id: 'qwen-max-dashscope',
-    tier: 'reasoning',
-    displayName: 'Qwen Max (DashScope)',
-    actualModel: 'qwen-max',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 32000,
-    capabilities: ['code', 'reasoning', 'tools'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen-plus-dashscope',
-    tier: 'balanced',
-    displayName: 'Qwen Plus (DashScope)',
-    actualModel: 'qwen-plus-2025-07-28',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning', 'tools'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-vl-235b-dashscope',
-    tier: 'reasoning',
-    displayName: 'Qwen3 VL 235B (DashScope)',
-    actualModel: 'qwen3-vl-235b-a22b-thinking',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 5,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning', 'vision'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen2.5-vl-72b-dashscope',
-    tier: 'balanced',
-    displayName: 'Qwen2.5 VL 72B (DashScope)',
-    actualModel: 'qwen2.5-vl-72b-instruct',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'vision'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen2.5-14b-dashscope',
-    tier: 'fast',
-    displayName: 'Qwen2.5 14B (DashScope)',
-    actualModel: 'qwen2.5-14b-instruct',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 15,
-    contextWindow: 131072,
-    capabilities: ['code'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qvq-max-dashscope',
-    tier: 'reasoning',
-    displayName: 'QVQ Max Vision (DashScope)',
-    actualModel: 'qvq-max-2025-03-25',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 5,
-    contextWindow: 32768,
-    capabilities: ['vision', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-235b-dashscope',
-    tier: 'reasoning',
-    displayName: 'Qwen3 235B (DashScope)',
-    actualModel: 'qwen3-235b-a22b',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 5,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning', 'tools'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-30b-dashscope',
-    tier: 'balanced',
-    displayName: 'Qwen3 30B (DashScope)',
-    actualModel: 'qwen3-30b-a3b',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwq-32b-dashscope',
-    tier: 'balanced',
-    displayName: 'QwQ 32B (DashScope)',
-    actualModel: 'qwq-32b',
-    provider: 'dashscope',
-    providerLabel: 'Alibaba Cloud Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── BitDeer AI — Cloud GPU Inference ──
-  {
-    id: 'deepseek-r1-bitdeer',
-    tier: 'reasoning',
-    displayName: 'DeepSeek R1 (BitDeer)',
-    actualModel: 'deepseek-ai/DeepSeek-R1',
-    provider: 'bitdeer',
-    providerLabel: 'BitDeer AI',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-235b-bitdeer',
-    tier: 'reasoning',
-    displayName: 'Qwen3 235B (BitDeer)',
-    actualModel: 'Qwen/Qwen3-235B-A22B',
-    provider: 'bitdeer',
-    providerLabel: 'BitDeer AI',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning', 'tools'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'llama-4-maverick-bitdeer',
-    tier: 'balanced',
-    displayName: 'Llama 4 Maverick (BitDeer)',
-    actualModel: 'meta-llama/Llama-4-Maverick-17B-128E',
-    provider: 'bitdeer',
-    providerLabel: 'BitDeer AI',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── NVIDIA NIM — Free Tier (1K credits) ──
-  {
-    id: 'llama-3.3-70b-nvidia',
-    tier: 'reasoning',
-    displayName: 'Llama 3.3 70B (NVIDIA NIM)',
-    actualModel: 'meta/llama-3.3-70b-instruct',
-    provider: 'nvidia',
-    providerLabel: 'NVIDIA NIM Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'nemotron-70b-nvidia',
-    tier: 'reasoning',
-    displayName: 'Nemotron 70B (NVIDIA NIM)',
-    actualModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
-    provider: 'nvidia',
-    providerLabel: 'NVIDIA NIM Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'deepseek-r1-nvidia',
-    tier: 'reasoning',
-    displayName: 'DeepSeek R1 (NVIDIA NIM)',
-    actualModel: 'deepseek-ai/deepseek-r1',
-    provider: 'nvidia',
-    providerLabel: 'NVIDIA NIM Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── SambaNova — Free Tier ──
-  {
-    id: 'llama-3.3-70b-sambanova',
-    tier: 'reasoning',
-    displayName: 'Llama 3.3 70B (SambaNova)',
-    actualModel: 'Meta-Llama-3.3-70B-Instruct',
-    provider: 'sambanova',
-    providerLabel: 'SambaNova Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'deepseek-r1-sambanova',
-    tier: 'reasoning',
-    displayName: 'DeepSeek R1 (SambaNova)',
-    actualModel: 'DeepSeek-R1',
-    provider: 'sambanova',
-    providerLabel: 'SambaNova Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── SiliconFlow — Free Tier ──
-  {
-    id: 'deepseek-r1-siliconflow',
-    tier: 'reasoning',
-    displayName: 'DeepSeek R1 (SiliconFlow)',
-    actualModel: 'deepseek-ai/DeepSeek-R1',
-    provider: 'siliconflow',
-    providerLabel: 'SiliconFlow Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 128000,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-  {
-    id: 'qwen3-235b-siliconflow',
-    tier: 'reasoning',
-    displayName: 'Qwen3 235B (SiliconFlow)',
-    actualModel: 'Qwen/Qwen3-235B-A22B',
-    provider: 'siliconflow',
-    providerLabel: 'SiliconFlow Free',
-    isFree: true,
-    rateLimitPerMin: 10,
-    contextWindow: 131072,
-    capabilities: ['code', 'reasoning'],
-    health: 'unknown',
-    latencyMs: 0,
-    totalCalls: 0,
-    successRate: 100,
-  },
-
-  // ── OpenCode ──
-  {
-    id: 'glm-4-opencode',
-    tier: 'balanced',
-    displayName: 'GLM-4 (OpenCode)',
-    actualModel: 'glm-4',
-    provider: 'opencode',
-    providerLabel: 'OpenCode',
-    isFree: true,
-    rateLimitPerMin: 10,
     contextWindow: 128000,
     capabilities: ['code', 'reasoning'],
     health: 'unknown',
@@ -774,8 +410,7 @@ const routeHealth: Map<string, {
 // Initialize health tracking
 for (const route of MODEL_ROUTES) {
   routeHealth.set(route.id, {
-    // z-ai provider routes default to healthy since the SDK handles auth internally
-    health: route.provider === 'z-ai' ? 'healthy' : 'unknown',
+    health: 'unknown',
     latencyMs: 0,
     totalCalls: 0,
     successes: 0,
@@ -792,14 +427,7 @@ let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
 
 async function getZAI() {
   if (!zaiInstance) {
-    try {
-      zaiInstance = await ZAI.create()
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      throw new Error(
-        `Failed to initialize z-ai-web-dev-sdk. Ensure ZAI_API_KEY is set in .env or .z-ai-config exists. Error: ${msg}`
-      )
-    }
+    zaiInstance = await ZAI.create()
   }
   return zaiInstance
 }
@@ -887,12 +515,7 @@ export function getRequestOptimization(messages: { role: string; content: string
 
 function computeHealth(routeId: string): ModelRoute['health'] {
   const info = routeHealth.get(routeId)
-  if (!info) return 'unknown'
-  // z-ai provider routes are always considered healthy unless proven otherwise
-  // since the SDK handles auth internally
-  const route = MODEL_ROUTES.find(r => r.id === routeId)
-  if (route?.provider === 'z-ai' && info.totalCalls === 0) return 'healthy'
-  if (info.totalCalls === 0) return 'unknown'
+  if (!info || info.totalCalls === 0) return 'unknown'
 
   const successRate = (info.successes / info.totalCalls) * 100
 
@@ -950,30 +573,12 @@ function scoreRoute(route: ModelRoute): number {
   if (route.provider === 'groq') {
     score -= 5
   }
-  // DashScope has generous free quotas, slight preference
-  if (route.provider === 'dashscope') {
-    score -= 5
-  }
   // Demote providers with limited quotas
   if (route.provider === 'fireworks') {
     score += 50
   }
   if (route.provider === 'scaleway') {
     score += 100
-  }
-  if (route.provider === 'bitdeer') {
-    score += 30
-  }
-  // NVIDIA NIM has limited credits, moderate penalty
-  if (route.provider === 'nvidia') {
-    score += 20
-  }
-  // SambaNova and SiliconFlow — free tiers available, slight preference
-  if (route.provider === 'sambanova') {
-    score -= 3
-  }
-  if (route.provider === 'siliconflow') {
-    score -= 3
   }
 
   return score
@@ -1544,459 +1149,9 @@ async function callScaleway(
   return content
 }
 
-// ── DashScope API Call ──────────────────────────────────────────────
-
-async function callDashscope(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const apiKey = getActiveKey('dashscope')
-  if (!apiKey) {
-    throw new Error('No DashScope API key available. Configure DASHSCOPE_API_KEY environment variable.')
-  }
-
-  const rateCheck = checkRateLimit('dashscope', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`DashScope rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
-    recordKey429('dashscope', retryAfter)
-    recordRateLimitError('dashscope', '429 Too Many Requests')
-    throw new Error(`DashScope rate limited (429). Retry after ${retryAfter}s.`)
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('dashscope', `${response.status} Auth Error`)
-    throw new Error(`DashScope auth error (${response.status}). Check API key.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('dashscope', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`DashScope API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from DashScope')
-  }
-
-  recordKeySuccess('dashscope')
-  recordSuccess('dashscope')
-  recordRequest('dashscope', '/chat/completions', undefined, data)
-
-  return content
-}
-
-// ── BitDeer API Call ──────────────────────────────────────────────
-
-async function callBitdeer(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const accessKey = getActiveKey('bitdeer')
-  const secretKey = process.env.BITDEER_SECRET_KEY ?? ''
-  if (!accessKey || !secretKey) {
-    throw new Error('No BitDeer API keys available. Configure BITDEER_ACCESS_KEY and BITDEER_SECRET_KEY.')
-  }
-
-  const rateCheck = checkRateLimit('bitdeer', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`BitDeer rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : m.role === 'system' ? 'system' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://api.onbitdeer.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${secretKey}`,
-      'X-Access-Key': accessKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    recordRateLimitError('bitdeer', '429 Too Many Requests')
-    throw new Error('BitDeer rate limited (429). Please wait before trying again.')
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('bitdeer', `${response.status} Auth Error`)
-    throw new Error(`BitDeer auth error (${response.status}). Check API keys.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('bitdeer', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`BitDeer API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from BitDeer')
-  }
-
-  recordKeySuccess('bitdeer')
-  recordSuccess('bitdeer')
-  recordRequest('bitdeer', '/chat/completions', undefined, data)
-
-  return content
-}
-
-// ── NVIDIA NIM API Call ─────────────────────────────────────────────
-
-async function callNvidia(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const apiKey = getActiveKey('nvidia')
-  if (!apiKey) {
-    throw new Error('No NVIDIA API key available. Configure NVIDIA_API_KEY environment variable.')
-  }
-
-  const rateCheck = checkRateLimit('nvidia', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`NVIDIA rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
-    recordKey429('nvidia', retryAfter)
-    recordRateLimitError('nvidia', '429 Too Many Requests')
-    throw new Error(`NVIDIA rate limited (429). Retry after ${retryAfter}s.`)
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('nvidia', `${response.status} Auth Error`)
-    throw new Error(`NVIDIA auth error (${response.status}). Check API key.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('nvidia', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`NVIDIA API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from NVIDIA')
-  }
-
-  recordKeySuccess('nvidia')
-  recordSuccess('nvidia')
-  recordRequest('nvidia', '/chat/completions', undefined, data)
-
-  return content
-}
-
-// ── SambaNova API Call ──────────────────────────────────────────────
-
-async function callSambanova(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const apiKey = getActiveKey('sambanova')
-  if (!apiKey) {
-    throw new Error('No SambaNova API key available. Configure SAMBANOVA_API_KEY environment variable.')
-  }
-
-  const rateCheck = checkRateLimit('sambanova', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`SambaNova rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://api.sambanova.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
-    recordKey429('sambanova', retryAfter)
-    recordRateLimitError('sambanova', '429 Too Many Requests')
-    throw new Error(`SambaNova rate limited (429). Retry after ${retryAfter}s.`)
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('sambanova', `${response.status} Auth Error`)
-    throw new Error(`SambaNova auth error (${response.status}). Check API key.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('sambanova', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`SambaNova API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from SambaNova')
-  }
-
-  recordKeySuccess('sambanova')
-  recordSuccess('sambanova')
-  recordRequest('sambanova', '/chat/completions', undefined, data)
-
-  return content
-}
-
-// ── SiliconFlow API Call ────────────────────────────────────────────
-
-async function callSiliconflow(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const apiKey = getActiveKey('siliconflow')
-  if (!apiKey) {
-    throw new Error('No SiliconFlow API key available. Configure SILICONFLOW_API_KEY environment variable.')
-  }
-
-  const rateCheck = checkRateLimit('siliconflow', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`SiliconFlow rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
-    recordKey429('siliconflow', retryAfter)
-    recordRateLimitError('siliconflow', '429 Too Many Requests')
-    throw new Error(`SiliconFlow rate limited (429). Retry after ${retryAfter}s.`)
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('siliconflow', `${response.status} Auth Error`)
-    throw new Error(`SiliconFlow auth error (${response.status}). Check API key.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('siliconflow', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`SiliconFlow API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from SiliconFlow')
-  }
-
-  recordKeySuccess('siliconflow')
-  recordSuccess('siliconflow')
-  recordRequest('siliconflow', '/chat/completions', undefined, data)
-
-  return content
-}
-
-// ── OpenCode API Call ───────────────────────────────────────────────
-
-async function callOpencode(
-  model: string,
-  messages: { role: string; content: string }[],
-  options: RouteRequestOptions = {}
-): Promise<string> {
-  const apiKey = getActiveKey('opencode')
-  if (!apiKey) {
-    throw new Error('No OpenCode API key available. Configure OPENCODE_API_KEY environment variable.')
-  }
-
-  const rateCheck = checkRateLimit('opencode', '/chat/completions')
-  if (!rateCheck.allowed && !rateCheck.isDedup) {
-    throw new Error(`OpenCode rate limited. Retry after ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`)
-  }
-
-  const systemMsg = options.systemPrompt
-    ? [{ role: 'system' as const, content: options.systemPrompt }]
-    : []
-
-  const apiMessages = [
-    ...systemMsg,
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: m.content,
-    })),
-  ]
-
-  const response = await fetch('https://opencode-ai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: apiMessages,
-      max_tokens: options.maxTokens ?? 4096,
-      temperature: options.temperature ?? 0.7,
-    }),
-  })
-
-  if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10)
-    recordKey429('opencode', retryAfter)
-    recordRateLimitError('opencode', '429 Too Many Requests')
-    throw new Error(`OpenCode rate limited (429). Retry after ${retryAfter}s.`)
-  }
-
-  if (response.status === 401 || response.status === 403) {
-    recordKeyError('opencode', `${response.status} Auth Error`)
-    throw new Error(`OpenCode auth error (${response.status}). Check API key.`)
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    recordKeyError('opencode', `${response.status}: ${errorBody.slice(0, 200)}`)
-    throw new Error(`OpenCode API error (${response.status}): ${errorBody.slice(0, 200)}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content) {
-    throw new Error('Empty response from OpenCode')
-  }
-
-  recordKeySuccess('opencode')
-  recordSuccess('opencode')
-  recordRequest('opencode', '/chat/completions', undefined, data)
-
-  return content
-}
-
 // ── z-ai SDK Call ─────────────────────────────────────────────────────
 
-export async function callZAI(
+async function callZAI(
   messages: { role: string; content: string }[],
   options: RouteRequestOptions = {}
 ): Promise<string> {
@@ -2085,18 +1240,6 @@ export async function routeRequest(
       response = await callFireworks(model.actualModel, messages, opts)
     } else if (model.provider === 'scaleway') {
       response = await callScaleway(model.actualModel, messages, opts)
-    } else if (model.provider === 'dashscope') {
-      response = await callDashscope(model.actualModel, messages, opts)
-    } else if (model.provider === 'bitdeer') {
-      response = await callBitdeer(model.actualModel, messages, opts)
-    } else if (model.provider === 'nvidia') {
-      response = await callNvidia(model.actualModel, messages, opts)
-    } else if (model.provider === 'sambanova') {
-      response = await callSambanova(model.actualModel, messages, opts)
-    } else if (model.provider === 'siliconflow') {
-      response = await callSiliconflow(model.actualModel, messages, opts)
-    } else if (model.provider === 'opencode') {
-      response = await callOpencode(model.actualModel, messages, opts)
     } else {
       throw new Error(`Unknown provider: ${model.provider}`)
     }
@@ -2142,18 +1285,6 @@ export async function routeRequest(
           fbResponse = await callFireworks(fallback.actualModel, messages, opts)
         } else if (fallback.provider === 'scaleway') {
           fbResponse = await callScaleway(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'dashscope') {
-          fbResponse = await callDashscope(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'bitdeer') {
-          fbResponse = await callBitdeer(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'nvidia') {
-          fbResponse = await callNvidia(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'sambanova') {
-          fbResponse = await callSambanova(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'siliconflow') {
-          fbResponse = await callSiliconflow(fallback.actualModel, messages, opts)
-        } else if (fallback.provider === 'opencode') {
-          fbResponse = await callOpencode(fallback.actualModel, messages, opts)
         } else {
           fbResponse = await callOpenRouter(fallback.actualModel, messages, opts)
         }
@@ -2242,8 +1373,7 @@ export function getProviderStatus(provider: string): ProviderStatus {
   const activeModels = effectiveRoutes.filter(r => r.health !== 'down').length
   const totalModels = effectiveRoutes.length
 
-  // z-ai provider is always available since the SDK handles auth internally
-  const isAvailable = provider === 'z-ai' ? true : activeModels > 0
+  const isAvailable = activeModels > 0
 
   // Determine overall provider health
   const healthyCount = effectiveRoutes.filter(r => r.health === 'healthy').length
@@ -2251,10 +1381,7 @@ export function getProviderStatus(provider: string): ProviderStatus {
   const downCount = effectiveRoutes.filter(r => r.health === 'down').length
 
   let health: ProviderStatus['health']
-  if (provider === 'z-ai') {
-    // z-ai is always healthy unless all routes are explicitly down
-    health = downCount === totalModels ? 'down' : 'healthy'
-  } else if (downCount === totalModels) {
+  if (downCount === totalModels) {
     health = 'down'
   } else if (degradedCount > 0 || (healthyCount > 0 && downCount > 0)) {
     health = 'degraded'
@@ -2297,19 +1424,7 @@ export function getProviderStatus(provider: string): ProviderStatus {
                 ? 'Fireworks Free (Serverless)'
                 : provider === 'scaleway'
                   ? 'Scaleway Free (EU)'
-                  : provider === 'dashscope'
-                    ? 'Alibaba Cloud Free (DashScope)'
-                    : provider === 'bitdeer'
-                      ? 'BitDeer AI'
-                      : provider === 'nvidia'
-                        ? 'NVIDIA NIM Free'
-                        : provider === 'sambanova'
-                          ? 'SambaNova Free'
-                          : provider === 'siliconflow'
-                            ? 'SiliconFlow Free'
-                            : provider === 'opencode'
-                              ? 'OpenCode'
-                              : provider
+                  : provider
 
   return {
     provider,
@@ -2383,8 +1498,6 @@ export async function healthCheckProvider(provider: string): Promise<{
       response = await callFireworks(testRoute.actualModel, testMessages, healthCheckOpts)
     } else if (provider === 'scaleway') {
       response = await callScaleway(testRoute.actualModel, testMessages, healthCheckOpts)
-    } else if (provider === 'dashscope') {
-      response = await callDashscope(testRoute.actualModel, testMessages, healthCheckOpts)
     } else {
       response = await callOpenRouter(testRoute.actualModel, testMessages, healthCheckOpts)
     }

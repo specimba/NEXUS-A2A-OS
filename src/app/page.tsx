@@ -1,39 +1,61 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { Shield, Loader2 } from 'lucide-react'
+import { NexusSidebar } from '@/components/nexus/sidebar'
+import { NexusHeader } from '@/components/nexus/header'
+import { NexusFooter } from '@/components/nexus/footer'
+import { TabContent } from '@/components/nexus/tab-content'
+import { NexusAssistant } from '@/components/nexus/ai-assistant'
+import { NexusCommandPalette } from '@/components/nexus/command-palette'
+import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
+import { KeyboardShortcuts } from '@/components/nexus/keyboard-shortcuts'
+import { useState, useEffect } from 'react'
 
-// Dynamically import the entire dashboard with ssr: false
-// This prevents hydration mismatch and reduces SSR memory usage
-const NexusDashboard = dynamic(
-  () => import('@/components/nexus/dashboard-content').then(m => ({ default: m.NexusDashboard })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-14 w-14 rounded-xl bg-emerald-600/10 border border-emerald-600/30 flex items-center justify-center">
-            <Shield className="h-7 w-7 text-emerald-600" />
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold gradient-text mb-1">NEXUS-OS</div>
-            <div className="text-xs text-muted-foreground mb-3">v3.1 Command Center</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-            <span className="text-sm text-muted-foreground">Initializing systems...</span>
-          </div>
-          <div className="flex gap-1 mt-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '0ms' }} />
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '200ms' }} />
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '400ms' }} />
-          </div>
-        </div>
+export default function Home() {
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  // ? key to open keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+        e.preventDefault()
+        setShortcutsOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar (desktop: inline, mobile: sheet) */}
+      <NexusSidebar />
+
+      {/* Main Area */}
+      <div className="flex flex-1 flex-col min-w-0">
+        <NexusHeader />
+
+        {/* Content */}
+        <main className="flex-1 overflow-auto bg-background">
+          <TabContent />
+        </main>
+
+        {/* Sticky Footer */}
+        <NexusFooter />
       </div>
-    ),
-  }
-)
 
-export default function Page() {
-  return <NexusDashboard />
+      {/* AI Assistant Chat Panel */}
+      <NexusAssistant />
+
+      {/* Command Palette (global overlay, triggered by Ctrl+K / Cmd+K) */}
+      <NexusCommandPalette />
+
+      {/* Quick Stats Floating Widget (desktop only) */}
+      <QuickStatsWidget />
+
+      {/* Keyboard Shortcuts Panel (triggered by ? key) */}
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+    </div>
+  )
 }

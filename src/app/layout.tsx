@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import { NexusToaster } from "@/components/nexus/toast-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { PostHogProvider } from "@/components/nexus/posthog-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NEXUS OS v3.1 — Command Center",
+  title: "NEXUS OS v3.0 — Command Center",
   description: "AI Governance Operating System — Command Center for constitutional AI orchestration",
   keywords: ["NEXUS OS", "AI Governance", "Command Center", "Constitutional AI"],
   authors: [{ name: "NEXUS OS" }],
@@ -41,8 +42,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <NexusToaster />
+          <PostHogProvider>{children}</PostHogProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

@@ -27,7 +27,7 @@ const PILLAR_DEFS = [
   { name: 'Swarm', icon: Bug, color: '#facc15', colorClass: 'yellow', desc: 'Worker pool', metric: 'workers', metricUnit: 'busy', metricValue: 3 },
   { name: 'Monitor', icon: Activity, color: '#f472b6', colorClass: 'pink', desc: 'Token budget + audit', metric: 'budget', metricUnit: '%', metricValue: 27 },
   { name: 'Config', icon: Settings, color: '#34d399', colorClass: 'emerald', desc: 'Constitution', metric: 'version', metricUnit: '', metricValue: 3.2 },
-]
+] as const
 
 // ─── Data flow connections (which pillars talk to which) ──────────
 const CONNECTIONS = [
@@ -41,7 +41,7 @@ const CONNECTIONS = [
   { from: 'Monitor', to: 'Config', label: 'enforce', color: '#f472b6' },
   { from: 'Vault', to: 'Config', label: 'constitution', color: '#a78bfa' },
   { from: 'Bridge', to: 'Vault', label: 'session', color: '#34d399' },
-]
+] as const
 
 interface PillarData {
   name: string
@@ -171,7 +171,7 @@ function PillarCell({
   uptime,
   onClick,
 }: {
-  pillar: { name: string; icon: React.ElementType; color: string; colorClass: string; desc: string; metric: string; metricUnit: string; metricValue: number }
+  pillar: typeof PILLAR_DEFS[number]
   health: number
   status?: string
   desc?: string
@@ -271,7 +271,7 @@ function PillarCell({
 }
 
 // ─── Data Flow Line (animated) ────────────────────────────────────
-function DataFlowLine({ from, to, pillars }: { from: string; to: string; pillars: { name: string; color: string }[] }) {
+function DataFlowLine({ from, to, pillars }: { from: string; to: string; pillars: typeof PILLAR_DEFS }) {
   const fromPillar = pillars.find(p => p.name === from)
   const toPillar = pillars.find(p => p.name === to)
   if (!fromPillar || !toPillar) return null

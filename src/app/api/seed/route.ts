@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server'
 
 export async function POST() {
   try {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { error: 'Seed endpoint is disabled outside development.' },
+        { status: 403 },
+      )
+    }
+
     // Clear existing data (in dependency order)
     await db.governorDecision.deleteMany()
     await db.rateLimitLog.deleteMany()
@@ -79,7 +86,7 @@ export async function POST() {
       { action: 'shutdown_agent', scope: 'SYSTEM', impact: 'HIGH', decision: 'HOLD', reason: 'Agent shutdown requires coordinator approval' },
     ]
 
-    const governorDecisions = []
+    const governorDecisions: { agentId: string }[] = []
     for (const template of decisionTemplates) {
       // Assign each decision to a random agent
       const agent = agents[Math.floor(Math.random() * agents.length)]

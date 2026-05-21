@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
 
 // GET /api/foundry — Return all FoundryAgent records
 export async function GET() {
@@ -107,7 +106,8 @@ export async function POST(request: NextRequest) {
 
         try {
           // Use z-ai-web-dev-sdk to invoke the model
-          const sdk = await ZAI.create()
+          const { ZAIWebDevSDK } = await import('z-ai-web-dev-sdk')
+          const sdk = new ZAIWebDevSDK()
           const startTime = Date.now()
 
           const result = await sdk.chat.completions.create({

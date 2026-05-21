@@ -1,631 +1,512 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@/components/ui/alert-dialog'
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import {
-  Plus,
-  LayoutDashboard,
-  Pencil,
-  Share2,
-  Trash2,
-  Clock,
-  Blocks,
-  Loader2,
-  LayoutGrid,
-  LayoutList,
-  Search,
-  Grid3x3,
-  ArrowUpRight,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import {
+  Plus, Search, MoreVertical, Star, Pin, Copy, Trash2, Users, Layers,
+  Loader2, Sparkles, Filter, LayoutDashboard,
 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useApiData } from '@/hooks/use-api-data'
+import {
+  parseSharedWith, parseTags, type CustomDashboardDTO,
+} from './types'
+import { DASHBOARD_ACCENTS, type AccentColor } from './widget-catalog'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
-import type { DashboardListItem, CreateDashboardRequest, LayoutType } from '@/lib/dashboard-types'
 
-interface DashboardListProps {
-  onEditDashboard: (id: string) => void
-  onShareDashboard: (id: string) => void
+interface Props {
+  onOpen: (id: string) => void
 }
 
-const MOCK_DASHBOARDS: DashboardListItem[] = [
-  {
-    id: 'dash-1',
-    name: 'System Overview',
-    description: 'High-level system health, uptime, and resource utilization at a glance.',
-    layout: 'grid',
-    columns: 12,
-    widgetCount: 8,
-    tags: ['system', 'health', 'monitoring'],
-    isPublic: false,
-    updatedAt: '2025-03-04T11:00:00.000Z',
-  },
-  {
-    id: 'dash-2',
-    name: 'Agent Performance',
-    description: 'Track agent trust scores, task completion rates, and model assignments.',
-    layout: 'grid',
-    columns: 12,
-    widgetCount: 6,
-    tags: ['agents', 'performance', 'ai'],
-    isPublic: true,
-    updatedAt: '2025-03-04T10:00:00.000Z',
-  },
-  {
-    id: 'dash-3',
-    name: 'Token Economics',
-    description: 'Monitor token usage, burn rates, budget allocation, and cost efficiency.',
-    layout: 'grid',
-    columns: 8,
-    widgetCount: 5,
-    tags: ['tokens', 'cost', 'budget'],
-    isPublic: false,
-    updatedAt: '2025-03-03T12:00:00.000Z',
-  },
-  {
-    id: 'dash-4',
-    name: 'Governor Audit',
-    description: 'Constitutional compliance, blocked actions, and security posture.',
-    layout: 'freeform',
-    columns: 12,
-    widgetCount: 4,
-    tags: ['governor', 'security', 'compliance'],
-    isPublic: false,
-    updatedAt: '2025-03-02T12:00:00.000Z',
-  },
-]
-
-export function DashboardList({ onEditDashboard, onShareDashboard }: DashboardListProps) {
-  const [dashboards, setDashboards] = useState<DashboardListItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-
-  // Create dialog state
+export function DashboardList({ onOpen }: Props) {
+  const { data, loading, refetch } = useApiData<CustomDashboardDTO[]>(
+    '/api/dashboards',
+    20000,
+  )
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<'all' | 'favorites' | 'shared'>('all')
   const [createOpen, setCreateOpen] = useState(false)
-  const [createName, setCreateName] = useState('')
-  const [createDescription, setCreateDescription] = useState('')
-  const [createLayout, setCreateLayout] = useState<LayoutType>('grid')
-  const [createColumns, setCreateColumns] = useState('12')
-  const [createSeedDefaults, setCreateSeedDefaults] = useState(true)
-  const [creating, setCreating] = useState(false)
 
-  // Delete dialog state
-  const [deleteTarget, setDeleteTarget] = useState<DashboardListItem | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const dashboards = data ?? []
 
-  const fetchDashboards = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/dashboards')
-      if (res.ok) {
-        const data = await res.json()
-        setDashboards(data.dashboards || [])
-        return
-      }
-    } catch {
-      // Fall back to mock data
+  const filtered = useMemo(() => {
+    let list = [...dashboards]
+    if (filter === 'favorites') list = list.filter((d) => d.isFavorite || d.isPinned)
+    if (filter === 'shared') list = list.filter((d) => parseSharedWith(d.sharedWith).length > 0)
+    const q = query.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          (d.description ?? '').toLowerCase().includes(q),
+      )
     }
-    // Use mock data when API is unavailable
-    setDashboards(MOCK_DASHBOARDS)
-    setLoading(false)
-  }, [])
+    return list
+  }, [dashboards, query, filter])
 
-  useEffect(() => {
-    fetchDashboards()
-  }, [fetchDashboards])
-
-  const handleCreate = async () => {
-    if (!createName.trim()) return
-    setCreating(true)
-    const req: CreateDashboardRequest = {
-      name: createName,
-      description: createDescription || undefined,
-      layout: createLayout,
-      columns: parseInt(createColumns),
-      seedWithDefaults: createSeedDefaults,
-    }
+  async function handleDuplicate(d: CustomDashboardDTO) {
     try {
       const res = await fetch('/api/dashboards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req),
+        body: JSON.stringify({
+          name: `${d.name} (copy)`,
+          description: d.description,
+          icon: d.icon,
+          color: d.color,
+          tags: parseTags(d.tags),
+          cloneFromId: d.id,
+        }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        onEditDashboard(data.id)
-        setCreateOpen(false)
-        resetCreateForm()
-        setCreating(false)
-        return
-      }
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Dashboard duplicated')
+      refetch()
     } catch {
-      // Fall back to local creation
+      toast.error('Failed to duplicate')
     }
-    // Mock: create locally
-    const newDash: DashboardListItem = {
-      id: `dash-${Date.now()}`,
-      name: createName,
-      description: createDescription,
-      layout: createLayout,
-      columns: parseInt(createColumns),
-      widgetCount: createSeedDefaults ? 4 : 0,
-      tags: [],
-      isPublic: false,
-      updatedAt: new Date().toISOString(),
-    }
-    setDashboards((prev) => [newDash, ...prev])
-    onEditDashboard(newDash.id)
-    setCreateOpen(false)
-    resetCreateForm()
-    setCreating(false)
   }
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
+  async function handleDelete(d: CustomDashboardDTO) {
+    if (!confirm(`Delete dashboard "${d.name}"? This cannot be undone.`)) return
     try {
-      const res = await fetch(`/api/dashboards/${deleteTarget.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        setDashboards((prev) => prev.filter((d) => d.id !== deleteTarget.id))
-        setDeleteTarget(null)
-        setDeleting(false)
-        return
-      }
+      const res = await fetch(`/api/dashboards/${d.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Dashboard deleted')
+      refetch()
     } catch {
-      // Fall back to local deletion
+      toast.error('Failed to delete')
     }
-    setDashboards((prev) => prev.filter((d) => d.id !== deleteTarget.id))
-    setDeleteTarget(null)
-    setDeleting(false)
   }
 
-  const resetCreateForm = () => {
-    setCreateName('')
-    setCreateDescription('')
-    setCreateLayout('grid')
-    setCreateColumns('12')
-    setCreateSeedDefaults(true)
-  }
-
-  const filteredDashboards = dashboards.filter(
-    (d) =>
-      d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.description.toLowerCase().includes(search.toLowerCase()) ||
-      d.tags.some((t) => t.toLowerCase().includes(search.toLowerCase())),
-  )
-
-  const formatTimeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const minutes = Math.floor(diff / 60000)
-    if (minutes < 1) return 'Just now'
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        <span className="ml-3 text-sm text-muted-foreground">Loading dashboards...</span>
-      </div>
-    )
+  async function handleToggle(d: CustomDashboardDTO, field: 'isFavorite' | 'isPinned') {
+    try {
+      const res = await fetch(`/api/dashboards/${d.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: !d[field] }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      refetch()
+    } catch {
+      toast.error('Failed to update')
+    }
   }
 
   return (
-    <div className="space-y-4">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search dashboards..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs"
-          />
+    <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <LayoutDashboard className="h-5 w-5 text-primary" />
+            Custom Dashboards
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Build and share monitoring dashboards on top of live NEXUS OS telemetry.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex border border-border rounded-md">
-            <Button
-              size="sm"
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              className="h-7 w-7 p-0 rounded-r-none"
-              onClick={() => setViewMode('grid')}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              className="h-7 w-7 p-0 rounded-l-none"
-              onClick={() => setViewMode('list')}
-              aria-label="List view"
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-            </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search dashboards..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <Button
-            size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Create Dashboard
+          <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+            <SelectTrigger className="w-[140px]">
+              <Filter className="h-3.5 w-3.5 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="favorites">Favorites</SelectItem>
+              <SelectItem value="shared">Shared</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            New Dashboard
           </Button>
         </div>
       </div>
 
-      {/* Empty State */}
-      {filteredDashboards.length === 0 && !loading && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-16"
-        >
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-emerald-600/10 flex items-center justify-center mb-4">
-            <LayoutDashboard className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">
-            {search ? 'No dashboards found' : 'No dashboards yet'}
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-            {search
-              ? `No dashboards match "${search}". Try a different search term.`
-              : 'Create your first custom dashboard with drag-and-drop widgets, live metrics, and personalized layouts.'}
-          </p>
-          {!search && (
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Create Your First Dashboard
-            </Button>
-          )}
-        </motion.div>
-      )}
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Total" value={dashboards.length} icon={<Layers className="h-4 w-4" />} />
+        <StatCard
+          label="Favorites"
+          value={dashboards.filter((d) => d.isFavorite || d.isPinned).length}
+          icon={<Star className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Shared"
+          value={dashboards.filter((d) => parseSharedWith(d.sharedWith).length > 0).length}
+          icon={<Users className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Total Widgets"
+          value={dashboards.reduce((s, d) => s + (d.widgets?.length ?? 0), 0)}
+          icon={<Sparkles className="h-4 w-4" />}
+        />
+      </div>
 
-      {/* Grid View */}
-      {viewMode === 'grid' && filteredDashboards.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDashboards.map((dashboard, index) => (
-            <motion.div
-              key={dashboard.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="bg-card/50 border-border/50 hover:border-emerald-600/30 transition-all group h-full flex flex-col">
-                <CardContent className="p-4 flex-1 flex flex-col">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="p-1.5 rounded bg-emerald-600/10 shrink-0">
-                        <LayoutDashboard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <h3 className="text-sm font-semibold truncate">{dashboard.name}</h3>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {dashboard.isPublic && (
-                        <Badge className="text-[8px] h-4 px-1 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-0">
-                          PUBLIC
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="text-[8px] h-4 px-1">
-                        {dashboard.layout === 'grid' ? 'Grid' : 'Freeform'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
-                    {dashboard.description || 'No description'}
-                  </p>
-
-                  {/* Meta */}
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-3">
-                    <div className="flex items-center gap-1">
-                      <Blocks className="h-3 w-3" />
-                      {dashboard.widgetCount} widgets
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Grid3x3 className="h-3 w-3" />
-                      {dashboard.columns} cols
-                    </div>
-                    <div className="flex items-center gap-1" suppressHydrationWarning>
-                      <Clock className="h-3 w-3" />
-                      {formatTimeAgo(dashboard.updatedAt)}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  {dashboard.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {dashboard.tags.slice(0, 4).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="text-[9px] h-4 px-1.5 border-emerald-600/20 text-emerald-700 dark:text-emerald-400"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                      {dashboard.tags.length > 4 && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-1.5">
-                          +{dashboard.tags.length - 4}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 pt-2 border-t border-border/30">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-[10px] gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-600/10"
-                      onClick={() => onEditDashboard(dashboard.id)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-[10px] gap-1"
-                      onClick={() => onShareDashboard(dashboard.id)}
-                    >
-                      <Share2 className="h-3 w-3" />
-                      Share
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-[10px] gap-1 ml-auto text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                      onClick={() => setDeleteTarget(dashboard)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+      {/* Grid */}
+      {loading && !data && (
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
 
-      {/* List View */}
-      {viewMode === 'list' && filteredDashboards.length > 0 && (
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-0">
-            <div className="divide-y divide-border/30">
-              {filteredDashboards.map((dashboard) => (
-                <div
-                  key={dashboard.id}
-                  className="flex items-center gap-4 p-3 hover:bg-muted/30 transition-colors group"
-                >
-                  <div className="p-2 rounded-lg bg-emerald-600/10 shrink-0">
-                    <LayoutDashboard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">{dashboard.name}</span>
-                      {dashboard.isPublic && (
-                        <Badge className="text-[8px] h-3.5 px-1 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border-0">
-                          PUBLIC
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {dashboard.description || 'No description'}
-                    </p>
-                  </div>
-                  <div className="hidden sm:flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
-                    <span className="flex items-center gap-1">
-                      <Blocks className="h-3 w-3" />
-                      {dashboard.widgetCount}
-                    </span>
-                    <span className="flex items-center gap-1" suppressHydrationWarning>
-                      <Clock className="h-3 w-3" />
-                      {formatTimeAgo(dashboard.updatedAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {dashboard.tags.slice(0, 2).map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="outline"
-                        className="text-[9px] h-4 px-1 border-emerald-600/20 text-emerald-700 dark:text-emerald-400 hidden md:inline-flex"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => onEditDashboard(dashboard.id)}
-                      aria-label="Edit dashboard"
-                    >
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500"
-                      onClick={() => setDeleteTarget(dashboard)}
-                      aria-label="Delete dashboard"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {!loading && filtered.length === 0 && (
+        <EmptyState onCreate={() => setCreateOpen(true)} hasAny={dashboards.length > 0} />
       )}
 
-      {/* Create Dashboard Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              Create Dashboard
-            </DialogTitle>
-            <DialogDescription>
-              Set up a new custom dashboard with your preferred layout and widgets.
-            </DialogDescription>
-          </DialogHeader>
+      <motion.div
+        layout
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      >
+        <AnimatePresence mode="popLayout">
+          {filtered.map((d) => (
+            <DashboardCard
+              key={d.id}
+              dashboard={d}
+              onOpen={() => onOpen(d.id)}
+              onToggle={(f) => handleToggle(d, f)}
+              onDuplicate={() => handleDuplicate(d)}
+              onDelete={() => handleDelete(d)}
+            />
+          ))}
+        </AnimatePresence>
+      </motion.div>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Name</Label>
-              <Input
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="My Dashboard"
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Description</Label>
-              <Textarea
-                value={createDescription}
-                onChange={(e) => setCreateDescription(e.target.value)}
-                placeholder="What this dashboard shows..."
-                className="text-xs min-h-[60px] resize-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Layout Type</Label>
-                <Select value={createLayout} onValueChange={(v: LayoutType) => setCreateLayout(v)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="grid" className="text-xs">Grid</SelectItem>
-                    <SelectItem value="freeform" className="text-xs">Freeform</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Columns</Label>
-                <Select value={createColumns} onValueChange={setCreateColumns}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="6" className="text-xs">6 columns</SelectItem>
-                    <SelectItem value="8" className="text-xs">8 columns</SelectItem>
-                    <SelectItem value="12" className="text-xs">12 columns</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
-              <Checkbox
-                id="seed-defaults"
-                checked={createSeedDefaults}
-                onCheckedChange={(checked) => setCreateSeedDefaults(checked === true)}
-                className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-              />
-              <div>
-                <Label htmlFor="seed-defaults" className="text-xs font-medium cursor-pointer">
-                  Seed with default widgets
-                </Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Add a basic set of monitoring widgets to get started quickly
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} className="text-xs">
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleCreate}
-              disabled={!createName.trim() || creating}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs"
-            >
-              {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Dashboard</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;? This action cannot be undone.
-              All widgets and configuration will be permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className={cn(
-                'bg-red-600 hover:bg-red-700 text-white',
-                deleting && 'opacity-50',
-              )}
-            >
-              {deleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Delete'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CreateDashboardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(id) => {
+          refetch()
+          onOpen(id)
+        }}
+      />
     </div>
   )
+}
+
+function StatCard({
+  label, value, icon,
+}: { label: string; value: number; icon: React.ReactNode }) {
+  return (
+    <Card className="p-4 flex items-center justify-between hover-lift">
+      <div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide">{label}</div>
+        <div className="text-2xl font-bold tabular-nums mt-0.5">{value}</div>
+      </div>
+      <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+        {icon}
+      </div>
+    </Card>
+  )
+}
+
+function DashboardCard({
+  dashboard,
+  onOpen,
+  onToggle,
+  onDuplicate,
+  onDelete,
+}: {
+  dashboard: CustomDashboardDTO
+  onOpen: () => void
+  onToggle: (field: 'isFavorite' | 'isPinned') => void
+  onDuplicate: () => void
+  onDelete: () => void
+}) {
+  const tags = parseTags(dashboard.tags)
+  const shared = parseSharedWith(dashboard.sharedWith)
+  const accent = DASHBOARD_ACCENTS[dashboard.color as AccentColor] ?? DASHBOARD_ACCENTS.emerald
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Card
+        className="group relative overflow-hidden hover-lift cursor-pointer h-full flex flex-col"
+        onClick={onOpen}
+      >
+        {/* Accent strip */}
+        <div
+          className="absolute top-0 left-0 right-0 h-1"
+          style={{ background: `linear-gradient(90deg, ${accent.from}, ${accent.to})` }}
+        />
+        {/* Pin marker */}
+        {dashboard.isPinned && (
+          <Pin className="absolute top-3 right-12 h-3.5 w-3.5 text-primary fill-primary/30" />
+        )}
+
+        <div className="p-4 flex-1 flex flex-col">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div
+              className={cn(
+                'h-10 w-10 rounded-lg flex items-center justify-center',
+                accent.bg,
+                accent.text,
+              )}
+            >
+              <LayoutDashboard className="h-5 w-5" />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Dashboard actions"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => onToggle('isFavorite')}>
+                  <Star className={cn('h-4 w-4 mr-2', dashboard.isFavorite && 'fill-current')} />
+                  {dashboard.isFavorite ? 'Remove favorite' : 'Mark favorite'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onToggle('isPinned')}>
+                  <Pin className={cn('h-4 w-4 mr-2', dashboard.isPinned && 'fill-current')} />
+                  {dashboard.isPinned ? 'Unpin' : 'Pin to top'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDuplicate}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDelete} className="text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="space-y-1 mb-3">
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-semibold text-base truncate">{dashboard.name}</h3>
+              {dashboard.isFavorite && (
+                <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+              {dashboard.description || 'No description'}
+            </p>
+          </div>
+
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {tags.slice(0, 3).map((t) => (
+                <Badge key={t} variant="secondary" className="text-[10px] h-4 px-1.5">
+                  {t}
+                </Badge>
+              ))}
+              {tags.length > 3 && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                  +{tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          <div className="mt-auto pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                {dashboard.widgets?.length ?? 0}
+              </span>
+              {shared.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {shared.length}
+                </span>
+              )}
+            </div>
+            <span>{formatRelative(dashboard.lastViewed)}</span>
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  )
+}
+
+function EmptyState({ onCreate, hasAny }: { onCreate: () => void; hasAny: boolean }) {
+  return (
+    <Card className="p-12 flex flex-col items-center justify-center text-center">
+      <div className="h-14 w-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4">
+        <LayoutDashboard className="h-7 w-7" />
+      </div>
+      <h3 className="font-semibold text-lg mb-1">
+        {hasAny ? 'No matching dashboards' : 'No dashboards yet'}
+      </h3>
+      <p className="text-sm text-muted-foreground max-w-md mb-4">
+        {hasAny
+          ? 'Try a different search or filter.'
+          : 'Create your first custom dashboard to monitor agents, tokens, governor decisions, and more — all in one place.'}
+      </p>
+      {!hasAny && (
+        <Button onClick={onCreate} className="gap-1.5">
+          <Plus className="h-4 w-4" /> Create your first dashboard
+        </Button>
+      )}
+    </Card>
+  )
+}
+
+function CreateDashboardDialog({
+  open, onOpenChange, onCreated,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onCreated: (id: string) => void
+}) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [color, setColor] = useState<AccentColor>('emerald')
+  const [tagInput, setTagInput] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleCreate() {
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      const tags = tagInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+      const res = await fetch('/api/dashboards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, color, tags }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      toast.success('Dashboard created')
+      onCreated(json.id)
+      onOpenChange(false)
+      setName('')
+      setDescription('')
+      setTagInput('')
+      setColor('emerald')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create new dashboard</DialogTitle>
+          <DialogDescription>
+            Give it a name and pick an accent color. You can add widgets in the next step.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid gap-2">
+            <Label htmlFor="d-name">Name</Label>
+            <Input
+              id="d-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Token Watchtower"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleCreate()
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="d-desc">Description</Label>
+            <Input
+              id="d-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What does this dashboard track?"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="d-tags">Tags (comma separated)</Label>
+            <Input
+              id="d-tags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="ops, tokens, governance"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Accent color</Label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {(Object.keys(DASHBOARD_ACCENTS) as AccentColor[]).map((c) => {
+                const a = DASHBOARD_ACCENTS[c]
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      'h-8 w-8 rounded-md transition-transform hover:scale-105',
+                      color === c && 'ring-2 ring-offset-2 ring-offset-background ring-primary',
+                    )}
+                    style={{ background: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
+                    aria-label={`Color ${c}`}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={!name.trim() || saving}>
+            {saving ? 'Creating...' : 'Create dashboard'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function formatRelative(iso: string): string {
+  const date = new Date(iso)
+  const diff = Date.now() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString()
 }

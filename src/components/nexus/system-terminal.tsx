@@ -568,23 +568,18 @@ export function SystemTerminal() {
           </div>
           {/* Title */}
           <div className="flex-1 text-center">
-            <span className="text-xs text-zinc-400 font-medium tracking-wide font-mono">
-              nexus@os ~ bash — 7352
+            <span className="text-xs text-zinc-400 font-medium tracking-wide">
+              NEXUS Terminal — bash
             </span>
           </div>
-          {/* Terminal icon + badges */}
-          <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="text-[7px] border-purple-700/50 text-purple-400 bg-purple-900/20 font-mono px-1 py-0 h-3.5 font-bold tracking-wider">
-              INTERACTIVE
-            </Badge>
-            <Terminal className="h-3.5 w-3.5 text-zinc-500" />
-          </div>
+          {/* Terminal icon */}
+          <Terminal className="h-3.5 w-3.5 text-zinc-500" />
         </div>
 
         {/* Terminal content */}
         <div
           ref={terminalRef}
-          className="max-h-[400px] overflow-y-auto custom-scrollbar p-4 font-mono text-[12px] leading-[1.65] cursor-text bg-[#0d0d0d] dark:bg-black/90 selection:bg-emerald-600/30"
+          className="max-h-[400px] overflow-y-auto custom-scrollbar p-4 font-mono text-[12px] leading-5 cursor-text"
           onClick={focusInput}
         >
           <AnimatePresence>
@@ -627,24 +622,16 @@ export function SystemTerminal() {
         {/* Footer bar */}
         <div className="flex items-center justify-between border-t border-zinc-700/60 dark:border-zinc-800/80 bg-zinc-800/40 dark:bg-zinc-900/40 px-4 py-1.5">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[8px] border-zinc-600 text-zinc-400 bg-zinc-800/50 font-mono">
+            <Badge variant="outline" className="text-[9px] border-zinc-600 text-zinc-400 bg-zinc-800/50">
               bash
             </Badge>
-            <Badge variant="outline" className="text-[8px] border-emerald-700/50 text-emerald-400 bg-emerald-900/20 font-mono">
+            <Badge variant="outline" className="text-[9px] border-emerald-700/50 text-emerald-400 bg-emerald-900/20">
               ● connected
             </Badge>
-            <Badge variant="outline" className="text-[8px] border-amber-700/50 text-amber-400 bg-amber-900/20 font-mono font-bold">
-              SUDO
-            </Badge>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] text-zinc-500 font-mono">
-              hist: {commandHistory.current.length}
-            </span>
-            <span className="text-[9px] text-zinc-500 tabular-nums font-mono">
-              {lines.length} lines
-            </span>
-          </div>
+          <span className="text-[10px] text-zinc-500 tabular-nums">
+            {lines.length} lines
+          </span>
         </div>
       </div>
     </motion.div>

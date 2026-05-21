@@ -1,112 +1,91 @@
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 
-// ─── Single Dashboard Operations ───
-// GET    /api/dashboards/[id] — Get dashboard with widgets
-// PUT    /api/dashboards/[id] — Update dashboard
-// DELETE /api/dashboards/[id] — Delete dashboard and all widgets (cascade)
-
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
+// Minimum interval between lastViewed updates per dashboard (avoid write amplification
+// since useApiData polls this endpoint every 15s).
+const LAST_VIEWED_THROTTLE_MS = 60_000
 
 export async function GET(
-  _request: NextRequest,
-  context: RouteContext
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params
-
-    const dashboard = await db.dashboard.findUnique({
+    const { id } = await params
+    const dashboard = await db.customDashboard.findUnique({
       where: { id },
-      include: { widgets: { orderBy: { order: 'asc' } } },
+      // Widgets are ordered by posY (the persisted layout index), with createdAt
+      // as a stable tiebreaker for widgets that haven't been re-ordered yet.
+      include: { widgets: { orderBy: [{ posY: 'asc' }, { createdAt: 'asc' }] } },
     })
-
     if (!dashboard) {
-      return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const parsed = {
-      ...dashboard,
-      tags: dashboard.tags ? JSON.parse(dashboard.tags) : [],
-      widgets: dashboard.widgets.map((w) => ({
-        ...w,
-        config: JSON.parse(w.config),
-        gridPos: JSON.parse(w.gridPos),
-      })),
+    // Throttle lastViewed updates and return the fresh value when we do write.
+    const now = Date.now()
+    const sinceLastView = now - new Date(dashboard.lastViewed).getTime()
+    if (sinceLastView >= LAST_VIEWED_THROTTLE_MS) {
+      const updated = await db.customDashboard.update({
+        where: { id },
+        data: { lastViewed: new Date(now) },
+        include: { widgets: { orderBy: [{ posY: 'asc' }, { createdAt: 'asc' }] } },
+      })
+      return NextResponse.json(updated)
     }
-
-    return NextResponse.json({ dashboard: parsed })
+    return NextResponse.json(dashboard)
   } catch (error) {
-    console.error('Dashboard GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch dashboard' }, { status: 500 })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: RouteContext
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params
-    const body = await request.json()
+    const { id } = await params
+    const body = await req.json()
+    const data: Record<string, unknown> = {}
+    if ('name' in body) data.name = body.name
+    if ('description' in body) data.description = body.description
+    if ('icon' in body) data.icon = body.icon
+    if ('color' in body) data.color = body.color
+    if ('isFavorite' in body) data.isFavorite = body.isFavorite
+    if ('isPinned' in body) data.isPinned = body.isPinned
+    if ('tags' in body) data.tags = JSON.stringify(body.tags ?? [])
+    if ('sharedWith' in body) data.sharedWith = JSON.stringify(body.sharedWith ?? [])
 
-    const existing = await db.dashboard.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 })
+    try {
+      const updated = await db.customDashboard.update({
+        where: { id },
+        data,
+        include: { widgets: { orderBy: [{ posY: 'asc' }, { createdAt: 'asc' }] } },
+      })
+      return NextResponse.json(updated)
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+      throw err
     }
-
-    const updateData: Record<string, unknown> = {}
-
-    if (body.name !== undefined) updateData.name = body.name.trim()
-    if (body.description !== undefined) updateData.description = body.description?.trim() || null
-    if (body.layout !== undefined) updateData.layout = body.layout
-    if (body.columns !== undefined) updateData.columns = body.columns
-    if (body.isPublic !== undefined) updateData.isPublic = body.isPublic
-    if (body.isDefault !== undefined) updateData.isDefault = body.isDefault
-    if (body.tags !== undefined) updateData.tags = JSON.stringify(body.tags)
-
-    const dashboard = await db.dashboard.update({
-      where: { id },
-      data: updateData,
-      include: { widgets: { orderBy: { order: 'asc' } } },
-    })
-
-    const parsed = {
-      ...dashboard,
-      tags: dashboard.tags ? JSON.parse(dashboard.tags) : [],
-      widgets: dashboard.widgets.map((w) => ({
-        ...w,
-        config: JSON.parse(w.config),
-        gridPos: JSON.parse(w.gridPos),
-      })),
-    }
-
-    return NextResponse.json({ dashboard: parsed })
   } catch (error) {
-    console.error('Dashboard PUT error:', error)
-    return NextResponse.json({ error: 'Failed to update dashboard' }, { status: 500 })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
 
 export async function DELETE(
-  _request: NextRequest,
-  context: RouteContext
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params
-
-    const existing = await db.dashboard.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 })
-    }
-
-    // Cascade delete will handle widgets automatically
-    await db.dashboard.delete({ where: { id } })
-
-    return NextResponse.json({ success: true, message: 'Dashboard and all widgets deleted' })
+    const { id } = await params
+    await db.customDashboard.delete({ where: { id } })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Dashboard DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete dashboard' }, { status: 500 })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }

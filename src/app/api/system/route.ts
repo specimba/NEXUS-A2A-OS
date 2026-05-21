@@ -1,75 +1,23 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
-// Simple in-memory cache to avoid hammering the database on every request
-let cachedData: { timestamp: number; data: any } | null = null
-const CACHE_TTL = 60 * 1000 // 1 minute cache
-
 export async function GET() {
   try {
-    // Return cached data if fresh enough
-    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
-      return NextResponse.json(cachedData.data)
-    }
-
-    // Fetch only essential data - use select to limit fields returned
-    const [agents, models, templates, budget, decisions, testRuns, vaultEntries, tokenLogs] =
+    // Fetch all core data in parallel
+    const [agents, models, templates, papers, budget, config, state, decisions, testRuns, vaultEntries, tokenLogs] =
       await Promise.all([
-        db.agent.findMany({ orderBy: { lastActive: 'desc' }, select: { id: true, name: true, status: true, trustScore: true, tasksDone: true, tasksFailed: true, lastActive: true, domain: true } }),
-        db.modelEntry.findMany({ orderBy: { tier: 'desc' }, select: { id: true, name: true, provider: true, tier: true, health: true, latencyMs: true, isActive: true } }),
-        db.testTemplate.findMany({ select: { id: true, name: true, domain: true } }),
+        db.agent.findMany({ orderBy: { lastActive: 'desc' } }),
+        db.modelEntry.findMany({ orderBy: { tier: 'desc' } }),
+        db.testTemplate.findMany(),
+        db.paper.findMany(),
         db.sessionBudget.findFirst({ where: { isActive: true } }),
+        db.systemConfig.findUnique({ where: { key: 'constitution' } }),
+        db.systemConfig.findUnique({ where: { key: 'nexus_state' } }),
         db.governorDecision.findMany({ take: 10, orderBy: { createdAt: 'desc' }, include: { agent: { select: { name: true } } } }),
-        db.testRun.findMany({ take: 20, orderBy: { createdAt: 'desc' }, select: { id: true, status: true, durationMs: true, collapseDetected: true, modelName: true, createdAt: true } }),
+        db.testRun.findMany({ take: 50, orderBy: { createdAt: 'desc' } }),
         db.vaultEntry.findMany({ take: 10, orderBy: { createdAt: 'desc' }, include: { agent: { select: { name: true } } } }),
-        db.tokenUsageLog.findMany({ take: 50, orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true, totalTokens: true, model: true } }),
+        db.tokenUsageLog.findMany({ take: 100, orderBy: { createdAt: 'desc' } }),
       ])
-
-    // Fetch additional data for overview metrics - minimized queries
-    const now = Date.now()
-    const last24h = new Date(now - 24 * 60 * 60 * 1000)
-    const oneHourAgo = new Date(now - 60 * 60 * 1000)
-
-    const [
-      earliestAgent,
-      completedTestRuns,
-      tokenLogsLastHour,
-      requestCountToday,
-      govDecisionStats,
-      recentVaultFull,
-      recentDecisionsFull,
-      latestConfigUpdate,
-      latestModelCheck,
-    ] = await Promise.all([
-      db.agent.findFirst({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
-      db.testRun.findMany({
-        where: { status: { in: ['passed', 'failed', 'error'] } },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        select: { durationMs: true, status: true, createdAt: true },
-      }),
-      db.tokenUsageLog.findMany({
-        where: { createdAt: { gte: oneHourAgo } },
-        select: { createdAt: true },
-      }),
-      db.tokenUsageLog.count({ where: { createdAt: { gte: last24h } } }),
-      db.governorDecision.groupBy({
-        by: ['decision'],
-        _count: { decision: true },
-      }),
-      db.vaultEntry.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: { agent: { select: { name: true } } },
-      }),
-      db.governorDecision.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: { agent: { select: { name: true } } },
-      }),
-      db.systemConfig.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
-      db.modelEntry.findFirst({ orderBy: { lastChecked: 'desc' }, select: { lastChecked: true } }),
-    ])
 
     // Compute pillar health from real data
     const activeAgents = agents.filter(a => a.status !== 'offline')
@@ -86,63 +34,6 @@ export async function GET() {
       ? Math.round((failedRuns.length / testRuns.length) * 1000) / 10
       : 0
 
-    // ── Compute overview stats (needed for pillar health) ───────
-    const totalTokensUsed = budget?.usedBudget ?? 0
-    const totalBudget = budget?.totalBudget ?? 100000
-
-    // ── Compute pillar health from real data ──────────────────
-    // Governor health: based on decision quality and agent trust scores
-    // A healthy Governor makes proper decisions (ALLOW/DENY/HOLD) without errors
-    // and maintains good trust scores across agents.
-    const governorHealth = (() => {
-      if (decisions.length === 0) return 95 // No decisions = assume operational
-
-      // Decision quality: non-ERROR decisions mean Governor is functioning
-      const govErrorCount = decisions.filter(d => d.decision === 'ERROR').length
-      const govErrorRate = govErrorCount / decisions.length
-
-      // Base health: 97 when no errors, decreasing proportionally with errors
-      // 0% errors → 97, 10% → ~93, 25% → ~88, 50% → ~79, 100% → 60
-      const baseHealth = Math.round(97 - govErrorRate * 37)
-
-      // Trust bonus: good average trust indicates effective governance
-      const avgTrust = agents.length > 0
-        ? agents.reduce((s, a) => s + a.trustScore, 0) / agents.length
-        : 0.5
-      const trustBonus = avgTrust >= 0.7 ? 3 : avgTrust >= 0.5 ? 2 : 0
-
-      return Math.min(100, Math.max(0, baseHealth + trustBonus))
-    })()
-
-    // Engine health: based on model availability and routing capability
-    const engineHealth = activeModels.length > 0
-      ? Math.min(100, 90 + Math.round((activeModels.length / Math.max(models.length, 1)) * 10))
-      : 75
-
-    // GMR health: use average active model health (already computed)
-    // Ensure minimum of 85 even with degraded models (rotation still works)
-    const gmrHealth = Math.max(85, avgModelHealth)
-
-    // Swarm health: based on worker utilization and error rate
-    const swarmHealth = (() => {
-      const total = agents.length
-      if (total === 0) return 95
-      const swarmErrorRate = errorAgents.length / total
-      const busyRate = busyAgents.length / total
-      // Base 96, penalty for errors, bonus for active workers
-      return Math.round(Math.max(75, Math.min(100,
-        96 - swarmErrorRate * 30 + (busyRate >= 0.4 ? 2 : 0)
-      )))
-    })()
-
-    // Monitor health: based on budget utilization
-    const monitorHealth = (() => {
-      const budgetPctVal = totalBudget > 0 ? totalTokensUsed / totalBudget : 0
-      if (budgetPctVal > 0.9) return 88 // Critical budget usage
-      if (budgetPctVal > 0.7) return 94 // High usage
-      return 97 // Healthy budget
-    })()
-
     const pillars = [
       {
         name: 'Bridge',
@@ -153,15 +44,17 @@ export async function GET() {
       },
       {
         name: 'Engine',
-        health: engineHealth,
+        health: activeModels.length > 0 ? 98 : 80,
         status: 'operational',
         desc: `${activeModels.length} models available`,
         uptime: '99.94%',
       },
       {
         name: 'Governor',
-        health: governorHealth,
-        status: governorHealth >= 95 ? 'operational' : governorHealth >= 85 ? 'degraded' : 'critical',
+        health: decisions.length > 0
+          ? Math.round((decisions.filter(d => d.decision === 'ALLOW').length / decisions.length) * 100)
+          : 95,
+        status: 'operational',
         desc: 'Kaiju + TrustScorer',
         uptime: '99.87%',
       },
@@ -174,21 +67,21 @@ export async function GET() {
       },
       {
         name: 'GMR',
-        health: gmrHealth,
-        status: gmrHealth >= 95 ? 'operational' : 'degraded',
+        health: avgModelHealth,
+        status: avgModelHealth >= 95 ? 'operational' : 'degraded',
         desc: `${activeModels.length}/${models.length} models active`,
-        uptime: gmrHealth >= 95 ? '99.71%' : '97.50%',
+        uptime: avgModelHealth >= 95 ? '99.71%' : '97.50%',
       },
       {
         name: 'Swarm',
-        health: swarmHealth,
-        status: swarmHealth >= 95 ? 'operational' : swarmHealth >= 85 ? 'degraded' : 'critical',
+        health: errorAgents.length > 0 ? Math.max(70, 100 - errorAgents.length * 10) : 95,
+        status: errorAgents.length > 0 ? 'degraded' : 'operational',
         desc: `${busyAgents.length} busy · ${idleAgents.length} idle`,
-        uptime: swarmHealth >= 95 ? '98.44%' : '92.44%',
+        uptime: errorAgents.length > 0 ? '92.44%' : '98.44%',
       },
       {
         name: 'Monitor',
-        health: monitorHealth,
+        health: 96,
         status: 'operational',
         desc: 'Token budget + audit',
         uptime: '99.92%',
@@ -202,7 +95,9 @@ export async function GET() {
       },
     ]
 
-    // Compute overview stats (totalTokensUsed and totalBudget already computed above for pillar health)
+    // Compute overview stats
+    const totalTokensUsed = budget?.usedBudget ?? 0
+    const totalBudget = budget?.totalBudget ?? 100000
     const remaining = budget?.remainingBudget ?? (totalBudget - totalTokensUsed)
     const budgetPct = totalBudget > 0 ? Math.round((totalTokensUsed / totalBudget) * 10000) / 100 : 0
 
@@ -225,116 +120,15 @@ export async function GET() {
     // Compute health timeline from real data
     const healthTimeline = await computeHealthTimeline(pillars)
 
-    // ─── New Overview Metrics ───
-
-    // 1. systemStartTime
-    const systemStartTime = earliestAgent?.createdAt ?? budget?.startedAt ?? null
-
-    // 2. performanceMetrics
-    const avgResponseTime = completedTestRuns.length > 0
-      ? Math.round(completedTestRuns.reduce((s, r) => s + r.durationMs, 0) / completedTestRuns.length)
-      : 0
-
-    const errorRunsForPerf = completedTestRuns.filter(r => r.status === 'failed' || r.status === 'error')
-    const errorRate = completedTestRuns.length > 0
-      ? Math.round((errorRunsForPerf.length / completedTestRuns.length) * 10000) / 100
-      : 0
-
-    const throughput = tokenLogsLastHour.length >= 1
-      ? Math.round((tokenLogsLastHour.length / 60) * 100) / 100
-      : 0
-
-    const { responseTimeSparkline, errorRateSparkline } = computeSparklineData(completedTestRuns)
-
-    const performanceMetrics = {
-      avgResponseTime,
-      errorRate,
-      throughput,
-      responseTimeSparkline,
-      errorRateSparkline,
-    }
-
-    // 4. activeConnections (agents that are not offline)
-    const activeConnections = activeAgents.length
-
-    // 5. governanceStats
-    const governanceStats = { allowCount: 0, denyCount: 0, holdCount: 0, totalDecisions: 0 }
-    for (const stat of govDecisionStats) {
-      governanceStats.totalDecisions += stat._count.decision
-      if (stat.decision === 'ALLOW') governanceStats.allowCount = stat._count.decision
-      if (stat.decision === 'DENY') governanceStats.denyCount = stat._count.decision
-      if (stat.decision === 'HOLD') governanceStats.holdCount = stat._count.decision
-    }
-
-    // 6. systemNotifications
-    const systemNotifications: { id: string; severity: 'error' | 'warn' | 'info'; message: string; timestamp: string }[] = []
-
-    // Error notifications from FAIL vault entries
-    for (const entry of recentVaultFull.filter(e => e.track === 'FAIL').slice(0, 3)) {
-      systemNotifications.push({
-        id: entry.id,
-        severity: 'error',
-        message: `Agent ${entry.agent?.name ?? 'unknown'} reported failure: ${entry.category}/${entry.key}`,
-        timestamp: getTimeAgo(entry.createdAt),
-      })
-    }
-
-    // Warning notifications from DENY governor decisions
-    for (const d of recentDecisionsFull.filter(d => d.decision === 'DENY').slice(0, 2)) {
-      systemNotifications.push({
-        id: d.id,
-        severity: 'warn',
-        message: `Governor denied action for ${d.agent?.name ?? 'unknown'}: ${d.reason ?? d.scope}`,
-        timestamp: getTimeAgo(d.createdAt),
-      })
-    }
-
-    // Info notifications from GOV/EVENT vault entries
-    for (const entry of recentVaultFull.filter(e => e.track === 'GOV' || e.track === 'EVENT').slice(0, 2)) {
-      systemNotifications.push({
-        id: entry.id,
-        severity: 'info',
-        message: `${entry.track}: ${entry.agent?.name ?? 'unknown'} - ${entry.category}/${entry.key}`,
-        timestamp: getTimeAgo(entry.createdAt),
-      })
-    }
-
-    // Sort by recency and limit to 5
-    systemNotifications.sort(() => 0) // maintain insertion order (errors first, then warns, then info)
-    const systemNotificationsFinal = systemNotifications.slice(0, 5)
-
-    // 7. recentActivity
-    const recentActivity: { event: string; type: 'success' | 'info' | 'warning'; time: string }[] = []
-
-    // From vault entries
-    for (const entry of recentVaultFull.slice(0, 6)) {
-      const type = entry.track === 'FAIL' ? 'warning' : entry.track === 'GOV' ? 'info' : 'success'
-      recentActivity.push({
-        event: `${entry.agent?.name ?? 'unknown'}: ${entry.track} - ${entry.category}/${entry.key}`,
-        type,
-        time: getTimeAgo(entry.createdAt),
-      })
-    }
-
-    // From governor decisions
-    for (const d of recentDecisionsFull.slice(0, 6)) {
-      const type = d.decision === 'DENY' ? 'warning' : d.decision === 'HOLD' ? 'info' : 'success'
-      recentActivity.push({
-        event: `Governor ${d.decision}: ${d.agent?.name ?? 'unknown'} (${d.scope})`,
-        type,
-        time: getTimeAgo(d.createdAt),
-      })
-    }
-
-    // 8. lastDeployTime
-    const lastDeployTime = latestConfigUpdate?.updatedAt ?? latestModelCheck?.lastChecked ?? null
-
-    const result = {
-      // Raw data (lightweight - no papers/full config)
+    return NextResponse.json({
+      // Raw data
       agents,
       models,
       templates,
+      papers,
       budget,
+      constitution: config?.value ? JSON.parse(config.value) : null,
+      state: state?.value ? JSON.parse(state.value) : null,
 
       // Computed overview data
       overview: {
@@ -351,27 +145,11 @@ export async function GET() {
         healthTimeline,
         collapseRateTrend: computeCollapseRateTrend(testRuns),
         avgTrust: agents.length > 0 ? Math.round(agents.reduce((s, a) => s + a.trustScore, 0) / agents.length * 100) / 100 : 0,
-        totalVaultEntries: vaultEntries.length, // Use already-fetched data instead of extra count query
-        systemStartTime,
-        performanceMetrics,
-        requestCount: requestCountToday,
-        activeConnections,
-        governanceStats,
-        systemNotifications: systemNotificationsFinal,
-        recentActivity,
-        lastDeployTime,
+        totalVaultEntries: await db.vaultEntry.count(),
       },
-    }
-
-    // Cache the response for future requests
-    cachedData = { timestamp: Date.now(), data: result }
-    return NextResponse.json(result)
+    })
   } catch (error) {
     console.error('System API error:', error)
-    // Return cached data if available, even if stale
-    if (cachedData) {
-      return NextResponse.json(cachedData.data)
-    }
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
@@ -387,14 +165,12 @@ function getTimeAgo(date: Date): string {
 }
 
 async function computeAgentActivity() {
-  // Lightweight: use vault entries from last 7 days (already fetched)
-  // Avoids extra DB queries
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
+  // Get vault entries from the last 7 days grouped by day for activity
   const entries = await db.vaultEntry.findMany({
     where: { createdAt: { gte: sevenDaysAgo } },
     select: { createdAt: true, track: true },
-    take: 200, // Limit to avoid OOM
   })
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -486,26 +262,51 @@ function computeTokenHistoryFallback(logs: { createdAt: Date; totalTokens: numbe
 }
 
 async function computeHealthTimeline(pillars: { name: string; health: number }[]) {
-  // Lightweight: just use current pillar health values with small random variation
-  // Avoids expensive 24-hour DB queries that cause OOM
-  const pillarNames = pillars.map(p => p.name)
-  const pillarHealthMap = new Map(pillars.map(p => [p.name, p.health]))
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  return Array.from({ length: 24 }, (_, i) => {
-    const hour = 23 - i
-    const label = `${hour.toString().padStart(2, '0')}:00`
-    const entry: Record<string, number | string> = { name: label }
-
-    // Use current health with minor variation for visual interest
-    for (const p of pillars) {
-      const base = pillarHealthMap.get(p.name) ?? 100
-      // Small variation that decreases as we approach current time
-      const variation = Math.round((Math.random() - 0.5) * 4 * (i / 23))
-      entry[p.name] = Math.min(100, Math.max(70, base + variation))
-    }
-
-    return entry
+  // Try to use HealthSnapshot records first
+  if (!db.healthSnapshot) {
+    // Prisma client not yet updated with new models - fall back to raw data
+    return computeHealthTimelineFallback(pillars)
+  }
+  const healthSnapshots = await db.healthSnapshot.findMany({
+    where: { recordedAt: { gte: twentyFourHoursAgo } },
+    orderBy: { recordedAt: 'asc' },
   })
+
+  if (healthSnapshots.length > 0) {
+    // Build per-hour timeline from snapshots
+    const pillarNames = pillars.map(p => p.name)
+    const pillarHealthMap = new Map(pillars.map(p => [p.name, p.health]))
+
+    return Array.from({ length: 24 }, (_, i) => {
+      const hourStart = new Date(Date.now() - (i + 1) * 60 * 60 * 1000)
+      const hourEnd = new Date(Date.now() - i * 60 * 60 * 1000)
+      const hour = 23 - i
+      const label = `${hour.toString().padStart(2, '0')}:00`
+      const entry: Record<string, number | string> = { name: label }
+
+      // For each pillar, find the latest snapshot in this hour
+      for (const pillarName of pillarNames) {
+        const hourSnaps = healthSnapshots.filter(s => {
+          const t = new Date(s.recordedAt).getTime()
+          return s.pillar === pillarName && t >= hourStart.getTime() && t < hourEnd.getTime()
+        })
+        if (hourSnaps.length > 0) {
+          // Use the last snapshot in the hour
+          entry[pillarName] = Math.round(hourSnaps[hourSnaps.length - 1].health)
+        } else {
+          // No snapshot for this pillar in this hour — use current real pillar health
+          entry[pillarName] = pillarHealthMap.get(pillarName) ?? 100
+        }
+      }
+
+      return entry
+    })
+  }
+
+  // Fallback: compute from raw data (original logic)
+  return computeHealthTimelineFallback(pillars)
 }
 
 async function computeHealthTimelineFallback(pillars: { name: string; health: number }[]) {
@@ -580,33 +381,34 @@ async function computeHealthTimelineFallback(pillars: { name: string; health: nu
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Governor') {
-        // Based on decision quality — non-ERROR decisions = Governor functioning properly
-        // Uses same formula as pillar health: base 97, penalty for errors, trust bonus
+        // Based on ALLOW/DENY ratio for that hour
         if (hourDecisions.length > 0) {
-          const govErrors = hourDecisions.filter(d => d.decision === 'ERROR').length
-          const govErrRate = govErrors / hourDecisions.length
-          const baseH = Math.round(97 - govErrRate * 37)
-          entry[p.name] = Math.min(100, Math.max(0, baseH + 3)) // +3 trust bonus assumed for timeline
+          const allowed = hourDecisions.filter(d => d.decision === 'ALLOW').length
+          entry[p.name] = Math.round((allowed / hourDecisions.length) * 100)
         } else {
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Vault') {
-        // Vault is storage — always operational unless explicit failures
-        // Use current pillar health (100) as baseline, with minor adjustments for FAIL entries
+        // Based on entry count and scores for that hour
         if (hourVault.length > 0) {
+          const avgScore = hourVault.reduce((s, v) => s + v.score, 0) / hourVault.length
           const failCount = hourVault.filter(v => v.track === 'FAIL').length
-          const failRate = failCount / hourVault.length
-          // Small penalty for FAIL entries, but Vault itself is still operational
-          entry[p.name] = Math.round(Math.max(85, 100 - failRate * 15))
+          entry[p.name] = Math.round(Math.max(0, Math.min(100, avgScore * 10 - failCount * 5)))
         } else {
           entry[p.name] = pillarHealthMap.get(p.name) ?? 100
         }
       } else if (p.name === 'Swarm') {
-        // Based on agent status — use current pillar health as baseline
-        entry[p.name] = pillarHealthMap.get(p.name) ?? 95
+        // Based on agent status
+        entry[p.name] = errorAgents > 0 ? Math.max(70, 100 - errorAgents * 10) : 95
       } else if (p.name === 'Monitor') {
-        // Monitor tracks budget — use current pillar health as baseline
-        entry[p.name] = pillarHealthMap.get(p.name) ?? 97
+        // Based on token budget health for that hour
+        if (hourTokenLogs.length > 0) {
+          const totalUsed = hourTokenLogs.reduce((s, l) => s + l.totalTokens, 0)
+          // If usage is reasonable, health is high; scale inversely
+          entry[p.name] = Math.max(50, Math.min(100, 100 - Math.floor(totalUsed / 10000)))
+        } else {
+          entry[p.name] = pillarHealthMap.get(p.name) ?? 100
+        }
       } else {
         entry[p.name] = pillarHealthMap.get(p.name) ?? 100
       }
@@ -629,37 +431,4 @@ function computeCollapseRateTrend(runs: { status: string; collapseDetected: bool
     const rate = bucketRuns.length > 0 ? (collapses / bucketRuns.length) * 100 : 0
     return { name: String(i + 1), value: Math.round(rate * 10) / 10 }
   })
-}
-
-function computeSparklineData(
-  runs: { durationMs: number; status: string; createdAt: Date }[],
-  bucketCount: number = 6
-): { responseTimeSparkline: number[]; errorRateSparkline: number[] } {
-  if (runs.length < bucketCount) {
-    // Not enough data for sparklines — return empty arrays rather than fake data
-    return { responseTimeSparkline: [], errorRateSparkline: [] }
-  }
-
-  // Sort chronologically (oldest first) for bucketing
-  const sorted = [...runs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-  const bucketSize = Math.max(1, Math.floor(sorted.length / bucketCount))
-
-  const responseTimeSparkline: number[] = []
-  const errorRateSparkline: number[] = []
-
-  for (let i = 0; i < bucketCount; i++) {
-    const bucket = sorted.slice(i * bucketSize, (i + 1) * bucketSize)
-    if (bucket.length === 0) {
-      responseTimeSparkline.push(0)
-      errorRateSparkline.push(0)
-      continue
-    }
-    const avgDuration = Math.round(bucket.reduce((s, r) => s + r.durationMs, 0) / bucket.length)
-    const errorCount = bucket.filter(r => r.status === 'failed' || r.status === 'error').length
-    const errRate = Math.round((errorCount / bucket.length) * 10000) / 100
-    responseTimeSparkline.push(avgDuration)
-    errorRateSparkline.push(errRate)
-  }
-
-  return { responseTimeSparkline, errorRateSparkline }
 }
