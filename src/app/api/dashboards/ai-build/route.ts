@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateText } from 'ai'
+import ZAI from 'z-ai-web-dev-sdk'
 
 const SUPPORTED_SOURCES = [
   { key: 'agents.byStatus', desc: 'Agents grouped by status (idle/busy/error/offline)' },
@@ -57,8 +57,14 @@ Respond ONLY with strict JSON (no markdown, no commentary). Shape:
 
 If the request is ambiguous, pick the closest reasonable match.`
 
-const WIDGET_BUILDER_MODEL =
-  process.env.NEXUS_WIDGET_BUILDER_MODEL ?? 'openai/gpt-5-mini'
+let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
+
+async function getZAI() {
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create()
+  }
+  return zaiInstance
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -67,11 +73,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'prompt required' }, { status: 400 })
     }
 
-    const { text: raw } = await generateText({
-      model: WIDGET_BUILDER_MODEL,
-      system: SYSTEM_PROMPT,
-      prompt,
+    const zai = await getZAI()
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'assistant', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      thinking: { type: 'disabled' },
     })
+
+    const raw = completion.choices?.[0]?.message?.content || ''
 
     // Strip markdown fences if present
     const cleaned = raw
