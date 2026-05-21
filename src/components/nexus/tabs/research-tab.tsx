@@ -328,7 +328,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 function StatCard({ label, value, icon: Icon, color, sublabel }: { label: string; value: string | number; icon: typeof BookOpen; color: string; sublabel?: string }) {
   return (
-    <Card className="bg-card/50 border-border/50">
+    <Card className="bg-card/80 dark:bg-card/90 border-border/50">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -359,7 +359,7 @@ function PaperCard({
   const CategoryIcon = categoryIcons[paper.category] || BookOpen
 
   return (
-    <div className="group p-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-emerald-500/20 transition-all duration-200 space-y-2">
+    <div className="group p-3 rounded-lg bg-muted/30 dark:bg-muted/20 hover:bg-muted/50 dark:hover:bg-muted/30 border border-transparent hover:border-emerald-500/20 transition-all duration-200 space-y-2">
       {/* Title row */}
       <div className="flex items-start gap-2">
         <StatusIcon className={cn('h-4 w-4 shrink-0 mt-0.5', status.color.split(' ')[1])} />
@@ -445,7 +445,7 @@ function PaperCard({
             href={paper.pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground inline-flex items-center px-2 rounded-md hover:bg-muted/80 transition-colors"
+            className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground inline-flex items-center px-2 rounded-md hover:bg-muted/80 dark:hover:bg-muted/40 transition-colors"
           >
             <ExternalLink className="h-3 w-3" />
             PDF
@@ -1000,7 +1000,7 @@ export function ResearchTab() {
 
       {/* ─── 5. Research Pipeline Health ───────────────────────────────────── */}
       <Card className={cn(
-        "bg-card/50 border-border/50",
+        "bg-card/80 dark:bg-card/90 border-border/50",
         pipelineHealth.healthScore >= 70 ? 'border-emerald-500/20' :
         pipelineHealth.healthScore >= 40 ? 'border-yellow-500/20' : 'border-red-500/20'
       )}>
@@ -1058,7 +1058,7 @@ export function ResearchTab() {
       </Card>
 
       {/* ─── Interactive Pipeline Visualization ─────────────────────────────── */}
-      <Card className="bg-card/50 border-border/50 bg-gradient-to-br from-emerald-600/5 to-transparent">
+      <Card className="bg-card/80 dark:bg-card/90 border-border/50 bg-gradient-to-br from-emerald-600/5 to-transparent">
         <CardContent className="p-4">
           <div className="flex items-center gap-1 sm:gap-2">
             {[
@@ -1071,7 +1071,7 @@ export function ResearchTab() {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                   className={cn(
-                    "flex-1 rounded-lg bg-muted/50 border p-2.5 text-center cursor-pointer transition-all",
+                    "flex-1 rounded-lg bg-muted/50 dark:bg-muted/30 border p-2.5 text-center cursor-pointer transition-all",
                     selectedPipelineStage === stage.key
                       ? 'border-emerald-500/50 shadow-md shadow-emerald-500/10'
                       : 'border-border/50 hover:border-emerald-500/30'
@@ -1087,7 +1087,7 @@ export function ResearchTab() {
                       animate={{ opacity: 1 }}
                       className="mt-1"
                     >
-                      <ChevronDown className="h-3 w-3 text-emerald-500 mx-auto" />
+                      <ChevronDown className="h-3 w-3 text-emerald-500 dark:text-emerald-400 mx-auto" />
                     </motion.div>
                   )}
                 </motion.div>
@@ -1115,10 +1115,10 @@ export function ResearchTab() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <Card className="bg-card/50 border-emerald-500/20">
+            <Card className="bg-card/80 dark:bg-card/90 border-emerald-500/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  {selectedPipelineStage === 'queued' && <FileSearch className="h-4 w-4 text-slate-500" />}
+                  {selectedPipelineStage === 'queued' && <FileSearch className="h-4 w-4 text-slate-500 dark:text-slate-400" />}
                   {selectedPipelineStage === 'vetting' && <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />}
                   {selectedPipelineStage === 'vetted' && <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
                   Papers in &ldquo;{selectedPipelineStage}&rdquo; Stage
@@ -1153,7 +1153,7 @@ export function ResearchTab() {
       {/* ─── Charts Row: Paper Trends + Top Domains ──────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 2. Paper Trends Line Chart */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card/80 dark:bg-card/90 border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1199,7 +1199,7 @@ export function ResearchTab() {
         </Card>
 
         {/* 3. Top Research Domains Bar Chart */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card/80 dark:bg-card/90 border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1231,7 +1231,7 @@ export function ResearchTab() {
       </div>
 
       {/* ─── 4. Recently Vetted Papers ─────────────────────────────────────── */}
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card/80 dark:bg-card/90 border-border/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1247,8 +1247,8 @@ export function ResearchTab() {
           ) : (
             <div className="space-y-3 max-h-72 overflow-y-auto custom-scrollbar">
               {recentlyVetted.map((paper) => (
-                <div key={paper.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <div key={paper.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 dark:bg-muted/15 hover:bg-muted/40 dark:hover:bg-muted/25 transition-colors">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium truncate">{paper.title}</span>
@@ -1285,7 +1285,7 @@ export function ResearchTab() {
       </Card>
 
       {/* AI Search Bar */}
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card/80 dark:bg-card/90 border-border/50">
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -1295,7 +1295,7 @@ export function ResearchTab() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="AI-powered research search... (e.g., 'multi-agent safety evaluation')"
-                className="pl-9 h-9 bg-muted/50 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+                className="pl-9 h-9 bg-muted/50 dark:bg-muted/30 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
                 disabled={isSearching}
               />
             </div>
@@ -1332,7 +1332,7 @@ export function ResearchTab() {
           {searchResults?.aiSuggestions && searchResults.aiSuggestions.length > 0 && (
             <div className="mt-3 space-y-1.5">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
-                <Sparkles className="h-3 w-3 text-emerald-500" />
+                <Sparkles className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
                 AI Suggestions
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -1387,7 +1387,7 @@ export function ResearchTab() {
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer',
                 isActive
                   ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10'
-                  : 'border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:border-border'
+                  : 'border-border/50 bg-muted/30 dark:bg-muted/20 text-muted-foreground hover:bg-muted/50 dark:hover:bg-muted/30 hover:border-border'
               )}
             >
               <CatIcon className="h-3 w-3" />
@@ -1406,7 +1406,7 @@ export function ResearchTab() {
       </div>
 
       {/* Papers Queue */}
-      <Card className="bg-card/50 border-border/50 bg-gradient-to-br from-emerald-600/3 to-transparent">
+      <Card className="bg-card/80 dark:bg-card/90 border-border/50 bg-gradient-to-br from-emerald-600/3 to-transparent">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Star className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1437,7 +1437,7 @@ export function ResearchTab() {
       </Card>
 
       {/* Research Chat */}
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card/80 dark:bg-card/90 border-border/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1451,7 +1451,7 @@ export function ResearchTab() {
             <div className="space-y-3">
             {chatMessages.length === 0 ? (
               <div className="text-center py-6">
-                <Bot className="h-8 w-8 mx-auto mb-2 text-emerald-500/50" />
+                <Bot className="h-8 w-8 mx-auto mb-2 text-emerald-500/50 dark:text-emerald-400/50" />
                 <p className="text-xs text-muted-foreground mb-3">
                   Ask questions about research papers, methodologies, or findings
                 </p>
@@ -1467,7 +1467,7 @@ export function ResearchTab() {
                       onClick={() => {
                         setChatInput(prompt)
                       }}
-                      className="text-[10px] rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                      className="text-[10px] rounded-full border border-border/60 bg-muted/50 dark:bg-muted/30 px-2.5 py-1 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-pointer text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
                       {prompt}
                     </button>
@@ -1552,7 +1552,7 @@ export function ResearchTab() {
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={handleChatKeyDown}
               placeholder="Ask about research..."
-              className="flex-1 h-8 text-xs bg-muted/50 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+              className="flex-1 h-8 text-xs bg-muted/50 dark:bg-muted/30 border-border/60 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
               disabled={isChatLoading}
             />
             <Button
@@ -1597,7 +1597,7 @@ export function ResearchTab() {
                   <BookOpen className="h-3.5 w-3.5" />
                   Summary
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                <div className="p-3 rounded-lg bg-muted/50 dark:bg-muted/30 text-sm leading-relaxed">
                   {analysisResult.summary}
                 </div>
               </div>
@@ -1608,7 +1608,7 @@ export function ResearchTab() {
                   <Eye className="h-3.5 w-3.5" />
                   Critique
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                <div className="p-3 rounded-lg bg-muted/50 dark:bg-muted/30 text-sm leading-relaxed">
                   {analysisResult.critique}
                 </div>
               </div>
@@ -1619,7 +1619,7 @@ export function ResearchTab() {
                   <TrendingUp className="h-3.5 w-3.5" />
                   Relevance
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                <div className="p-3 rounded-lg bg-muted/50 dark:bg-muted/30 text-sm leading-relaxed">
                   {analysisResult.relevance}
                 </div>
               </div>
@@ -1647,7 +1647,7 @@ export function ResearchTab() {
                   <Zap className="h-3.5 w-3.5" />
                   Implementation Task
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed">
+                <div className="p-3 rounded-lg bg-muted/50 dark:bg-muted/30 text-sm leading-relaxed">
                   {analysisResult.implementationTask}
                 </div>
               </div>

@@ -11,6 +11,12 @@ import { Send, Bot, User, Trash2, Loader2, Sparkles, Copy, Check, AlertCircle, R
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
+// Safe toast wrapper to prevent crashes if sonner is not properly set up
+const safeToast = {
+  success: (message: string, options?: Record<string, unknown>) => { try { toast.success(message, options) } catch {} },
+  error: (message: string, options?: Record<string, unknown>) => { try { toast.error(message, options) } catch {} },
+}
+
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -69,9 +75,24 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      navigator.clipboard.writeText(code).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(() => {
+        // Fallback for non-HTTPS contexts
+        const textArea = document.createElement('textarea')
+        textArea.value = code
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+    } catch {
+      // Silent fail for environments without clipboard API
+    }
   }
 
   return (
@@ -358,7 +379,7 @@ export function AiChatTab() {
         setMessages(prev => [...prev, assistantMessage])
         setIsLoading(false)
         setThinkingPhase('idle')
-        toast.success('Response received', { description: `From ${data.model || selectedModel}` })
+        safeToast.success('Response received', { description: `From ${data.model || selectedModel}` })
         return
       }
 
@@ -398,7 +419,7 @@ export function AiChatTab() {
             setStreamingContent('')
             setIsLoading(false)
             setThinkingPhase('idle')
-            toast.success('Response received', { description: `From ${selectedModelInfo?.name || 'AI'}` })
+            safeToast.success('Response received', { description: `From ${selectedModelInfo?.name || 'AI'}` })
             return
           }
 
@@ -439,7 +460,7 @@ export function AiChatTab() {
       clearTimeout(thinkingTimer)
       const errorMsg = err instanceof Error ? err.message : 'Failed to get response'
       setError(errorMsg)
-      toast.error('AI Assistant Error', { description: errorMsg })
+      safeToast.error('AI Assistant Error', { description: errorMsg })
       const errorMessage: ChatMessage = {
         id: generateId(),
         role: 'assistant',
@@ -498,45 +519,51 @@ export function AiChatTab() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedModel} onValueChange={handleModelChange}>
-            <SelectTrigger className="w-[240px] h-8 text-xs">
-              <SelectValue placeholder="Select model" />
-            </SelectTrigger>
-            <SelectContent>
-              {TIER_ORDER.map(tier => {
-                const tierModels = AI_MODELS.filter(m => m.tier === tier)
-                const tierConfig = TIER_CONFIG[tier]
-                const TierIcon = tierConfig.icon
-                return (
-                  <div key={tier}>
-                    <div className="flex items-center gap-1.5 px-2 py-1.5">
-                      <TierIcon className={cn('h-3 w-3', tierConfig.color)} />
-                      <span className={cn('text-[10px] font-semibold uppercase tracking-wider', tierConfig.color)}>
-                        {tierConfig.label}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground">— {tierConfig.description}</span>
+          {mounted ? (
+            <Select value={selectedModel} onValueChange={handleModelChange}>
+              <SelectTrigger className="w-[240px] h-8 text-xs">
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIER_ORDER.map(tier => {
+                  const tierModels = AI_MODELS.filter(m => m.tier === tier)
+                  const tierConfig = TIER_CONFIG[tier]
+                  const TierIcon = tierConfig.icon
+                  return (
+                    <div key={tier}>
+                      <div className="flex items-center gap-1.5 px-2 py-1.5">
+                        <TierIcon className={cn('h-3 w-3', tierConfig.color)} />
+                        <span className={cn('text-[10px] font-semibold uppercase tracking-wider', tierConfig.color)}>
+                          {tierConfig.label}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">— {tierConfig.description}</span>
+                      </div>
+                      {tierModels.map(model => (
+                        <SelectItem key={model.id} value={model.id} className="text-xs">
+                          <div className="flex items-center gap-2">
+                            <span>{model.name}</span>
+                            <Badge variant="outline" className={cn(
+                              'h-3.5 px-1 text-[8px]',
+                              tier === 'reasoning' && 'border-violet-600/30 text-violet-600',
+                              tier === 'balanced' && 'border-emerald-600/30 text-emerald-600',
+                              tier === 'fast' && 'border-amber-600/30 text-amber-600',
+                              tier === 'code' && 'border-cyan-600/30 text-cyan-600',
+                            )}>
+                              {model.tier}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </div>
-                    {tierModels.map(model => (
-                      <SelectItem key={model.id} value={model.id} className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span>{model.name}</span>
-                          <Badge variant="outline" className={cn(
-                            'h-3.5 px-1 text-[8px]',
-                            tier === 'reasoning' && 'border-violet-600/30 text-violet-600',
-                            tier === 'balanced' && 'border-emerald-600/30 text-emerald-600',
-                            tier === 'fast' && 'border-amber-600/30 text-amber-600',
-                            tier === 'code' && 'border-cyan-600/30 text-cyan-600',
-                          )}>
-                            {model.tier}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </div>
-                )
-              })}
-            </SelectContent>
-          </Select>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="w-[240px] h-8 text-xs flex items-center px-3 rounded-md border border-border/50 bg-background text-muted-foreground">
+              {selectedModelInfo?.name || 'Select model'}
+            </div>
+          )}
           <Button
             size="sm"
             variant="outline"

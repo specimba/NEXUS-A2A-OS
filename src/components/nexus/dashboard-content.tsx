@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { QuickStatsWidget } from '@/components/nexus/quick-stats-widget'
+import { TabErrorBoundary } from '@/components/nexus/tab-error-boundary'
 import {
   Activity, Cpu, HardDrive, Zap, Wifi, Shield, Users, AlertTriangle,
   CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, BarChart3,
@@ -112,26 +113,26 @@ const healthPillars = [
 ]
 
 const providers = [
-  { name: 'z-ai (GLM-4.7)', status: 'active', models: 3, latency: 45, pool: 'PREMIUM', trust: 0.98 },
-  { name: 'OpenRouter', status: 'active', models: 5, latency: 120, pool: 'MID', trust: 0.92 },
-  { name: 'Cerebras', status: 'active', models: 2, latency: 28, pool: 'FAST', trust: 0.89 },
-  { name: 'Groq', status: 'active', models: 3, latency: 35, pool: 'FAST', trust: 0.91 },
-  { name: 'Mistral', status: 'active', models: 4, latency: 85, pool: 'MID', trust: 0.94 },
-  { name: 'Fireworks', status: 'degraded', models: 3, latency: 210, pool: 'MID', trust: 0.78 },
-  { name: 'Scaleway', status: 'unknown', models: 1, latency: 0, pool: 'MID', trust: 0.45 },
-  { name: 'DashScope', status: 'active', models: 2, latency: 95, pool: 'MID', trust: 0.87 },
-  { name: 'SambaNova', status: 'active', models: 2, latency: 62, pool: 'FAST', trust: 0.90 },
-  { name: 'NVIDIA NIM', status: 'active', models: 3, latency: 78, pool: 'PREMIUM', trust: 0.96 },
-  { name: 'BitDeer', status: 'inactive', models: 0, latency: 0, pool: 'MID', trust: 0.0 },
-  { name: 'Codestral', status: 'active', models: 1, latency: 92, pool: 'MID', trust: 0.88 },
-  { name: 'DeepSeek', status: 'active', models: 2, latency: 110, pool: 'MID', trust: 0.85 },
+  { name: 'z-ai (GLM-4.7)', status: 'active', models: 3, latency: 45, pool: 'PREMIUM', trust: 0.98, uptime: '99.97%', lastChecked: '8s ago', modelNames: ['glm-4.7', 'glm-4.7-flash', 'glm-4.7-long'], requests24h: 12847 },
+  { name: 'OpenRouter', status: 'active', models: 5, latency: 120, pool: 'MID', trust: 0.92, uptime: '99.84%', lastChecked: '14s ago', modelNames: ['claude-3.5-sonnet', 'gpt-4o-mini', 'llama-3.1-70b', 'mixtral-8x7b', 'command-r-plus'], requests24h: 8432 },
+  { name: 'Cerebras', status: 'active', models: 2, latency: 28, pool: 'FAST', trust: 0.89, uptime: '99.92%', lastChecked: '6s ago', modelNames: ['llama3.1-8b-instruct', 'llama3.1-70b-instruct'], requests24h: 5621 },
+  { name: 'Groq', status: 'active', models: 3, latency: 35, pool: 'FAST', trust: 0.91, uptime: '99.89%', lastChecked: '11s ago', modelNames: ['llama-3.1-8b', 'mixtral-8x7b-32768', 'gemma2-9b-it'], requests24h: 7218 },
+  { name: 'Mistral', status: 'active', models: 4, latency: 85, pool: 'MID', trust: 0.94, uptime: '99.91%', lastChecked: '19s ago', modelNames: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest'], requests24h: 4156 },
+  { name: 'Fireworks', status: 'degraded', models: 3, latency: 210, pool: 'MID', trust: 0.78, uptime: '97.32%', lastChecked: '45s ago', modelNames: ['llama-v3p1-70b', 'mixtral-8x7b', 'qwen2p5-72b'], requests24h: 1893 },
+  { name: 'Scaleway', status: 'unknown', models: 1, latency: 0, pool: 'MID', trust: 0.45, uptime: '—', lastChecked: '3m ago', modelNames: ['llama-3.1-8b'], requests24h: 0 },
+  { name: 'DashScope', status: 'active', models: 2, latency: 95, pool: 'MID', trust: 0.87, uptime: '99.76%', lastChecked: '22s ago', modelNames: ['qwen-max', 'qwen-plus'], requests24h: 3847 },
+  { name: 'SambaNova', status: 'active', models: 2, latency: 62, pool: 'FAST', trust: 0.90, uptime: '99.85%', lastChecked: '17s ago', modelNames: ['llama-3.1-8b-instruct', 'llama-3.1-70b-instruct'], requests24h: 2964 },
+  { name: 'NVIDIA NIM', status: 'active', models: 3, latency: 78, pool: 'PREMIUM', trust: 0.96, uptime: '99.94%', lastChecked: '9s ago', modelNames: ['llama-3.1-405b-instruct', 'mixtral-8x22b-instruct', 'arctic-instruct'], requests24h: 6132 },
+  { name: 'BitDeer', status: 'inactive', models: 0, latency: 0, pool: 'MID', trust: 0.0, uptime: '0%', lastChecked: '2h ago', modelNames: [] as string[], requests24h: 0 },
+  { name: 'Codestral', status: 'active', models: 1, latency: 92, pool: 'MID', trust: 0.88, uptime: '99.68%', lastChecked: '31s ago', modelNames: ['codestral-latest'], requests24h: 2147 },
+  { name: 'DeepSeek', status: 'active', models: 2, latency: 110, pool: 'MID', trust: 0.85, uptime: '99.43%', lastChecked: '27s ago', modelNames: ['deepseek-chat', 'deepseek-coder'], requests24h: 4891 },
 ]
 
 const agents = [
-  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large' },
-  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder' },
-  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast' },
-  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7' },
+  { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large', currentTask: 'Analyzing RAG pipeline benchmarks (task #47)', progress: 73, eta: '~4m', lastActivity: '14:23:07 UTC' },
+  { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder', currentTask: 'Code refactoring stalled — trust decay (task #31)', progress: 41, eta: '~12m', lastActivity: '14:19:33 UTC' },
+  { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast', currentTask: 'Running sentiment analysis on 2.4k docs (task #38)', progress: 89, eta: '~1m', lastActivity: '14:22:51 UTC' },
+  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7', currentTask: 'Constitutional audit cycle — 6/6 rules verified', progress: 100, eta: 'Done', lastActivity: '14:21:44 UTC' },
 ]
 
 const constitutionalRules = [
@@ -144,12 +145,12 @@ const constitutionalRules = [
 ]
 
 const alertFeedData = [
-  { id: 1, severity: 'warning' as const, message: 'Memory usage approaching 80% threshold', source: 'System', offsetMs: 30000 },
-  { id: 2, severity: 'info' as const, message: 'Model failover triggered for gemma-fast', source: 'ModelRelay', offsetMs: 90000 },
-  { id: 3, severity: 'critical' as const, message: 'Provider dashscope rate limit exceeded', source: 'Gateway', offsetMs: 180000 },
-  { id: 4, severity: 'success' as const, message: 'Constitutional check passed for all rules', source: 'Governor', offsetMs: 240000 },
-  { id: 5, severity: 'info' as const, message: 'Token budget reset for new cycle', source: 'Tokens', offsetMs: 360000 },
-  { id: 6, severity: 'warning' as const, message: 'Agent worker-2 trust score below 0.8', source: 'Governor', offsetMs: 480000 },
+  { id: 1, severity: 'warning' as const, message: 'Memory usage 78.4% (threshold: 80%) — Swap reserve at 2.1 GB', source: 'System', offsetMs: 30000 },
+  { id: 2, severity: 'info' as const, message: 'Model failover: gemma-fast → gemma-2b-it (latency diff: +12ms) — Auto-recovered at 14:31', source: 'ModelRelay', offsetMs: 90000 },
+  { id: 3, severity: 'critical' as const, message: 'Provider dashscope rate limit exceeded (429) — 347/300 req/min, cooldown 60s — Fallback to SambaNova initiated', source: 'Gateway', offsetMs: 180000 },
+  { id: 4, severity: 'success' as const, message: 'Constitutional check CR-001→CR-006 passed — 0 violations, 0 actions blocked, next audit in 15m', source: 'Governor', offsetMs: 240000 },
+  { id: 5, severity: 'info' as const, message: 'Token budget reset: 73,450/100,000 used (73.4%) — Session carry-forward: 2,340 tokens', source: 'Tokens', offsetMs: 360000 },
+  { id: 6, severity: 'warning' as const, message: 'Agent worker-2 trust 0.78 (threshold: 0.80) — Task #31 paused, awaiting coordinator review', source: 'Governor', offsetMs: 480000 },
 ]
 
 const systemPerformanceData = [
@@ -401,8 +402,11 @@ export function NexusDashboard() {
   const [alerts, setAlerts] = useState(() => alertFeedData.map(a => ({ ...a, time: 0 })))
   const [clock, setClock] = useState('--:--:--')
   const [uptime, setUptime] = useState('00:00:00')
+  const [lastHealthCheck, setLastHealthCheck] = useState('--:--:--')
+  const [overviewUpdated, setOverviewUpdated] = useState('--:--:--')
   const startTimeRef = useRef(0)
   const alertListRef = useRef<HTMLDivElement>(null)
+  const prevMetricsRef = useRef({ connections: 247, rps: 34, tpm: 1420, err: 0.3 })
 
   // Notification Center state
   const [notifications, setNotifications] = useState<Array<{
@@ -429,7 +433,10 @@ export function NexusDashboard() {
     setMounted(true)
     startTimeRef.current = Date.now()
     const now = Date.now()
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     setAlerts(alertFeedData.map(a => ({ ...a, time: now - a.offsetMs })))
+    setLastHealthCheck(ts)
+    setOverviewUpdated(ts)
   }, [])
 
   // Clock
@@ -465,11 +472,18 @@ export function NexusDashboard() {
       setTokensPerMin(p => Math.max(500, Math.min(3000, p + Math.floor(Math.random() * 200) - 100)))
       setErrorRate(p => Math.max(0, Math.min(5, parseFloat((p + (Math.random() * 0.4 - 0.2)).toFixed(1)))))
       setRpsHistory(p => [...p.slice(1), Math.max(10, Math.min(80, p[p.length - 1] + Math.floor(Math.random() * 8) - 4))])
+      setOverviewUpdated(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
       // Only add a new alert occasionally (30% chance per tick)
       if (Math.random() < 0.3) {
         setAlerts(prev => {
           const nextId = Math.max(...prev.map(a => a.id)) + 1
-          const msgs = ['Memory spike on worker-2', 'Rate limit approaching for groq', 'Token burn +12%', 'Circuit breaker for scaleway', 'Pool rebalance done']
+          const msgs = [
+            'Memory spike 82.3% on worker-2 — OOM killer armed at 90%',
+            'Groq p95 latency 47ms (threshold: 40ms) — Monitoring',
+            'Token burn rate +14.2% vs last hour — Budget projection: 6.2h remaining',
+            'Circuit breaker OPEN for scaleway — 3 consecutive failures, retry in 120s',
+            'Pool rebalance: MID→FAST ratio adjusted from 1.4:1 to 1.1:1 — Effective next cycle',
+          ]
           const sevs: Array<'critical' | 'warning' | 'info' | 'success'> = ['critical', 'warning', 'info', 'success']
           const srcs = ['System', 'Gateway', 'Tokens', 'Governor', 'ModelRelay']
           return [{ id: nextId, severity: sevs[Math.floor(Math.random() * 4)], message: msgs[Math.floor(Math.random() * msgs.length)], source: srcs[Math.floor(Math.random() * srcs.length)], time: Date.now() }, ...prev.slice(0, 7)]
@@ -632,16 +646,22 @@ export function NexusDashboard() {
     return (
       <div className="space-y-5">
         {/* System Status Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">System Operational</span>
+          <span className="text-sm font-medium animate-pulse text-emerald-600 dark:text-emerald-400">All 8 Core Systems Nominal</span>
           <Badge variant="outline" className="text-[9px] bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border-emerald-600/30 live-badge-glow">
             <span className="relative flex h-1.5 w-1.5 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
             LIVE
           </Badge>
+          <span className="text-[10px] text-muted-foreground ml-1" suppressHydrationWarning>
+            Last check: {mounted ? lastHealthCheck : '...'}
+          </span>
+          <span className="text-[10px] text-muted-foreground ml-auto" suppressHydrationWarning>
+            Updated: {mounted ? overviewUpdated : '...'}
+          </span>
         </div>
 
         {/* 8-Pillar Health Grid */}
@@ -680,32 +700,51 @@ export function NexusDashboard() {
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Live System Metrics
+              <span className="text-[9px] text-muted-foreground ml-auto font-normal" suppressHydrationWarning>
+                Updated: {mounted ? overviewUpdated : '...'}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: 'Active Connections', value: activeConnections, unit: '', icon: Wifi, sparkData: [200, 220, 247, 230, 260, 247] },
-                { label: 'Requests/sec', value: requestsPerSec, unit: 'req/s', icon: Activity, sparkData: rpsHistory },
-                { label: 'Tokens/min', value: tokensPerMin, unit: 'tok/min', icon: Zap, sparkData: [1200, 1350, 1420, 1380, 1500, 1420] },
-                { label: 'Error Rate', value: errorRate, unit: '%', icon: AlertCircle, sparkData: [0.5, 0.3, 0.4, 0.2, 0.3, 0.3] },
-              ].map((m) => (
-                <div key={m.label} className={cn('bg-gradient-to-br p-3 rounded-lg border border-border/30', m.label === 'Error Rate' ? (errorRate > 2 ? 'from-red-600/10 to-transparent' : errorRate > 1 ? 'from-yellow-600/10 to-transparent' : 'from-emerald-600/5 to-transparent') : 'from-emerald-600/5 to-transparent')}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <m.icon className={cn('h-3.5 w-3.5', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')} />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{m.label}</span>
+              {(() => {
+                const connDelta = activeConnections - prevMetricsRef.current.connections
+                const rpsDelta = requestsPerSec - prevMetricsRef.current.rps
+                const tpmDelta = tokensPerMin - prevMetricsRef.current.tpm
+                const errDelta = errorRate - prevMetricsRef.current.err
+                return [
+                  { label: 'Active Connections', value: activeConnections, unit: '', icon: Wifi, sparkData: [200, 220, 247, 230, 260, activeConnections], delta: connDelta, deltaLabel: '1hr' },
+                  { label: 'Requests/sec', value: requestsPerSec, unit: 'req/s', icon: Activity, sparkData: rpsHistory, delta: rpsDelta, deltaLabel: '1hr' },
+                  { label: 'Tokens/min', value: tokensPerMin, unit: 'tok/min', icon: Zap, sparkData: [1200, 1350, 1420, 1380, 1500, tokensPerMin], delta: tpmDelta, deltaLabel: '1hr' },
+                  { label: 'Error Rate', value: errorRate, unit: '%', icon: AlertCircle, sparkData: [0.5, 0.3, 0.4, 0.2, 0.3, errorRate], delta: errDelta, deltaLabel: '1hr' },
+                ]
+              })().map((m) => {
+                const deltaStr = m.delta >= 0 ? `↑${Math.abs(m.delta)}` : `↓${Math.abs(m.delta)}`
+                const deltaColor = m.label === 'Error Rate'
+                  ? (m.delta <= 0 ? 'text-emerald-500' : 'text-red-500')
+                  : (m.delta >= 0 ? 'text-emerald-500' : 'text-red-500')
+                return (
+                  <div key={m.label} className={cn('bg-gradient-to-br p-3 rounded-lg border border-border/30', m.label === 'Error Rate' ? (errorRate > 2 ? 'from-red-600/10 to-transparent' : errorRate > 1 ? 'from-yellow-600/10 to-transparent' : 'from-emerald-600/5 to-transparent') : 'from-emerald-600/5 to-transparent')}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <m.icon className={cn('h-3.5 w-3.5', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')} />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{m.label}</span>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <span className={cn('text-2xl font-bold tabular-nums', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')}>
+                        {m.value.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mb-1">{m.unit}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={cn('text-[9px] font-mono font-semibold', deltaColor)}>{deltaStr}</span>
+                      <span className="text-[9px] text-muted-foreground">from {m.deltaLabel} ago</span>
+                    </div>
+                    <div className="mt-1 h-6">
+                      <SparklineSVG data={m.sparkData} color={m.label === 'Error Rate' ? (errorRate > 2 ? '#ef4444' : errorRate > 1 ? '#eab308' : '#10b981') : '#10b981'} height={24} />
+                    </div>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <span className={cn('text-2xl font-bold tabular-nums', m.label === 'Error Rate' ? errorRateColor : 'text-emerald-600 dark:text-emerald-400')}>
-                      {m.value.toLocaleString()}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground mb-1">{m.unit}</span>
-                  </div>
-                  <div className="mt-1 h-6">
-                    <SparklineSVG data={m.sparkData} color={m.label === 'Error Rate' ? (errorRate > 2 ? '#ef4444' : errorRate > 1 ? '#eab308' : '#10b981') : '#10b981'} height={24} />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -735,9 +774,12 @@ export function NexusDashboard() {
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 Alert Feed
-                <Badge variant="outline" className="text-[9px] ml-auto bg-yellow-600/10 text-yellow-600 dark:text-yellow-400 border-yellow-600/30">
+                <Badge variant="outline" className="text-[9px] bg-yellow-600/10 text-yellow-600 dark:text-yellow-400 border-yellow-600/30">
                   {alerts.filter(a => a.severity === 'critical' || a.severity === 'warning').length} Active
                 </Badge>
+                <span className="text-[9px] text-muted-foreground ml-auto font-normal" suppressHydrationWarning>
+                  Updated: {mounted ? overviewUpdated : '...'}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
@@ -746,10 +788,10 @@ export function NexusDashboard() {
                   const config = alertSeverityConfig[alert.severity]
                   const Icon = config.icon
                   return (
-                    <div key={alert.id} className={cn('flex items-center gap-2.5 p-2 rounded-lg border transition-opacity duration-300', config.bg, config.border)}>
-                      <Icon className={cn('h-3.5 w-3.5 shrink-0', config.color)} />
-                      <span className="text-xs flex-1 truncate">{alert.message}</span>
-                      <Badge variant="outline" className="text-[8px] shrink-0">{alert.source}</Badge>
+                    <div key={alert.id} className={cn('flex items-start gap-2.5 p-2 rounded-lg border transition-opacity duration-300', config.bg, config.border)}>
+                      <Icon className={cn('h-3.5 w-3.5 shrink-0 mt-0.5', config.color)} />
+                      <span className="text-[11px] flex-1 leading-snug">{alert.message}</span>
+                      <Badge variant="outline" className="text-[8px] shrink-0 h-4">{alert.source}</Badge>
                       <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0" suppressHydrationWarning>{mounted ? getRelativeTime(alert.time) : '...'}</span>
                     </div>
                   )
@@ -846,14 +888,15 @@ export function NexusDashboard() {
             )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { key: 'cpu', label: 'CPU Usage', icon: Cpu, unit: '%', data: healthMetrics.cpu },
-                { key: 'memory', label: 'Memory', icon: HardDrive, unit: '%', data: healthMetrics.memory },
-                { key: 'diskIO', label: 'Disk I/O', icon: Disc, unit: 'MB/s', data: healthMetrics.diskIO },
-                { key: 'networkIO', label: 'Network I/O', icon: RadioTower, unit: 'MB/s', data: healthMetrics.networkIO },
+                { key: 'cpu', label: 'CPU Usage', icon: Cpu, unit: '%', data: healthMetrics.cpu, detail: `8 cores · load avg: ${(healthMetrics.cpu.value / 12).toFixed(1)}`, status: healthMetrics.cpu.value < 60 ? 'Healthy' : healthMetrics.cpu.value < 80 ? 'Elevated' : 'Critical' },
+                { key: 'memory', label: 'Memory', icon: HardDrive, unit: '%', data: healthMetrics.memory, detail: `${((healthMetrics.memory.value / 100) * 16).toFixed(1)}/16 GB · swap: 0.4 GB`, status: healthMetrics.memory.value < 60 ? 'Healthy' : healthMetrics.memory.value < 80 ? 'Elevated' : 'Critical' },
+                { key: 'diskIO', label: 'Disk I/O', icon: Disc, unit: 'MB/s', data: healthMetrics.diskIO, detail: `r: ${(healthMetrics.diskIO.value * 0.6).toFixed(0)} w: ${(healthMetrics.diskIO.value * 0.4).toFixed(0)} MB/s`, status: healthMetrics.diskIO.value < 60 ? 'Healthy' : healthMetrics.diskIO.value < 80 ? 'Elevated' : 'Critical' },
+                { key: 'networkIO', label: 'Network I/O', icon: RadioTower, unit: 'MB/s', data: healthMetrics.networkIO, detail: `↑${(healthMetrics.networkIO.value * 0.35).toFixed(1)} ↓${(healthMetrics.networkIO.value * 0.65).toFixed(1)} MB/s`, status: healthMetrics.networkIO.value < 60 ? 'Healthy' : healthMetrics.networkIO.value < 80 ? 'Elevated' : 'Critical' },
               ].map((metric) => {
                 const val = metric.data.value
                 const color = val >= 80 ? 'red' : val >= 60 ? 'yellow' : 'emerald'
                 const TrendIcon = metric.data.trend === 'up' ? ArrowUp : ArrowDown
+                const statusColor = metric.status === 'Healthy' ? 'text-emerald-500' : metric.status === 'Elevated' ? 'text-yellow-500' : 'text-red-500'
                 return (
                   <div key={metric.key} className={cn(
                     'p-3 rounded-lg border transition-all duration-500',
@@ -871,11 +914,14 @@ export function NexusDashboard() {
                           : 'text-yellow-500'
                       )} />
                     </div>
-                    <div className="flex items-end gap-1 mb-2">
+                    <div className="flex items-end gap-1 mb-1">
                       <span className={cn('text-2xl font-bold tabular-nums smooth-number', color === 'red' ? 'text-red-500' : color === 'yellow' ? 'text-yellow-500' : 'text-emerald-500')}>
                         {val}
                       </span>
                       <span className="text-[9px] text-muted-foreground mb-1">{metric.unit}</span>
+                    </div>
+                    <div className="text-[9px] text-muted-foreground mb-2 font-mono">
+                      {metric.detail} — <span className={statusColor}>{metric.status}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
@@ -915,14 +961,16 @@ export function NexusDashboard() {
                   <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
 
                   {[
-                    { time: '2m ago', type: 'success', icon: CheckCircle2, desc: 'Health check passed — all pillars OK', source: 'Monitor' },
-                    { time: '5m ago', type: 'info', icon: Info, desc: 'Model failover triggered for gemma-fast', source: 'ModelRelay' },
-                    { time: '12m ago', type: 'warning', icon: AlertTriangle, desc: 'Memory usage approaching 80%', source: 'System' },
-                    { time: '18m ago', type: 'success', icon: CheckCircle2, desc: 'Constitutional check passed for all rules', source: 'Governor' },
-                    { time: '25m ago', type: 'info', icon: Info, desc: 'Token budget reset for new cycle', source: 'Tokens' },
-                    { time: '32m ago', type: 'critical', icon: XCircle, desc: 'Provider dashscope rate limit exceeded', source: 'Gateway' },
-                    { time: '45m ago', type: 'warning', icon: AlertTriangle, desc: 'Agent worker-2 trust score below 0.8', source: 'Governor' },
-                    { time: '1h ago', type: 'success', icon: CheckCircle2, desc: 'Pool rebalance completed successfully', source: 'GMR' },
+                    { time: '14:23:07', type: 'success', icon: CheckCircle2, desc: 'Health check passed — 8/8 pillars nominal, p99 latency 142ms', source: 'Monitor' },
+                    { time: '14:21:44', type: 'info', icon: Info, desc: 'Model failover: gemma-fast → gemma-2b-it (latency diff +12ms) — Auto-recovered', source: 'ModelRelay' },
+                    { time: '14:19:33', type: 'warning', icon: AlertTriangle, desc: 'Memory usage 78.4% (threshold: 80%) — Swap reserve at 2.1 GB', source: 'System' },
+                    { time: '14:17:12', type: 'success', icon: CheckCircle2, desc: 'Constitutional audit CR-001→CR-006 passed — 0 violations, 0 blocks', source: 'Governor' },
+                    { time: '14:14:08', type: 'info', icon: Info, desc: 'Token budget cycle reset: 73,450/100k used, carry-forward 2,340 tok', source: 'Tokens' },
+                    { time: '14:11:55', type: 'critical', icon: XCircle, desc: 'Provider dashscope 429 rate limit — 347/300 req/min, fallback → SambaNova', source: 'Gateway' },
+                    { time: '14:07:22', type: 'warning', icon: AlertTriangle, desc: 'Agent worker-2 trust 0.78 (threshold: 0.80) — Task #31 paused per CR-005', source: 'Governor' },
+                    { time: '14:02:41', type: 'success', icon: CheckCircle2, desc: 'Pool rebalance: MID→FAST ratio 1.4:1 → 1.1:1 — Effective next cycle', source: 'GMR' },
+                    { time: '13:58:16', type: 'info', icon: Info, desc: 'Fireworks latency spike 210ms (baseline: 85ms) — Circuit breaker HALF-OPEN', source: 'Gateway' },
+                    { time: '13:51:33', type: 'success', icon: CheckCircle2, desc: 'worker-3 completed sentiment analysis task #38 — 2,412 docs processed in 4m 22s', source: 'Agents' },
                   ].map((event, i) => {
                     const colorMap = {
                       success: { dot: 'bg-emerald-500', ring: 'ring-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
@@ -989,24 +1037,29 @@ export function NexusDashboard() {
   function ProvidersTab() {
     const activeCount = providers.filter(p => p.status === 'active').length
     const degradedCount = providers.filter(p => p.status === 'degraded').length
+    const totalRequests = providers.reduce((s, p) => s + p.requests24h, 0)
     return (
       <div className="space-y-5">
         {/* Provider Health Summary */}
         <Card className="glass-card-hover border-emerald-600/20 bg-gradient-to-r from-emerald-600/5 to-transparent">
           <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
               {[
                 { label: 'Active', value: activeCount, color: 'text-emerald-500' },
                 { label: 'Degraded', value: degradedCount, color: 'text-yellow-500' },
                 { label: 'Inactive', value: providers.filter(p => p.status === 'inactive').length, color: 'text-red-500' },
                 { label: 'Total Models', value: providers.reduce((s, p) => s + p.models, 0), color: 'text-blue-500' },
                 { label: 'Avg Latency', value: `${Math.round(providers.filter(p => p.latency > 0).reduce((s, p) => s + p.latency, 0) / providers.filter(p => p.latency > 0).length)}ms`, color: 'text-orange-500' },
+                { label: 'Requests (24h)', value: totalRequests.toLocaleString(), color: 'text-purple-500' },
               ].map(s => (
                 <div key={s.label} className="text-center">
                   <div className={cn('text-2xl font-bold tabular-nums', s.color)}>{s.value}</div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
                 </div>
               ))}
+            </div>
+            <div className="text-[9px] text-muted-foreground text-right mt-2" suppressHydrationWarning>
+              Last updated: {mounted ? overviewUpdated : '...'}
             </div>
           </CardContent>
         </Card>
@@ -1027,7 +1080,7 @@ export function NexusDashboard() {
                     {p.pool}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center mb-2">
                   <div>
                     <div className="text-[10px] text-muted-foreground">Models</div>
                     <div className="text-sm font-bold tabular-nums">{p.models}</div>
@@ -1045,11 +1098,33 @@ export function NexusDashboard() {
                     </div>
                   </div>
                 </div>
-                {p.latency > 0 && (
-                  <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
-                    <div className={cn('h-full rounded-full', p.latency > 200 ? 'bg-red-500' : p.latency > 100 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${Math.min(p.latency / 3, 100)}%` }} />
+                <div className="grid grid-cols-2 gap-2 text-center mb-2">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Uptime</div>
+                    <div className={cn('text-xs font-bold tabular-nums', p.uptime !== '—' && p.uptime !== '0%' ? (parseFloat(p.uptime) >= 99.9 ? 'text-emerald-500' : parseFloat(p.uptime) >= 99 ? 'text-yellow-500' : 'text-red-500') : 'text-muted-foreground')}>{p.uptime}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">24h Requests</div>
+                    <div className="text-xs font-bold tabular-nums">{p.requests24h > 0 ? p.requests24h.toLocaleString() : '—'}</div>
+                  </div>
+                </div>
+                {p.modelNames.length > 0 && (
+                  <div className="mt-1 pt-2 border-t border-border/30">
+                    <div className="flex flex-wrap gap-1">
+                      {p.modelNames.map(m => (
+                        <Badge key={m} variant="outline" className="text-[8px] h-4 px-1 font-mono">{m}</Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[9px] text-muted-foreground">Checked: {p.lastChecked}</span>
+                  {p.latency > 0 && (
+                    <div className="w-16 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className={cn('h-full rounded-full', p.latency > 200 ? 'bg-red-500' : p.latency > 100 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${Math.min(p.latency / 3, 100)}%` }} />
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -1073,10 +1148,30 @@ export function NexusDashboard() {
                     {a.status.toUpperCase()}
                   </Badge>
                 </div>
+                {/* Current Task */}
+                <div className="mb-3 p-2 rounded-lg bg-muted/30 border border-border/20">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Current Task</div>
+                  <div className="text-xs font-medium leading-snug">{a.currentTask}</div>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[9px] text-muted-foreground">Progress</span>
+                        <span className={cn('text-[9px] font-bold tabular-nums', a.progress >= 80 ? 'text-emerald-500' : a.progress >= 40 ? 'text-yellow-500' : 'text-red-500')}>{a.progress}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={cn('h-full rounded-full transition-all duration-700', a.progress >= 80 ? 'bg-emerald-500' : a.progress >= 40 ? 'bg-yellow-500' : 'bg-red-500')} style={{ width: `${a.progress}%` }} />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] text-muted-foreground">ETA</div>
+                      <div className={cn('text-[10px] font-bold', a.progress === 100 ? 'text-emerald-500' : '')}>{a.eta}</div>
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><span className="text-[10px] text-muted-foreground block">Domain</span><span className="text-xs font-medium">{a.domain}</span></div>
                   <div><span className="text-[10px] text-muted-foreground block">Model</span><span className="text-xs font-mono">{a.model}</span></div>
-                  <div><span className="text-[10px] text-muted-foreground block">Tasks</span><span className="text-xs font-bold tabular-nums">{a.tasks}</span></div>
+                  <div><span className="text-[10px] text-muted-foreground block">Tasks Completed</span><span className="text-xs font-bold tabular-nums">{a.tasks}</span></div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Trust Score</span>
                     <div className="flex items-center gap-1.5">
@@ -1086,6 +1181,9 @@ export function NexusDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/20">
+                  <span className="text-[9px] text-muted-foreground">Last activity: {a.lastActivity}</span>
                 </div>
               </CardContent>
             </Card>
@@ -1098,23 +1196,28 @@ export function NexusDashboard() {
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Recent Agent Activity
+              <span className="text-[9px] text-muted-foreground ml-auto font-normal" suppressHydrationWarning>
+                Updated: {mounted ? overviewUpdated : '...'}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
               {[
-                { agent: 'worker-1', action: 'Completed research task #47', time: '2m ago', status: 'success' },
-                { agent: 'coordinator', action: 'Constitutional check passed', time: '5m ago', status: 'success' },
-                { agent: 'worker-2', action: 'Trust score dropped below 0.8', time: '8m ago', status: 'warning' },
-                { agent: 'worker-3', action: 'Model failover: gemma → gemma-fast', time: '12m ago', status: 'info' },
-                { agent: 'worker-1', action: 'Token budget at 73.4%', time: '15m ago', status: 'info' },
-                { agent: 'coordinator', action: 'Blocked CRITICAL action per CR-002', time: '20m ago', status: 'warning' },
+                { agent: 'worker-1', action: 'Completed RAG benchmark analysis — 847 queries evaluated, accuracy 94.2%', time: '14:23:07', status: 'success' },
+                { agent: 'coordinator', action: 'Constitutional audit CR-001→CR-006 completed — All passed, no violations', time: '14:21:44', status: 'success' },
+                { agent: 'worker-2', action: 'Trust score dropped 0.82→0.78 — Task #31 paused per CR-005, awaiting review', time: '14:19:33', status: 'warning' },
+                { agent: 'worker-3', action: 'Model failover: gemma-fast → gemma-2b-it — Latency impact +12ms, auto-recovered', time: '14:17:12', status: 'info' },
+                { agent: 'worker-1', action: 'Token consumption at 73,450/100k (73.4%) — Session carry-forward 2,340 tok', time: '14:14:08', status: 'info' },
+                { agent: 'coordinator', action: 'BLOCKED worker-2 destructive action per CR-002 — Logged to governance audit trail', time: '14:11:55', status: 'warning' },
+                { agent: 'worker-3', action: 'Completed sentiment analysis #38 — 2,412 docs in 4m 22s, throughput 9.2 docs/s', time: '14:07:22', status: 'success' },
+                { agent: 'coordinator', action: 'Pool rebalance triggered — MID→FAST ratio adjusted 1.4:1 → 1.1:1', time: '14:02:41', status: 'info' },
               ].map((log, i) => (
-                <div key={i} className={cn('flex items-center gap-3 p-2 rounded-lg border border-border/20', log.status === 'warning' ? 'bg-yellow-500/5' : log.status === 'success' ? 'bg-emerald-500/5' : 'bg-blue-500/5')}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', log.status === 'success' ? 'bg-emerald-500' : log.status === 'warning' ? 'bg-yellow-500' : 'bg-blue-500')} />
+                <div key={i} className={cn('flex items-start gap-3 p-2 rounded-lg border border-border/20', log.status === 'warning' ? 'bg-yellow-500/5' : log.status === 'success' ? 'bg-emerald-500/5' : 'bg-blue-500/5')}>
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mt-1', log.status === 'success' ? 'bg-emerald-500' : log.status === 'warning' ? 'bg-yellow-500' : 'bg-blue-500')} />
                   <span className="text-[10px] font-mono text-muted-foreground w-20 shrink-0">{log.agent}</span>
-                  <span className="text-xs flex-1 truncate">{log.action}</span>
-                  <span className="text-[9px] text-muted-foreground whitespace-nowrap" suppressHydrationWarning>{mounted ? log.time : '...'}</span>
+                  <span className="text-[11px] flex-1 leading-snug">{log.action}</span>
+                  <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0 font-mono">{log.time}</span>
                 </div>
               ))}
             </div>
@@ -1289,13 +1392,13 @@ export function NexusDashboard() {
               <div className="flex items-end gap-2 mb-2">
                 <span className="text-3xl font-bold tabular-nums">{tokenBudget.used.toLocaleString()}</span>
                 <span className="text-sm text-muted-foreground mb-1">/ {tokenBudget.total.toLocaleString()}</span>
+                <span className="text-[10px] text-yellow-500 mb-1">(73.4%)</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className={cn('h-full rounded-full token-flow-bar', pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
               </div>
               <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
-                <span>{pct}% used</span>
-                <span>{(tokenBudget.total - tokenBudget.used).toLocaleString()} remaining</span>
+                <span>{pct}% used — ~{Math.round((tokenBudget.total - tokenBudget.used) / 1420)}m remaining at current rate</span>
               </div>
             </CardContent>
           </Card>
@@ -1311,8 +1414,7 @@ export function NexusDashboard() {
                 <div className={cn('h-full rounded-full', sessionPct > 80 ? 'bg-red-500' : sessionPct > 60 ? 'bg-yellow-500' : 'bg-emerald-500')} style={{ width: `${sessionPct}%` }} />
               </div>
               <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
-                <span>{sessionPct}% used</span>
-                <span>{(tokenBudget.sessionTotal - tokenBudget.session).toLocaleString()} remaining</span>
+                <span>{sessionPct}% used — ~{Math.round((tokenBudget.sessionTotal - tokenBudget.session) / 1420)}m remaining</span>
               </div>
             </CardContent>
           </Card>
@@ -1585,7 +1687,9 @@ export function NexusDashboard() {
         <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-background">
           <div className="pointer-events-none absolute inset-0 grid-pattern-animated opacity-40" />
           <div className="relative z-10 p-4 md:p-6 tab-content-transition min-h-[50vh]" key={activeTab}>
-            {renderTabContent()}
+            <TabErrorBoundary key={activeTab}>
+              {renderTabContent()}
+            </TabErrorBoundary>
           </div>
         </main>
 
@@ -1594,17 +1698,17 @@ export function NexusDashboard() {
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">NEXUS OS v3.1</span>
             <span className="text-border">|</span>
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Heart className="h-3 w-3 fill-emerald-500/80 animate-pulse" />Operational</span>
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Heart className="h-3 w-3 fill-emerald-500/80 animate-pulse" />All Systems Nominal</span>
             <span className="text-border hidden sm:inline">|</span>
-            <span className="hidden sm:inline">5 agents/hr · 20 API/session · 2 concurrent</span>
+            <span className="hidden sm:inline">{activeConnections} conn · {requestsPerSec} req/s · {tokensPerMin.toLocaleString()} tok/m</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="hidden md:flex items-center gap-1.5">
-              <Cpu className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">34%</span>
+              <Cpu className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{healthMetrics.cpu.value}%</span>
               <span className="text-border mx-1">|</span>
-              <HardDrive className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-yellow-600 dark:text-yellow-400">58%</span>
+              <HardDrive className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-yellow-600 dark:text-yellow-400">{healthMetrics.memory.value}%</span>
               <span className="text-border mx-1">|</span>
-              <Zap className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">42ms</span>
+              <Zap className="h-3 w-3" /><span className="text-[9px] tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{requestsPerSec}ms</span>
             </span>
             <span className="text-border">|</span>
             <span className="font-mono text-[10px] tabular-nums" suppressHydrationWarning>Session: {uptime}</span>
