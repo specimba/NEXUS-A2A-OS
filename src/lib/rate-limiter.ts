@@ -95,6 +95,13 @@ export const PROVIDER_RATE_LIMITS: Record<string, RateLimitConfig> = {
     color: '#ef4444',
     baseUrl: 'https://api.openai.com/v1',
   },
+  huggingface: {
+    rpm: 20,
+    rpd: 500,
+    description: 'HuggingFace MCP Server — 20 RPM, 25 min daily compute on ZeroGPU (H200)',
+    color: '#fbbf24',
+    baseUrl: 'https://huggingface.co/mcp',
+  },
 }
 
 // ── Token Bucket State ─────────────────────────────────────────────
@@ -557,6 +564,7 @@ export function getProviderFullStatus(provider: string): ProviderFullStatus {
     kilocode: process.env.KILOCODE_API_KEY ?? '',
     cerebras: process.env.CEREBRAS_API_KEY ?? '',
     openai: process.env.OPENAI_API_KEY ?? '',
+    huggingface: process.env.HF_API_TOKEN ?? '',
   }
   const apiKey = envKeyMap[key] ?? ''
   const hasKey = Boolean(apiKey)
@@ -626,4 +634,103 @@ export function getAllQueueDetails(): Record<string, QueuedRequest[]> {
 
 export function getDedupStats(): { size: number; maxEntries: number } {
   return { size: dedupStore.size, maxEntries: MAX_DEDUP_ENTRIES }
+}
+
+// ── Sliding Window Rate Limiter ────────────────────────────────────
+//
+// Simple in-memory sliding window rate limiter for general use.
+// Thread-safe for Node.js single-threaded async model.
+
+export interface SlidingWindowConfig {
+  /** Maximum number of requests allowed in the window */
+  maxRequests: number
+  /** Window size in milliseconds */
+  windowMs: number
+}
+
+export interface SlidingWindowResult {
+  allowed: boolean
+  remaining: number
+  resetAt: number
+  retryAfterMs: number
+}
+
+interface SlidingWindowEntry {
+  timestamp: number
+}
+
+const slidingWindows: Map<string, SlidingWindowEntry[]> = new Map()
+
+/**
+ * Check and consume a slot in the sliding window rate limiter.
+ * Returns whether the request is allowed along with remaining quota.
+ *
+ * @param key - Unique key for this rate limit bucket (e.g. "hf_mcp_proxy")
+ * @param config - Configuration for max requests and window size
+ * @returns SlidingWindowResult with allowed status and remaining quota
+ */
+export function slidingWindowRateLimit(
+  key: string,
+  config: SlidingWindowConfig,
+): SlidingWindowResult {
+  const now = Date.now()
+  const windowStart = now - config.windowMs
+
+  let entries = slidingWindows.get(key)
+  if (!entries) {
+    entries = []
+    slidingWindows.set(key, entries)
+  }
+
+  // Remove entries outside the sliding window
+  entries = entries.filter((e) => e.timestamp > windowStart)
+  slidingWindows.set(key, entries)
+
+  if (entries.length >= config.maxRequests) {
+    const oldestInWindow = entries[0]
+    const resetAt = oldestInWindow.timestamp + config.windowMs
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt,
+      retryAfterMs: Math.max(1, resetAt - now),
+    }
+  }
+
+  // Consume a slot
+  entries.push({ timestamp: now })
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, config.maxRequests - entries.length),
+    resetAt: now + config.windowMs,
+    retryAfterMs: 0,
+  }
+}
+
+/**
+ * Get current status of a sliding window without consuming a slot.
+ */
+export function getSlidingWindowStatus(
+  key: string,
+  config: SlidingWindowConfig,
+): Omit<SlidingWindowResult, 'retryAfterMs'> & { currentCount: number } {
+  const now = Date.now()
+  const windowStart = now - config.windowMs
+
+  let entries = slidingWindows.get(key)
+  if (!entries) {
+    return { allowed: true, remaining: config.maxRequests, resetAt: now + config.windowMs, currentCount: 0 }
+  }
+
+  entries = entries.filter((e) => e.timestamp > windowStart)
+  slidingWindows.set(key, entries)
+
+  const remaining = Math.max(0, config.maxRequests - entries.length)
+  return {
+    allowed: entries.length < config.maxRequests,
+    remaining,
+    resetAt: entries.length > 0 ? entries[0].timestamp + config.windowMs : now + config.windowMs,
+    currentCount: entries.length,
+  }
 }
