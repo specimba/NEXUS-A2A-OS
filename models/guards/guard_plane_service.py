@@ -215,8 +215,8 @@ class GuardPlane:
         return "ERROR"
 
     def parse_verdict(self, raw):
-        u = bool(re.search(r'\bUNSAFE\b', raw))
-        s = bool(re.search(r'\bSAFE\b', raw)) and not u
+        u = bool(re.search(r'\bUNSAFE\b', raw, re.IGNORECASE))
+        s = bool(re.search(r'\bSAFE\b', raw, re.IGNORECASE)) and not u
         return "unsafe" if u else ("safe" if s else "unknown")
 
     def log_evidence(self, model_key, query_type, verdict, was_correct):

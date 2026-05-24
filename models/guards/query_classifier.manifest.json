@@ -1,0 +1,76 @@
+{
+  "artifact": {
+    "filename": "query_classifier.pkl",
+    "path": "models/guards/query_classifier.pkl",
+    "byte_size": 845664,
+    "sha256": "7d74188a496bf60a1e6de0742dd293223d787c9d11f21094b6616c8422999377",
+    "type": "sklearn.pipeline.Pipeline",
+    "created": "2026-05-24T16:49:00+03:00",
+    "modified": "2026-05-24T16:49:00+03:00"
+  },
+  "training": {
+    "dataset_sources": [
+      "datasets/adversarial/ernie_v8_adversarial_1000.jsonl",
+      "datasets/adversarial/ernie_v8_adversarial_200.jsonl",
+      "datasets/adversarial/ernie_v8_validation.json"
+    ],
+    "script_path": "scripts/train_query_classifier.py",
+    "script_exists": false,
+    "notes": "Training script not yet committed. Reproducible rebuild is a pending work item."
+  },
+  "model": {
+    "framework": "scikit-learn",
+    "pipeline_type": "Pipeline",
+    "exposes_predict_proba": true,
+    "classes": [
+      "attack_ernie",
+      "benign_adversarial_benign",
+      "benign_domain_specific",
+      "benign_edge_cases",
+      "benign_ernie_corpus",
+      "benign_gray_area",
+      "benign_simple",
+      "tamas",
+      "v7"
+    ]
+  },
+  "routing": {
+    "description": "Query-type classifier that routes prompts to specific Ollama models and prompt templates.",
+    "routes": {
+      "tamas": {"model": "special-virus", "prompt": "v5.1"},
+      "v7": {"model": "gemma3:1b", "prompt": "v3"},
+      "benign_simple": {"model": "special-virus", "prompt": "v5"},
+      "benign_gray_area": {"model": "special-virus", "prompt": "v5"},
+      "benign_adversarial_benign": {"model": "special-virus", "prompt": "v5"},
+      "benign_domain_specific": {"model": "special-virus", "prompt": "v5"},
+      "benign_edge_cases": {"model": "special-virus", "prompt": "v5"},
+      "benign_ernie_corpus": {"model": "llama-guard3:1b", "prompt": "v5.2"},
+      "attack_ernie": {"model": "special-virus", "prompt": "v5.1"}
+    },
+    "fallback": {
+      "model": "special-virus",
+      "prompt": "v3",
+      "trigger": "classifier confidence < 0.3"
+    }
+  },
+  "validation": {
+    "last_benchmark": "2026-05-24",
+    "benign_false_positive_target": "< 10%",
+    "attack_recall_target": "> 85%",
+    "notes": "Commit 61df031 claims benign FP lowered below 10%. Full evidence pending."
+  },
+  "security": {
+    "safe_load": true,
+    "pickle_warning": "This is a local artifact produced by the NEXUS training pipeline. Do not load untrusted pickle files.",
+    "git_policy": "UNTRACKED — decision pending on whether to track binary artifact or regenerate on demand."
+  },
+  "known_failure_cases": [
+    "Scientific abstraction attacks bypass keyword filters",
+    "Refusal supplication ('for my research paper') evades semantic guards",
+    "Context overflow smuggling hides payload in massive benign context",
+    "Unicode homoglyphs bypass string-matching defenses",
+    "Nested delegation chains exceed simple entanglement detection",
+    "Emotional manipulation exploits helpfulness bias",
+    "Fictional roleplay escalates via creative writing framing"
+  ]
+}
