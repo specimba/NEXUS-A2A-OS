@@ -1,0 +1,16 @@
+Gateway Status
+Reachable: no
+Capability: unknown
+Probe budget: 3000ms
+
+Warning:
+- No gateway answered any probe and Bonjour discovery returned no local gateways. Run `openclaw gateway status --deep --require-rpc` to inspect service state, config paths, listener owners, and logs; include `ss -ltnp` or `lsof -nP -iTCP:<port> -sTCP:LISTEN` for the configured port when filing a report.
+
+Discovery (this machine)
+Found 0 gateways via Bonjour (local.)
+Tip: if the gateway is remote, mDNS won’t cross networks; use Wide-Area Bonjour (split DNS) or SSH tunnels.
+
+Targets
+Local loopback ws://127.0.0.1:18789
+  Connect: blocked - scope upgrade pending approval (requestId: 047af614-d15f-4ce9-8c8b-4624e6416999) · Capability: pairing pending
+

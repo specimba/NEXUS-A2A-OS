@@ -1,0 +1,19 @@
+OpenClaw security audit
+Summary: 0 critical · 1 warn · 2 info
+Run deeper: openclaw security audit --deep
+
+WARN
+gateway.probe_failed Gateway probe failed (deep)
+  scope upgrade pending approval (requestId: 047af614-d15f-4ce9-8c8b-4624e6416999)
+  Fix: Run "openclaw status --all" to debug connectivity/auth, then re-run "openclaw security audit --deep".
+
+INFO
+summary.attack_surface Attack surface summary
+  groups: open=0, allowlist=0
+tools.elevated: enabled
+hooks.webhooks: disabled
+hooks.internal: disabled
+browser control: enabled
+trust model: personal assistant (one trusted operator boundary), not hostile multi-tenant on one shared gateway
+gateway.tailscale_serve Tailscale Serve exposure enabled
+  gateway.tailscale.mode="serve" exposes the Gateway to your tailnet (loopback behind Tailscale).
