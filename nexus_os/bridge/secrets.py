@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 PROVIDER_CONFIG: Dict[str, Dict[str, Any]] = {
     "openrouter": {
-        "base_url": "https://openrouter.ai/api/v1",
+        "base_url": os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
         "rpm_limit": 20,
         "rpd_limit": 500,
         "description": "Primary multi-model provider. Routes to 200+ models.",

@@ -188,7 +188,10 @@ export async function POST(request: NextRequest) {
             })),
           ]
 
-          const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          const baseUrl = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'
+          const targetUrl = baseUrl.includes('zo.space') ? `${baseUrl}/chat` : `${baseUrl}/chat/completions`
+
+          const orResponse = await fetch(targetUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${apiKey}`,

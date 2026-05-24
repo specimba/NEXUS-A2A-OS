@@ -14,7 +14,7 @@ import { getAllRateLimitStatus, PROVIDER_RATE_LIMITS } from '@/lib/rate-limiter'
 // Provider configuration (mirrors Python PROVIDER_CONFIG from bridge/secrets.py)
 const PROVIDER_CONFIG = {
   openrouter: {
-    base_url: 'https://openrouter.ai/api/v1',
+    base_url: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
     rpm_limit: 20,
     rpd_limit: 500,
     description: 'Primary multi-model provider. Routes to 200+ models.',
