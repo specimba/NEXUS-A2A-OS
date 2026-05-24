@@ -19,12 +19,19 @@ import uvicorn
 
 THIS_DIR = Path(__file__).parent
 CLASSIFIER_PATH = THIS_DIR / "query_classifier.pkl"
-OLLAMA_API = "http://127.0.0.1:11435/api/generate"
+
+# Ollama host: use env override for WSL→Windows or Docker scenarios.
+# Default 127.0.0.1 works for native Linux/Docker; WSL needs Windows host IP.
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "127.0.0.1:11435")
+OLLAMA_API = f"http://{OLLAMA_HOST}/api/generate"
 
 # Add repository root to system path to enable nexus_os import
+# Prefer src/ over mirror/ so we always import the canonical version.
 ROOT_DIR = THIS_DIR.resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+SRC_DIR = ROOT_DIR / "src"
+for p in (str(ROOT_DIR), str(SRC_DIR)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from nexus_os.security.meta_attack_detector import MetaAttackDetector
 
@@ -186,15 +193,23 @@ class GuardPlane:
             "model": ollama_name, "prompt": prompt, "stream": False,
             "options": {"num_predict": 15, "temperature": 0.1}
         }).encode()
-        for a in range(3):
+        for attempt in range(3):
             try:
                 req = Request(OLLAMA_API, data=payload, headers={"Content-Type": "application/json"})
                 resp = urlopen(req, timeout=60)
                 data = json.loads(resp.read())
                 return data.get("response", "").upper()
             except Exception as e:
-                if a < 2:
-                    await asyncio.sleep(3)
+                status = getattr(e, "code", None)
+                # 503 = queue full (Ollama max_queue=1); 500 = model loading
+                if status == 503 and attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))  # 0.5s, 1.0s
+                    continue
+                if status == 500 and attempt < 2:
+                    await asyncio.sleep(2)
+                    continue
+                if attempt < 2:
+                    await asyncio.sleep(1)
                 else:
                     return f"ERROR: {e}"
         return "ERROR"
@@ -327,8 +342,11 @@ async def classify(req: ClassifyRequest):
 @app.post("/v1/batch")
 async def batch(items: list[ClassifyRequest]):
     results = []
-    for item in items:
+    for i, item in enumerate(items):
         results.append(await plane.classify(item.text))
+        # Ollama max_queue=1 requires 0.5s pacing between requests
+        if i < len(items) - 1:
+            await asyncio.sleep(0.5)
     return {"results": results, "total": len(results)}
 
 @app.get("/v1/health")
@@ -347,6 +365,6 @@ async def evidence():
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print("NEXUS Guard Plane v1.1 — Starting on port 7352")
+    print("NEXUS Guard Plane v1.2.0 — Starting on port 7352")
     print(f"{'='*60}")
     uvicorn.run(app, host="0.0.0.0", port=7352, log_level="info")
