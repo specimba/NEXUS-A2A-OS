@@ -1,44 +1,96 @@
-# TOOLS.md - Local Notes
+# TOOLS.md — Zo NEXUS Lane Guardian
 
-Skills define *how* tools work. This file is for *your* specifics — the stuff that's unique to your setup.
-
-## What Goes Here
-
-Things like:
-
-- Camera names and locations
-- SSH hosts and aliases
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
-
-## Examples
-
-```markdown
-### Cameras
-
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
-
-### SSH
-
-- home-server → 192.168.1.100, user: admin
-
-### TTS
-
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
-```
-
-## Why Separate?
-
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
+**Version**: 4.0.0  
+**Date**: 2026-05-25
 
 ---
 
-Add whatever helps you do your job. This is your cheat sheet.
+## NETWORK & RELAY (VERIFIED WORKING)
 
-## Related
+| Endpoint | System | Status |
+|----------|--------|--------|
+| `http://127.0.0.1:18789` | OpenClaw Gateway (NIM) | ✅ LIVE |
+| `https://specimba.zo.space/api/chat` | ModelRelay (NIM, English) | ✅ LIVE |
+| `https://api.github.com` | GitHub (gh CLI) | ✅ AUTHENTICATED |
+| Slack webhook | `#nexus-autoclaw` | ✅ CONNECTED |
 
-- [Agent workspace](/concepts/agent-workspace)
+---
+
+## MODEL RELAY (zo.space)
+
+**Base**: `https://specimba.zo.space`
+**Chat endpoint**: `/api/chat`
+**Health**: `/api/modelrelay/health`
+**Models list**: `/api/modelrelay/models`
+
+```bash
+# Test
+curl -s -X POST https://specimba.zo.space/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"model":"deepseek-ai/deepseek-v4-flash","messages":[{"role":"user","content":"say hello"}]}'
+```
+
+---
+
+## OPENCLAW GATEWAY COMMANDS
+
+```bash
+openclaw status --deep        # Full status + model config
+openclaw gateway probe        # Health check
+openclaw security audit --deep # Security scan (0 crit, 0 warn)
+openclaw config set gateway.controlUi.dangerouslyAllowPrivateNetworkAccess=true  # Enable if needed
+```
+
+**Health**: `curl -s http://127.0.0.1:18789/health` → `{"ok":true,"status":"live"}`
+
+---
+
+## WORKSPACE BOUNDARIES
+
+| Path | Type | Notes |
+|------|------|-------|
+| `/home/workspace` | USER workspace | Write here — SPECI sees this |
+| `/home/.z/workspaces/con_Q7zuyvaa7MyIV484` | Conversation workspace | Scratch only |
+| `/root/.openclaw` | OpenClaw config | Root-owned |
+| Zo Space routes | In-memory only | Not filesystem files |
+
+---
+
+## ZO COMPUTER TOOLS
+
+| Tool | Use |
+|------|-----|
+| `run_bash_command` | Shell commands (Python, git, curl) |
+| `create_or_rewrite_file` / `edit_file` | Text files in workspace |
+| `write_space_route` / `edit_space_route` | zo.space API/page routes |
+| `list_automations` / `create_automation` | Zo scheduled tasks |
+| `list_user_services` / `update_user_service` | Long-running services |
+| `use_app_gmail` / `use_app_slack` / etc. | Connected integrations |
+
+---
+
+## GITHUB WORKFLOW
+
+```bash
+gh api repos/specimba/NEXUS --json default_branch,description  # Query repo
+gh api repos/specimba/nexus-mcp/contents/src  # Browse repo contents
+git -C /home/workspace log --oneline -5  # Recent commits
+git -C /home/workspace push github canonical-617  # Push branch
+```
+
+**Key repos**: NEXUS, nexus-mcp, nexus-mcp-search, DoppelGround, NEXUS-A2A-Operator, fastmcp
+
+---
+
+## GIT DISCIPLINE
+
+- No `git add .` — stage explicit paths only
+- Check `git status --short` before staging
+- Commit: behavioral change + verification result
+- Separate unrelated work into separate commits
+- After commit: verify clean working tree
+
+---
+
+**Status**: ACTIVE  
+**Owner**: Zo-NEXUS

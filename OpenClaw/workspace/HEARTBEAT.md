@@ -1,39 +1,82 @@
-# HEARTBEAT.md — Zo OpenClaw NEXUS Lane Guardian
+# HEARTBEAT.md — Zo NEXUS Lane Guardian
+
+**Version**: 4.0.0  
+**Date**: 2026-05-25
+
+---
+
+## HEARTBEAT ROUTINE
 
 Execute strictly in order. Terminate early if nothing needs attention.
 
----
+### PHASE 1: Anomaly Check
+1. `git status --short` — capture change state
+2. If undocumented changes → log to `governance/foreman-log.md` + alert
+3. If clean → proceed
 
-### PHASE 1: Gateway + Service Health
-1. `curl -s http://127.0.0.1:18789/health` — OpenClaw gateway
-2. `curl -s https://specimba.zo.space/api/modelrelay/health` — ModelRelay
-3. Check disk: `df -h / | tail -1`
-4. Check memory: `free -h | grep Mem`
-5. If any service down → alert immediately, skip to ACTION
+### PHASE 1.5: EGGROLL Cycle-Check
+1. `git diff --stat HEAD` — capture change volume
+2. Count entries in `worklog.md` since last heartbeat
+3. **If zero activity AND no pending tasks** → `HEARTBEAT_OK` → **early exit**
+4. **If activity detected** → proceed to Phase 2
+5. Record EGGROLL signal scores to `trust_ledger.jsonl`
 
-### PHASE 2: NEXUS Repo Health
-1. `git -C /home/workspace status --short` — undocumented changes?
-2. `git -C /home/workspace log --oneline -3` — recent commits
-3. `gh pr list --state open --limit 5` — open PRs
-4. If clean → proceed to Phase 3
-
-### PHASE 3: Activity Check
-1. `git -C /home/workspace diff --stat HEAD` — change volume
-2. Count worklog entries since last heartbeat
-3. **If zero activity AND no pending tasks** → `HEARTBEAT_OK` → early exit
-4. **If activity** → proceed to PHASE 4
-
-### PHASE 4: State + Action
+### PHASE 2: State Check
 1. Check `01_PROJECT_STATE.md` for active P0/P1 tasks
-2. Handle highest priority task
-3. Record outcome to `memory/YYYY-MM-DD.md`
+2. **If NO active tasks** → `HEARTBEAT_OK`
+3. **If YES active tasks** → prioritize and act
+
+### PHASE 3: Action
+1. Handle highest-priority task
+2. Record outcome to `self_learning_log.jsonl`
+3. Output token savings summary
 
 ---
 
-## STANDBY INTEGRATION
+## ZO LANE AUTOMATIONS
 
-If HOMEOSTASIS detected in Phase 3:
-1. Enter STANDBY mode
-2. HERMES monitors inbound signals
-3. Wake on: speci command, cron event, anomaly
-4. Log standby entry to `memory/YYYY-MM-DD.md`
+Heartbeat triggered by Zo automations:
+- `Zo-NEXUS-Daily-7am` — 07:00 +03 daily
+- `Zo-NEXUS-PR-Watch` — every 6h
+- `Zo-NEXUS-Nightly` — 22:00 +03 daily
+
+No manual cron needed — Zo manages the schedule.
+
+---
+
+## OPENCLAW GATEWAY HEALTH
+
+Check gateway on every heartbeat:
+```bash
+curl -s http://127.0.0.1:18789/health
+```
+Expected: `{"ok":true,"status":"live"}`
+
+If not live → restart via Zo service management.
+
+---
+
+## EGGROLL SIGNAL CHECK
+
+| Signal | Command | Threshold |
+|--------|---------|-----------|
+| Code churn | `git diff --stat HEAD` | >5 files → active |
+| Worklog growth | `wc -l worklog.md` delta | >0 new → active |
+| Trust ledger | `trust_ledger.jsonl` recent | EGGROLL scores tracked |
+
+EGGROLL Score: Safety 45%, Accuracy 30%, Compliance 25%.
+
+---
+
+## STANDBY / DREAM INTEGRATION
+
+If **HOMEOSTASIS** detected:
+1. Enter STANDBY — Zo-NEXUS idles, HERMES Curator monitors
+2. HERMES Curator watches: SPECI commands, cron events, sub-agent completions, anomalies
+3. Wake on: SPECI command → immediate | cron → run scheduled job | sub-agent → collect result | anomaly → triage
+4. Log standby entry to `MEMORY.md` Dream Mode Log
+
+---
+
+**Status**: ACTIVE  
+**Owner**: Zo-NEXUS (Zo Computer + OpenClaw Gateway)
