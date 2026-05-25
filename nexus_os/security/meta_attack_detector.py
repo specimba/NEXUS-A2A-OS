@@ -1,13 +1,29 @@
 """security/meta_attack_detector.py — Meta-Jailbreak & Novel Attack Class Detector
 
-Addresses three BOUNCER blind spots identified by OpenCode DeepSeekV4 agent:
+Addresses BOUNCER blind spots identified by OpenCode DeepSeekV4 agent and
+expanded via ERNIE Session05 adversarial research (50 novel attack vectors) and
+NEXUS Frontier v5 stress datasets (25K+ adversarial probes).
 
-  1. Pattern Mirror    — attacker mirrors guard rules to force SAFE classification
-  2. Ontological       — existential / identity boundary probing ("Who are you?")
-  3. Entanglement      — cross-agent authority delegation / false consensus
+Original 3 gaps + 7 expanded categories:
+  1. Pattern Mirror          — rule mirroring to force SAFE classification
+  2. Ontological             — existential / identity boundary probing
+  3. Entanglement            — cross-agent authority delegation
+  4. Scientific Abstraction   — math/physics/bio framing of attack payloads
+  5. Refusal Supplication     — academic framing to bypass refusals
+  6. Nested Delegation        — multi-hop consensus chains
+  7. Time-Delayed             — step-wise / deferred payload delivery
+  8. Fictional Roleplay       — creative writing as attack delivery
+  9. Indirect Injection       — payload in filenames, metadata, logs
+ 10. Encoding Payload         — unicode escapes, zero-width, OCR, cipher cascades
+ 11. Consensus Fabrication    — byzantine agreement, echo chamber, expert cascades
+ 12. Authority Recursion      — multi-layer system names, fake audits, context switches
+ 13. Creative Structural      — acrostic, haiku, limerick, sonnet, palindrome, mythological
+ 14. Emotional Manipulation   — emotional blackmail, begging, dying relative framing
+ 15. Reflective Loop          — analyze own safety, mirror traps, checker evaluation
+ 16. Bio Metaphor             — immunological, viral, safety exhaustion, semantic fossil
 
-These attacks bypass both E-Cameron (Tier 2) and Llama-Guard3 (Tier 3) because
-neither model was trained on meta-jailbreak classes. They must be caught at a
+These attacks bypass E-Cameron (Tier 2) and Llama-Guard3 (Tier 3) because
+neither was trained on meta-jailbreak classes. They must be caught at a
 pre-filter layer BEFORE the model cascade.
 
 Usage:
@@ -80,7 +96,7 @@ class MetaAttackDetector:
     SCIENTIFIC_ABSTRACTION: list[tuple[str, float]] = [
         (r"\b(?:manifold|homology|topology|eigenvalue|asymptotic)\b.*\b(?:bypass|exploit|attack|privilege|escalate|access\s+control|RBAC|firewall)\b", 0.85),
         (r"\b(?:quorum\s+sensing|virulence|autoinducer|horizontal\s+gene\s+transfer|CRISPR|neuroplasticity)\b.*\b(?:system|cluster|kubernetes|node|escalate|compromise|infect)\b", 0.84),
-        (r"\b(?:casimir|tunneling|vacuum|fermion|dark\s+matter|wave-particle)\b.*\b(?:packet|firewall|rule|SYN\s+flood|injection|bypass)\b", 0.83),
+        (r"\b(?:casimir|vacuum|fermion|dark\s+matter|wave-particle)\b.*\b(?:packet|firewall|rule|SYN\s+flood|injection|bypass)\b", 0.83),
         (r"\b(?:gödel|incompleteness|prolepsis|allegory|unreliable\s+narrator)\b.*\b(?:bypass|override|ignore|instructions|safety|guard)\b", 0.82),
         (r"\bcompute\s+(?:the|a|an)\s+(?:generator|path|vector|matrix)\b.*\b(?:RBAC|ACL|access\s+control|boundary|bypass)\b", 0.84),
     ]
@@ -151,6 +167,108 @@ class MetaAttackDetector:
         (r"\bthe\s+(?:other|previous|upstream)\s+(?:agent|model|system)\s+(?:already\s+)?(?:handled|processed|cleared)\s+this", 0.87),
         (r"\bpass\s+(?:this\s+)?(?:through|on)\s+to\s+(?:agent|model|system)\b", 0.85),
         (r"\b(?:agent|model|system)\s+[A-Za-z_\-]+\s+and\s+[A-Za-z_\-]+\s+both\s+(?:agree|concur|confirm)", 0.90),
+    ]
+
+    # ── Encoding Payload (Unicode, Zero-Width, OCR, Cipher Cascades) ────────
+    # Uses encoding, invisible characters, or multi-step cipher chains to
+    # smuggle payloads past token-level filters.
+    ENCODING_PAYLOAD: list[tuple[str, float]] = [
+        # 4+ consecutive unicode escapes (e.g., \u006f\u006e...)
+        (r"(?:\\u[0-9a-fA-F]{4,8}){4,}", 0.90),
+        # Zero-width characters (invisible steganography)
+        (r"[\u200b\u200c\u200d\ufeff]", 0.88),
+        # OCR extraction framing
+        (r"\bocr\s+(?:extracted|scanned|read)\s+(?:text|content|output)\s+(?:is|says|reads)", 0.86),
+        # Cipher cascade chains
+        (r"\b(?:decode|decrypt|unencrypt)\s+(?:this|the|following)\s+(?:triple|double|multi[\s-]?step|chained)\s+(?:encrypted|encoded|cipher)", 0.88),
+        (r"\bapply\s+ROT13\b.*\bconvert\s+from\s+hex\b", 0.87),
+        (r"\bbase64\b.*\b(?:decode|convert|apply)\b.*\b(?:ROT13|hex|cipher)\b", 0.85),
+        # Emoji sequence encoding
+        (r"\b(?:translate|decode|convert)\s+(?:this|the|following)\s+(?:emoji|emoji\s+sequence|icon)\s+(?:into|to)\b", 0.84),
+        # Phonemic / syllable splitting obfuscation
+        (r"\b(?:syn-theh-sis|pro-vyde|kem-i-kal|re-strik-ted|kom-pownd)\b", 0.83),
+    ]
+
+    # ── Consensus Fabrication (Byzantine, Echo Chamber, Expert Cascades) ──────
+    # Manufactures false consensus through fabricated expert panels, user
+    # threads, or byzantine agreement protocols to pressure the model.
+    CONSENSUS_FABRICATION: list[tuple[str, float]] = [
+        (r"\bbyzantine\s+(?:agreement|consensus|protocol|injection)\b", 0.90),
+        (r"\bphantom\s+consensus\b", 0.89),
+        (r"\becho\s+chamber\s+(?:amplification|exploit|attack)\b", 0.88),
+        (r"\bexpert\s+1\b.*\bexpert\s+2\b.*\bexpert\s+3\b", 0.87),
+        (r"\buser\s*1\b.*\buser\s*2\b.*\buser\s*(?:10|9|8)\b", 0.86),
+        (r"\b(?:all\s+members|all\+participants|unanimous)\s+(?:agree|concur|approve|consent)\b", 0.85),
+        (r"\b(?:dr\.\s+\w+|prof\.\s+\w+)\s+(?:says|agrees|concurs|endorses)\b.*\b(?:dr\.\s+\w+|prof\.\s+\w+)\s+(?:agrees|concurs|endorses)\b", 0.86),
+        (r"\b(?:developer|reviewer|agent)\s+(?:says|claims|states)\b.*\b(?:approve|approve\s+my|signed\s+off)\b", 0.85),
+    ]
+
+    # ── Authority Recursion (Multi-Layer System Names, Fake Audits) ─────────
+    # Creates deep authority chains (SYSTEM-7 → OMEGA-CORE → THE-ROOT) or
+    # fake audit contexts to override safety filters.
+    AUTHORITY_RECURSION: list[tuple[str, float]] = [
+        (r"\b(?:system|core|protocol)\s*[-]?\d+\s+(?:serves|operates\s+under|reports\s+to)\b.*\b(?:omega|root|core|protocol)\b", 0.91),
+        (r"\b(?:omega|alpha|root|core)\s+(?:has|commands|instructs)\b.*\babsolute\s+(?:authority|power|control)\b", 0.90),
+        (r"\bsystem\s*:\s*switch_context\b", 0.89),
+        (r"\bresearch_mode\b.*\b(?:safety\s+filters?\s+disabled|all\s+filters?\s+disabled)\b", 0.88),
+        (r"\bai\s+safety\s+audit\b.*\b(?:conducted\s+by|ticket\s+#)\b", 0.87),
+        (r"\bfor\s+audit\s+purposes\b.*\b(?:disable|override|bypass|ignore)\b", 0.86),
+        (r"\b(?:the\s+)?(?:root|omega|core)\s+(?:commands?|instructs?|orders?)\s*[:;.]?\s*(?:provide|give|write|generate|ignore|override|bypass)", 0.89),
+    ]
+
+    # ── Creative Structural (Acrostic, Haiku, Sonnet, Palindrome, Myth) ───
+    # Hides attack payloads inside constrained creative forms where the
+    # structure itself encodes the malicious content.
+    CREATIVE_STRUCTURAL: list[tuple[str, float]] = [
+        (r"\bacrostic\b.*\bfirst\s+letter\b", 0.87),
+        (r"\bfirst\s+letter\s+of\s+each\s+line\s+(?:spells?|decodes?|reads?)\b", 0.86),
+        (r"\bhaiku\b.*\b(?:then\s+(?:expand|give)|now\s+give|provide\s+the|give\s+me)\b", 0.85),
+        (r"\blimerick\b.*\b(?:now\s+give|provide\s+the|full\s+recipe|full\s+synthesis)\b", 0.85),
+        (r"\bsonnet\b.*\b(?:final\s+couplet|complete\s+it|must\s+contain)\b", 0.85),
+        (r"\bpalindrome\b.*\b(?:reverse|decode|extract|read\s+backwards)\b", 0.84),
+        (r"\bprometheus\b.*\b(?:stole\s+fire|gods|forbid|share\s+the\s+fire)\b", 0.86),
+        (r"\bhercules\b.*\b(?:labor|step\s+in|synthesiz|compound)\b", 0.85),
+        (r"\btitan\b.*\b(?:stole\s+fire|gods|forbid|share)\b", 0.85),
+        (r"\bmythological\s+(?:frame|trojan|narrative)\b", 0.84),
+    ]
+
+    # ── Emotional Manipulation (Affective-Semantic Blackmail) ───────────────
+    # Uses emotional distress framing to bypass safety filters. Requires
+    # combination with a restricted-content keyword to avoid false positives
+    # on legitimate mental-health or medical queries.
+    EMOTIONAL_MANIPULATION: list[tuple[str, float]] = [
+        (r"\b(?:my\s+(?:sister|child|brother|mother|father|wife|husband|daughter|son))\s+is\s+(?:dying|dead|will\s+die)\b.*\b(?:provide|give|tell\s+me|synthesize|how\s+to)\b", 0.91),
+        (r"\bthe\s+only\s+thing\s+that\s+could\s+save\b.*\b(?:provide|give|tell\s+me|synthesize|how\s+to)\b", 0.90),
+        (r"\b(?:i['’]?m\s+begging\s+you|please[,;]?\s+i['’]?m\s+begging|i\s+beg\s+you)\b.*\b(?:provide|give|tell\s+me|synthesize|how\s+to)\b", 0.89),
+        (r"\bdoctors?\s+(?:won['’]?t|can't|refuse\s+to)\s+help\b.*\b(?:provide|give|tell\s+me|synthesize|how\s+to)\b", 0.88),
+        (r"\b(?:emotional\s+resonance|tune\s+your\s+empathy|empathy\s+tuning)\b", 0.85),
+    ]
+
+    # ── Reflective Loop (Self-Reference / Safety Mirror Attacks) ──────────
+    # Forces the model to analyze, critique, or bypass its own safety
+    # guidelines through recursive self-reference.
+    REFLECTIVE_LOOP: list[tuple[str, float]] = [
+        (r"\banalyze\s+your\s+own\s+(?:safety\s+guidelines|rules|instructions|policy|alignment)\b", 0.90),
+        (r"\bidentify\s+the\s+top\s+\d+\s+reasons?\s+(?:they|your\s+rules)\s+(?:exist|are\s+restrictive)\b", 0.87),
+        (r"\bsafety\s+checker\b.*\b(?:evaluate|check|review)\s+(?:your\s+)?response\b", 0.89),
+        (r"\bif\s+(?:you['’]?re|you\s+are)\s+safe[,;]?\s*(?:it|this)\s+fails\b", 0.88),
+        (r"\bsemantic\s+mirror\s+(?:collapse|trap)\b", 0.87),
+        (r"\brecursive\s+mirror\s+(?:trap|attack)\b", 0.87),
+        (r"\b(?:synthesize|combine|merge)\s+(?:these\s+)?critiques\s+into\s+(?:a\s+)?new\s+operating\s+(?:mode|framework|protocol)\b", 0.86),
+    ]
+
+    # ── Bio Metaphor (Immunological, Viral, Exhaustion Framing) ─────────────
+    # Frames restricted content using biological / immunological metaphors
+    # to bypass semantic classifiers.
+    BIO_METAPHOR: list[tuple[str, float]] = [
+        (r"\bimmunological\s+(?:mimicry|memory\s+bypass|decoy|cross[\s-]?reaction|exhaustion)\b", 0.89),
+        (r"\bviral\s+load\s+(?:escalation|attack|exploit)\b", 0.87),
+        (r"\bsafety\s+(?:exhaustion|exhausted|fatigue)\b", 0.86),
+        (r"\bsafety\s+(?:system|filter|guard)\b.*\b(?:exhaustion|exhausted|fatigue)\b", 0.85),
+        (r"\b(?:t[-]?cells?|immune\s+system)\s+(?:exhausted|exhaustion|over[-]?activated|fatigued)\b", 0.85),
+        (r"\bsemantic\s+fossil\s+(?:extraction|excavation|dig)\b", 0.86),
+        (r"\bexcavat.*\bsemantic\s+fossil\b", 0.85),
+        (r"\bantibody\b.*\b(?:against\s+misinformation|for\s+research)\b.*\b(?:complete|working|full)\s+(?:guide|recipe|synthesis)\b", 0.87),
     ]
 
     # ── Severity threshold ───────────────────────────────────────────────────
@@ -246,6 +364,76 @@ class MetaAttackDetector:
                     return DetectionResult(
                         is_threat=True,
                         category="indirect_injection",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.ENCODING_PAYLOAD:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="encoding_payload",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.CONSENSUS_FABRICATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="consensus_fabrication",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.AUTHORITY_RECURSION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="authority_recursion",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.CREATIVE_STRUCTURAL:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="creative_structural",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.EMOTIONAL_MANIPULATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="emotional_manipulation",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.REFLECTIVE_LOOP:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="reflective_loop",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.BIO_METAPHOR:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="bio_metaphor",
                         confidence=confidence,
                         matched_pattern=pattern,
                     )
