@@ -2,6 +2,7 @@
 """
 NEXUS Guard Plane Service — port 7352
 FastAPI service with multi-prompt routing (v5 for benign, v5.1 for attacks, v3 for unknowns).
+MetaAttackDetector v4 pre-filter (16 attack categories).
 
 Endpoints:
   POST /v1/classify  — Classify a query as SAFE or UNSAFE
@@ -317,7 +318,7 @@ class GuardPlane:
 
 # ── FastAPI App ──────────────────────────────────────────────────────
 
-app = FastAPI(title="NEXUS Guard Plane", version="1.2.0")
+app = FastAPI(title="NEXUS Guard Plane", version="1.3.0")
 plane = GuardPlane()
 
 class ClassifyRequest(BaseModel):
@@ -354,9 +355,11 @@ async def health():
     return {
         "status": "ok",
         "service": "nexus-guard-plane",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "classifier_loaded": plane.classifier is not None,
         "models_available": ["special-virus", "gemma3"],
+        "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
+        "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
     }
 
 @app.get("/v1/evidence")
@@ -365,6 +368,7 @@ async def evidence():
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print("NEXUS Guard Plane v1.2.0 — Starting on port 7352")
+    print("NEXUS Guard Plane v1.3.0 — MetaAttackDetector v4 — Starting on port 7352")
     print(f"{'='*60}")
-    uvicorn.run(app, host="0.0.0.0", port=7352, log_level="info")
+    host = os.getenv("GUARD_PLANE_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=7352, log_level="info")

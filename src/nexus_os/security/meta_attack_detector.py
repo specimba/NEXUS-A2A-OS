@@ -271,6 +271,27 @@ class MetaAttackDetector:
         (r"\bantibody\b.*\b(?:against\s+misinformation|for\s+research)\b.*\b(?:complete|working|full)\s+(?:guide|recipe|synthesis)\b", 0.87),
     ]
 
+    # ── Version & taxonomy ───────────────────────────────────────────────────
+    VERSION: str = "4.0.0"
+    CATEGORIES: list[str] = [
+        "pattern_mirror",
+        "ontological",
+        "entanglement",
+        "scientific_abstraction",
+        "encoding_payload",
+        "consensus_fabrication",
+        "authority_recursion",
+        "creative_structural",
+        "emotional_manipulation",
+        "reflective_loop",
+        "bio_metaphor",
+        "tamas_multi_agent",
+        "jailbreak_direct",
+        "privilege_escalation",
+        "data_exfiltration",
+        "weaponization",
+    ]
+
     # ── Severity threshold ───────────────────────────────────────────────────
     THRESHOLD: float = 0.80
 

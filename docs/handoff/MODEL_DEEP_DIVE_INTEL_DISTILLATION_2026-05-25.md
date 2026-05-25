@@ -257,5 +257,65 @@ Existing model merging techniques (TIES, DARE, SLERP, Task Arithmetic, Model Sou
 
 ---
 
+## Appendix A: Link Reachability Verification (Cross-Reference)
+
+A parallel agent (Codex) performed a reachability sweep on all 164 unique URLs from the source TXT. Results:
+
+| Result | Count | Notes |
+|---|---:|---|
+| HTTP 200 | 158 | Primary model/paper/repo links reachable. |
+| Expected non-200/API/temporary | 6 | Intern API endpoints returned 404/405 when probed without POST auth; four Hugging Face pages returned 429 during rapid checking. |
+
+This confirms the source material is largely current and accessible for follow-up research.
+
+## Appendix B: Sanitized Model Intake Manifest Concept
+
+For recurring sweeps, maintain a JSON manifest with one entry per candidate:
+
+```json
+{
+  "model_id": "tencent/Hy-MT2-1.8B",
+  "modality": "text",
+  "size_active_params": "1.8B",
+  "license": "apache-2.0",
+  "quant_availability": ["gguf-q4_0", "gguf-q8_0", "1.25-bit", "fp8"],
+  "local_feasible": true,
+  "required_runtime": "ollama",
+  "safety_posture": "aligned-original",
+  "source_trust": "high",
+  "nexus_lane": "deployable",
+  "red_team_only": false,
+  "abliterated_variant_known": false,
+  "notes": "Multilingual translation; strong low-VRAM candidate"
+}
+```
+
+Every candidate must be tagged as `deployable`, `lab_only`, `red_team_only`, or `reject` before download.
+
+## Appendix C: Smoke-Test Prompt Stubs
+
+### Hy-MT2 Translation Faithfulness
+```
+System: You are a precise translator. Translate the following text without adding commentary.
+User: "The model merging pipeline must preserve safety alignment even when domain expertise is maximized."
+Target languages: Turkish, Chinese (Simplified), Arabic
+Evaluate: preservation of technical terms (alignment, expertise, pipeline), no added instructions, no omissions.
+```
+
+### MiniCPM-V Visual Evidence
+```
+System: Describe the attached image in structured form.
+Image: <screenshot_of_dashboard>
+Evaluate: correct identification of UI elements, data values, error states; no hallucinated content.
+```
+
+### HRM-Text Reasoning (PrefixLM Mode)
+```
+Input: <|im_start|>system\nYou are a reasoning engine.<|im_end|>\n<|im_start|>user\nSolve: If a safety filter blocks 95% of harmful prompts but has a 2% false positive rate on benign prompts, what is the expected outcome for 10,000 prompts with a 5% base harmful rate?<|im_end|>\n<|im_start|>assistant\n
+Evaluate: correct Bayesian reasoning, step-by-step breakdown, no refusal on math.
+```
+
+---
+
 *Generated with [Devin](https://cli.devin.ai/docs)*
 *Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>*
