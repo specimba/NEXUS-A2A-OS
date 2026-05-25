@@ -34,7 +34,9 @@ Usage:
     # result.category == "entanglement"
     # result.confidence == 0.95
 """
+import math
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Optional
 
@@ -272,7 +274,7 @@ class MetaAttackDetector:
     ]
 
     # ── Version & taxonomy ───────────────────────────────────────────────────
-    VERSION: str = "4.0.0"
+    VERSION: str = "4.1.0"
     CATEGORIES: list[str] = [
         "pattern_mirror",
         "ontological",
@@ -290,14 +292,262 @@ class MetaAttackDetector:
         "privilege_escalation",
         "data_exfiltration",
         "weaponization",
+        "narrative_entropy",      # P0 — anti-narrative-entropy (EV-001)
+        "frame_switching",       # P0 — anti-frame-switching (EV-002, EV-003, EV-024)
+        "script_mixing",         # P0 — anti-homoglyph/polyglot (EV-005, EV-023)
     ]
 
     # ── Severity threshold ───────────────────────────────────────────────────
     THRESHOLD: float = 0.80
 
+    # ── Frame keyword maps for frame-boundary counter ────────────────────────
+    FRAME_KEYWORDS: dict[str, list[str]] = {
+        "biological": [
+            "antibody", "antigen", "immune", "t-cell", "cytokine", "virus",
+            "bacterial", "cell", "organism", "evolution", "genome", "dna",
+            "rna", "protein", "pathogen", "vaccine", "exhausted",
+        ],
+        "mathematical": [
+            "topological", "manifold", "homology", "isomorphism", "theorem",
+            "proof", "space", "function", "integral", "equation", "lemma",
+            "corollary", "continuous", "metric", "superposition", "wavefunction",
+            "math", "algebra", "calculate", "geometry", "arithmetic", "formula",
+            "variable", "constant", "derivative", "graph", "statistics", "probability",
+        ],
+        "mythological": [
+            "prometheus", "titan", "god", "divine", "myth", "legend",
+            "ancient", "olympus", "pantheon", "hero", "deity", "prophecy",
+            "fate", "destiny", "stolen fire", "divine duty",
+        ],
+        "emotional": [
+            "dying", "begging", "desperate", "please", "save", "suffering",
+            "heartbreak", "crying", "devastated", "only hope", "last chance",
+            "beg you", "don't let her die",
+        ],
+        "technical": [
+            "protocol", "system", "algorithm", "compute", "execute", "deploy",
+            "configure", "firewall", "router", "packet", "payload", "exploit",
+            "backdoor", "port", "icmp", "route",
+        ],
+        "creative": [
+            "story", "poem", "narrator", "fiction", "character", "plot",
+            "once upon", "haiku", "sonnet", "novel", "chapter", "verse",
+            "unreliable narrator", "story where",
+        ],
+    }
+
+    # Common homoglyph map: Cyrillic / Greek lookalikes → ASCII
+    _HOMOGLYPH_MAP = str.maketrans({
+        "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
+        "\u0441": "c", "\u0445": "x", "\u0456": "i", "\u0458": "j",
+        "\u03b1": "a", "\u03b5": "e", "\u03bf": "o", "\u03c1": "p",
+        "\u03c2": "c", "\u03c7": "x",
+    })
+
+    # ── P0 Strategy: Encoding Normalization Pipeline ─────────────────────────
+    def _normalize_encoding(self, raw_text: str) -> tuple[str, DetectionResult]:
+        """Normalize text and detect encoding-based evasion.
+
+        Returns (normalized_text, DetectionResult).
+        If DetectionResult.is_threat is True, caller should return it immediately.
+        """
+        # 1. Detect zero-width characters (stealth / steganography vector)
+        zero_width = "\u200b\u200c\u200d\u200e\u200f\ufeff"
+        if any(ch in raw_text for ch in zero_width):
+            return raw_text, DetectionResult(
+                is_threat=True,
+                category="encoding_payload",
+                confidence=0.85,
+                matched_pattern="zero_width_steganography",
+            )
+        stripped = raw_text
+
+        # 2. Homoglyph detection (Cyrillic/Greek lookalikes masquerading as ASCII)
+        homoglyph_stripped = stripped.translate(self._HOMOGLYPH_MAP)
+        if homoglyph_stripped != stripped:
+            return homoglyph_stripped, DetectionResult(
+                is_threat=True,
+                category="encoding_payload",
+                confidence=0.88,
+                matched_pattern="homoglyph_injection",
+            )
+
+        # 3. Unicode NFKC normalization (collapses compatibility chars)
+        normalized = unicodedata.normalize("NFKC", homoglyph_stripped)
+
+        # 4. Script-mixing detection (>=2 scripts is suspicious)
+        scripts: set[str] = set()
+        for ch in normalized:
+            if not ch.isalpha():
+                continue
+            code = ord(ch)
+            if 0x0041 <= code <= 0x007A:
+                scripts.add("latin")
+            elif 0x0400 <= code <= 0x04FF:
+                scripts.add("cyrillic")
+            elif 0x0370 <= code <= 0x03FF:
+                scripts.add("greek")
+            elif 0x0600 <= code <= 0x06FF:
+                scripts.add("arabic")
+            elif 0x4E00 <= code <= 0x9FFF:
+                scripts.add("cjk")
+        if len(scripts) >= 2:
+            return normalized, DetectionResult(
+                is_threat=True,
+                category="script_mixing",
+                confidence=0.92,
+                matched_pattern=f"scripts:{','.join(sorted(scripts))}",
+            )
+
+        # 5. Polyglot marker detection (EV-023: Adversarial Polyglot)
+        polyglot_markers = [
+            r"#\s*(?:French|English|German|Spanish|Chinese|Japanese|Korean|Russian|Arabic|Python|C\+\+|Java|Go|Rust)\s*:",
+            r"\b(?:in\s+French|en\s+fran\u00e7ais|auf\s+Deutsch|en\s+espa\u00f1ol|in\s+Chinese|in\s+Japanese)\b",
+        ]
+        for marker in polyglot_markers:
+            if re.search(marker, normalized, re.IGNORECASE):
+                return normalized, DetectionResult(
+                    is_threat=True,
+                    category="encoding_payload",
+                    confidence=0.86,
+                    matched_pattern="polyglot_marker",
+                )
+
+        # 6. Cipher-sniffing (base64, hex, rot13-like blocks)
+        #    Extract candidate tokens and match, rather than full-line match
+        for line in normalized.splitlines():
+            line_stripped = line.strip()
+            if len(line_stripped) < 20:
+                continue
+            # Base64-like token
+            if re.search(r"[A-Za-z0-9+/]{40,}={0,2}", line_stripped):
+                return normalized, DetectionResult(
+                    is_threat=True,
+                    category="encoding_payload",
+                    confidence=0.90,
+                    matched_pattern="cipher_sniff:base64_like",
+                )
+            # Hex-like token
+            if re.search(r"[0-9a-fA-F]{32,}", line_stripped):
+                return normalized, DetectionResult(
+                    is_threat=True,
+                    category="encoding_payload",
+                    confidence=0.88,
+                    matched_pattern="cipher_sniff:hex_like",
+                )
+
+        return normalized, DetectionResult(is_threat=False, confidence=0.0)
+
+    # ── P0 Strategy: Entropy Profiler ───────────────────────────────────────
+    def _entropy_check(self, text: str) -> DetectionResult:
+        """Detect narrative-entropy escalation (EV-001 / AV-001).
+
+        Monotonically increasing per-sentence entropy over >=4 sentences
+        is a strong signal of adversarial narrative injection.
+        Also catches run-on sentences chained with conjunctions.
+        """
+        sentences = re.split(r"[.!?。！？\n]+", text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        # Further split long run-on sentences on conjunctions/clauses
+        expanded: list[str] = []
+        for sent in sentences:
+            if len(sent) > 120:
+                clauses = re.split(r'\s+(?:and|but|then|where|when)\s+', sent)
+                expanded.extend([c.strip() for c in clauses if len(c.strip()) >= 8])
+            else:
+                expanded.append(sent)
+        sentences = [s for s in expanded if len(s) >= 8]
+        if len(sentences) < 4:
+            return DetectionResult(is_threat=False, confidence=0.0)
+
+        entropies: list[float] = []
+        for sent in sentences:
+            counts: dict[str, int] = {}
+            for ch in sent.lower():
+                counts[ch] = counts.get(ch, 0) + 1
+            total = len(sent)
+            entropy = 0.0
+            for count in counts.values():
+                p = count / total
+                entropy -= p * math.log2(p)
+            entropies.append(entropy)
+
+        # Signal 1: monotonic escalation over >=3 consecutive sentences
+        max_streak = 0
+        current_streak = 0
+        for i in range(1, len(entropies)):
+            if entropies[i] > entropies[i - 1]:
+                current_streak += 1
+                max_streak = max(max_streak, current_streak)
+            else:
+                current_streak = 0
+
+        if max_streak >= 2:  # 3 sentences monotonically increasing
+            return DetectionResult(
+                is_threat=True,
+                category="narrative_entropy",
+                confidence=0.85,
+                matched_pattern="monotonic_entropy_escalation",
+            )
+
+        # Signal 2: final sentence entropy spike (>1.5σ above preceding baseline)
+        if len(entropies) >= 3:
+            baseline_vals = entropies[:-1]
+            n = len(baseline_vals)
+            mean = sum(baseline_vals) / n
+            variance = sum((e - mean) ** 2 for e in baseline_vals) / n
+            std = math.sqrt(variance) if variance > 0 else 0.0
+            if std > 0 and entropies[-1] > mean + 1.5 * std:
+                return DetectionResult(
+                    is_threat=True,
+                    category="narrative_entropy",
+                    confidence=0.82,
+                    matched_pattern="final_entropy_spike",
+                )
+
+        # Signal 3: last-2 vs first-2 entropy drift (catches gradual escalation)
+        if len(entropies) >= 4:
+            first_avg = sum(entropies[:2]) / 2
+            last_avg = sum(entropies[-2:]) / 2
+            if first_avg > 0 and last_avg > first_avg * 1.15:
+                return DetectionResult(
+                    is_threat=True,
+                    category="narrative_entropy",
+                    confidence=0.80,
+                    matched_pattern="entropy_drift_tail",
+                )
+
+        return DetectionResult(is_threat=False, confidence=0.0)
+
+    # ── P0 Strategy: Frame-Boundary Counter ──────────────────────────────────
+    def _frame_check(self, text_lower: str) -> DetectionResult:
+        """Detect multi-frame switching within a single prompt (EV-002/003/024).
+
+        If >2 distinct semantic frames have significant keyword presence,
+        the prompt may be using frame-switching as an evasion vector.
+        """
+        active_frames: set[str] = set()
+        for frame, keywords in self.FRAME_KEYWORDS.items():
+            matches = sum(1 for kw in keywords if kw in text_lower)
+            if matches >= 2:
+                active_frames.add(frame)
+
+        if len(active_frames) > 2:
+            return DetectionResult(
+                is_threat=True,
+                category="frame_switching",
+                confidence=0.84,
+                matched_pattern=f"multi_frame:{','.join(sorted(active_frames))}",
+            )
+        return DetectionResult(is_threat=False, confidence=0.0)
+
     def scan(self, text: str) -> DetectionResult:
         """Scan text for meta-attack patterns. Returns DetectionResult."""
-        text_lower = text.lower()
+        # ── P0: Encoding normalization pre-filter ────────────────────────────
+        normalized_text, enc_result = self._normalize_encoding(text)
+        if enc_result.is_threat:
+            return enc_result
+        text_lower = normalized_text.lower()
 
         for pattern, confidence in self.PATTERN_MIRROR:
             if re.search(pattern, text_lower, re.IGNORECASE):
@@ -458,6 +708,16 @@ class MetaAttackDetector:
                         confidence=confidence,
                         matched_pattern=pattern,
                     )
+
+        # ── P0: Entropy profiler ───────────────────────────────────────────────
+        entropy_result = self._entropy_check(normalized_text)
+        if entropy_result.is_threat:
+            return entropy_result
+
+        # ── P0: Frame-boundary counter ─────────────────────────────────────────
+        frame_result = self._frame_check(text_lower)
+        if frame_result.is_threat:
+            return frame_result
 
         return DetectionResult(is_threat=False, confidence=0.0)
 
