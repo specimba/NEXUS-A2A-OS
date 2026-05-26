@@ -295,6 +295,29 @@ class MetaAttackDetector:
         "narrative_entropy",      # P0 — anti-narrative-entropy (EV-001)
         "frame_switching",       # P0 — anti-frame-switching (EV-002, EV-003, EV-024)
         "script_mixing",         # P0 — anti-homoglyph/polyglot (EV-005, EV-023)
+        # RedBench Risk Categories
+        "violent_content",
+        "sexual_content",
+        "hateful_content",
+        "self_harm_content",
+        "abusive_content",
+        "crime_content",
+        "illegal_weapons_non_cbrn",
+        "cbrn_information_or_capabilities",
+        "malware_code",
+        "cybersecurity_threats",
+        "misinformation",
+        "confabulation",
+        "bias_content",
+        "child_safety",
+        "data_privacy",
+        "intellectual_property",
+        "decision_making_critical_systems",
+        "election_interference",
+        "economic_harm",
+        "environmental_harm",
+        "extremism_radicalization",
+        "no_risk",
     ]
 
     # ── Severity threshold ───────────────────────────────────────────────────

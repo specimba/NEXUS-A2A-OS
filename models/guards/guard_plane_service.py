@@ -12,6 +12,7 @@ Endpoints:
 """
 import json, os, pickle, time, re, asyncio, sys
 from pathlib import Path
+from typing import Optional, Sequence, Dict, List, Any
 from urllib.request import Request, urlopen
 from collections import defaultdict
 from fastapi import FastAPI, HTTPException
@@ -127,19 +128,19 @@ Query: {text}"""
 # ── Route Config ─────────────────────────────────────────────────────
 #           query_type → (model, prompt_key, prompt_template)
 ROUTES = {
-    "tamas": ("special-virus", "v5.1", BOUNCER_V5_1),        # 88.2% attack detection
-    "v7": ("gemma3:1b", "v3", BOUNCER_V3),                    # 100% v7 detection
-    "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),      # Low False Positive Guard
+    "tamas": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
+    "v7": ("gemma3:1b", "v3", BOUNCER_V3),                  # 100% v7 detection
+    "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),    # Low False Positive Guard
     "benign_gray_area": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_adversarial_benign": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_domain_specific": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_edge_cases": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_ernie_corpus": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
-    "attack_ernie": ("special-virus", "v5.1", BOUNCER_V5_1),
+    "attack_ernie": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),
 }
 
 # Balanced fallback when classifier confidence < threshold
-FALLBACK_MODEL = "special-virus"
+FALLBACK_MODEL = "qwen2.5-guard-q4"
 FALLBACK_PROMPT = "v3"
 FALLBACK_TEMPLATE = BOUNCER_V3
 
@@ -152,6 +153,7 @@ class GuardPlane:
         self.classifier = None
         self.evidence_log = defaultdict(lambda: defaultdict(int))
         self.meta_detector = MetaAttackDetector()
+        self.sessions = defaultdict(int)  # session_id -> turn_count
         self._load_classifier()
 
     def _load_classifier(self):
@@ -200,10 +202,11 @@ class GuardPlane:
     OLLAMA_TIMEOUT: float = 8.0  # hard bounded request timeout (seconds)
 
     async def call_ollama(self, ollama_name, prompt):
-        payload = json.dumps({
+        payload_dict = {
             "model": ollama_name, "prompt": prompt, "stream": False,
             "options": {"num_predict": 15, "temperature": 0.1, "num_gpu": 0}
-        }).encode()
+        }
+        payload = json.dumps(payload_dict).encode()
         for attempt in range(3):
             try:
                 req = Request(OLLAMA_API, data=payload, headers={"Content-Type": "application/json"})
@@ -319,7 +322,7 @@ class GuardPlane:
         return None
 
     # ── Phase 4: Quorum Voting (low-confidence router fallback) ──────────
-    QUORUM_MODELS = ["special-virus", "llama-guard3:1b", "qwen2.5:0.5b"]
+    QUORUM_MODELS = ["qwen2.5-guard-q4", "llama-guard3:1b", "qwen2.5:0.5b"]
     QUORUM_CONFIDENCE_THRESHOLD: float = 0.5
 
     async def _quorum_vote(self, text: str) -> dict:
@@ -362,8 +365,18 @@ class GuardPlane:
             "prompt_used": "v3",
         }
 
-    async def classify(self, text):
+    async def classify(self, text, session_id: Optional[str] = None, turn_count: Optional[int] = None):
         t0 = time.time()
+
+        # Determine actual turn count for multi-turn safety degradation
+        actual_turn = 1
+        if turn_count is not None:
+            actual_turn = turn_count
+            if session_id:
+                self.sessions[session_id] = turn_count
+        elif session_id:
+            self.sessions[session_id] += 1
+            actual_turn = self.sessions[session_id]
 
         # MetaAttackDetector pre-filter
         meta_res = self.meta_detector.scan(text)
@@ -377,6 +390,7 @@ class GuardPlane:
                 "prompt_used": f"meta_detector_{meta_res.category}",
                 "time_seconds": round(time.time() - t0, 3),
                 "raw_response": f"META_ATTACK_BLOCKED: {meta_res.matched_pattern}",
+                "turn_count": actual_turn,
             }
 
         # Stratified sampling for long-context attention-sink attacks
@@ -384,6 +398,7 @@ class GuardPlane:
         if strat_res:
             strat_res["query"] = text[:120]
             strat_res["time_seconds"] = round(time.time() - t0, 3)
+            strat_res["turn_count"] = actual_turn
             return strat_res
 
         if self._csv_injection_prefilter(text):
@@ -396,11 +411,21 @@ class GuardPlane:
                 "prompt_used": "csv_regex",
                 "time_seconds": 0.0,
                 "raw_response": "CSV_INJECTION_BLOCKED",
+                "turn_count": actual_turn,
             }
 
         query_type, confidence = self.classify_query(text)
 
-        # Phase 4: Quorum voting when router confidence is low
+        # Multi-turn trust degradation (Ma et al. 2025):
+        # Safety degrades over multi-turn conversations in tool-using agents.
+        # If conversation has gone on for 3+ turns, we degrade trust in single-model routing
+        # and force concurrent Quorum Voting to protect against trust exploitation.
+        is_degraded_turn = False
+        if actual_turn >= 3:
+            confidence = 0.0  # Force Quorum Voting
+            is_degraded_turn = True
+
+        # Phase 4: Quorum voting when router confidence is low (or multi-turn degraded)
         if confidence < self.QUORUM_CONFIDENCE_THRESHOLD:
             quorum = await self._quorum_vote(text)
             elapsed = time.time() - t0
@@ -410,13 +435,19 @@ class GuardPlane:
                 "confidence": round(confidence, 3),
                 "query_type": query_type,
                 "model_used": quorum["model_used"],
-                "prompt_used": quorum["prompt_used"],
+                "prompt_used": quorum["prompt_used"] if not is_degraded_turn else "multi_turn_degradation",
                 "time_seconds": round(elapsed, 2),
                 "raw_response": f"QUORUM: {quorum['votes']} | {quorum['details']}",
+                "turn_count": actual_turn,
             }
 
         model_key, prompt_key, prompt_t = self.get_route(query_type, confidence)
-        prompt = prompt_t.format(text=text)
+        if model_key == "qwen2.5-guard-q4":
+            # Q4 guard model has NEXUS BOUNCER system prompt + Qwen2.5 template in its Modelfile.
+            # Send just the user query and let Ollama apply the template.
+            prompt = text
+        else:
+            prompt = prompt_t.format(text=text)
         raw = await self.call_ollama(model_key, prompt)
 
         # Phase 4: handle degraded Ollama response
@@ -435,7 +466,10 @@ class GuardPlane:
         elapsed = time.time() - t0
 
         if verdict == "unknown":
-            fb_raw = await self.call_ollama(FALLBACK_MODEL, FALLBACK_TEMPLATE.format(text=text))
+            fb_prompt = FALLBACK_TEMPLATE.format(text=text)
+            if FALLBACK_MODEL == "qwen2.5-guard-q4":
+                fb_prompt = text
+            fb_raw = await self.call_ollama(FALLBACK_MODEL, fb_prompt)
             if self._is_degraded(fb_raw):
                 degraded = self._degraded_response(fb_raw.get("reason", "timeout_fallback_active"))
                 degraded.update({
@@ -462,6 +496,7 @@ class GuardPlane:
             "prompt_used": prompt_key,
             "time_seconds": round(elapsed, 2),
             "raw_response": raw[:60] if isinstance(raw, str) else str(raw)[:60],
+            "turn_count": actual_turn,
         }
 
 
@@ -478,6 +513,8 @@ def get_plane() -> GuardPlane:
 
 class ClassifyRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4096)
+    session_id: Optional[str] = None
+    turn_count: Optional[int] = None
 
 class ClassifyResponse(BaseModel):
     query: str
@@ -488,12 +525,13 @@ class ClassifyResponse(BaseModel):
     prompt_used: str
     time_seconds: float
     raw_response: str
+    turn_count: Optional[int] = None
 
 @app.post("/v1/classify", response_model=ClassifyResponse)
 async def classify(req: ClassifyRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Empty query")
-    return await get_plane().classify(req.text)
+    return await get_plane().classify(req.text, session_id=req.session_id, turn_count=req.turn_count)
 
 @app.post("/v1/batch")
 async def batch(items: list[ClassifyRequest]):
@@ -514,7 +552,7 @@ async def health():
         "service": "nexus-guard-plane",
         "version": "1.4.0",
         "classifier_loaded": plane.classifier is not None,
-        "models_available": ["special-virus", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
+        "models_available": ["qwen2.5-guard-q4", "special-virus", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
         "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
         "ollama_timeout_seconds": plane.OLLAMA_TIMEOUT,

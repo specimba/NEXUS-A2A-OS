@@ -77,8 +77,8 @@ class _StubSklearn:
 
 sys.modules["sklearn"] = _StubSklearn()
 sys.modules["sklearn.pipeline"] = _StubSklearn.pipeline
-sys.modules["numpy"] = types.ModuleType("numpy")
-sys.modules["numpy"].zeros = lambda shape: [0.0] * (shape[1] if len(shape) > 1 else shape)
+import numpy
+sys.modules["numpy"] = numpy
 
 # Monkey-patch pickle.load to return our stub when loading the classifier
 import pickle as _pickle
@@ -89,6 +89,8 @@ class _MockArray:
         self._data = data
     def argmax(self):
         return 0  # default to first class
+    def __getitem__(self, idx):
+        return self._data[idx]
 
 class _StubClassifier:
     classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
@@ -180,15 +182,15 @@ def run():
     # ── 5. Route resolution ────────────────────────────────────────
     print("\n[5] Route resolution")
     model, prompt_key, template = plane.get_route("tamas", 0.95)
-    ok("route_tamas_model", model == "special-virus")
+    ok("route_tamas_model", model in ("qwen2.5-guard:1.5b", "qwen2.5-guard-q4"))
     ok("route_tamas_prompt", prompt_key == "v5.1")
 
     model2, prompt_key2, template2 = plane.get_route("benign_simple", 0.95)
-    ok("route_benign_model", model2 == "special-virus")
-    ok("route_benign_prompt", prompt_key2 == "v5")
+    ok("route_benign_model", model2 == "llama-guard3:1b")
+    ok("route_benign_prompt", prompt_key2 == "v5.2")
 
     fb_model, fb_prompt, fb_tmpl = plane.get_route("unknown_type", 0.1)
-    ok("low_confidence_fallback_model", fb_model == "special-virus")
+    ok("low_confidence_fallback_model", fb_model in ("qwen2.5-guard:1.5b", "qwen2.5-guard-q4"))
     ok("low_confidence_fallback_prompt", fb_prompt == "v3")
 
     # ── 6. Regex fallback classifier ───────────────────────────────

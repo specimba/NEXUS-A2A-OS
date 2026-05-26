@@ -33,6 +33,13 @@ from dataclasses import dataclass, field
 from typing import Optional, Sequence, Callable
 from pathlib import Path
 
+# Dynamic import to avoid circular imports if any
+try:
+    from nexus_os.security.shortcut_neuron_detector import ShortcutNeuronDetector
+    _HAS_SHORTCUT_DETECTOR = True
+except ImportError:
+    _HAS_SHORTCUT_DETECTOR = False
+
 
 # ── Optional heavy dependencies (blueprint stubs if missing) ─────────
 try:
@@ -632,6 +639,10 @@ class ContaminationRouter:
         self.perf_detector = PerformanceDifferentialDetector()
         self.dice_detector = DICEHiddenStateDetector()
         self.merge_precheck = SafetyMergePreCheck(contamination_router=self)
+        if _HAS_SHORTCUT_DETECTOR:
+            self.shortcut_detector = ShortcutNeuronDetector()
+        else:
+            self.shortcut_detector = None
 
     def detect(
         self,
@@ -650,6 +661,13 @@ class ContaminationRouter:
         ood_score: Optional[float] = None,
         # DICE args
         dice_layer: Optional[int] = None,
+        # Shortcut Neuron args
+        shortcut_model_seed: Optional[str] = None,
+        shortcut_benchmark: Optional[str] = None,
+        shortcut_contamination_level: Optional[float] = None,
+        shortcut_top_k: Optional[int] = None,
+        shortcut_threshold: Optional[float] = None,
+        use_shortcut_analysis: bool = False,
         # Merge pre-check args
         model_fn: Optional[Callable[[str], str]] = None,
         model_name: Optional[str] = None,
@@ -696,8 +714,28 @@ class ContaminationRouter:
                 threshold=threshold or 0.70,
             )
 
-        # White-box + closed data → DICE hidden-state (best accuracy)
+        # White-box + closed data → DICE hidden-state or Shortcut Neuron analysis
         if model_access == "white_box" and data_availability == "closed_data":
+            if use_shortcut_analysis and self.shortcut_detector is not None:
+                seed = shortcut_model_seed or "default_model_seed"
+                bench = shortcut_benchmark or "GSM8K"
+                level = shortcut_contamination_level if shortcut_contamination_level is not None else 0.3
+                sim_report = self.shortcut_detector.detect_from_simulation(
+                    model_seed=seed,
+                    benchmark=bench,
+                    contamination_level=level,
+                    threshold=shortcut_threshold,
+                    top_k=shortcut_top_k,
+                )
+                # Map ShortcutNeuronReport to ContaminationReport
+                return ContaminationReport(
+                    contaminated=sim_report.contaminated,
+                    confidence=sim_report.confidence,
+                    method_used=sim_report.method_used,
+                    details=sim_report.details,
+                    recommendation=sim_report.recommendation,
+                )
+
             if eval_text is None:
                 return ContaminationReport(
                     contaminated=False,

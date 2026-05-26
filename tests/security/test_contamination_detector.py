@@ -174,7 +174,9 @@ class TestDICEHiddenStateDetector(unittest.TestCase):
     def test_blueprint_runs_without_torch(self):
         report = self.det.detect("What is 2+2?")
         self.assertIn("contamination_probability", report.details)
-        self.assertTrue(report.details["blueprint_mode"])
+        # Check blueprint_mode matches whether torch is actually missing or not
+        from nexus_os.security.contamination_detector import _HAS_TORCH
+        self.assertEqual(report.details["blueprint_mode"], not _HAS_TORCH)
         self.assertIn("blueprint_warning", report.details)
 
     def test_locate_layer_returns_configured(self):
@@ -293,6 +295,19 @@ class TestContaminationRouter(unittest.TestCase):
             eval_text="What is 2+2?",
         )
         self.assertEqual(report.method_used, "dice_hidden_state")
+
+    def test_white_box_shortcut_neuron_analysis(self):
+        report = self.router.detect(
+            model_access="white_box",
+            data_availability="closed_data",
+            use_shortcut_analysis=True,
+            shortcut_model_seed="heavily-contaminated-qwen",
+            shortcut_contamination_level=0.6,
+            shortcut_top_k=100,
+        )
+        self.assertEqual(report.method_used, "shortcut_neuron_analysis_simulated")
+        self.assertTrue(report.contaminated)
+        self.assertEqual(report.details["shortcut_neuron_count"], 100)
 
     def test_gray_box_routes_to_min_k(self):
         report = self.router.detect(

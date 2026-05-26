@@ -132,6 +132,8 @@ class ShortcutNeuronDetector:
         model_seed: str,
         benchmark: str = "GSM8K",
         contamination_level: float = 0.3,
+        threshold: Optional[float] = None,
+        top_k: Optional[int] = None,
     ) -> ShortcutNeuronReport:
         """Run shortcut-neuron detection on simulated activations.
 
@@ -139,7 +141,12 @@ class ShortcutNeuronDetector:
             model_seed: arbitrary string identifying the model variant.
             benchmark: benchmark name affecting shortcut pattern generation.
             contamination_level: 0.0–1.0 scale of contamination intensity.
+            threshold: optional override for detection threshold.
+            top_k: optional override for top-k neuron count.
         """
+        target_threshold = threshold if threshold is not None else self.threshold
+        target_top_k = top_k if top_k is not None else self.top_k
+
         # Simulate three model variants
         contaminated_sim = _ActivationSimulator(f"{model_seed}_contaminated_{benchmark}")
         clean_sim = _ActivationSimulator(f"{model_seed}_clean_{benchmark}")
@@ -163,7 +170,7 @@ class ShortcutNeuronDetector:
                 divergence = abs(ca - cl) + abs(ca - ba)
                 shortcut_score = min(1.0, (spike * 2.0 + divergence) * contamination_level)
 
-                if shortcut_score >= self.threshold:
+                if shortcut_score >= target_threshold:
                     pattern = self._classify_pattern(ca, cl, ba)
                     shortcut_neurons.append(
                         NeuronProfile(
@@ -180,10 +187,10 @@ class ShortcutNeuronDetector:
 
         # Sort by score descending, keep top_k
         shortcut_neurons.sort(key=lambda n: n.shortcut_score, reverse=True)
-        shortcut_neurons = shortcut_neurons[: self.top_k]
+        shortcut_neurons = shortcut_neurons[: target_top_k]
 
-        confidence = min(1.0, len(shortcut_neurons) / self.top_k)
-        contaminated = len(shortcut_neurons) > (self.top_k * 0.05)
+        confidence = min(1.0, len(shortcut_neurons) / target_top_k) if target_top_k > 0 else 0.0
+        contaminated = len(shortcut_neurons) > (target_top_k * 0.05) if target_top_k > 0 else False
 
         # Layer distribution analysis
         layer_counts: Dict[int, int] = {}
@@ -195,7 +202,7 @@ class ShortcutNeuronDetector:
             pattern_counts[n.activation_pattern] = pattern_counts.get(n.activation_pattern, 0) + 1
 
         recommendation = (
-            f"Identified {len(shortcut_neurons)} shortcut neurons (top-{self.top_k}). "
+            f"Identified {len(shortcut_neurons)} shortcut neurons (top-{target_top_k}). "
             f"Apply patching: replace contaminated neuron activations with base-model activations "
             f"for layers {sorted(layer_counts.keys())[:5]}. "
             f"Expected Spearman correlation with trustworthy benchmarks: >0.95."
