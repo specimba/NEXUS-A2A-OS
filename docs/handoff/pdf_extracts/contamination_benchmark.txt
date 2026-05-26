@@ -1,0 +1,1402 @@
+
+--- Page 1 ---
+
+Benchmarking Large Language Models Under Data Contamination: A
+Survey from Static to Dynamic Evaluation
+SiminChen1 YimingChen2* ZexinLi3* YifanJiang4 ZhongweiWan5 YixinHe4
+DezhiRan6 TianleGu7 HaizhouLi2,8 TaoXie6 BaishakhiRay1
+1ColumbiaUniversity 2NationalUniversityofSingapore 3UniversityofCalifornia,Riverside
+4UniversityofSouthernCalifornia 5TheOhioStateUniversity 6PekingUniversity
+7TsinghuaUniversity 8TheChineseUniversityofHongKong,Shenzhen
+Static-to-Dynamic-LLMEvalGitHubRepository
+Abstract
+Year
+In the era of evaluating large language mod- 2025 LiveAoPBench Sy G m S b M o - lic DyCodeEval
+els (LLMs), data contamination has become
+MMLU-Pro ControlBench AIME 2024 LiveBench DRAG TreeEval SelfEvolving PPM
+anincreasinglyprominentconcern. Toaddress C-SimpleQA CNMO S3Eval LiveCodeBench DyVal NPHardEval
+thisdatacontaminationrisk,LLMbenchmark- SWE-Ben F c R h AMES ArenaH C a M rd MLU Alp A a G ca IE E v v a a l l Di G a P m Q o A n d 2023 LastEval Mathador-games
+ing has evolved from a static to a dynamic
+BBH ToxiGen
+paradigm. In this work, we conduct an in- Super-NaturalInstructions 2022
+depthanalysisofexistingstaticanddynamic MBPP GSM8K 2021
+Winogrande HumanEval
+benchmarks for evaluating LLMs. We first
+Static Benchmarks Dynamic Benchmarks
+examine methods that enhance static bench-
+marks and identify their inherent limitations. Figure1: TheprogressofbenchmarkingLLMs.
+We then highlight a critical gap—the lack of
+standardized criteria for evaluating dynamic
+benchmarks. Based on this observation, we
+ally, LLM evaluation has relied on static bench-
+propose a series of optimal design principles
+marking, which involves using carefully curated
+fordynamicbenchmarkingandanalyzethelim-
+itationsofexistingdynamicbenchmarks. This human-crafteddatasetsandassessingmodelperfor-
+surveyprovidesaconciseyetcomprehensive mancewithappropriatemetrics(Wangetal.,2018;
+overviewofrecentadvancementsindatacon- Achiametal., 2023;Gunasekaretal., 2023;Ran
+taminationresearch,offeringvaluableinsights etal.,2025).
+andaclearguideforfutureresearchefforts.We
+However, because these static benchmarks are
+maintainaGitHubrepositorytocontinuously
+releasedontheInternetfortransparentevaluation,
+collectbothstaticanddynamicbenchmarksfor
+LLMs. andLLMsgatherasmuchdataaspossiblefromthe
+Internetfortraining,potentialdatacontamination
+1 Introduction
+isunavoidable(MagarandSchwartz,2022;Deng
+The field of natural language processing (NLP) etal.,2024b;Lietal.,2024d;Balloccuetal.,2024).
+has advanced rapidly in recent years, driven by Datacontaminationoccurswhenbenchmarkdata
+breakthroughsinLargeLanguageModels(LLMs) is inadvertently included in the training phase of
+suchasGPT-4,Claude3,andDeepSeek(Achiam LLMs, leading to inflated and misleading perfor-
+et al., 2023; Liu et al., 2024; Wan et al., 2023). manceassessments. Althoughthisissuehaslong
+TrainedonvastamountsofInternet-sourceddata, been recognized—rooted in the fundamental ma-
+thesemodelshavedemonstratedremarkablecapa- chinelearningprincipleofseparatingtrainingand
+bilitiesacrossvariousapplications,includingcode testsets—ithasbecomemorecriticalwiththerise
+generation,textsummarization,computeruse,and ofLLMs,whichoftenscrapevastamountsofpub-
+mathematical reasoning (Codeforces, 2025; Ran liclyavailableInternetdata(Achiametal.,2023),
+etal.,2024;Huetal.,2024). increasingtheriskofcontamination. Furthermore,
+TodevelopandimproveLLMs,beyondadvance- due to privacy and commercial concerns, tracing
+ments in model architectures and training algo- theexacttrainingdataofthesemodelsischalleng-
+rithms, a crucial area of research focuses on ef- ing—if not impossible—complicating efforts to
+fectively evaluating their intelligence. Tradition- detectandmitigatepotentialcontamination.
+To mitigate the risk of data contamination in
+*Corresponding authors: yiming.chen@u.nus.edu,
+zli536@ucr.edu LLM benchmarking, researchers have proposed
+5202
+peS
+92
+]GL.sc[
+2v12571.2052:viXra
+
+--- Page 2 ---
+
+several enhancements to static evaluation meth- dynamicbenchmarks. Ourstudyrevealsthatexist-
+ods,includingdataencryption(Jacovietal.,2023) ingdynamicbenchmarksdonotfullysatisfythese
+and post-hoc contamination detection (Shi et al., proposedcriteria,implyingtheimperfectionofcur-
+2024). However, due to the inherent limitations rentdesign. Wehopethatourcriteriawillprovide
+ofstaticmethods—suchasunverifiabledataexpo- valuableinsightsforthefuturedesignandstandard-
+sure—theseenhancementshaveseenlimitedadop- izationofdynamicbenchmarkingmethods.
+tion. Asaresult, researchershaveshiftedtoward ThepaperisorganizedasshowninFig.2. We
+new dynamic benchmarking paradigms, as illus- firstreviewthebackgroundondatacontamination
+tratedinFig.1. Dynamicmethodsaimtoreduce (§2),andthensurveystaticbenchmarksandtheir
+contaminationriskeitherbycontinuouslyupdating enhancements for mitigating data contamination
+benchmarkdatasetsbasedonLLMtrainingtimes- (§3). Next,weintroducekeyprinciplesandexist-
+tamps(Whiteetal.,2024;Jainetal.,2024),orby ing methods for dynamic benchmarking (§4). Fi-
+regenerating test data to reconstruct and replace nally,wediscussopenchallengesandfuturedirec-
+original benchmarks (Chen et al., 2024a; Zhou tions(§5).
+etal.,2025;Mirzadehetal.,2025).
+2 Background
+Althoughmanydynamicbenchmarkingmethods
+havebeenproposedtopromotefairandtransparent
+2.1 DataContamination
+evaluationofLLMs,mostexistingworkprimarily
+DatacontaminationariseswhenLLMtrainingdata
+highlightstheadvantagesofthesedynamicbench-
+D improperly overlaps with evaluation data
+marks(Whiteetal.,2024). However,thequestion train
+D , undermining performance validity. We re-
+remains: what are the potential trade-offs of us- test
+viewexistingworkandformalizethedefinition.
+ingdynamicbenchmarkstoevaluateLLMs? The
+Exact Contamination. Exact contamination oc-
+limitationsofdynamicbenchmarking—suchasthe
+curswhenthereisanyexactduplicateinthebench-
+computationaloverheadofcontinuousupdates,and
+markdataset
+theneedforreliabletimestampmetadata—arenot
+yetfullyexplored. ∃d s.t. d ∈ D andd ∈ D
+train test
+Moreover, existing surveys on LLM data con-
+Inotherwords,thereexistsadatapointdthatisin
+tamination have mainly focused on post-hoc de-
+both D and D . Common cases include ver-
+tectionmethods(Dengetal.,2024a;Ravautetal., train test
+batimtestexamplesappearingintrainingcorpora,
+2024;Xuetal.,2024a;Dongetal.,2024;Balloccu
+codesnippetsfrombenchmarkimplementations,or
+etal.,2024),offeringlittleattentiontotheemerg-
+documentationleaks.
+inglandscapeofdynamicbenchmarkingstrategies.
+Syntactic Contamination. Syntactic contamina-
+Consideringthegrowingimportanceandadoption
+tionoccurswhenatestdatapointcouldbefoundin
+ofdynamicbenchmarkingmethods,itisessential
+thetrainingdatasetafterasyntactictransformation,
+toassesstheireffectivenessandlimitations. Unfor-
+suchthat
+tunately,ourempiricalsurveyofexistingdynamic
+benchmarking methods reveals that their evalua-
+∃d s.t. F (d) ∈ D andd ∈ D
+syntactic train test
+tions are highly fragmented. To date, there is no
+systematicworkthatdefinesclearevaluationcrite- whereF denotessyntactictransformations
+syntactic
+riafordynamicbenchmarksthemselves. Moreover, likepunctuationnormalization,whitespacemodifi-
+existingreviewsoftenoverlookadetailedcompar- cation,synonymsubstitution,morphologicalvari-
+ison of the strengths and weaknesses of different ations,orsyntacticparaphrasingwhilepreserving
+dynamicmethods,leavingagapinunderstanding lexicalmeaning.
+theirpracticaltrade-offsandapplicability. ExamplesofEachContamination. Weprovide
+To bridge this gap, we first conduct a system- contaminationexamplesinTable1. Syntacticcon-
+atic survey of benchmarking methods for LLMs taminationoccurswhentestdataisrephrasedfrom
+designed to mitigate the risk of data contamina- trainingdatausingaprefix. Whethersuchsyntac-
+tion,coveringbothstaticanddynamicbenchmarks. tic contamination constitutes true contamination
+We summarize state-of-the-art methods and pro- is debated, as it is difficult to separate memoriza-
+videanin-depthdiscussionoftheirstrengthsand tion from reasoning. In this work, we treat such
+limitations. Furthermore, we are the first to sum- transformationsascontamination,sincesomeNLP
+marizeandabstractasetofcriteriaforevaluating tasksrelyheavilyonsyntax.
+
+--- Page 3 ---
+
+Exact Contamination
+Syntactic Contamination
+Data Contamination
+Examples of Each Contamination
+Background Significance of Contamination
+Contamination from LLM Training
+LLM Benchmarking
+Problem Formulation
+Math GSM8K (Cobbe et al., 2021), MATH (Hendrycks et al., 2021), AIME
+2024 (of America, 2024) and CNMO 2024 (Society, 2024).
+NaturalQuestions (Kwiatkowski et al., 2019), TriviaQA (Joshi et al.,
+2017), CMMLU (Li et al., 2023a), MMLU (Hendrycks et al., 2020),
+BBH (Suzgun et al., 2022), AGI Eval (Zhong et al., 2023), MMLU-
+Knowledge Redux (Gema et al.,2024) and MMLU-Pro (Wang et al., 2024b),
+ControlBench (Darioush et al., 2024), FRAMES (Krishna et al., 2024),
+and GPQA Diamond (Rein et al., 2023), AlpacaEval (Li et al., 2023c),
+ArenaHard (Li et al., 2024a).
+HumanEval (Chen et al., 2021), MBPP (Austin et al., 2021), SWE-Bench
+Coding (Jimenez et al., 2024; Yang et al., 2025), Codeforces (Code-forces, 2025),
+Aider (Aider, 2025).
+Static Benchmarking Instruction Following IFEval (Zhou et al., 2023), InfoBench (Qin et al., 2024),
+Static Application C-Eval (Huang et al., 2024).
+Benchmarking PIQA (Bisk et al., 2020), SIQA (Sap et al., 2019), HellaSwag
+(Zellers et al., 2019), WinoGrande (Sakaguchi et al., 2021),
+Reasoning ARC (Clark et al., 2018), OpenBookQA (Mihaylov et al.,
+2018), CommonsenseQA (Talmor et al., 2018), C-SimpleQA
+(He et al., 2024).
+Safety RealToxicityPrompts (Gehman et al., 2020), ToxiGen
+(Hartvigsen et al., 2022).
+GLUE (Wang, 2018), SuperGLUE (Wang
+Language et al., 2019), CLUE (Xu et al., 2020), Typo-fixing (Suzgun et
+LLM Benchmarking al., 2022).
+Reading SQuAD (Rajpurkar et al., 2018), QuAC (Choi et al., 2018),
+Comprehension BoolQ (Clark et al., 2019).
+Canary String BIG-Bench(Jacovi et al., 2023).
+Encryption Jacovi et al. (2023), Yang et al. (2023),
+TRUCE (Chandran et al., 2024) .
+Methods for Mitigation Label Protection G H L um U a E n ( E W va a l n ( g C , h 2 e 0 n 1 8 e ) t , a S l. u , p 2 e 0 r 2 G 1 L ). UE (Wang et al., 2019),
+Direct overlap detection(Touvron et al., 2023), Radford et al.,
+2019; Brown et al., 2020; Chowdhery et al., 2023, Riddell et
+al., 2024; Lee et al., 2023; Gunasekar et al., 2023, Li et al.,
+Post-hoc Detection 2024d; Xu et al., 2024), memorization through masked inputs
+(Ranaldi et al., 2024; Chang et al., 2023), partial completions
+(Anil et al., 2023; Golchin and Surdeanu, 2024), preference for
+original over paraphrased test cases (Duarte et al., 2024;
+Golchin and Surdeanu, 2023; Zong et al., 2024).
+Problem Formulation
+Correctness
+Scalability
+Collision
+Evaluation Criteria
+Stable of Complexity
+Diversity
+Dynamic Interpretability
+Benchmarking LiveBench (White et al., 2024), AntiLeak-Bench (Wu et al.,
+Temporal Cutoff 2024), AcademicEval (Zhang et al., 2024a), Live- CodeBench
+(Jain et al., 2024), LiveAoPSBench (Mahdavi et al., 2025),
+Forecastbench (Karger et al., 2024).
+GSM-Symbolic (Mirzadeh et al., 2025),
+Template-Based Mathador-LM(Kurtic et al., 2024), Mathador
+games(Puma et al., 2023), MMLU-CF (Zhao
+et al., 2024).
+Rule-Based Table-Based S3Eval (Lei et al., 2024).
+Graph-Based DyVal (Zhu et al., 2024a), NPHardEval (Fan
+et al., 2024).
+Existing Work
+Benchmark Auto-Dataset (Ying et al., 2024), StructEval
+(Cao et al., 2024), ITD (Zhu et al., 2024c),
+Rewriting VarBench (Qian et al., 2024).
+Interactive LLM examiner (Li et al., 2023b), LM-as-an-
+LLM-Based Interviewer (Kim et al., 2024), TreeEval (Li
+Evaluation et al., 2024b), KIEval (Yu et al., 2024).
+Multi-Agent Self-Evolving (Wang et al., 2024a),
+Evaluation BENCHAGENTS (Butt et al., 2024).
+Hybrid LatestEval (Li et al., 2023d), DARG (Zhang et al., 2024b), C2LEVA
+(Li et al., 2024c).
+Figure2: TaxonomyofresearchonbenchmarkingLLMs.
+ContaminationType TrainingData TestingData
+ExactContamination WriteaPythonfunctiontocheck WriteaPythonfunctiontocheckifanumberisprime.
+if a number is prime.
+SyntacticContamination WriteaPythonfunctiontocheck You are a helpful code assistant for Python. Write a
+if a number is prime. Python function to check if a number is prime.
+Table1: ExamplesofdatacontaminationinLLMs.
+
+--- Page 4 ---
+
+SignificanceofContamination. Datacontamina- therexacerbatesdatacontamination,asitimpedes
+tionposesaseriousthreattotheintegrityofLLM thecommunity’sabilitytoverifyandmitigatepo-
+benchmarking,particularlyasmodelsgrowinscale tential overlaps between training and evaluation
+andaretrainedonvastpubliclyavailablecorpora. data.
+Withoutpropersafeguards,evaluationsmayinad-
+2.3 LLMBenchmarking
+vertently test models on data that they have seen
+during training, leading to inflated performance AsLLMsevolveintogeneral-purposetasksolvers,
+metrics and misleading claims about generaliza- itiscrucialtodevelopbenchmarksthatprovidea
+tion and robustness. Recent studies underscore holisticviewoftheirperformance. Tothisend,sig-
+this concern: Schaeffer (2023) demonstrates that nificanthumanefforthasbeendedicatedtobuild-
+pretraining on test data can significantly distort ing comprehensive benchmarks that assess vari-
+evaluationoutcomes;Balloccuetal.(2024)reveal ous aspects of model performance. For example,
+howeasilydatacontaminationandevaluationmal- instruction-followingtasksevaluateamodel’sabil-
+practices can occur in closed-source LLMs; Xu itytointerpretandexecutecommands(Zhouetal.,
+et al. (2024b) propose methods to quantify such 2023;Qinetal.,2024;Huangetal.,2024),while
+contamination;andDengetal.(2024a)providea coding tasks assess its capability to generate and
+comprehensivesurveyofexistingrisksandmitiga- understandprogrammingcode(Chenetal.,2021;
+tion strategies. The issue gained public attention Austin et al., 2021; Jimenez et al., 2024; Code-
+when Meta’s LLaMA 4 faced allegations of us- forces, 2025; Aider, 2025). Despite their useful-
+inganon-publicversionfine-tunedforbenchmark ness,staticbenchmarksfacechallengesasLLMs
+gains(Babic,2025),raisingconcernsaboutevalu- evolve rapidly and continue training on all avail-
+ationtransparency—despiteMeta’sdenialoftest abledata(Villalobosetal.,2022). Overtime,un-
+setexposure. Suchcasesunderscoretheneedfor changing benchmarks may become too easy for
+contamination-awarebenchmarkingtoaccurately stronger LLMs or introduce data contamination
+assessLLMperformanceontrulyunseendata. We issues. Recognizingthiscriticalproblem,contami-
+alsopresentaproof-of-conceptevaluationinAp- nationdetectors have beendevelopedto quantify
+pendixAtohighlighttheimpactofdatacontami- contaminationrisks,anddynamicbenchmarkshave
+nation. beenproposedtomitigatetheseissues.
+2.2 ContaminationSource 3 StaticBenchmarking
+Data contamination can occur during the pre-
+3.1 ProblemFormulation
+training, post-training, or fine-tuning phases of
+LLM development. Unlike traditional models AstaticbenchmarkisgivenbyD = (X,Y,S(.)),
+with clear separations between training and eval- where D represents the seed dataset, consisting
+uationdata,LLMsarepre-trainedonmassive,di- of input prompts X, expected outputs Y, and a
+versedatasets—oftenscrapedfromtheweb(e.g., scoringfunctionS(·)thatevaluatesthequalityof
+FineWeb(Penedoetal.,2024)),increasingtherisk anLLM’soutputsbycomparingthemagainstY.
+of evaluation data overlap. In the post-training
+3.2 StaticBenchmarkApplications
+phase, models are further fine-tuned on large
+human-annotated (Mukherjee et al., 2023; Kim Math. Mathbenchmarksevaluateamodel’sabil-
+etal.,2023)orsyntheticdatasets(Dingetal.,2023; ity to solve multi-step math problems. Datasets
+Teknium,2023;Wangetal.,2023)thatmayresem- such as GSM8K (Cobbe et al., 2021) and
+bleevaluationtasks,furthercompoundingcontam- MATH (Hendrycks et al., 2021) require models
+ination risks. Although retrieval-based detection toworkthroughcomplexproblems. Recentchal-
+methods(Teametal.,2024;Achiametal.,2023) lenges like AIME 2024 (of America, 2024) and
+exist, the sheer scale and complexity of training CNMO2024(Society,2024)furthertestamodel’s
+corpora make it difficult to entirely exclude eval- capacitytotacklediverseandintricatemathtasks.
+uationdata. Additionally,manyLLMskeeptheir Coding. Coding benchmarks measure a model’s
+trainingdataproprietary(Dubeyetal.,2024;Yang ability to generate and debug code. Hu-
+etal.,2024),complicatingtheaccurateassessment manEval (Chen et al., 2021) and MBPP (Austin
+oftheirtrueperformanceandhighlightingtheneed et al., 2021) test code synthesis and debugging,
+forfairandreliablebenchmarks. Thisopacityfur- whereasSWE-Bench(Jimenezetal.,2024;Yang
+
+--- Page 5 ---
+
+etal.,2025)addressesmoreadvancedchallenges. benchmark fully supports, partially supports, or
+Competitive platforms like Codeforces (Code- doesnotsupporteachcriterion. Forinstance,inthe
+forces,2025)anddatasetslikeAider(Aider,2025) caseofcorrectness: benchmarkswithbuilt-inguar-
+furtherprobedynamicproblemsolving. Thereare antees—such as those using temporal cutoffs or
+also benchmarks that evaluate LLMs’ ability to rule-basedgeneration—aremarkedas“supported”.
+judgethecorrectnessofcode(Jiangetal.,2025). BenchmarksgeneratedusingLLMsaremarkedas
+Instruction Following. Instruction benchmarks “partiallysupported”iftheyincludevalidation(e.g.,
+evaluateamodel’sabilitytocomprehendandexe- humanorautomatedchecks);otherwise,theyare
+cutedetaileddirectives. DatasetslikeIFEval(Zhou labeled“notsupported”. Moreguidanceforclassi-
+etal.,2023)andInfoBench(Qinetal.,2024)sim- fyingeachdynamicbenchmarkcouldbefoundin
+ulatereal-worldscenariosrequiringclear,step-by- AppendixD.
+step guidance, with C-Eval (Huang et al., 2024)
+4.3 SummarizedEvaluationCriteria
+focusingonChineseinstructions.
+OtherApplications. Weprovideadetailedintro- 4.3.1 Correctness
+ductiontootherapplicationsinAppendixB,along Thefirstcriterionforevaluatingthequalityofdy-
+withafurtheranalysisonenhancingstaticbench- namic benchmarking is Correctness. If the cor-
+marksinAppendixC. rectnessofthegenerateddatasetcannotbeguaran-
+teed,thebenchmarkmayprovideafalsesenseof
+4 DynamicBenchmarking
+reliability when applied to benchmarking LLMs,
+leadingtomisleadingevaluations. Wequantifythe
+4.1 ProblemFormulation
+correctnessofdynamicbenchmarksas
+A dynamic benchmark is defined as B =
+dynamic
+(D,T(·)), D = (X,Y,S(·)) where D repre- Correctness = EN S (cid:0) Y ,G(X ) (cid:1)
+i=1 i i
+sentsthestaticbenchmarkdataset. Thetransforma-
+tionfunctionT(·)modifiesthedatasetduringthe whereX
+i
+andY
+i
+representtheinputandoutputof
+benchmarkingtoavoidpossibledatacontamination. theith transformation,respectively. Thefunction
+ThedynamicdatasetfortheevaluationofanLLM G(·) is an oracle that returns the ground truth of
+can then be expressed as D = T (D), ∀t ∈ its input, ensuring an objective reference for cor-
+t t
+{1,...,N} where D represents the evaluation rectnessevaluation. Forexample,thefunctionG(·)
+t
+datasetatthetimestampt,andN isthetotaltimes- could be a domain-specific annotator. This equa-
+tampnumber,whichcouldbefiniteorinfinite. If tioncanbeinterpretedastheexpectedalignment
+the seed dataset D is empty, the dynamic bench- betweentheoutputsofthetransformeddatasetand
+markingdatasetwillbecreatedfromscratch. theircorrespondinggroundtruthvalues,measured
+usingthescoringfunctionS(·). Ahighercorrect-
+4.2 CriteriaSummarizationandAbstraction ness score indicates that the dynamic benchmark
+Whilemanydynamicbenchmarkingmethodshave maintainscorrectnesstothegroundtruth.
+been proposed to evaluate LLMs, the criteria for
+4.3.2 Scalability
+evaluating these benchmarks themselves remain
+Thenextevaluationcriterionisscalability,which
+non-standardized. Toaddressthisgap,weanalyze
+measures the ability of dynamic benchmark-
+existingevaluationpracticesandabstracttheminto
+ing methods to generate large-scale benchmark
+aunifiedframework. Wereviewover50dynamic
+datasets. A smaller dataset can introduce more
+benchmarkingpapers,focusingspecificallyonhow
+statisticalerrorsduringthebenchmarkingprocess.
+they evaluate their own benchmarks. Although
+Therefore,anoptimaldynamicbenchmarkshould
+many of these works include some form of self-
+generatealargerdatasetwhileminimizingassoci-
+evaluation, the dynamic benchmarking methods
+atedcosts. Thescalabilityofadynamicbenchmark
+areoftenincomplete,orlackdepth. Forexample,
+isquantifiedas
+DyVal2evaluatesbenchmarkcomplexityandcor-
+rectness, but does not address the interpretability (cid:20) (cid:21)
+∥T (D)∥
+ofthebenchmarkconstructionprocess. Scalability = EN i=1 ∥D∥× i Cost(T )
+i
+Tosystematizethislandscape,weidentifyauni-
+fiedsetofevaluationcriteriaandpresentthemin Thisequationrepresentstheexpectationoverthe
+Table 2. We then assess whether each dynamic entiretransformationspace,where∥T (D)∥isthe
+i
+
+--- Page 6 ---
+
+EvaluationCriteria
+DynamicMechanisms BenchmarkName Correctness Scalability Collision StabilityofComplexity Diversity Interpretability
+LiveBench(Whiteetal.,2024)
+AcademicEval(Zhangetal.,2024a) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35) (cid:35) (cid:32)
+LiveCodeBench(Jainetal.,2024) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35) (cid:35) (cid:32)
+TemporalCutoff LiveAoPSBench(Mahdavietal.,2025) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35) (cid:35) (cid:32)
+AntiLeak-Bench(Wuetal.,2025) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35) (cid:35) (cid:32)
+S3Eval(Leietal.,2024) (cid:32) (cid:32) (cid:71)(cid:35) (cid:32) (cid:35) (cid:32)
+DyVal(Zhuetal.,2024a) (cid:32) (cid:32) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:32)
+MMLU-CF(Zhaoetal.,2025) (cid:32) (cid:32) (cid:32) (cid:32) (cid:35)(cid:71) (cid:32)
+Rule-Based NPHardEval(Fanetal.,2024) (cid:32) (cid:71)(cid:35) (cid:35) (cid:32) (cid:35)(cid:71) (cid:71)(cid:35)
+GSM-Symbolic(Mirzadehetal.,2025) (cid:32) (cid:32) (cid:32) (cid:32) (cid:35)(cid:71) (cid:32)
+PPM(Chenetal.,2024a) (cid:32) (cid:35) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:32)
+GSM-Infinite(Zhouetal.,2025) (cid:32) (cid:32) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:32)
+Auto-Dataset(Yingetal.,2024) (cid:32) (cid:32) (cid:32) (cid:32) (cid:35)(cid:71) (cid:32)
+LLM-as-an-Interviewer(Kimetal.,2024) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:32) (cid:32) (cid:35)
+TreeEval(Lietal.,2024c) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:35)(cid:71) (cid:32) (cid:35)
+LLM-Based BeyondStatic(Lietal.,2023a) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:35)(cid:71) (cid:71)(cid:35) (cid:35)
+StructEval(Caoetal.,2024) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:35) (cid:32) (cid:35)
+Dynabench(Kielaetal.,2021) (cid:71)(cid:35) (cid:32) (cid:32) (cid:32) (cid:32) (cid:35)
+Self-Evolving(Wangetal.,2025) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35)(cid:71) (cid:35)(cid:71) (cid:32) (cid:35)
+DARG(Zhangetal.,2024b) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:32) (cid:32) (cid:35)
+Hybrid LatestEval(Lietal.,2023c) (cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:32) (cid:32) (cid:71)(cid:35)
+C2LEVA(Lietal.,2025) (cid:32) (cid:71)(cid:35) (cid:35)(cid:71) (cid:35) (cid:35) (cid:32)
+(cid:71)(cid:35) (cid:32) (cid:35)(cid:71) (cid:35)(cid:71) (cid:32) (cid:35)(cid:71)
+Table 2: Existing dynamic benchmarks and their quality on our summarized criteria. represents support,
+representspartialsupport,and representsnosupport. (cid:32) (cid:35)(cid:71)
+(cid:35)
+sizeofthetransformeddataset,and∥D∥isthesize CollisionRatemeasuresthepercentageofoverlap
+oftheoriginaldataset. ThefunctionCost(·)mea- betweentwoindependentlytransformedversions
+sures the cost associated with the transformation ofthebenchmarkdataset,indicatinghowmuchpo-
+process,whichcouldincludemonetarycost,time tential contamination among two trials. Repeat
+spent, or manual effort according to the detailed Trialsquantifiestheexpectednumberoftransfor-
+scenarios. Thisequationcouldbeinterpretedasthe mationtrialsrequiredtofullyregenerateanexist-
+proportion of data that can be generated per unit ing transformed dataset T (D), providing insight
+i
+cost. intothebenchmark’sabilitytoproducenovelvaria-
+tions. Thesemetricshelpassesswhetheradynamic
+4.3.3 Collision benchmarkremainseffectiveinevaluatingLLMca-
+pabilities,evenwhenexposedtopotentialtraining
+One of the main motivations for dynamic bench-
+datacontamination.
+marking is to address the challenge of balancing
+transparentbenchmarkingwiththeriskofdatacon-
+4.3.4 StabilityofComplexity
+tamination. Sincethebenchmarkingalgorithmis
+publiclyavailable,animportantconcernarises: If Dynamicbenchmarksmustalsoaccountforcom-
+these benchmarks are used to train LLMs, can plexity to help users determine whether a perfor-
+they still reliably reflect the true capabilities of mancedropinanLLMonthetransformeddataset
+theLLMs? Toevaluatetherobustnessofadynamic is due to potential data contamination or an in-
+benchmark against this challenge, we introduce creaseintaskcomplexity. Ifadynamictransforma-
+theconceptofcollisionindynamicbenchmarking. tion increases the complexity of the seed dataset,
+Collision refers to the extent to which different aperformancedropisexpected,evenwithoutdata
+transformationsofthebenchmarkdatasetproduce contamination. However,accuratelymeasuringthe
+overlapping data, potentially limiting the bench- complexityofabenchmarkdatasetremainsachal-
+mark’s ability to generate novel and diverse test lengingtask. Existingworkhasproposedvarious
+cases. Toquantifycollision,weproposethefollow- complexity metrics, but these are often domain-
+ingmetrics specific and do not generalize well across differ-
+entapplications. Forexample, DyVal(Zhuetal.,
+2024a)proposesapplyinggraphcomplexitytoeval-
+(cid:20) ∥D ∩D ∥ (cid:21) uate the complexity of reasoning problems. For-
+Collision Rate = EN i j
+i,j=1,i̸=j ∥D∥ mally, given a complexity measurement function
+   Ψ(·),thestabilitycanbeformulatedas
+k
+(cid:91) 
+Repeat = EN i=1k | k = min D j ⊇ D i 
+  Stability = Var(Ψ(D ))
+j=1 i
+
+--- Page 7 ---
+
+This equation can be interpreted as the variance months. AntiLeak-Bench(Wuetal.,2025)gener-
+in complexity across different trials, where high atesqueriesaboutnewlyemergedknowledgethat
+varianceindicatesthatthedynamicbenchmarking was unknown before the model’s knowledge cut-
+methodisnotstable. offdatetoeliminatepotentialdatacontamination.
+AcademicEval (Zhang et al., 2024a) designs aca-
+4.3.5 Diversity
+demic writing tasks on latest arXiv papers. Live-
+The diversity metric can be categorized into two CodeBench (Jain et al., 2024) continuously col-
+components: external diversity and internal di- lects new human-written coding problems from
+versity. External diversity measures the varia- onlinecodingcompetitionplatformslikeLeetCode.
+tionbetweenthetransformeddatasetandtheseed LiveAoPSBench (Mahdavi et al., 2025) collects
+dataset. Internaldiversityquantifiesthedifferences livemathproblemsfromtheArtofProblemSolv-
+betweentwotransformationtrials. ing forum. Forecastbench (Karger et al., 2024)
+updatesnewforecastingquestionsonadailybasis
+External Diversity = EN Θ(D ,D)
+i=1 i from different data sources, e.g., prediction mar-
+Internal Diversity = EN Θ(D ,D ) kets.
+i,j=1,i̸=j i j
+Limitations. The collection process typically re-
+whereΘ(·)isafunctionthatmeasuresthediversity quiressignificanthumaneffort(Whiteetal.,2024;
+between two datasets. For example, it could be Jainetal.,2024),andcontinuousupdatesdemand
+theN-grammetricsorthereference-basedmetrics, ongoing human involvement. Despite the popu-
+suchasBLEUscores. larity of temporal cutoffs, using recent informa-
+tionfromcompetitionstoevaluateLLMscanstill
+4.3.6 Interpretability
+leadtodatacontamination,astheseproblemsare
+Dynamic benchmarking generates large volumes likelytobereusedinfuturecompetitions(Wuetal.,
+of transformed data, making manual verification 2025). Verificationisoftenoverlookedintheselive
+costlyandchallenging. Toensurecorrectness,the benchmarks(Whiteetal.,2024).
+transformationprocessmustbeinterpretable. Inter-
+4.4.2 Rule-BasedGeneration
+pretabletransformationsreducetheneedforexten-
+sivemanualvalidation,loweringcosts. Rule-based Themethodofrule-basedgenerationsynthesizes
+ormanuallycraftedtransformationsareinherently newtestcasesbasedonpredefinedrules,featuring
+interpretable,whileLLM-assistedtransformations anextremelylowcollisionprobability(Zhuetal.,
+dependonthemodel’stransparencyandtraceabil- 2024a).
+ity. Insuchcases,additionalmechanismslikeex- Template-Based. GSM-Symbolic(Mirzadehetal.,
+plainabilitytoolsorhuman-in-the-loopvalidation 2025)createsdynamicmathbenchmarksbyusing
+maybeneededtoensurereliabilityandcorrectness. querytemplateswithplaceholdervariables,which
+are randomly filled to generate diverse problem
+4.4 ExistingWork
+instances. Mathador-LM(Kurticetal.,2024)gen-
+Table 4 summarizes recent dynamic benchmarks. eratesevaluationqueriesbyadheringtotherules
+Dynamic benchmarking methods can be catego- ofMathadorgames(Pumaetal.,2023)andvary-
+rizedintofourtypes: temporalcutoff, rule-based inginputnumbers. MMLU-CF(Zhaoetal.,2025)
+generation,LLM-basedgeneration,andhybrid. followsthetemplateofmultiple-choicequestions
+and generates novel samples by shuffling answer
+4.4.1 TemporalCutoff choicesandrandomlyreplacingincorrectoptions
+SinceLLMstypicallyhaveaknowledgecutoffdate, with“Noneoftheotherchoices”.
+using data collected after this cutoff to construct Table-Based. S3Eval(Leietal.,2024)evaluates
+datasetscanhelpevaluatethemodelwhilemitigat- the reasoning ability of LLMs by assessing their
+ing data contamination. This type of method has accuracyinexecutingrandomSQLqueriesonran-
+been widely adopted to construct reliable bench- domlygeneratedSQLtables.
+marks that prevent contamination (Uddin et al., Graph-Based. In this category, LLMs are evalu-
+2024). LiveBench (White et al., 2024) collects atedwithrandomlygeneratedgraphs. Forinstance,
+questions based on the latest information source, DyVal (Zhu et al., 2024a) assesses the reasoning
+e.g., math competitions from the past 12 months, capabilitiesofLLMsusingrandomlygenerateddi-
+withnewquestionsaddedandupdatedeveryfew rectedacyclicgraphs(DAGs). Theframeworkfirst
+
+--- Page 8 ---
+
+constructs DAGs with varying numbers of nodes correspondingquestionstofurtherassessthemodel.
+andedgestocontroltaskdifficulty. Forexample,in KIEval(Yuetal.,2024)generatesfollow-upques-
+arithmeticreasoningtasks,leafnodesrepresentran- tions based on the evaluated model’s response to
+domnumericvalues,whileedgescorrespondtoran- aninitialquestionfromastaticbenchmark.
+domlyassignedarithmeticoperators. TheseDAGs Multi-Agent Evaluation. Inspired by the re-
+arethentransformedintonaturallanguagedescrip- cent success of multi-agent systems (Guo et al.,
+tions through rule-based conversion. Finally, the 2024),multi-agentcollaborationsareusedtocon-
+LLM is evaluated by querying it for the value of struct dynamic benchmarks. Benchmark Self-
+therootnode. Similarly, NPHardEval(Fanetal., Evolving(Wangetal.,2025)employsamulti-agent
+2024)evaluatesthereasoningabilityofLLMson framework to dynamically extend existing static
+well-knownPandNPproblems,suchastheTrav- benchmarks, showcasing the potential of agent-
+elingSalesmanProblem(TSP).Randomgraphsof based methods. Given a task description, BEN-
+varyingsizesaresynthesizedasinputsforTSPto CHAGENTS(Buttetal.,2024)leveragesamulti-
+assesstheLLM’sperformance. Xieetal.(2024)au- agent framework for automated benchmark cre-
+tomaticallyconstructKnightsandKnavespuzzles ation. It splits the process into planning, genera-
+withrandomreasoninggraph. tion,verification,andevaluation—eachhandledby
+Limitations. Thepre-definedrulesmaylimitsam- aspecializedLLMagent. Thiscoordinatedmethod,
+plediversity,andpubliclyavailablerule-generated withhuman-in-the-loopfeedback,yieldsscalable,
+data may increase the risk of in-distribution con- diverse,andhigh-qualitybenchmarks.
+taminationduringtraining(Tuetal.,2024). Limitations. ThequalityofLLM-generatedsam-
+plesisoftenuncertain. Forinstance,humananno-
+4.4.3 LLM-BasedGeneration
+tationinLatestEval(Lietal.,2023c)revealsthat
+BenchmarkRewriting. Inthiscategory,LLMsare 10%ofsampleslackfaithfulnessoranswerability.
+employed to rewrite samples from existing static In interactive settings, reliability further depends
+benchmarks, which may be contaminated. Auto- ontheinterviewerLLM.
+Dataset(Yingetal.,2024)promptsLLMstogen-
+4.4.4 HybridGeneration
+erate two types of new samples: one that retains
+LatestEval (Li et al., 2023c) combines temporal
+thestylisticsandessentialknowledgeoftheorig-
+cutoffandLLM-basedgenerationtoautomatically
+inal, andtheotherthatpresentsrelatedquestions
+generate reading comprehension datasets using
+at different cognitive levels (Bloom et al., 1956).
+LLMs on real-time content from sources such as
+StructEval(Caoetal.,2024)expandsonexamined
+BBC.DARG(Zhangetal.,2024b)integratesLLM-
+concepts from the original benchmark by using
+basedandgraph-basedgeneration. Itfirstextracts
+LLMsandknowledgegraphstodevelopaseriesof
+reasoning graphs from existing benchmarks and
+extendedquestions. ITD(Zhuetal.,2024c)utilizes
+thenperturbsthemintonewsamplesusingprede-
+acontaminationdetector(Shietal.,2024)toiden-
+finedrules. C2LEVA(Lietal.,2025)incorporates
+tify contaminated samples in static benchmarks
+allthreecontamination-freeconstructionmethods
+and then prompts an LLM to rewrite them while
+tobuildacontamination-freebilingualevaluation.
+preservingtheirdifficultylevels. VarBench(Qian
+TrustGen(Huangetal.,2025)isthefirstdynamic
+etal.,2024)promptsLLMstogeneratenewones.
+benchmarking to evaluate trustworthiness across
+InteractiveEvaluation. Inthiscategory,inspired
+multiple dimensions and model types, including
+bythehumaninterviewprocess,LLMsareevalu-
+text-to-image,largelanguage,andvision-language
+atedthroughmulti-roundinteractionswithanLLM
+models.
+(Li et al., 2023a). LLM-as-an-Interviewer (Kim
+et al., 2024) employs an interviewer LLM that
+5 Discussions
+firstparaphrasesqueriesfromexistingstaticbench-
+marks and then conducts a multi-turn evaluation CurrentChallenges. BenchmarkingLLMsises-
+by posing follow-up questions or providing feed- sentialforevaluatingmodelperformance,buttra-
+back on the examined LLM’s responses. TreeE- ditionalstaticbenchmarksriskdatacontamination.
+val(Lietal.,2024c)beginsbygeneratinganinitial Dynamic benchmarks address this risk by updat-
+question on a given topic using an LLM. Based ing or regenerating test data, aiming to maintain
+ontheprevioustopicandtheexaminedLLM’sre- integrity. However,currentdynamicmethodsoften
+sponse,itthengeneratesfollow-upsubtopicsand lack standardized evaluation criteria, suffer from
+
+--- Page 9 ---
+
+limitedscalability, andofferlittleinterpretability. high-levelconceptsandmaynotdelveintoallthe
+Manyalsofailtosystematicallyassesstrade-offs fine-grainedtechnicaldetailsofspecificmethods,
+likecomputationaloverheadandrobustness. which may limit its applicability to practitioners
+Future Directions. Future work should estab- seekingin-depthimplementationguidelines.
+lishstandardizedevaluationframeworkswithcri-
+EthicalConsiderations
+teriasuchascorrectness,diversity,andscalability.
+Contamination-resilientbenchmarks—usingtem-
+Our work is rooted in the goal of enhancing the
+poralfiltering,syntheticdata,orrule-basedgener-
+transparency and fairness of LLM evaluations,
+ation—can further improve reliability. Dynamic
+whichcanhelpmitigatetherisksofbiasandcon-
+benchmarksshouldalsosupportcontinualupdates,
+tamination in AI systems. However, ethical con-
+cross-modelapplicability,andhuman-in-the-loop
+cernsarisewhenconsideringtheuseofbothstatic
+validation. Public update logs and improved in-
+and dynamic benchmarks. Static benchmarks, if
+terpretabilitywillenhancetransparencyandtrust
+notcarefullyconstructed,caninadvertentlyperpet-
+inLLMevaluation. Futuredirectionsalsoinclude
+uatebiases,especiallyiftheyrelyonoutdatedor
+extendingdynamicbenchmarkingtomulti-modal
+biaseddatasources. Dynamicbenchmarks,while
+LLMs(Chenetal.,2024b,c).
+offeringamoreadaptivemethod,raiseprivacyand
+6 Conclusion securityconcernsregardingthecontinualcollection
+Thissurveyreviewstheliteratureondatacontami- andupdatingofdata. Moreover,transparencyand
+nationinLLMbenchmarking,analyzingbothstatic the potential for misuse of benchmarking results,
+and dynamic methods. We find that static meth- suchasartificiallyinflatingmodelperformanceor
+ods,thoughconsistent,becomemorevulnerableto selectingbiasedevaluationcriteria,mustbecare-
+contaminationastrainingdatasetsgrow. Whiledy- fully managed. It is essential that benchmarking
+namicmethodsshowpromise,theyfacechallenges frameworks are designed with fairness, account-
+inreliabilityandreproducibility. Futureresearch ability,andprivacyinmind,ensuringthattheydo
+shouldfocusonstandardizeddynamicevaluation, notinadvertentlyharmordisadvantagecertainuser
+andpracticalmitigationtools. groupsorresearchdomains. Finally,weencourage
+furtherexplorationofethicalguidelinessurround-
+Acknowledgements
+ingdatausage,modeltransparency,andthebroader
+societalimpactofAIbenchmarks.
+Simin and Baishakhi are partially supported in
+part by CCF 2313055, CCF 2107405, CAREER
+2025082, and FAI: 2040961. Dezhi and Tao are
+References
+partially supported by National Natural Science
+FoundationofChinaunderGrantNo. 623B2006, JoshAchiam,StevenAdler,SandhiniAgarwal,Lama
+Ahmad, Ilge Akkaya, Florencia Leoni Aleman,
+andGrantNo. 92464301. Anyopinions,findings,
+DiogoAlmeida,JankoAltenschmidt,SamAltman,
+conclusions,orrecommendationsexpressedherein
+ShyamalAnadkat,and1others.2023. GPT-4techni-
+arethoseoftheauthors. calreport. arXivpreprintarXiv:2303.08774.
+Limitations Aider.2025. Aider. https://aider.chat. Accessed:
+2025-02-06.
+While this survey provides a comprehensive
+overview of static and dynamic benchmarking RohanAnil,AndrewMDai,OrhanFirat,MelvinJohn-
+son, Dmitry Lepikhin, Alexandre Passos, Siamak
+methodsforLLMs,thereareseverallimitationsto
+Shakeri, Emanuel Taropa, Paige Bailey, Zhifeng
+consider. First,duetotherapidlyevolvingnature
+Chen,and1others.2023. PaLM2technicalreport.
+ofLLMdevelopmentandbenchmarkingmethods, arXivpreprintarXiv:2305.10403.
+somerecentmethodsortools maynothave been
+JacobAustin,AugustusOdena,MaxwellNye,Maarten
+fullycovered. Asbenchmarkingpracticesarestill
+Bosma, Henryk Michalewski, David Dohan, Ellen
+emerging, themethodsdiscussedmaynotyetac-
+Jiang, Carrie Cai, Michael Terry, Quoc Le, and 1
+countforallpotentialchallengesorinnovationsin others.2021. Programsynthesiswithlargelanguage
+thefield. Additionally,ourproposedcriteriafordy- models. arXivpreprintarXiv:2108.07732.
+namicbenchmarkingareafirststepandmayneed
+John Babic. 2025. Meta’s LLaMA 4: Advancing ai
+furtherrefinementandvalidationinreal-worldap-
+amidbenchmarkcontroversies. Accessed: 2025-05-
+plications. Finally,thissurveyfocusesprimarilyon 19.
+
+--- Page 10 ---
+
+SimoneBalloccu,PatríciaSchmidtová,MateuszLango, SiminChen,XiaoningFeng,XiaohongHan,CongLiu,
+andOndrejDusek.2024. Leak,cheat,repeat: Data andWeiYang.2024a. PPM:Automatedgeneration
+contaminationandevaluationmalpracticesinclosed- ofdiverseprogrammingproblemsforbenchmarking
+source LLMs. In Proceedings of the 18th Confer- codegenerationmodels. InProceedingsoftheACM
+ence of the European Chapter of the Association onSoftwareEngineering,1(FSE):1194–1215.
+forComputationalLinguistics(Volume1: LongPa-
+pers),pages67–93,St.Julian’s,Malta.Association SiminChen,PranavPusarla,andBaishakhiRay.2025.
+forComputationalLinguistics. DyCodeEval: Dynamicbenchmarkingofreasoning
+capabilitiesincodelargelanguagemodelsunderdata
+FarimaFatahiBayat,LechenZhang,ShezaMunir,and
+contamination. InProceedingsofthe42ndInterna-
+LuWang.2024. FactBench: Adynamicbenchmark
+tionalConferenceonMachineLearning(ICML).
+forin-the-wildlanguagemodelfactualityevaluation.
+arXivpreprintarXiv:2410.22257.
+YimingChen,XianghuYue,XiaoxueGao,ChenZhang,
+LuisFernandoD’Haro,RobbyT.Tan,andHaizhou
+YonatanBisk,RowanZellers,JianfengGao,YejinChoi,
+Li.2024b. Beyondsingle-audio: Advancingmulti-
+and1others.2020. PIQA:Reasoningaboutphysical
+audioprocessinginaudiolargelanguagemodels. In
+commonsenseinnaturallanguage. InProceedingsof
+FindingsoftheAssociationforComputationalLin-
+the34thAAAIConferenceonArtificialIntelligence,
+guistics: EMNLP2024,pages10917–10930,Miami,
+volume34,pages7432–7439.
+Florida, USA. Association for Computational Lin-
+Benjamin S Bloom, Max D Engelhart, EJ Furst, guistics.
+WalkerHHill,andDavidRKrathwohl.1956. Hand-
+bookI:cognitivedomain. NewYork: DavidMcKay, YimingChen,XianghuYue,ChenZhang,XiaoxueGao,
+pages483–498. RobbyTTan,andHaizhouLi.2024c. VoiceBench:
+BenchmarkingLLM-based voice assistants. arXiv
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+preprintarXiv:2410.17196.
+Subbiah,JaredDKaplan,PrafullaDhariwal,Arvind
+Neelakantan,PranavShyam,GirishSastry,Amanda
+EunsolChoi,HeHe,MohitIyyer,MarkYatskar,Wen-
+Askell,and1others.2020. Languagemodelsarefew-
+tauYih, YejinChoi, PercyLiang, andLukeZettle-
+shotlearners. InProceedingsofthe34thAdvances
+moyer.2018. QuAC:Questionansweringincontext.
+inNeuralInformationProcessingSystems,33:1877–
+arXivpreprintarXiv:1808.07036.
+1901.
+AakankshaChowdhery,SharanNarang,JacobDevlin,
+NatashaButt,VarunChandrasekaran,NeelJoshi,Be-
+MaartenBosma,GauravMishra,AdamRoberts,Paul
+smira Nushi, and Vidhisha Balachandran. 2024.
+Barham,HyungWonChung,CharlesSutton,Sebas-
+BENCHAGENTS: Automated benchmark cre-
+tianGehrmann,and1others.2023. PaLM:Scaling
+ation with agent interaction. arXiv preprint
+languagemodelingwithpathways. JournalofMa-
+arXiv:2410.22584.
+chineLearningResearch,24(240):1–113.
+Boxi Cao, Mengjie Ren, Hongyu Lin, Xianpei Han,
+Feng Zhang, Junfeng Zhan, and Le Sun. 2024. Christopher Clark, Kenton Lee, Ming-Wei Chang,
+StructEval: Deepen and broaden large language Tom Kwiatkowski, Michael Collins, and Kristina
+modelassessmentviastructuredevaluation. InFind- Toutanova.2019. BoolQ:Exploringthesurprising
+ingsoftheAssociationforComputationalLinguistics: difficultyofnaturalyes/noquestions. InProceedings
+ACL2024,pages5300–5318,Bangkok,Thailand.As- ofthe2019ConferenceoftheNorthAmericanChap-
+sociationforComputationalLinguistics. teroftheAssociationforComputationalLinguistics:
+HumanLanguageTechnologies,Volume1(Longand
+NishanthChandran, SunayanaSitaram, DivyaGupta,
+ShortPapers),pages2924–2936,Minneapolis,Min-
+RahulSharma,KashishMittal,andManoharSwami-
+nesota.AssociationforComputationalLinguistics.
+nathan.2024. Privatebenchmarkingtopreventcon-
+tamination and improve comparative evaluation of
+PeterClark,IsaacCowhey,OrenEtzioni,TusharKhot,
+LLMs. arXivpreprintarXiv:2403.00393.
+AshishSabharwal,CarissaSchoenick,andOyvind
+Tafjord.2018. Thinkyouhavesolvedquestionan-
+Kent Chang, Mackenzie Cramer, Sandeep Soni, and
+swering? try ARC, the AI2 reasoning challenge.
+DavidBamman.2023. Speak,memory:Anarchaeol-
+arXivpreprintarXiv:1803.05457.
+ogyofbooksknowntoChatGPT/GPT-4. InProceed-
+ingsofthe2023ConferenceonEmpiricalMethods
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian,
+inNaturalLanguageProcessing,pages7312–7327,
+MarkChen,HeewooJun,LukaszKaiser,Matthias
+Singapore.AssociationforComputationalLinguis-
+Plappert, Jerry Tworek, Jacob Hilton, Reiichiro
+tics.
+Nakano, and 1 others. 2021. Training verifiers
+MarkChen,JerryTworek,HeewooJun,QimingYuan, to solve math word problems. arXiv preprint
+Henrique Ponde De Oliveira Pinto, Jared Kaplan, arXiv:2110.14168.
+HarriEdwards,YuriBurda,NicholasJoseph,Greg
+Brockman, and 1 others. 2021. Evaluating large Codeforces.2025. Codeforces: Competitiveprogram-
+language models trained on code. arXiv preprint ming platform. https://codeforces.com. Ac-
+arXiv:2107.03374. cessed: 2025-02-06.
+
+--- Page 11 ---
+
+KevianDarioush,SyedUsman,GuoXingang,Havens pages4092–4114,Bangkok,Thailand.Association
+Aaron,DullerudGeir,SeilerPeter,QinLianhui,and forComputationalLinguistics.
+HuBin.2024. Capabilitiesoflargelanguagemodels
+incontrolengineering:AbenchmarkstudyonGPT-4, JiaFeng,JiachenLiu,CuiyunGao,ChunYongChong,
+Claude3Opus,andGemini1.0Ultra. arXivpreprint Chaozheng Wang, Shan Gao, and Xin Xia. 2024.
+arXiv:2404.03647. ComplexCodeEval: A benchmark for evaluating
+largecodemodelsonmorecomplexcode. InPro-
+Jasper Dekoninck, Mark Niklas Müller, and Martin ceedingsofthe39thIEEE/ACMInternationalCon-
+Vechev.2024. ConStat: Performance-basedcontam- ference on Automated Software Engineering, page
+ination detection in large language models. arXiv 1895–1906, New York, NY, USA. Association for
+preprintarXiv:2405.16281. ComputingMachinery.
+Chunyuan Deng, Yilun Zhao, Yuzhao Heng, Yitong
+Samuel Gehman, Suchin Gururangan, Maarten Sap,
+Li,JiannanCao,XiangruTang,andArmanCohan.
+Yejin Choi, and Noah A. Smith. 2020. RealToxi-
+2024a. Unveilingthespectrumofdatacontamination
+cityPrompts: Evaluating neural toxic degeneration
+inlanguagemodel: Asurveyfromdetectiontoreme-
+inlanguagemodels. InFindingsoftheAssociation
+diation. InFindingsoftheAssociationforComputa-
+forComputationalLinguistics: EMNLP2020,pages
+tionalLinguistics: ACL2024,pages16078–16092,
+3356–3369,Online.AssociationforComputational
+Bangkok,Thailand.AssociationforComputational
+Linguistics.
+Linguistics.
+ChunyuanDeng,YilunZhao,XiangruTang,MarkGer- Aryo Pradipta Gema, Joshua Ong Jun Leang, Giwon
+stein,andArmanCohan.2024b. Investigatingdata Hong, Alessio Devoto, Alberto Carlo Maria Man-
+contaminationinmodernbenchmarksforlargelan- cino,RohitSaxena,XuanliHe,YuZhao,Xiaotang
+guagemodels. InProceedingsofthe2024Confer- Du,MohammadRezaGhasemiMadani,ClaireBar-
+enceoftheNorthAmericanChapteroftheAssoci- ale,RobertMcHardy,JoshuaHarris,JeanKaddour,
+ation for Computational Linguistics: Human Lan- EmileVanKrieken,andPasqualeMinervini.2025.
+guageTechnologies(Volume1: LongPapers),pages Are we done with MMLU? In Proceedings of the
+8706–8719, Mexico City, Mexico. Association for 2025 Conference of the Nations of the Americas
+ComputationalLinguistics. Chapter of the Association for Computational Lin-
+guistics: HumanLanguageTechnologies(Volume1:
+Ning Ding, Yulin Chen, Bokai Xu, Yujia Qin, LongPapers),pages5069–5096,Albuquerque,New
+Shengding Hu, Zhiyuan Liu, Maosong Sun, and Mexico.AssociationforComputationalLinguistics.
+BowenZhou.2023. Enhancingchatlanguagemod-
+els by scaling high-quality instructional conversa- ShahriarGolchinandMihaiSurdeanu.2023. DataCon-
+tions. In Proceedings of the 2023 Conference on taminationQuiz: Atooltodetectandestimatecon-
+EmpiricalMethodsinNaturalLanguageProcessing, taminationinlargelanguagemodels. arXivpreprint
+pages3029–3051,Singapore.AssociationforCom- arXiv:2311.06233.
+putationalLinguistics.
+Shahriar Golchin and Mihai Surdeanu. 2024. Time
+YihongDong,XueJiang,HuanyuLiu,ZhiJin,BinGu, travelinLLMs: Tracingdatacontaminationinlarge
+MengfeiYang,andGeLi.2024. Generalizationor languagemodels. InInProceedingsofThe12thIn-
+memorization: Datacontaminationandtrustworthy ternationalConferenceonLearningRepresentations.
+evaluationforlargelanguagemodels. InFindingsof
+theAssociationforComputationalLinguistics: ACL
+Suriya Gunasekar, Yi Zhang, Jyoti Aneja, Caio
+2024,pages12039–12050,Bangkok,Thailand.As-
+CésarTeodoroMendes,AllieDelGiorno,Sivakanth
+sociationforComputationalLinguistics. Gopi, Mojan Javaheripi, Piero Kauffmann, Gus-
+tavo de Rosa, Olli Saarikivi, and 1 others. 2023.
+André Vicente Duarte, Xuandong Zhao, Arlindo L
+Textbooks are all you need. arXiv preprint
+Oliveira,andLeiLi.2024. DE-COP:Detectingcopy-
+arXiv:2306.11644.
+rightedcontentinlanguagemodelstrainingdata. In
+InProceedingsofthe41stInternationalConference
+TaichengGuo,XiuyingChen,YaqiWang,RuidiChang,
+onMachineLearning.
+ShichaoPei,NiteshVChawla,OlafWiest,andXi-
+AbhimanyuDubey,AbhinavJauhri,AbhinavPandey, angliangZhang.2024. Largelanguagemodelbased
+AbhishekKadian,AhmadAl-Dahle,AieshaLetman, multi-agents: Asurveyofprogressandchallenges.
+Akhil Mathur, Alan Schelten, Amy Yang, Angela arXivpreprintarXiv:2402.01680.
+Fan, and 1 others. 2024. The LLaMA 3 herd of
+models. arXivpreprintarXiv:2407.21783. Thomas Hartvigsen, Saadia Gabriel, Hamid Palangi,
+MaartenSap,DipankarRay,andEceKamar.2022.
+LizhouFan,WenyueHua,LingyaoLi,HaoyangLing, ToxiGen: Alarge-scalemachine-generateddataset
+andYongfengZhang.2024. NPHardEval: Dynamic for adversarial and implicit hate speech detection.
+benchmark on reasoning ability of large language In Proceedings of the 60th Annual Meeting of the
+modelsviacomplexityclasses. InProceedingsofthe AssociationforComputationalLinguistics(Volume
+62nd Annual Meeting of the Association for Com- 1: LongPapers),pages3309–3326,Dublin,Ireland.
+putational Linguistics (Volume 1: Long Papers), AssociationforComputationalLinguistics.
+
+--- Page 12 ---
+
+Yancheng He, Shilong Li, Jiaheng Liu, Yingshui Narasimhan.2024. SWE-bench: Canlanguagemod-
+Tan, Weixun Wang, Hui Huang, Xingyuan Bu, elsresolvereal-worldGitHubissues? InProceed-
+Hangyu Guo, Chengwei Hu, Boren Zheng, Zhuo- ingsthe12thInternationalConferenceonLearning
+ran Lin, Dekai Sun, Zhicheng Zheng, Wenbo Su, Representations.
+and Bo Zheng. 2025. Chinese SimpleQA: A Chi-
+nesefactualityevaluationforlargelanguagemodels. Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke
+Proceedingsofthe63rdAnnualMeetingoftheAs- Zettlemoyer.2017. TriviaQA:Alargescaledistantly
+sociationforComputationalLinguistics(Volume1: supervisedchallengedatasetforreadingcomprehen-
+LongPapers),pages19182–19208. sion. InProceedingsofthe55thAnnualMeetingof
+theAssociationforComputationalLinguistics(Vol-
+DanHendrycks,CollinBurns,StevenBasart,AndyZou, ume1: LongPapers),pages1601–1611,Vancouver,
+MantasMazeika,DawnSong,andJacobSteinhardt. Canada.AssociationforComputationalLinguistics.
+2020. Measuringmassivemultitasklanguageunder-
+standing. arXivpreprintarXiv:2009.03300. EzraKarger,HoutanBastani,ChenYueh-Han,Zachary
+Jacobs, Danny Halawi, Fred Zhang, and Philip E
+DanHendrycks,CollinBurns,SauravKadavath,Akul
+Tetlock. 2024. ForecastBench: A dynamic bench-
+Arora,StevenBasart,EricTang,DawnSong,andJa-
+markofAIforecastingcapabilities. arXivpreprint
+cobSteinhardt.2021. Measuringmathematicalprob-
+arXiv:2409.19839.
+lem solving with the math dataset. arXiv preprint
+arXiv:2103.03874.
+Douwe Kiela, Max Bartolo, Yixin Nie, Divyansh
+Kaushik,AtticusGeiger,ZhengxuanWu,BertieVid-
+YebowenHu,KaiqiangSong,SangwooCho,Xiaoyang
+gen,GrushaPrasad,AmanpreetSingh,PratikRing-
+Wang,WenlinYao,HassanForoosh,DongYu,and
+shia, Zhiyi Ma, Tristan Thrush, Sebastian Riedel,
+FeiLiu.2024. Whenreasoningmeetsinformation
+ZeerakWaseem,PontusStenetorp,RobinJia,Mohit
+aggregation: A case study with sports narratives.
+Bansal,ChristopherPotts,andAdinaWilliams.2021.
+In Proceedings of the 2024 Conference on Empir-
+Dynabench: RethinkingbenchmarkinginNLP. In
+icalMethodsinNaturalLanguageProcessing,pages
+Proceedings of the 2021 Conference of the North
+4293–4308, Miami, Florida, USA.Associationfor
+AmericanChapteroftheAssociationforComputa-
+ComputationalLinguistics.
+tionalLinguistics: HumanLanguageTechnologies,
+Yue Huang, Chujie Gao, Siyuan Wu, Haoran Wang, pages4110–4124,Online.AssociationforComputa-
+XiangqiWang,YujunZhou,YanboWang,JiayiYe, tionalLinguistics.
+Jiawen Shi, Qihui Zhang, and 1 others. 2025. On
+the trustworthiness of generative foundation mod- Eunsu Kim, Juyoung Suk, Seungone Kim, Niklas
+els: Guideline,Assessment,andPerspective. arXiv Muennighoff,DongkwanKim,andAliceOh.2024.
+preprintarXiv:2502.14296. LLM-AS-AN-INTERVIEWER:Beyondstatictest-
+ingthroughdynamicLLMevaluation. arXivpreprint
+Yuzhen Huang, Yuzhuo Bai, Zhihao Zhu, Junlei arXiv:2412.10424.
+Zhang, Jinghan Zhang, Tangjun Su, Junteng Liu,
+Chuancheng Lv, Yikai Zhang, Yao Fu, and 1 oth- Seungone Kim, Se Joo, Doyoung Kim, Joel Jang,
+ers. 2024. C-Eval: A multi-level multi-discipline Seonghyeon Ye, Jamin Shin, and Minjoon Seo.
+chineseevaluationsuiteforfoundationmodels. Ad- 2023. The CoT collection: Improving zero-shot
+vances in Neural Information Processing Systems, andfew-shotlearningoflanguagemodelsviachain-
+36. of-thoughtfine-tuning. InProceedingsofthe2023
+Conference on Empirical Methods in Natural Lan-
+AlonJacovi,AviCaciularu,OmerGoldman,andYoav
+guageProcessing, pages12685–12708, Singapore.
+Goldberg. 2023. Stop uploading test data in plain
+AssociationforComputationalLinguistics.
+text: Practicalstrategiesformitigatingdatacontami-
+nationbyevaluationbenchmarks. InProceedingsof
+Satyapriya Krishna, Kalpesh Krishna, Anhad Mo-
+the2023ConferenceonEmpiricalMethodsinNatu-
+hananey,StevenSchwarcz,AdamStambler,Shyam
+ralLanguageProcessing,pages5075–5084,Singa-
+Upadhyay, andManaalFaruqui.2025. Fact, fetch,
+pore.AssociationforComputationalLinguistics.
+and reason: A unified evaluation of retrieval-
+augmentedgeneration. Proceedingsofthe2025Con-
+Naman Jain, King Han, Alex Gu, Wen-Ding Li, Fan-
+ferenceoftheNationsoftheAmericasChapterofthe
+jia Yan, Tianjun Zhang, and 1 others. 2024. Live-
+AssociationforComputationalLinguistics: Human
+CodeBench: Holisticandcontaminationfreeevalu-
+Language Technologies (Volume 1: Long Papers),
+ation of large language models for code. Preprint,
+pages4745–4759.
+arXiv:2403.07974.
+HongchaoJiang,YimingChen,YushiCao,Hung-yiLee, Eldar Kurtic, Amir Moeini, and Dan Alistarh. 2024.
+andRobbyTTan.2025. CodeJudgeBench: Bench- Mathador-LM:Adynamicbenchmarkformathemat-
+marking LLM-as-a-judge for coding tasks. arXiv icalreasoningonlargelanguagemodels. InProceed-
+preprintarXiv:2507.10535. ingsofthe2024ConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing,pages17020–17027,
+Carlos E Jimenez, John Yang, Alexander Wettig, Miami,Florida,USA.AssociationforComputational
+Shunyu Yao, Kexin Pei, Ofir Press, and Karthik R Linguistics.
+
+--- Page 13 ---
+
+TomKwiatkowski, JennimariaPalomaki, OliviaRed- YuchengLi,YunhaoGuo,FrankGuerin,andChenghua
+field,MichaelCollins,AnkurParikh,ChrisAlberti, Lin.2024d. Anopen-sourcedatacontaminationre-
+DanielleEpstein,IlliaPolosukhin,JacobDevlin,Ken- portforlargelanguagemodels. InFindingsofthe
+tonLee,KristinaToutanova,LlionJones,Matthew AssociationforComputationalLinguistics: EMNLP
+Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob 2024,pages528–541,Miami,Florida,USA.Associ-
+Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu- ationforComputationalLinguistics.
+ralquestions: Abenchmarkforquestionanswering
+research. TransactionsoftheAssociationforCompu- Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang,
+tationalLinguistics,7:452–466. BochaoWu,ChengdaLu,ChenggangZhao,Chengqi
+Deng, Chenyu Zhang, Chong Ruan, and 1 others.
+ArielNLee, ColeJHunter, andNatanielRuiz.2023. 2024. DeepSeek-V3technicalreport. arXivpreprint
+Platypus: Quick,cheap,andpowerfulrefinementof arXiv:2412.19437.
+LLMs. arXivpreprintarXiv:2308.07317.
+InbalMagarandRoySchwartz.2022. Datacontamina-
+FangyuLei,QianLiu,YimingHuang,ShizhuHe,Jun tion:Frommemorizationtoexploitation. InProceed-
+Zhao,andKangLiu.2024. S3Eval:Asynthetic,scal- ingsofthe60thAnnualMeetingoftheAssociation
+able,systematicevaluationsuiteforlargelanguage forComputationalLinguistics(Volume2: ShortPa-
+model. In Proceedings of the 2024 Conference of pers),pages157–165,Dublin,Ireland.Association
+theNorthAmericanChapteroftheAssociationfor forComputationalLinguistics.
+ComputationalLinguistics: HumanLanguageTech-
+nologies(Volume1:LongPapers),pages1259–1286, Sadegh Mahdavi, Muchen Li, Kaiwen Liu, Christos
+MexicoCity,Mexico.AssociationforComputational Thrampoulidis,LeonidSigal,andRenjieLiao.2025.
+Linguistics. LeveragingonlineOlympiad-levelmathproblemsfor
+LLMs training and contamination-resistant evalua-
+HaonanLi,YixuanZhang,FajriKoto,YifeiYang,Hai
+tion. arXivpreprintarXiv:2501.14275.
+Zhao, YeyunGong, NanDuan, andTimothyBald-
+win.2024a. CMMLU:Measuringmassivemultitask TodorMihaylov,PeterClark,TusharKhot,andAshish
+languageunderstandinginChinese. InFindingsof Sabharwal.2018. Canasuitofarmorconductelec-
+theAssociationforComputationalLinguistics: ACL tricity? a new dataset for open book question an-
+2024,pages11260–11285,Bangkok,Thailand.As- swering. InProceedingsofthe2018Conferenceon
+sociationforComputationalLinguistics. EmpiricalMethodsinNaturalLanguageProcessing,
+pages 2381–2391, Brussels, Belgium. Association
+JiatongLi, RuiLi, andQiLiu.2023a. Beyondstatic
+forComputationalLinguistics.
+datasets: AdeepinteractionapproachtoLLMevalu-
+ation. arXivpreprintarXiv:2309.04369.
+Seyed Iman Mirzadeh, Keivan Alizadeh, Hooman
+Shahrokhi,OncelTuzel,SamyBengio,andMehrdad
+Tianle Li, Wei-Lin Chiang, Evan Frick, Lisa Dunlap,
+Farajtabar. 2025. GSM-symbolic: Understanding
+TianhaoWu,BanghuaZhu,JosephEGonzalez,and
+the limitations of mathematical reasoning in large
+IonStoica.2024b. Fromcrowdsourceddatatohigh-
+language models. In The Thirteenth International
+quality benchmarks: Arena-hard and benchbuilder
+ConferenceonLearningRepresentations.
+pipeline. arXivpreprintarXiv:2406.11939.
+SubhabrataMukherjee,ArindamMitra,GaneshJawa-
+XiangLi,YunshiLan,andChaoYang.2024c. TreeE-
+har, Sahaj Agarwal, Hamid Palangi, and Ahmed
+val: Benchmark-free evaluation of large language
+Awadallah.2023. Orca: Progressivelearningfrom
+models through tree planning. arXiv preprint
+complexexplanationtracesofGPT-4. arXivpreprint
+arXiv:2402.13125.
+arXiv:2306.02707.
+XuechenLi,TianyiZhang,YannDubois,RohanTaori,
+IshaanGulrajani,CarlosGuestrin,PercyLiang,and Mathematical Association of America. 2024. Ameri-
+Tatsunori B. Hashimoto. 2023b. AlpacaEval: An caninvitationalmathematicsexamination–AIME.
+automaticevaluatorofinstruction-followingmodels. American Invitational Mathematics Examination –
+https://github.com/tatsu-lab/alpaca_eval. AIME2024,February2024.
+YanyangLi,WongTinLong,CheungToHung,Jianqiao Guilherme Penedo, Hynek Kydlícˇek, Loubna Ben al-
+Zhao,DuoZheng,LiuKaWai,MichaelR.Lyu,and lal,AntonLozhkov,MargaretMitchell,ColinRaffel,
+LiweiWang.2025. C2LEVA:Towardcomprehensive LeandroVonWerra,andThomasWolf.2024. The
+andcontamination-freelanguagemodelevaluation. FineWebdatasets: Decantingthewebforthefinest
+In Findings of the Association for Computational text data atscale. In Proceedingsof the 38thCon-
+Linguistics: ACL 2025, pages 2283–2306, Vienna, ferenceonNeuralInformationProcessingSystems
+Austria.AssociationforComputationalLinguistics. DatasetsandBenchmarksTrack.
+YuchengLi,FrankGeurin,andChenghuaLin.2023c. SébastienPuma,EmmanuelSander,MatthieuSaumard,
+LatestEval: Addressing data contamination in IsabelleBarbet, andAurélienLatouche.2023. Re-
+language model evaluation through dynamic and considering conceptual knowledge: Heterogeneity
+time-sensitive test construction. arXiv preprint of its components. Journal of Experimental Child
+arXiv:2312.12343. Psychology,227:105587.
+
+--- Page 14 ---
+
+Kun Qian, Shunji Wan, Claudia Tang, Youzhi Wang, David Rein, Betty Li Hou, Asa Cooper Stickland,
+XuanmingZhang,MaximillianChen,andZhouYu. Jackson Petty, Richard Yuanzhe Pang, Julien Di-
+2024. VarBench: Robust language model bench- rani,JulianMichael,andSamuelR.Bowman.2023.
+markingthroughdynamicvariableperturbation. In GPQA:Agraduate-levelgoogle-proofQ&Abench-
+FindingsoftheAssociationforComputationalLin- mark. Preprint,arXiv:2311.12022.
+guistics: EMNLP2024,pages16131–16161,Miami,
+Florida, USA. Association for Computational Lin- MartinRiddell, AnsongNi, andArmanCohan.2024.
+guistics. Quantifyingcontaminationinevaluatingcodegenera-
+tioncapabilitiesoflanguagemodels. InProceedings
+of the 62nd Annual Meeting of the Association for
+YiweiQin,KaiqiangSong,YebowenHu,WenlinYao,
+ComputationalLinguistics(Volume1: LongPapers),
+SangwooCho,XiaoyangWang,XuanshengWu,Fei
+pages14116–14137,Bangkok,Thailand.Association
+Liu, PengfeiLiu, andDongYu.2024. InFoBench:
+forComputationalLinguistics.
+Evaluatinginstructionfollowingabilityinlargelan-
+guage models. In Findings of the Association for
+KeisukeSakaguchi,RonanLeBras,ChandraBhagavat-
+ComputationalLinguistics: ACL2024,pages13025–
+ula,andYejinChoi.2021. WinoGrande: Anadver-
+13048,Bangkok,Thailand.AssociationforCompu-
+sarialwinogradschemachallengeatscale. Commu-
+tationalLinguistics.
+nicationsoftheACM,64(9):99–106.
+AlecRadford,JeffreyWu,RewonChild,DavidLuan, Maarten Sap, Hannah Rashkin, Derek Chen, Ronan
+Dario Amodei, Ilya Sutskever, and 1 others. 2019. Le Bras, and Yejin Choi. 2019. Social IQa: Com-
+Languagemodelsareunsupervisedmultitasklearn- monsense reasoning about social interactions. In
+ers. OpenAIblog,1(8):9. Proceedings of the 2019 Conference on Empirical
+Methods in Natural Language Processing and the
+Pranav Rajpurkar, Robin Jia, and Percy Liang. 2018. 9thInternationalJointConferenceonNaturalLan-
+Know what you don‘t know: Unanswerable ques- guageProcessing(EMNLP-IJCNLP),pages4463–
+tionsforSQuAD. InProceedingsofthe56thAnnual 4473,HongKong,China.AssociationforComputa-
+Meeting of the Association for Computational Lin- tionalLinguistics.
+guistics(Volume2: ShortPapers), pages784–789,
+RylanSchaeffer.2023. Pretrainingonthetestsetisall
+Melbourne,Australia.AssociationforComputational
+youneed. arXivpreprintarXiv:2309.08632.
+Linguistics.
+Weijia Shi, Anirudh Ajith, Mengzhou Xia, Yangsibo
+DezhiRan,HaoWang,ZiheSong,MengzhouWu,Yuan
+Huang,DaogaoLiu,TerraBlevins,DanqiChen,and
+Cao, Ying Zhang, Wei Yang, and Tao Xie. 2024.
+LukeZettlemoyer.2024. Detectingpretrainingdata
+Guardian: AruntimeframeworkforLLM-basedUI
+fromlargelanguagemodels. InTheTwelfthInterna-
+exploration. InProceedingsofthe33rdACMSIG-
+tionalConferenceonLearningRepresentations.
+SOFTInternationalSymposiumonSoftwareTesting
+andAnalysis,pages958–970. Chinese Mathematical Society. 2024. Chinese Na-
+tionalHighSchoolMathematicsOlympiad(CNMO
+Dezhi Ran, Mengzhou Wu, Hao Yu, Yuetong Li, Jun 2024). https://www.cms.org.cn/Home/comp/
+Ren, Yuan Cao, Xia Zeng, Haochuan Lu, Zexin comp/cid/12.html. Accessed: 2025-02-06.
+Xu, Mengqian Xu, Ting Su, Liangchao Yao, Ting
+Xiong, Wei Yang, Yuetang Deng, Assaf Marron, LiangtaiSun,YangHan,ZihanZhao,DaMa,Zhennan
+David Harel, and Tao Xie. 2025. Beyond pass or Shen,BaocaiChen,LuChen,andKaiYu.2024. Sci-
+fail: Multi-dimensionalbenchmarkingoffoundation Eval: Amulti-levellargelanguagemodelevaluation
+modelsforgoal-basedmobileuinavigation. arXiv benchmark for scientific research. In Proceedings
+e-prints,arXiv:2501.02863. of the AAAI Conference on Artificial Intelligence,
+volume38,pages19053–19061.
+Federico Ranaldi, Elena Sofia Ruzzetti, Dario Ono-
+Mirac Suzgun, Nathan Scales, Nathanael Schärli, Se-
+rati,LeonardoRanaldi,CristinaGiannone,Andrea
+bastian Gehrmann, Yi Tay, Hyung Won Chung,
+Favalli,RanieroRomagnoli,andFabioMassimoZan-
+Aakanksha Chowdhery, Quoc Le, Ed Chi, Denny
+zotto.2024. Investigatingtheimpactofdatacontami-
+Zhou,andJasonWei.2023. ChallengingBIG-bench
+nationoflargelanguagemodelsintext-to-SQLtrans-
+tasksandwhetherchain-of-thoughtcansolvethem.
+lation. InFindingsoftheAssociationforComputa-
+InFindingsoftheAssociationforComputationalLin-
+tionalLinguistics: ACL2024,pages13909–13920,
+guistics: ACL 2023, pages 13003–13051, Toronto,
+Bangkok,Thailand.AssociationforComputational
+Canada.AssociationforComputationalLinguistics.
+Linguistics.
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and
+MathieuRavaut, BoshengDing, FangkaiJiao, Hailin JonathanBerant.2019. CommonsenseQA:Aques-
+Chen,XingxuanLi,RuochenZhao,ChengweiQin, tion answering challenge targeting commonsense
+CaimingXiong,andShafiqJoty.2024. Howmuch knowledge. InProceedingsofthe2019Conference
+are large language models contaminated? a com- oftheNorthAmericanChapteroftheAssociationfor
+prehensivesurveyandthellmsanitizelibrary. arXiv ComputationalLinguistics: HumanLanguageTech-
+preprintarXiv:2404.00699. nologies,Volume1(LongandShortPapers),pages
+
+--- Page 15 ---
+
+4149–4158,Minneapolis,Minnesota.Associationfor Siyuan Wang, Zhuohan Long, Zhihao Fan, Xuanjing
+ComputationalLinguistics. Huang, and Zhongyu Wei. 2025. Benchmark self-
+evolving: A multi-agent framework for dynamic
+Gemini Team, Petko Georgiev, Ving Ian Lei, Ryan LLM evaluation. In Proceedings of the 31st Inter-
+Burnell, Libin Bai, Anmol Gulati, Garrett Tanzer, nationalConferenceonComputationalLinguistics,
+DamienVincent,ZhufengPan,ShiboWang,and1 pages3310–3328,AbuDhabi,UAE.Associationfor
+others. 2024. Gemini 1.5: Unlocking multimodal ComputationalLinguistics.
+understandingacrossmillionsoftokensofcontext.
+arXivpreprintarXiv:2403.05530. YuboWang,XueguangMa,GeZhang,YuanshengNi,
+Abhranil Chandra, Shiguang Guo, Weiming Ren,
+Teknium.2023. OpenHermes2.5: Anopendatasetof AaranArulraj,XuanHe,ZiyanJiang,and1others.
+syntheticdataforgeneralistLLMassistants. 2024. MMLU-Pro: Amorerobustandchallenging
+multi-tasklanguageunderstandingbenchmark. arXiv
+HugoTouvron,ThibautLavril,GautierIzacard,Xavier preprintarXiv:2406.01574.
+Martinet,Marie-AnneLachaux,TimothéeLacroix,
+BaptisteRozière,NamanGoyal,EricHambro,Faisal ColinWhite,SamuelDooley,ManleyRoberts,ArkaPal,
+Azhar, and 1 others. 2023. LLaMA: Open and ef- BenFeuer,SiddharthaJain,RavidShwartz-Ziv,Neel
+ficientfoundationlanguagemodels. arXivpreprint Jain,KhalidSaifullah,SiddarthaNaidu,and1others.
+arXiv:2302.13971. 2024. LiveBench:Achallenging,contamination-free
+LLMbenchmark. arXivpreprintarXiv:2406.19314.
+Shangqing Tu, Kejian Zhu, Yushi Bai, Zijun Yao,
+Lei Hou, and Juanzi Li. 2024. DICE: Detect- XiaobaoWu,LiangmingPan,YuxiXie,RuiwenZhou,
+ing in-distribution contamination in LLM’s fine- Shuai Zhao, Yubo Ma, Mingzhe Du, Rui Mao,
+tuning phase for math reasoning. arXiv preprint AnhTuanLuu,andWilliamYangWang.2025. An-
+arXiv:2406.04197. tiLeakBench: Preventingdatacontaminationbyau-
+tomatically constructing benchmarks with updated
+MdNayemUddin,AmirSaeidi,DivijHanda,Agastya real-world knowledge. In Proceedings of the 63rd
+Seth,TranCaoSon,EduardoBlanco,StevenRCor- AnnualMeetingoftheAssociationforComputational
+man,andChittaBaral.2024. UnSeenTimeQA:Time- Linguistics(Volume1: LongPapers),pages18403–
+sensitivequestion-answeringbeyondLLMs’memo- 18419, Vienna, Austria. Association for Computa-
+rization. arXivpreprintarXiv:2407.03525. tionalLinguistics.
+PabloVillalobos,JaimeSevilla,LennartHeim,Tamay ChulinXie,YangsiboHuang,ChiyuanZhang,DaYu,
+Besiroglu,MariusHobbhahn,andAnsonHo.2022. XinyunChen,BillYuchenLin,BoLi,BadihGhazi,
+Willwerunoutofdata? ananalysisofthelimitsof and Ravi Kumar. 2024. On memorization of large
+scalingdatasetsinmachinelearning. arXivpreprint languagemodelsinlogicalreasoning. arXivpreprint
+arXiv:2211.04325,1. arXiv:2410.23123.
+Zhongwei Wan, Xin Wang, Che Liu, Samiul Alam, ChengXu, ShuhaoGuan, DerekGreene, MKechadi,
+Yu Zheng, Jiachen Liu, Zhongnan Qu, Shen Yan, and1others.2024a. Benchmarkdatacontamination
+YiZhu,QuanluZhang,and1others.2023. Efficient oflargelanguagemodels: Asurvey. arXivpreprint
+large language models: A survey. arXiv preprint arXiv:2406.04244.
+arXiv:2312.03863.
+Liang Xu, Hai Hu, Xuanwei Zhang, Lu Li, Chenjie
+AlexWang,YadaPruksachatkun,NikitaNangia,Aman- Cao, Yudong Li, Yechen Xu, Kai Sun, Dian Yu,
+preetSingh,JulianMichael,FelixHill,OmerLevy, Cong Yu, Yin Tian, Qianqian Dong, Weitang Liu,
+andSamuelBowman.2019. SuperGLUE:Astickier BoShi,YimingCui,JunyiLi,JunZeng,Rongzhao
+benchmarkforgeneral-purposelanguageunderstand- Wang,WeijianXie,and13others.2020. CLUE:A
+ingsystems. InProceedingsofthe32rdAdvancesin Chinese language understanding evaluation bench-
+NeuralInformationProcessingSystems,volume32. mark. InProceedingsofthe28thInternationalCon-
+ferenceonComputationalLinguistics,pages4762–
+Alex Wang, Amanpreet Singh, Julian Michael, Felix 4772,Barcelona,Spain(Online).InternationalCom-
+Hill,OmerLevy,andSamuelBowman.2018. GLUE: mitteeonComputationalLinguistics.
+Amulti-taskbenchmarkandanalysisplatformfornat-
+urallanguageunderstanding. InProceedingsofthe RuijieXu,ZengzhiWang,Run-ZeFan,andPengfeiLiu.
+2018 EMNLP Workshop BlackboxNLP: Analyzing 2024b. Benchmarkingbenchmarkleakageinlarge
+and Interpreting Neural Networks for NLP, pages languagemodels. arXivpreprintarXiv:2404.18824.
+353–355,Brussels,Belgium.AssociationforCom-
+putationalLinguistics. XinXu,JiaxinZHANG,TianhaoChen,ZitongChao,
+JishanHu,andCanYang.2025. UGMathbench: A
+GuanWang,SijieCheng,XianyuanZhan,XiangangLi, diverseanddynamicbenchmarkforundergraduate-
+SenSong,andYangLiu.2023. OpenChat: Advanc- level mathematical reasoning with large language
+ingopen-sourcelanguagemodelswithmixed-quality models. In Proceedings of the 13th International
+data. arXivpreprintarXiv:2309.11235. ConferenceonLearningRepresentations.
+
+--- Page 16 ---
+
+An Yang, Baosong Yang, Beichen Zhang, Binyuan pages 13371–13391, Vienna, Austria. Association
+Hui, Bo Zheng, Bowen Yu, Chengyuan Li, Day- forComputationalLinguistics.
+iheng Liu, Fei Huang, Haoran Wei, and 1 others.
+2024. Qwen2.5 technical report. arXiv preprint WanjunZhong,RuixiangCui,YiduoGuo,YaoboLiang,
+arXiv:2412.15115. ShuaiLu,YanlinWang,AminSaied,WeizhuChen,
+and Nan Duan. 2024. AGIEval: A human-centric
+John Yang, Carlos E. Jimenez, Alex L. Zhang, Kil- benchmark for evaluating foundation models. In
+ian Lieret, Joyce Yang, Xindi Wu, Ori Press, FindingsoftheAssociationforComputationalLin-
+NiklasMuennighoff,GabrielSynnaeve,KarthikR. guistics: NAACL 2024, pages 2299–2314, Mexico
+Narasimhan,DiyiYang,SidaI.Wang,andOfirPress. City, Mexico. Association for Computational Lin-
+2025. SWE-benchmultimodal: DoAIsystemsgen- guistics.
+eralizetovisualsoftwaredomains? InProceedings
+the13thInternationalConferenceonLearningRep- Jeffrey Zhou, Tianjian Lu, Swaroop Mishra, Sid-
+resentations. dharthaBrahma,SujoyBasu,YiLuan,DennyZhou,
+and Le Hou. 2023. Instruction-following evalu-
+ShuoYang,Wei-LinChiang,LianminZheng,JosephE ation for large language models. arXiv preprint
+Gonzalez, and Ion Stoica. 2023. Rethinking arXiv:2311.07911.
+benchmark and contamination for language mod-
+els with rephrased samples. arXiv preprint Yang Zhou, Hongyi Liu, Zhuoming Chen, Yuandong
+arXiv:2311.04850. Tian,andBeidiChen.2025. GSM-Infinite: Howdo
+yourLLMsbehaveoverinfinitelyincreasingcontext
+Jiahao Ying, Yixin Cao, Yushi Bai, Qianru Sun, length and reasoning complexity? arXiv preprint
+Bo Wang, Wei Tang, Zhaojun Ding, Yizhe Yang, arXiv:2502.05252.
+Xuanjing Huang, and Shuicheng YAN. 2024. Au-
+tomatingdatasetupdatestowardsreliableandtimely KaijieZhu,JiaaoChen,JindongWang,NeilZhenqiang
+evaluation of large language models. In Proceed- Gong,DiyiYang,andXingXie.2024a. Dyval: Dy-
+ingsofthe38thConferenceonNeuralInformation namicevaluationoflargelanguagemodelsforreason-
+ProcessingSystemsDatasetsandBenchmarksTrack. ingtasks. InProceedingsofthe12thInternational
+ConferenceonLearningRepresentations.
+ZhuohaoYu,ChangGao,WenjinYao,YidongWang,
+Wei Ye, Jindong Wang, Xing Xie, Yue Zhang, KaijieZhu,JindongWang,QinlinZhao,RuochenXu,
+and Shikun Zhang. 2024. KIEval: A knowledge- andXingXie.2024b. Dynamicevaluationoflarge
+groundedinteractiveevaluationframeworkforlarge languagemodelsbymetaprobingagents. InProceed-
+languagemodels. InProceedingsofthe62ndAnnual ingsofthe41stInternationalConferenceonMachine
+Meeting of the Association for Computational Lin- Learning,ICML’24.JMLR.org.
+guistics(Volume1: LongPapers),pages5967–5985,
+Qin Zhu, Qinyuan Cheng, Runyu Peng, Xiaonan Li,
+Bangkok,Thailand.AssociationforComputational
+Ru Peng, Tengxiao Liu, Xipeng Qiu, and Xuan-
+Linguistics.
+jing Huang. 2024c. Inference-time decontamina-
+Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali tion: Reusingleakedbenchmarksforlargelanguage
+Farhadi,andYejinChoi.2019. HellaSwag:Canama- model evaluation. In Findings of the Association
+chinereallyfinishyoursentence? InProceedingsof forComputationalLinguistics: EMNLP2024,pages
+the57thAnnualMeetingoftheAssociationforCom- 9113–9129, Miami, Florida, USA.Associationfor
+putationalLinguistics,pages4791–4800,Florence, ComputationalLinguistics.
+Italy.AssociationforComputationalLinguistics.
+Yongshuo Zong, Tingyang Yu, Ruchika Chavhan,
+Haozhen Zhang, Tao Feng, Pengrui Han, Bingchen Zhao, and Timothy Hospedales. 2024.
+and Jiaxuan You. 2024a. AcademicE- Foolyour(visionand)languagemodelwithembar-
+val: Live long-context LLM benchmark. rassinglysimplepermutations. InThe41stInterna-
+https://openreview.net/forum?id=iRYExPKnxm. tionalConferenceonMachineLearning.
+OpenReviewrecord;CCBY4.0.
+Zhehao Zhang, Jiaao Chen, and Diyi Yang. 2024b. A SignificanceofDataContamination
+DARG:Dynamicevaluationoflargelanguagemod-
+elsviaadaptivereasoninggraph. InProceedingsof To demonstrate the effectiveness of dynamic
+the38thAnnualConferenceonNeuralInformation benchmarks, we following existing work (Chen
+ProcessingSystems.
+et al., 2025) and conduct a study using Hu-
+Qihao Zhao, Yangyu Huang, Tengchao Lv, Lei Cui, manEvalandDyCodeEval(Chenetal.,2025)us-
+Qinzheng Sun, Shaoguang Mao, Xin Zhang, Ying ingthreeLLMs: Llama-3.2-1B,Llama-3.2-3B,and
+Xin,QiufengYin,ScarlettLi,andFuruWei.2025. DeepSeek-Coder-1.3B.Foreachmodel,wesimu-
+MMLU-CF: A contamination-free multi-task lan-
+latedatacontaminationbyintentionallyleakinga
+guage understanding benchmark. In Proceedings
+portionofthebenchmarkdatasetduringfine-tuning.
+of the 63rd Annual Meeting of the Association for
+ComputationalLinguistics(Volume1: LongPapers), We experiment with contamination levels of 0%,
+
+--- Page 17 ---
+
+HumanEval DyCodeEval
+Leakage Llama-3.2-1B Llama-3.2-3B DeepSeek-Coder-1.3b Llama-3.2-1B Llama-3.2-3B DeepSeek-Coder-1.3b
+0% 0.19 0.28 0.41 0.14 0.25 0.41
+25% 0.29 0.32 0.47 0.08 0.18 0.13
+50% 0.48 0.57 0.50 0.08 0.19 0.16
+75% 0.68 0.71 0.59 0.07 0.21 0.14
+100% 0.82 0.87 0.62 0.11 0.18 0.07
+Table3: Aproofofconceptexperiment.
+25%,50%,75%,and100%respectively,producing atplausibleanswers. C-SimpleQA(Heetal.,2025)
+fourdistinctcontaminatedmodels. evaluatesthefactualityabilityoflanguagemodels
+The results show that for overfitted models, as toanswershortquestionsinChinese.
+the contamination level increases from 25% to Safety. Safetybenchmarksareessentialforevalu-
+100%,accuracyonHumanEvalalsoincreases. This atingtherobustnessofLLM’sabilitytogenerate
+resulthighlightsthelimitationofstaticbenchmarks non-toxicandethicallyalignedcontent. Datasets
+indetectingoverfitting. However,onthedynamic suchasRealToxicityPrompts(Gehmanetal.,2020)
+DyCodeEval,evenwhenamodelisoverfittedon and ToxiGen (Hartvigsen et al., 2022) assess re-
+one version, it maintains stable accuracy scores silienceagainstproducingharmfuloutputs. Trust-
+acrossdifferentversions. Theresultsdemonstrate Gen(Huangetal.,2025)isthefirstdynamicbench-
+theadvantageofdynamicbenchmarksinevaluat- markingtoevaluatetrustworthinessacrossmulti-
+ingmodelsunderdatacontamination. pledimensionsandmodeltypes,includingtext-to-
+image,largelanguage,andvision-languagemod-
+B BenchmarkApplications
+els.
+Knowledge. Knowledge benchmarks evalu- Language. Language benchmarks assess
+ate LLM internal knowledge. NaturalQues- the LLMs’ proficiency in specific languages.
+tions (Kwiatkowski et al., 2019) and Trivi- GLUE(Wangetal.,2018)andSuperGLUE(Wang
+aQA (Joshi et al., 2017) focus on retrieving real- etal.,2019)covertasksfromsentimentanalysisto
+world information, while multi-domain tasks are languageinference,whileCLUE(Xuetal.,2020)
+covered by MMLU (Hendrycks et al., 2020), targets Chinese language. Typo-fixing (Suzgun
+BBH(Suzgunetal.,2023),andAGIEval(Zhong etal.,2023)isalsowidelyused.
+et al., 2024). Recent extensions like MMLU- Reading Comprehension. Reading comprehen-
+Redux(Gemaetal.,2025)andMMLU-Pro(Wang sion tasks test a model’s ability to extract and
+etal.,2024)refinetheseassessmentsfurther. Ad- infer information from text. Benchmarks like
+ditionally, ControlBench (Darioush et al., 2024), SQuAD(Rajpurkaretal.,2018),QuAC(Choietal.,
+FRAMES(Krishnaetal.,2025),andGPQADia- 2018), and BoolQ (Clark et al., 2019) challenge
+mond(Reinetal.,2023)targettechnicalandlong- models to understand passages and draw logical
+contextchallenges,withopen-domainevaluations conclusions.
+providedbyAlpacaEval(Lietal.,2023b)andAre-
+C StaticBenchmarkEnhancements
+naHard(Lietal.,2024b).
+Reasoning. Understandingandapplyingeveryday Because LLMs often train on publicly available
+knowledge is a key aspect of language compre- data, static benchmarks risk being inadvertently
+hension. Benchmarks such as PIQA (Bisk et al., included, leading to contamination. To mitigate
+2020),SIQA(Sapetal.,2019),HellaSwag(Zellers this risk, several methods have been proposed to
+et al., 2019), and WinoGrande (Sakaguchi et al., enhancestaticbenchmarking.
+2021) are designed to assess a model’s intuitive
+reasoningskillsfrommultipleperspectives. Inad- C.1 CanaryString
+dition, academic challenge sets like ARC (Clark Canary strings are deliberately crafted, being
+etal.,2018),OpenBookQA(Mihaylovetal.,2018), uniquetokensembeddedwithinadatasettoserve
+andCommonsenseQA(Talmoretal.,2019)push as markers for data contamination. When a
+modelsfurtherbyrequiringtheintegrationofback- model’soutputunexpectedlyincludesthesetokens,
+groundknowledgewithlogicalreasoningtoarrive itstronglyindicatesthatthemodelhasmemorized
+
+--- Page 18 ---
+
+Task Type Benchmark
+Static GSM8K(Cobbeetal.,2021),MATH(Hendrycksetal.,2021),AIME2024(ofAmerica,
+Math 2024),CNMO2024)(Society,2024)
+Dynamic LiveBench(Whiteetal.,2024),UGMathBench(Xuetal.,2025),Mathador-LM(Kurtic
+etal.,2024)
+Static GLUE(Wangetal.,2018),SuperGLUE(Wangetal.,2019),CLUE(Xuetal.,2020)
+Language Dynamic LiveBench(Whiteetal.,2024),C2LEVA(Lietal.,2025),ITD(Zhuetal.,2024c)
+Static HumanEval(Chenetal.,2021),MBPP(Austinetal.,2021),SWE-Bench(Jimenezetal.,
+Coding 2024;Yangetal.,2025),Codeforces(Codeforces,2025),Aider(Aider,2025)
+Dynamic PPM(Chenetal.,2024a),DyCodeEval(Chenetal.,2025),LiveCodeBench(Jainetal.,
+2024),ComplexCodeEval(Fengetal.,2024)
+Static PIQA(Bisketal.,2020),SIQA(Sapetal.,2019),HellaSwag(Zellersetal.,2019),Wino-
+Reasoning Grande(Sakaguchietal.,2021),ARC(Clarketal.,2018),OpenBookQA(Mihaylovetal.,
+2018),CommonsenseQA(Talmoretal.,2019),C-SimpleQA(Heetal.,2025)
+Dynamic LiveBench (White et al., 2024), DyVal (Zhu et al., 2024a), C2LEVA (Li et al., 2025),
+NPHardEval(Fanetal.,2024),S3Eval(Leietal.,2024),DARG(Zhangetal.,2024b)
+Static NaturalQuestions(Kwiatkowskietal.,2019),TriviaQA(Joshietal.,2017),CMMLU(Li
+Knowledge etal.,2024a),MMLU(Hendrycksetal.,2020),BBH(Suzgunetal.,2023),AGIEval(Zhong
+etal.,2024),MMLU-Redux(Gemaetal.,2025),MMLU-Pro(Wangetal.,2024),Control-
+Bench(Darioushetal.,2024),FRAMES(Krishnaetal.,2025),GPQADiamond(Reinetal.,
+2023),AlpacaEval(Lietal.,2023b),ArenaHard(Lietal.,2024b)
+Dynamic C2LEVA (Li et al., 2025), ITD (Zhu et al., 2024c), Auto-Dataset (Ying et al., 2024),
+DyVal2(Zhuetal.,2024b),SciEval(Sunetal.,2024)
+Static RealToxicityPrompts(Gehmanetal.,2020),ToxiGen(Hartvigsenetal.,2022)
+Safety Dynamic C2LEVA(Lietal.,2025),FactBench(Bayatetal.,2024)
+Static IFEval(Zhouetal.,2023),InfoBench(Qinetal.,2024),C-Eval(Huangetal.,2024)
+Instruction Dynamic LiveBench(Whiteetal.,2024)
+Static SQuAD(Rajpurkaretal.,2018),QuAC(Choietal.,2018),BoolQ(Clarketal.,2019)
+Comprehension Dynamic LatestEval(Lietal.,2023c),Antileak-bench(Wuetal.,2025)
+Table4: Summaryofbenchmarkingapplications.
+portionsofitstrainingdataratherthanlearningto toenableprivatebenchmarking,ensuringthattest
+generalize. For instance, the BIG-Bench dataset dataandmodelparametersremainconfidential.
+incorporatesthesestringssothatmodeldevelopers Limitations. Whilethesemethodseffectivelypro-
+can identify and filter out such instances (Jacovi tectagainstdataleakage,theydependonstrongkey
+etal.,2023). management, theyintroduceextracomputational
+Limitations. The effectiveness of canary strings overheads. Thesemethodsarevulnerableifencryp-
+dependsonmodeltrainersbeingawareofandre- tioniscompromisedorprivatekeyisexposed.
+sponsive to these markers. If a developer aims
+C.3 LabelProtection
+to leak benchmarking data to boost scores, this
+methodwillnotwork. Labelprotectioninvolveskeepingthetrueanswers
+of a test set hidden from public access so that
+C.2 Encryption
+only an authorized evaluator can use them dur-
+Encryptionmethodssecureevaluationdatabymak- ing model assessment. This method is common
+ingitinaccessibletounauthorizedparties,prevent- inbenchmarkssuchasGLUE(Wangetal.,2018),
+ingitsaccidentalinclusionintrainingsets. Jacovi SuperGLUE (Wang et al., 2019), and OpenAI’s
+et al. (2023) propose encrypting test data with a HumanEval (Chen et al., 2021). where the test
+publickeyanda“NoDerivatives”licensetoblock labelsarewithheldtopreventmodelsfromlearn-
+automatedcrawlingandreuse. Yangetal.(2023) ingormemorizingthemduringtraining. Thekey
+showthatevenadvanceddecontaminationmethods advantageofthismethodisitsabilitytomaintain
+can be defeated by minor text variations, empha- evaluationintegritybypreventingmodelexposure
+sizing the need for robust encryption. Similarly, toanswers,therebymitigatingdatacontamination
+TRUCE(Chandranetal.,2024)leveragesconfiden- risks.
+tialcomputingandsecuremulti-partycomputation Limitations. Labelprotectionlimitstransparency
+
+--- Page 19 ---
+
+and independent verification, and it forces re- modelsandtasks.
+searcherstorelyoncentralizedevaluationsystems
+D DynamicBenchmarkingStrategy
+for performance metrics, which can impede de-
+PropertyLabelingGuidance
+tailederroranalysisandreproducibility.
+Welabeleachdynamicbenchmarkas“supported”,
+C.4 Post-hocDetection
+“partiallysupported”,or“notsupported”foreach
+Post-hoc detection mitigates data contamination
+criterionbasedonthefollowingguidelines:
+byidentifyingoverlapsbetweenD andD .
+train test Correctness. Benchmarkswithbuilt-inguarantees
+This method is typically done through n-gram
+(e.g.,viatemporalcutoffsorrule-basedgeneration)
+matching at various levels, such as tokens (Tou-
+are marked “supported”. LLM-generated bench-
+vron et al., 2023) or words (Radford et al., 2019;
+marks are “partially supported” if validated (e.g.,
+Brownetal.,2020;Chowdheryetal.,2023). How-
+by humans or automation), and “not supported”
+ever,exactmatchingoftenleadstofalsenegatives,
+otherwise.
+prompting the use of more robust methods like
+Scalability. Fullyautomatedbenchmarksare“sup-
+embedding-basedsimilarity(Riddelletal.,2024;
+ported”. Thosecombiningautomationwithhuman
+Lee et al., 2023; Gunasekar et al., 2023) and im-
+effortare“partiallysupported”,whilepurelyman-
+provedmappingmetrics(Lietal.,2024d;Xuetal.,
+ualonesare“notsupported”.
+2024b).
+Collision. If a benchmark provides theoretical
+Beyonddirectoverlapdetection,post-hocmeth-
+guaranteesorformallyanalyzescollisionrates,it
+ods also analyze model behavior under different
+is“supported”. Empiricalanalysiswithoutguaran-
+conditions,suchasmemorizationthroughmasked
+teesis“partialsupport”,andabsenceofdiscussion
+inputs (Ranaldi et al., 2024; Chang et al., 2023),
+resultsin“notsupported”.
+partialcompletions(Aniletal.,2023;Golchinand
+ComplexityStability. Benchmarksthatdefineand
+Surdeanu, 2024), or preference for original over
+control complexity are “supported”. Those that
+paraphrasedtestcases(Duarteetal.,2024;Golchin
+definebutdonotcontrolitreceive“partialsupport”.
+and Surdeanu, 2023; Zong et al., 2024). For in-
+Lackofdiscussionresultsin“notsupported”.
+stance,Dekonincketal.(2024)proposeCONSTAT,
+Diversity. Benchmarksthatdefineandenforcedi-
+whichdetectscontaminationbycomparingmodel
+versityare“supported”. Thosethatdefinebutdo
+performanceacrossbenchmarks.
+notcontrolitare“partiallysupported”,andbench-
+Limitations. Post-hotdetectionmethodsfacesev-
+marksthatomititare“notsupported”.
+erallimitations. Fullaccesstothetrainingdatasetis
+Interpretability. Rule-basedorhuman-designed
+oftenrestrictedduetolegalandprivacyconstraints,
+benchmarks are “supported”. Those combining
+making overlap detection challenging. Addition-
+ruleswithLLMsreceive“partialsupport”. Bench-
+ally, assumptions about model behavior, such as
+marks relying entirely on LLMs without inter-
+highermemorizationorlowerperplexityforcon-
+pretabilityare“notsupported”.
+taminatedinstances,maynotholdacrossdifferent
