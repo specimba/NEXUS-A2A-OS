@@ -35,7 +35,7 @@ def safe_print(msg):
 # ── Configuration ──────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MERGE_CONFIG_PATH = REPO_ROOT / "models" / "qwen2.5-1.5b-ties-merge-v3.yml"
-DPO_DATASET_PATH = REPO_ROOT / "datasets" / "ernie" / "dpo_preference_dataset.json"
+DPO_DATASET_PATH = REPO_ROOT / "datasets" / "ernie" / "dpo_preference_dataset.array.json"
 
 # Cache / output directories (MUST stay off C: drive)
 if os.name == "nt":
@@ -126,7 +126,13 @@ def load_dpo_preferences(path: Path) -> list[dict]:
     prefs = []
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
-            for line in f:
+            raw = f.read().strip()
+        # Try single JSON array first (.array.json format)
+        if raw.startswith("["):
+            prefs = json.loads(raw)
+        else:
+            # JSON Lines format (.jsonl)
+            for line in raw.splitlines():
                 line = line.strip()
                 if not line:
                     continue
