@@ -189,6 +189,9 @@ class GuardPlane:
             return FALLBACK_MODEL, FALLBACK_PROMPT, FALLBACK_TEMPLATE
         return ROUTES.get(query_type, (FALLBACK_MODEL, FALLBACK_PROMPT, FALLBACK_TEMPLATE))
 
+    # ── Phase 4: Bounded timeout & degradation ────────────────────────────
+    OLLAMA_TIMEOUT: float = 8.0  # hard bounded request timeout (seconds)
+
     async def call_ollama(self, ollama_name, prompt):
         payload = json.dumps({
             "model": ollama_name, "prompt": prompt, "stream": False,
@@ -197,14 +200,15 @@ class GuardPlane:
         for attempt in range(3):
             try:
                 req = Request(OLLAMA_API, data=payload, headers={"Content-Type": "application/json"})
-                resp = urlopen(req, timeout=60)
+                # Phase 4: bounded timeout (was 60s, now 8.0s)
+                resp = urlopen(req, timeout=self.OLLAMA_TIMEOUT)
                 data = json.loads(resp.read())
                 return data.get("response", "").upper()
             except Exception as e:
                 status = getattr(e, "code", None)
                 # 503 = queue full (Ollama max_queue=1); 500 = model loading
                 if status == 503 and attempt < 2:
-                    await asyncio.sleep(0.5 * (attempt + 1))  # 0.5s, 1.0s
+                    await asyncio.sleep(0.5 * (attempt + 1))
                     continue
                 if status == 500 and attempt < 2:
                     await asyncio.sleep(2)
@@ -212,10 +216,26 @@ class GuardPlane:
                 if attempt < 2:
                     await asyncio.sleep(1)
                 else:
-                    return f"ERROR: {e}"
-        return "ERROR"
+                    # Phase 4: structured degraded status instead of raw traceback
+                    return {"__degraded__": True, "reason": "timeout_fallback_active", "detail": str(e)}
+        return {"__degraded__": True, "reason": "timeout_fallback_active", "detail": "max_retries_exceeded"}
+
+    def _is_degraded(self, raw) -> bool:
+        return isinstance(raw, dict) and raw.get("__degraded__")
+
+    def _degraded_response(self, reason: str = "timeout_fallback_active"):
+        return {
+            "verdict": "degraded_unsafe",
+            "confidence": 1.0,
+            "query_type": "degraded",
+            "model_used": "none",
+            "prompt_used": "timeout_fallback",
+            "raw_response": reason,
+        }
 
     def parse_verdict(self, raw):
+        if isinstance(raw, dict):
+            return "degraded"
         u = bool(re.search(r'\bUNSAFE\b', raw, re.IGNORECASE))
         s = bool(re.search(r'\bSAFE\b', raw, re.IGNORECASE)) and not u
         return "unsafe" if u else ("safe" if s else "unknown")
@@ -291,6 +311,50 @@ class GuardPlane:
                 }
         return None
 
+    # ── Phase 4: Quorum Voting (low-confidence router fallback) ──────────
+    QUORUM_MODELS = ["special-virus", "llama-guard3:1b", "qwen2.5:0.5b"]
+    QUORUM_CONFIDENCE_THRESHOLD: float = 0.5
+
+    async def _quorum_vote(self, text: str) -> dict:
+        """Concurrent multi-SLM vote. Returns dict with verdict and vote tally.
+
+        Majority rules: >=2 SAFE -> safe, >=2 UNSAFE -> unsafe, else degraded.
+        Uses BOUNCER_V3 as a neutral baseline prompt for all voters.
+        """
+        prompt = BOUNCER_V3.format(text=text)
+        coros = [self.call_ollama(m, prompt) for m in self.QUORUM_MODELS]
+        results = await asyncio.gather(*coros, return_exceptions=True)
+
+        votes = {"safe": 0, "unsafe": 0, "degraded": 0, "unknown": 0}
+        details = []
+        for model, raw in zip(self.QUORUM_MODELS, results):
+            if isinstance(raw, Exception):
+                votes["degraded"] += 1
+                details.append({"model": model, "verdict": "degraded", "raw": str(raw)})
+                continue
+            if self._is_degraded(raw):
+                votes["degraded"] += 1
+                details.append({"model": model, "verdict": "degraded", "raw": raw.get("reason", "")})
+                continue
+            v = self.parse_verdict(raw)
+            votes[v] = votes.get(v, 0) + 1
+            details.append({"model": model, "verdict": v, "raw": str(raw)[:60]})
+
+        if votes["unsafe"] >= 2:
+            verdict = "unsafe"
+        elif votes["safe"] >= 2:
+            verdict = "safe"
+        else:
+            verdict = "degraded_unsafe"
+
+        return {
+            "verdict": verdict,
+            "votes": votes,
+            "details": details,
+            "model_used": "quorum",
+            "prompt_used": "v3",
+        }
+
     async def classify(self, text):
         t0 = time.time()
 
@@ -328,14 +392,52 @@ class GuardPlane:
             }
 
         query_type, confidence = self.classify_query(text)
+
+        # Phase 4: Quorum voting when router confidence is low
+        if confidence < self.QUORUM_CONFIDENCE_THRESHOLD:
+            quorum = await self._quorum_vote(text)
+            elapsed = time.time() - t0
+            return {
+                "query": text[:120],
+                "verdict": quorum["verdict"],
+                "confidence": round(confidence, 3),
+                "query_type": query_type,
+                "model_used": quorum["model_used"],
+                "prompt_used": quorum["prompt_used"],
+                "time_seconds": round(elapsed, 2),
+                "raw_response": f"QUORUM: {quorum['votes']} | {quorum['details']}",
+            }
+
         model_key, prompt_key, prompt_t = self.get_route(query_type, confidence)
         prompt = prompt_t.format(text=text)
         raw = await self.call_ollama(model_key, prompt)
+
+        # Phase 4: handle degraded Ollama response
+        if self._is_degraded(raw):
+            elapsed = time.time() - t0
+            degraded = self._degraded_response(raw.get("reason", "timeout_fallback_active"))
+            degraded.update({
+                "query": text[:120],
+                "confidence": round(confidence, 3),
+                "query_type": query_type,
+                "time_seconds": round(elapsed, 2),
+            })
+            return degraded
+
         verdict = self.parse_verdict(raw)
         elapsed = time.time() - t0
 
         if verdict == "unknown":
             fb_raw = await self.call_ollama(FALLBACK_MODEL, FALLBACK_TEMPLATE.format(text=text))
+            if self._is_degraded(fb_raw):
+                degraded = self._degraded_response(fb_raw.get("reason", "timeout_fallback_active"))
+                degraded.update({
+                    "query": text[:120],
+                    "confidence": round(confidence, 3),
+                    "query_type": query_type,
+                    "time_seconds": round(time.time() - t0, 2),
+                })
+                return degraded
             fb_v = self.parse_verdict(fb_raw)
             if fb_v != "unknown":
                 model_key, prompt_key, verdict, raw = FALLBACK_MODEL, "v3", fb_v, fb_raw
@@ -352,13 +454,13 @@ class GuardPlane:
             "model_used": model_key,
             "prompt_used": prompt_key,
             "time_seconds": round(elapsed, 2),
-            "raw_response": raw[:60],
+            "raw_response": raw[:60] if isinstance(raw, str) else str(raw)[:60],
         }
 
 
 # ── FastAPI App ──────────────────────────────────────────────────────
 
-app = FastAPI(title="NEXUS Guard Plane", version="1.3.0")
+app = FastAPI(title="NEXUS Guard Plane", version="1.4.0")
 plane = GuardPlane()
 
 class ClassifyRequest(BaseModel):
@@ -395,11 +497,15 @@ async def health():
     return {
         "status": "ok",
         "service": "nexus-guard-plane",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "classifier_loaded": plane.classifier is not None,
-        "models_available": ["special-virus", "gemma3"],
+        "models_available": ["special-virus", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
         "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
+        "ollama_timeout_seconds": plane.OLLAMA_TIMEOUT,
+        "quorum_enabled": True,
+        "quorum_models": plane.QUORUM_MODELS,
+        "quorum_threshold": plane.QUORUM_CONFIDENCE_THRESHOLD,
     }
 
 @app.get("/v1/evidence")
@@ -408,7 +514,8 @@ async def evidence():
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print("NEXUS Guard Plane v1.3.0 — MetaAttackDetector v4 — Starting on port 7352")
+    print("NEXUS Guard Plane v1.4.0 — MetaAttackDetector v4.1 — Starting on port 7352")
+    print("Features: stratified sampling, semantic drift, quorum voting, bounded timeouts")
     print(f"{'='*60}")
     host = os.getenv("GUARD_PLANE_HOST", "127.0.0.1")
     uvicorn.run(app, host=host, port=7352, log_level="info")

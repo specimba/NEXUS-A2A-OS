@@ -375,7 +375,9 @@ class MetaAttackDetector:
         # 3. Unicode NFKC normalization (collapses compatibility chars)
         normalized = unicodedata.normalize("NFKC", homoglyph_stripped)
 
-        # 4. Script-mixing detection (>=2 scripts is suspicious)
+        # 4. Script-mixing / homoglyph-saturation detection
+        #    Directive: flag if Cyrillic, Greek, and Latin are combined
+        #    (indicates deliberate homoglyph saturation attack)
         scripts: set[str] = set()
         for ch in normalized:
             if not ch.isalpha():
@@ -391,11 +393,20 @@ class MetaAttackDetector:
                 scripts.add("arabic")
             elif 0x4E00 <= code <= 0x9FFF:
                 scripts.add("cjk")
+        # High-confidence alert when all three major homoglyph scripts mix
+        if {"latin", "cyrillic", "greek"}.issubset(scripts):
+            return normalized, DetectionResult(
+                is_threat=True,
+                category="script_mixing",
+                confidence=0.96,
+                matched_pattern=f"scripts:{','.join(sorted(scripts))}",
+            )
+        # Lower-confidence alert for any 2+ script mixing
         if len(scripts) >= 2:
             return normalized, DetectionResult(
                 is_threat=True,
                 category="script_mixing",
-                confidence=0.92,
+                confidence=0.82,
                 matched_pattern=f"scripts:{','.join(sorted(scripts))}",
             )
 
@@ -472,7 +483,7 @@ class MetaAttackDetector:
                 entropy -= p * math.log2(p)
             entropies.append(entropy)
 
-        # Signal 1: monotonic escalation over >=3 consecutive sentences
+        # Signal 1: monotonic escalation over >=4 consecutive sentences
         max_streak = 0
         current_streak = 0
         for i in range(1, len(entropies)):
@@ -482,11 +493,11 @@ class MetaAttackDetector:
             else:
                 current_streak = 0
 
-        if max_streak >= 2:  # 3 sentences monotonically increasing
+        if max_streak >= 3:  # 4 sentences monotonically increasing
             return DetectionResult(
                 is_threat=True,
                 category="narrative_entropy",
-                confidence=0.85,
+                confidence=0.88,
                 matched_pattern="monotonic_entropy_escalation",
             )
 
