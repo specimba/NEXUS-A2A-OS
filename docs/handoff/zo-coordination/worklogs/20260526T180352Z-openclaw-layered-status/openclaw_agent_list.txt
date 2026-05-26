@@ -1,0 +1,1 @@
+error: required option '-m, --message <text>' not specified

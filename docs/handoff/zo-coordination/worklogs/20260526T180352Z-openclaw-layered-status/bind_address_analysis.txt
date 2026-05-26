@@ -1,0 +1,37 @@
+# OpenClaw bind address analysis — 2026-05-26
+
+## Question
+Is OpenClaw "loopback only" or exposed on a broader interface?
+
+## Evidence
+ss -ltnp shows:
+  LISTEN 0  0  0.0.0.0:18789  0.0.0.0:*  users:(("openclaw",pid=82,fd=22))
+
+ip -4 addr shows reachable interfaces inside this container:
+  127.0.0.1/8       (loopback)
+  172.20.42.178/16  (Modal sandbox internal NAT range)
+
+iptables: unavailable (gVisor sandbox; no nftables/iptables firewall path).
+
+## Connectivity tests
+  curl http://127.0.0.1:18789/health             -> 200 OK
+  curl http://100.68.51.3:18789/health           -> timeout (tailnet IP not bound inside container netns; tailscaled handles ingress)
+  curl http://172.20.42.178:18789/health         -> not tested from outside container; container netns is sandboxed by Modal
+
+## Conclusion
+- Process bind is 0.0.0.0:18789 — broader than strict loopback.
+- Inside this Modal/gVisor sandbox the only reachable interfaces are 127.0.0.1 and a private 172.20.x.x NAT that is not externally routable.
+- External reachability is gated by:
+  1. Modal sandbox network policy (no inbound except via configured tunnels)
+  2. tailscaled, which terminates the tailnet and forwards to 127.0.0.1:18789 per `tailscale serve` config
+  3. Tailscale Serve ACL (currently "tailnet only")
+
+The earlier claim of "loopback only" was imprecise. Correct statement:
+  bind = 0.0.0.0:18789
+  effective external reach = via tailscaled only (tailnet-only Serve), not via the public internet, not via cross-tenant container network.
+
+## Hardening recommendation
+Bind explicitly to 127.0.0.1:18789 so that even if a future sandbox change broadens
+the container netns, the gateway is not auto-exposed. Set `gateway.listen.host=127.0.0.1`
+in openclaw.json and restart the gateway service. This makes the security posture
+match the description without relying on sandbox enforcement.

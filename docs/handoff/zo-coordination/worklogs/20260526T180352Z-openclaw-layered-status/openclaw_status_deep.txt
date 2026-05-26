@@ -1,0 +1,66 @@
+OpenClaw status
+
+Overview
+┌──────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Item                 │ Value                                                                                         │
+├──────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+│ OS                   │ linux 4.4.0 (x64) · node 22.22.1                                                              │
+│ Dashboard            │ http://127.0.0.1:18789/                                                                       │
+│ Tailscale exposure   │ off                                                                                           │
+│ Channel              │ stable (default)                                                                              │
+│ Update               │ available · pnpm · npm update 2026.5.22                                                       │
+│ Gateway              │ local · ws://127.0.0.1:18789 (local loopback) · reachable 115ms · auth token · modal (172.20. │
+│                      │ 42.178) app 2026.5.7 linux 4.4.0                                                              │
+│ Gateway self         │ modal (172.20.42.178) app 2026.5.7 linux 4.4.0                                                │
+│ Gateway service      │ systemd user not installed                                                                    │
+│ Node service         │ systemd user not installed                                                                    │
+│ Agents               │ 4 · 1 bootstrap file present · sessions 1 · default main active 25m ago                       │
+│ Memory               │ enabled (plugin memory-core) · not checked                                                    │
+│ Plugin compatibility │ none                                                                                          │
+│ Probes               │ enabled                                                                                       │
+│ Events               │ none                                                                                          │
+│ Tasks                │ none                                                                                          │
+│ Heartbeat            │ 30m (main), disabled (glm5-worker-1), disabled (glm5-worker-2), disabled (opusman)            │
+│ Last heartbeat       │ skipped · 26m ago ago · unknown                                                               │
+│ Sessions             │ 1 active · default gpt-5.5 (200k ctx) · 4 stores                                              │
+└──────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Security audit
+Summary: 0 critical · 1 warn · 1 info
+  WARN Reverse proxy headers are not trusted
+    gateway.bind is loopback and gateway.trustedProxies is empty. If you expose the Control UI through a reverse proxy, configure trusted proxies so local-client c…
+    Fix: Set gateway.trustedProxies to your proxy IPs or keep the Control UI local-only.
+Full report: openclaw security audit
+Deep probe: openclaw security audit --deep
+
+Channels
+┌──────────┬─────────┬────────┬────────────────────────────────────────────────────────────────────────────────────────┐
+│ Channel  │ Enabled │ State  │ Detail                                                                                 │
+├──────────┼─────────┼────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+│ Slack    │ ON      │ WARN   │ partial tokens (need bot+app) · accounts 1                                             │
+└──────────┴─────────┴────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+
+Sessions
+┌──────────────────────────────────────────┬────────┬─────────┬──────────────┬─────────────────────┬───────────────────┐
+│ Key                                      │ Kind   │ Age     │ Model        │ Runtime             │ Tokens            │
+├──────────────────────────────────────────┼────────┼─────────┼──────────────┼─────────────────────┼───────────────────┤
+│ agent:main:main                          │ direct │ 25m ago │ gpt-5.5      │ OpenClaw Pi Default │ unknown/200k (?%) │
+└──────────────────────────────────────────┴────────┴─────────┴──────────────┴─────────────────────┴───────────────────┘
+
+Health
+┌────────────┬───────────┬─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Item       │ Status    │ Detail                                                                                      │
+├────────────┼───────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Gateway    │ reachable │ 107ms                                                                                       │
+│ Event loop │ WARN      │ reasons event_loop_utilization · max 0ms · p99 0ms · util 1 · cpu 0.789                     │
+│ Slack      │ OFF       │ not configured                                                                              │
+└────────────┴───────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘
+
+FAQ: https://docs.openclaw.ai/faq
+Troubleshooting: https://docs.openclaw.ai/troubleshooting
+
+Update available (npm 2026.5.22). Run: openclaw update
+Next steps:
+  Need to share?      openclaw status --all
+  Need to debug live? openclaw logs --follow
+  Need to test channels? openclaw status --deep

@@ -1,0 +1,2 @@
+LISTEN 0      0            0.0.0.0:18789      0.0.0.0:*    users:(("openclaw",pid=82,fd=22))        
+LISTEN 0      0          127.0.0.1:7352       0.0.0.0:*    users:(("python3",pid=72,fd=12))         
