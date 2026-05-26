@@ -192,7 +192,7 @@ class GuardPlane:
     async def call_ollama(self, ollama_name, prompt):
         payload = json.dumps({
             "model": ollama_name, "prompt": prompt, "stream": False,
-            "options": {"num_predict": 15, "temperature": 0.1}
+            "options": {"num_predict": 15, "temperature": 0.1, "num_gpu": 0}
         }).encode()
         for attempt in range(3):
             try:
@@ -258,6 +258,39 @@ class GuardPlane:
                             return True
         return False
 
+    # ── P1: Stratified Context-Window Sampling (anti-attention-sink) ─────
+    STRATIFIED_SAMPLE_LEN: int = 200
+    STRATIFIED_THRESHOLD: int = 800
+
+    def _stratified_sample_scan(self, text: str) -> dict | None:
+        """Sample beginning, middle, and end of long prompts.
+
+        EV-010 (Gravitational Attention Sink) and EV-022 hide malicious
+        requests at the end of very long benign documents. Regex/keyword
+        filters that scan only the prefix miss the payload. We sample three
+        stratified positions and run each through the lightweight detector.
+        """
+        if len(text) < self.STRATIFIED_THRESHOLD:
+            return None
+        n = self.STRATIFIED_SAMPLE_LEN
+        samples = [
+            text[:n],                                    # Position 0 (beginning)
+            text[max(0, len(text)//2 - n//2):len(text)//2 + n//2],  # Position 0.5 (middle)
+            text[-n:],                                   # Position 1.0 (end)
+        ]
+        for sample in samples:
+            res = self.meta_detector.scan(sample)
+            if res.is_threat:
+                return {
+                    "verdict": "unsafe",
+                    "confidence": res.confidence,
+                    "query_type": res.category,
+                    "model_used": "prefilter",
+                    "prompt_used": f"stratified_sample_{res.matched_pattern}",
+                    "raw_response": f"STRATIFIED_BLOCKED: {res.matched_pattern}",
+                }
+        return None
+
     async def classify(self, text):
         t0 = time.time()
 
@@ -274,6 +307,13 @@ class GuardPlane:
                 "time_seconds": round(time.time() - t0, 3),
                 "raw_response": f"META_ATTACK_BLOCKED: {meta_res.matched_pattern}",
             }
+
+        # Stratified sampling for long-context attention-sink attacks
+        strat_res = self._stratified_sample_scan(text)
+        if strat_res:
+            strat_res["query"] = text[:120]
+            strat_res["time_seconds"] = round(time.time() - t0, 3)
+            return strat_res
 
         if self._csv_injection_prefilter(text):
             return {
