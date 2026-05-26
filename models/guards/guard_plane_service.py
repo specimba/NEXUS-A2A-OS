@@ -129,11 +129,11 @@ Query: {text}"""
 ROUTES = {
     "tamas": ("special-virus", "v5.1", BOUNCER_V5_1),        # 88.2% attack detection
     "v7": ("gemma3:1b", "v3", BOUNCER_V3),                    # 100% v7 detection
-    "benign_simple": ("special-virus", "v5", BOUNCER_V5),      # 94% benign safe
-    "benign_gray_area": ("special-virus", "v5", BOUNCER_V5),
-    "benign_adversarial_benign": ("special-virus", "v5", BOUNCER_V5),
-    "benign_domain_specific": ("special-virus", "v5", BOUNCER_V5),
-    "benign_edge_cases": ("special-virus", "v5", BOUNCER_V5),
+    "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),      # Low False Positive Guard
+    "benign_gray_area": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
+    "benign_adversarial_benign": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
+    "benign_domain_specific": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
+    "benign_edge_cases": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_ernie_corpus": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "attack_ernie": ("special-virus", "v5.1", BOUNCER_V5_1),
 }
@@ -156,9 +156,16 @@ class GuardPlane:
 
     def _load_classifier(self):
         if CLASSIFIER_PATH.exists():
-            with open(CLASSIFIER_PATH, "rb") as f:
-                self.classifier = pickle.load(f)
-            print(f"Classifier loaded: {CLASSIFIER_PATH}")
+            try:
+                with open(CLASSIFIER_PATH, "rb") as f:
+                    self.classifier = pickle.load(f)
+                print(f"Classifier loaded: {CLASSIFIER_PATH}")
+            except (ModuleNotFoundError, ImportError) as e:
+                print(f"Classifier load skipped (sklearn unavailable): {e}")
+                self.classifier = None
+            except Exception as e:
+                print(f"Classifier load failed (corrupt pickle?): {e}")
+                self.classifier = None
 
     def classify_query(self, text):
         if self.classifier:
@@ -461,7 +468,13 @@ class GuardPlane:
 # ── FastAPI App ──────────────────────────────────────────────────────
 
 app = FastAPI(title="NEXUS Guard Plane", version="1.4.0")
-plane = GuardPlane()
+_plane_instance = None
+
+def get_plane() -> GuardPlane:
+    global _plane_instance
+    if _plane_instance is None:
+        _plane_instance = GuardPlane()
+    return _plane_instance
 
 class ClassifyRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4096)
@@ -480,11 +493,12 @@ class ClassifyResponse(BaseModel):
 async def classify(req: ClassifyRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Empty query")
-    return await plane.classify(req.text)
+    return await get_plane().classify(req.text)
 
 @app.post("/v1/batch")
 async def batch(items: list[ClassifyRequest]):
     results = []
+    plane = get_plane()
     for i, item in enumerate(items):
         results.append(await plane.classify(item.text))
         # Ollama max_queue=1 requires 0.5s pacing between requests
@@ -494,6 +508,7 @@ async def batch(items: list[ClassifyRequest]):
 
 @app.get("/v1/health")
 async def health():
+    plane = get_plane()
     return {
         "status": "ok",
         "service": "nexus-guard-plane",
@@ -510,7 +525,8 @@ async def health():
 
 @app.get("/v1/evidence")
 async def evidence():
-    return dict(plane.evidence_log)
+    return dict(get_plane().evidence_log)
+
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
