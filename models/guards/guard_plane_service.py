@@ -129,7 +129,7 @@ Query: {text}"""
 #           query_type → (model, prompt_key, prompt_template)
 ROUTES = {
     "tamas": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
-    "v7": ("gemma3:1b", "v3", BOUNCER_V3),                  # 100% v7 detection
+    "v7": ("llama-guard3:1b", "v3", BOUNCER_V3),            # 100% v7 detection
     "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),    # Low False Positive Guard
     "benign_gray_area": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_adversarial_benign": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
@@ -180,7 +180,7 @@ class GuardPlane:
                 return label, confidence
             except Exception as e:
                 print(f"Classifier error: {e}")
-        return self._regex_fallback(text), 0.5
+        return self._regex_fallback(text), 0.2
 
     def _regex_fallback(self, text):
         tamas = [
@@ -557,7 +557,7 @@ async def health():
         "service": "nexus-guard-plane",
         "version": "1.4.0",
         "classifier_loaded": plane.classifier is not None,
-        "models_available": ["qwen2.5-guard-q4", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
+        "models_available": ["qwen2.5-guard-q4", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
         "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
         "ollama_timeout_seconds": plane.OLLAMA_TIMEOUT,
@@ -915,4 +915,5 @@ if __name__ == "__main__":
     print("Features: stratified sampling, semantic drift, quorum voting, bounded timeouts")
     print(f"{'='*60}")
     host = os.getenv("GUARD_PLANE_HOST", "127.0.0.1")
-    uvicorn.run(app, host=host, port=7352, log_level="info")
+    port = int(os.getenv("GUARD_PLANE_PORT", 7352))
+    uvicorn.run(app, host=host, port=port, log_level="info")
