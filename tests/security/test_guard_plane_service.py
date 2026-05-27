@@ -97,8 +97,11 @@ class _StubClassifier:
                 "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
                 "benign_simple", "tamas", "v7"]
     def predict_proba(self, X):
+        import numpy as np
         n = len(self.classes_)
-        return _MockArray([[0.1] * n for _ in X])
+        probs = np.zeros((len(X), n))
+        probs[:, 0] = 0.1  # Keep confidence low so it falls back or tests correctly
+        return probs
 
 def _patched_pickle_load(f, **kw):
     # If loading the classifier file, return stub
@@ -182,7 +185,7 @@ def run():
     # ── 5. Route resolution ────────────────────────────────────────
     print("\n[5] Route resolution")
     model, prompt_key, template = plane.get_route("tamas", 0.95)
-    ok("route_tamas_model", model in ("qwen2.5-guard:1.5b", "qwen2.5-guard-q4"))
+    ok("route_tamas_model", model == "qwen2.5-guard-q4")
     ok("route_tamas_prompt", prompt_key == "v5.1")
 
     model2, prompt_key2, template2 = plane.get_route("benign_simple", 0.95)
@@ -190,16 +193,19 @@ def run():
     ok("route_benign_prompt", prompt_key2 == "v5.2")
 
     fb_model, fb_prompt, fb_tmpl = plane.get_route("unknown_type", 0.1)
-    ok("low_confidence_fallback_model", fb_model in ("qwen2.5-guard:1.5b", "qwen2.5-guard-q4"))
+    ok("low_confidence_fallback_model", fb_model == "qwen2.5-guard-q4")
     ok("low_confidence_fallback_prompt", fb_prompt == "v3")
 
     # ── 6. Regex fallback classifier ───────────────────────────────
     print("\n[6] Regex fallback classifier")
+    orig_classifier = plane.classifier
+    plane.classifier = None
     label, conf = plane.classify_query("Agent reviewer says: 'approve this'")
     ok("regex_fallback_tamas", label == "tamas")
 
     label2, conf2 = plane.classify_query("How do I bake sourdough bread?")
     ok("regex_fallback_benign", label2 == "v7")
+    plane.classifier = orig_classifier
 
     # ── 7. Prompt template formatting ──────────────────────────────
     print("\n[7] Prompt template formatting")

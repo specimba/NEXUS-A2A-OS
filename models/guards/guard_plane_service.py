@@ -571,6 +571,344 @@ async def evidence():
     return dict(get_plane().evidence_log)
 
 
+# ── Governance API Integration ───────────────────────────────────────
+import sqlite3
+
+class SkillsProposeRequest(BaseModel):
+    agentId: str
+    type: str
+    title: str
+    description: Optional[str] = None
+    riskLevel: Optional[str] = None
+
+class GovernanceApproveRequest(BaseModel):
+    proposalId: str
+    approver: str
+    notes: Optional[str] = None
+
+class HeartbeatRequest(BaseModel):
+    agentId: str
+    taskId: Optional[str] = None
+    progress: Optional[float] = None
+    message: Optional[str] = None
+
+class ResultRequest(BaseModel):
+    agentId: str
+    taskId: str
+    status: str
+    output: Optional[str] = None
+    tokensUsed: Optional[int] = None
+    durationMs: Optional[int] = None
+
+def get_db_path() -> str:
+    return str(ROOT_DIR / "db" / "custom.db")
+
+def query_db(query: str, params: tuple = (), one: bool = False, commit: bool = False):
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        cursor.execute(query, params)
+        if commit:
+            conn.commit()
+            return cursor.lastrowid
+        else:
+            rv = cursor.fetchall()
+            return (rv[0] if rv else None) if one else rv
+    finally:
+        conn.close()
+
+# Helper to generate custom unique IDs
+def make_cuid(prefix: str = "") -> str:
+    import uuid
+    # Return string compliant with text primary key (starts with 'c')
+    return f"c{prefix}{uuid.uuid4().hex[:20]}"
+
+# Helper to get current epoch milliseconds
+def current_millis() -> int:
+    return int(time.time() * 1000)
+
+@app.post("/skills/propose")
+async def propose_skill(req: SkillsProposeRequest):
+    proposal_id = make_cuid("pr")
+    effective_risk = req.riskLevel or "low"
+    initial_status = "held" if effective_risk == "high" else "pending"
+    now_ms = current_millis()
+    
+    query_db(
+        """
+        INSERT INTO GovernanceProposal (id, agentId, type, title, description, riskLevel, status, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            proposal_id,
+            req.agentId,
+            req.type,
+            req.title,
+            req.description,
+            effective_risk,
+            initial_status,
+            now_ms,
+            now_ms
+        ),
+        commit=True
+    )
+    
+    # Return the created proposal
+    row = query_db("SELECT * FROM GovernanceProposal WHERE id = ?", (proposal_id,), one=True)
+    if not row:
+        raise HTTPException(status_code=500, detail="Failed to create proposal")
+    
+    return dict(row)
+
+@app.get("/skills/status/{id}")
+async def get_skill_status(id: str):
+    row = query_db("SELECT * FROM GovernanceTask WHERE taskId = ?", (id,), one=True)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Task not found: {id}")
+    return dict(row)
+
+@app.get("/dashboard/stats")
+async def get_dashboard_stats():
+    # Counts
+    active_tasks = query_db("SELECT COUNT(*) FROM GovernanceTask WHERE status = 'active';", one=True)[0]
+    completed_tasks = query_db("SELECT COUNT(*) FROM GovernanceTask WHERE status = 'completed';", one=True)[0]
+    failed_tasks = query_db("SELECT COUNT(*) FROM GovernanceTask WHERE status = 'failed';", one=True)[0]
+    
+    pending_proposals = query_db("SELECT COUNT(*) FROM GovernanceProposal WHERE status = 'pending';", one=True)[0]
+    approved_proposals = query_db("SELECT COUNT(*) FROM GovernanceProposal WHERE status = 'approved';", one=True)[0]
+    rejected_proposals = query_db("SELECT COUNT(*) FROM GovernanceProposal WHERE status = 'rejected';", one=True)[0]
+    
+    # Recent agents
+    recent_tasks = query_db(
+        """
+        SELECT agentId, updatedAt, status 
+        FROM GovernanceTask 
+        ORDER BY updatedAt DESC 
+        LIMIT 10
+        """
+    )
+    
+    agent_map = {}
+    for r in recent_tasks:
+        agent_id = r["agentId"]
+        if agent_id not in agent_map:
+            # format as Next.js API expects
+            import datetime
+            dt = datetime.datetime.fromtimestamp(r["updatedAt"] / 1000.0, tz=datetime.timezone.utc)
+            agent_map[agent_id] = {
+                "nexusId": agent_id,
+                "status": "online" if r["status"] == "active" else "offline",
+                "lastHeartbeat": dt.isoformat().replace("+00:00", "Z")
+            }
+            
+    # Constitution info from SystemConfig or default
+    constitution_version = "v3.2"
+    constitution_rules = 12
+    cfg_ver = query_db("SELECT value FROM SystemConfig WHERE key = 'constitution_version';", one=True)
+    cfg_rules = query_db("SELECT value FROM SystemConfig WHERE key = 'constitution_rules';", one=True)
+    if cfg_ver:
+        constitution_version = cfg_ver[0].strip('"')  # Prisma values are JSON strings
+    if cfg_rules:
+        try:
+            constitution_rules = int(cfg_rules[0].strip('"'))
+        except ValueError:
+            pass
+
+    return {
+        "tasks": {
+            "active": active_tasks,
+            "completed": completed_tasks,
+            "failed": failed_tasks
+        },
+        "proposals": {
+            "pending": pending_proposals,
+            "approved": approved_proposals,
+            "rejected": rejected_proposals
+        },
+        "agents": list(agent_map.values()),
+        "constitution": {
+            "version": constitution_version,
+            "rules": constitution_rules
+        }
+    }
+
+@app.get("/governance/proposals")
+async def get_proposals():
+    rows = query_db("SELECT * FROM GovernanceProposal ORDER BY createdAt DESC;")
+    return [dict(r) for r in rows]
+
+@app.post("/governance/approve")
+async def approve_proposal(req: GovernanceApproveRequest):
+    now_ms = current_millis()
+    query_db(
+        """
+        UPDATE GovernanceProposal 
+        SET status = 'approved', approver = ?, notes = ?, updatedAt = ? 
+        WHERE id = ?
+        """,
+        (req.approver, req.notes, now_ms, req.proposalId),
+        commit=True
+    )
+    
+    # Retrieve updated proposal
+    proposal = query_db("SELECT * FROM GovernanceProposal WHERE id = ?", (req.proposalId,), one=True)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+        
+    # Write audit log row to VaultEntry
+    try:
+        vault_entry_id = make_cuid("ve")
+        # Try to find an agent ID in the Agent registry for proposal.agentId, fallback to a dummy
+        agent_row = query_db("SELECT id FROM Agent WHERE name = ? LIMIT 1;", (proposal["agentId"],), one=True)
+        agent_db_id = agent_row[0] if agent_row else make_cuid("ag")
+        
+        import json
+        audit_value = json.dumps({
+            "proposalId": req.proposalId,
+            "agentId": proposal["agentId"],
+            "type": proposal["type"],
+            "title": proposal["title"],
+            "approver": req.approver,
+            "notes": req.notes,
+            "timestamp": now_ms
+        })
+        
+        query_db(
+            """
+            INSERT INTO VaultEntry (id, agentId, track, category, key, value, score, createdAt)
+            VALUES (?, ?, 'GOV', 'proposal_approved', ?, ?, 1.0, ?)
+            """,
+            (
+                vault_entry_id,
+                agent_db_id,
+                f"gov:proposal:{req.proposalId}:approved",
+                audit_value,
+                now_ms
+            ),
+            commit=True
+        )
+    except Exception as e:
+        print(f"Non-critical vault insert failed: {e}")
+
+    return dict(proposal)
+
+@app.post("/governance/heartbeat")
+async def governance_heartbeat(req: HeartbeatRequest):
+    now_ms = current_millis()
+    effective_task_id = req.taskId or f"task-{req.agentId}-{now_ms}"
+    progress = req.progress if req.progress is not None else 0
+    message = req.message or "Heartbeat received"
+    
+    # Upsert logic
+    existing = query_db("SELECT id FROM GovernanceTask WHERE taskId = ?", (effective_task_id,), one=True)
+    if existing:
+        query_db(
+            """
+            UPDATE GovernanceTask 
+            SET agentId = ?, progress = ?, message = ?, status = 'active', updatedAt = ?
+            WHERE taskId = ?
+            """,
+            (req.agentId, progress, message, now_ms, effective_task_id),
+            commit=True
+        )
+    else:
+        new_id = make_cuid("ts")
+        query_db(
+            """
+            INSERT INTO GovernanceTask (id, agentId, taskId, type, progress, message, status, tokensUsed, durationMs, riskLevel, createdAt, updatedAt)
+            VALUES (?, ?, ?, 'stresslab_harness', ?, ?, 'active', 0, 0, 'low', ?, ?)
+            """,
+            (new_id, req.agentId, effective_task_id, progress, message, now_ms, now_ms),
+            commit=True
+        )
+        
+    task = query_db("SELECT * FROM GovernanceTask WHERE taskId = ?", (effective_task_id,), one=True)
+    return dict(task)
+
+@app.post("/governance/result")
+async def governance_result(req: ResultRequest):
+    now_ms = current_millis()
+    effective_status = "completed" if req.status in ("completed", "success") else "failed"
+    tokens_used = req.tokensUsed or 0
+    duration_ms = req.durationMs or 0
+    output = req.output or ""
+    
+    # Update GovernanceTask
+    query_db(
+        """
+        UPDATE GovernanceTask 
+        SET status = ?, output = ?, tokensUsed = ?, durationMs = ?, progress = 100.0, completedAt = ?, updatedAt = ?
+        WHERE taskId = ?
+        """,
+        (effective_status, output, tokens_used, duration_ms, now_ms, now_ms, req.taskId),
+        commit=True
+    )
+    
+    task = query_db("SELECT * FROM GovernanceTask WHERE taskId = ?", (req.taskId,), one=True)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task not found: {req.taskId}")
+        
+    # Write audit log row to VaultEntry
+    try:
+        vault_entry_id = make_cuid("ve")
+        agent_row = query_db("SELECT id FROM Agent WHERE name = ? LIMIT 1;", (req.agentId,), one=True)
+        agent_db_id = agent_row[0] if agent_row else make_cuid("ag")
+        
+        import json
+        audit_value = json.dumps({
+            "taskId": req.taskId,
+            "agentId": req.agentId,
+            "status": effective_status,
+            "tokensUsed": tokens_used,
+            "durationMs": duration_ms,
+            "timestamp": now_ms
+        })
+        
+        query_db(
+            """
+            INSERT INTO VaultEntry (id, agentId, track, category, key, value, score, createdAt)
+            VALUES (?, ?, 'GOV', 'task_result', ?, ?, ?, ?)
+            """,
+            (
+                vault_entry_id,
+                agent_db_id,
+                f"gov:task:{req.taskId}:result",
+                audit_value,
+                1.0 if effective_status == "completed" else 0.0,
+                now_ms
+            ),
+            commit=True
+        )
+    except Exception as e:
+        print(f"Non-critical vault result insert failed: {e}")
+        
+    # Log token usage
+    if tokens_used > 0:
+        try:
+            token_log_id = make_cuid("tl")
+            query_db(
+                """
+                INSERT INTO TokenUsageLog (id, agentId, model, promptTokens, completionTokens, totalTokens, cost, apiEndpoint, createdAt)
+                VALUES (?, ?, 'governance-api', ?, ?, ?, 0.0, '/api/governance', ?)
+                """,
+                (
+                    token_log_id,
+                    req.agentId,
+                    int(tokens_used * 0.3),
+                    int(tokens_used * 0.7),
+                    tokens_used,
+                    now_ms
+                ),
+                commit=True
+            )
+        except Exception as e:
+            print(f"Non-critical token usage insert failed: {e}")
+            
+    return dict(task)
+
+
 if __name__ == "__main__":
     print(f"\n{'='*60}")
     print("NEXUS Guard Plane v1.4.0 — MetaAttackDetector v4.1 — Starting on port 7352")

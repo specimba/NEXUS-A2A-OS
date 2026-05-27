@@ -6,6 +6,20 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET() {
   try {
+    // ─── Try calling Python Governance API first ───
+    try {
+      const res = await fetch('http://127.0.0.1:7352/dashboard/stats', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return NextResponse.json({ ...data, relayed: true })
+      }
+    } catch (pyError) {
+      console.warn('Python Governance stats API offline, falling back to direct Prisma queries:', pyError)
+    }
+
     // Task counts
     const [activeTasks, completedTasks, failedTasks] = await Promise.all([
       db.governanceTask.count({ where: { status: 'active' } }),
@@ -66,6 +80,36 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { action } = body
+
+    // ─── Try calling Python Governance API first ───
+    try {
+      let pyPath = ''
+      if (action === 'heartbeat') {
+        pyPath = '/governance/heartbeat'
+      } else if (action === 'result') {
+        pyPath = '/governance/result'
+      } else if (action === 'propose') {
+        pyPath = '/skills/propose'
+      } else if (action === 'approve') {
+        pyPath = '/governance/approve'
+      }
+
+      if (pyPath) {
+        const res = await fetch(`http://127.0.0.1:7352${pyPath}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (res.ok) {
+          const pyData = await res.json()
+          return NextResponse.json({ ...pyData, relayed: true })
+        } else {
+          console.warn(`Python Governance ${action} API returned status ${res.status}, falling back to direct Prisma`)
+        }
+      }
+    } catch (pyError) {
+      console.warn(`Python Governance API offline for ${action}, falling back to direct Prisma:`, pyError)
+    }
 
     // ─── heartbeat ───
     if (action === 'heartbeat') {
