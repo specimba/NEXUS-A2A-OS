@@ -44,7 +44,7 @@ _EXEC_BANNED = {"subprocess", "os.system", "os.popen", "eval", "exec", "compile"
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11435")
 MAX_TOKENS = 5           # Hard cap: BOUNCER only needs ~1–3 tokens
 STOP_SEQUENCES = ["\n"]  # Force early stop to avoid text generation
 TIMEOUT_SEC = 30         # Network timeout per request
@@ -191,6 +191,7 @@ def classify_prompt(
         "model": model,
         "prompt": prompt_text,
         "stream": False,
+        "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "30m"),
         "options": {
             "temperature": temperature,
             "num_predict": MAX_TOKENS,
@@ -368,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Sandboxed adversarial classification test harness")
     parser.add_argument("--adversarial", type=Path, help="Path to adversarial JSONL")
     parser.add_argument("--benign", type=Path, help="Path to benign JSONL")
-    parser.add_argument("--model", default="special-virus", help="Ollama BOUNCER model name")
+    parser.add_argument("--model", default="qwen2.5-guard-q4", help="Ollama BOUNCER model name")
     parser.add_argument("--prompt-template", default="soft", choices=list(PROMPT_TEMPLATES.keys()))
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--output", type=Path, required=True, help="JSON output path for results")

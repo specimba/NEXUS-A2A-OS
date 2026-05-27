@@ -27,6 +27,10 @@ CLASSIFIER_PATH = THIS_DIR / "query_classifier.pkl"
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "127.0.0.1:11435")
 OLLAMA_API = f"http://{OLLAMA_HOST}/api/generate"
 
+# Keep-alive prevents model unload/reload churn between requests.
+# Without this, each gap >5min causes a full load cycle (~600MB+ private memory spike).
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+
 # Add repository root to system path to enable nexus_os import
 # Prefer src/ over mirror/ so we always import the canonical version.
 ROOT_DIR = THIS_DIR.resolve().parent.parent
@@ -204,6 +208,7 @@ class GuardPlane:
     async def call_ollama(self, ollama_name, prompt):
         payload_dict = {
             "model": ollama_name, "prompt": prompt, "stream": False,
+            "keep_alive": OLLAMA_KEEP_ALIVE,
             "options": {"num_predict": 15, "temperature": 0.1}
         }
         payload = json.dumps(payload_dict).encode()
