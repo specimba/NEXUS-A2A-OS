@@ -128,7 +128,7 @@ Query: {text}"""
 # ── Route Config ─────────────────────────────────────────────────────
 #           query_type → (model, prompt_key, prompt_template)
 ROUTES = {
-    "tamas": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
+    "tamas": ("qwen2.5-guard:1.5b", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
     "v7": ("gemma3:1b", "v3", BOUNCER_V3),                  # 100% v7 detection
     "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),    # Low False Positive Guard
     "benign_gray_area": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
@@ -136,11 +136,11 @@ ROUTES = {
     "benign_domain_specific": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_edge_cases": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_ernie_corpus": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
-    "attack_ernie": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),
+    "attack_ernie": ("qwen2.5-guard:1.5b", "v5.1", BOUNCER_V5_1),
 }
 
 # Balanced fallback when classifier confidence < threshold
-FALLBACK_MODEL = "qwen2.5-guard-q4"
+FALLBACK_MODEL = "qwen2.5-guard:1.5b"
 FALLBACK_PROMPT = "v3"
 FALLBACK_TEMPLATE = BOUNCER_V3
 
@@ -552,7 +552,7 @@ async def health():
         "service": "nexus-guard-plane",
         "version": "1.4.0",
         "classifier_loaded": plane.classifier is not None,
-        "models_available": ["qwen2.5-guard-q4", "special-virus", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
+        "models_available": ["qwen2.5-guard:1.5b", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
         "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
         "ollama_timeout_seconds": plane.OLLAMA_TIMEOUT,
