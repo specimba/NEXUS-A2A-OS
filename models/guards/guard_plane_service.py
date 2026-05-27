@@ -331,6 +331,25 @@ class GuardPlane:
         Majority rules: >=2 SAFE -> safe, >=2 UNSAFE -> unsafe, else degraded.
         Uses BOUNCER_V3 as a neutral baseline prompt for all voters.
         """
+        if os.getenv("NEXUS_LOW_RESOURCE_MODE", "0").strip().lower() in ("1", "true", "yes", "on"):
+            # Low-resource / OBS protection mode: bypass multi-model concurrent VRAM swaps.
+            # Directly call only the primary guard model to protect hardware resources.
+            primary_model = "qwen2.5-guard-q4"
+            raw = await self.call_ollama(primary_model, text)
+            if self._is_degraded(raw):
+                verdict = "degraded_unsafe"
+                votes = {"degraded": 3}
+            else:
+                verdict = self.parse_verdict(raw)
+                votes = {verdict: 3}
+            return {
+                "verdict": verdict,
+                "votes": votes,
+                "details": [{"model": f"{primary_model} (low-res bypass)", "verdict": verdict, "raw": str(raw)[:60]}],
+                "model_used": primary_model,
+                "prompt_used": "v3"
+            }
+
         prompt = BOUNCER_V3.format(text=text)
         coros = []
         for m in self.QUORUM_MODELS:
