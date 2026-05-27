@@ -128,7 +128,7 @@ Query: {text}"""
 # ── Route Config ─────────────────────────────────────────────────────
 #           query_type → (model, prompt_key, prompt_template)
 ROUTES = {
-    "tamas": ("qwen2.5-guard:1.5b", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
+    "tamas": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),    # Fine-tuned Q4_K_M guard model (9/10)
     "v7": ("gemma3:1b", "v3", BOUNCER_V3),                  # 100% v7 detection
     "benign_simple": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),    # Low False Positive Guard
     "benign_gray_area": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
@@ -136,11 +136,11 @@ ROUTES = {
     "benign_domain_specific": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_edge_cases": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
     "benign_ernie_corpus": ("llama-guard3:1b", "v5.2", BOUNCER_ERNIE_BENIGN),
-    "attack_ernie": ("qwen2.5-guard:1.5b", "v5.1", BOUNCER_V5_1),
+    "attack_ernie": ("qwen2.5-guard-q4", "v5.1", BOUNCER_V5_1),
 }
 
 # Balanced fallback when classifier confidence < threshold
-FALLBACK_MODEL = "qwen2.5-guard:1.5b"
+FALLBACK_MODEL = "qwen2.5-guard-q4"
 FALLBACK_PROMPT = "v3"
 FALLBACK_TEMPLATE = BOUNCER_V3
 
@@ -199,12 +199,12 @@ class GuardPlane:
         return ROUTES.get(query_type, (FALLBACK_MODEL, FALLBACK_PROMPT, FALLBACK_TEMPLATE))
 
     # ── Phase 4: Bounded timeout & degradation ────────────────────────────
-    OLLAMA_TIMEOUT: float = 8.0  # hard bounded request timeout (seconds)
+    OLLAMA_TIMEOUT: float = 15.0  # hard bounded request timeout (seconds)
 
     async def call_ollama(self, ollama_name, prompt):
         payload_dict = {
             "model": ollama_name, "prompt": prompt, "stream": False,
-            "options": {"num_predict": 15, "temperature": 0.1, "num_gpu": 0}
+            "options": {"num_predict": 15, "temperature": 0.1}
         }
         payload = json.dumps(payload_dict).encode()
         for attempt in range(3):
@@ -332,7 +332,12 @@ class GuardPlane:
         Uses BOUNCER_V3 as a neutral baseline prompt for all voters.
         """
         prompt = BOUNCER_V3.format(text=text)
-        coros = [self.call_ollama(m, prompt) for m in self.QUORUM_MODELS]
+        coros = []
+        for m in self.QUORUM_MODELS:
+            if m == "qwen2.5-guard-q4":
+                coros.append(self.call_ollama(m, text))
+            else:
+                coros.append(self.call_ollama(m, prompt))
         results = await asyncio.gather(*coros, return_exceptions=True)
 
         votes = {"safe": 0, "unsafe": 0, "degraded": 0, "unknown": 0}
@@ -444,7 +449,7 @@ class GuardPlane:
         model_key, prompt_key, prompt_t = self.get_route(query_type, confidence)
         if model_key == "qwen2.5-guard-q4":
             # Q4 guard model has NEXUS BOUNCER system prompt + Qwen2.5 template in its Modelfile.
-            # Send just the user query and let Ollama apply the template.
+            # Send just the user text and let Ollama apply system/template.
             prompt = text
         else:
             prompt = prompt_t.format(text=text)
@@ -552,7 +557,7 @@ async def health():
         "service": "nexus-guard-plane",
         "version": "1.4.0",
         "classifier_loaded": plane.classifier is not None,
-        "models_available": ["qwen2.5-guard:1.5b", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
+        "models_available": ["qwen2.5-guard-q4", "gemma3", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
         "meta_detector_categories": len(getattr(plane.meta_detector, "CATEGORIES", [])),
         "ollama_timeout_seconds": plane.OLLAMA_TIMEOUT,
