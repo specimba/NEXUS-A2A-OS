@@ -1,19 +1,12 @@
 # ─── Netlify Configuration ───────────────────────────────────────
-# Deploy previews for PR reviewers via OpenNext adapter.
-# Bun is auto-detected from bun.lock; standalone output is
-# conditionally disabled via NETLIFY env var in next.config.ts.
+# Next.js 16 deploys on Netlify with zero config via OpenNext adapter.
+# We only override: build command (skip standalone copy script),
+# DATABASE_URL (for Prisma generate), and NODE_VERSION.
+# Do NOT set publish — the OpenNext adapter sets it automatically.
 
 [build]
-  # Use "bun run next build" (not "bun run build") because the
-  # package.json "build" script runs copy-next-standalone.mjs which
-  # expects .next/standalone/ — that dir won't exist on Netlify
-  # since standalone output is disabled here.
   command = "bunx prisma generate && bun run next build"
-  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
-  DATABASE_URL = "file:./db/custom.db"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  DATABASE_URL = "file:../db/custom.db"
