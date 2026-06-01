@@ -18,67 +18,69 @@ import sys, os, types
 sys.path.insert(0, "src")
 sys.path.insert(0, ".")
 
-# Stub FastAPI/pydantic/uvicorn so we can import the service logic
-# without installing the full web framework stack.
-class _StubBaseModel:
-    def __init_subclass__(cls, **kw): pass
+# Stub FastAPI/pydantic/uvicorn ONLY when running directly (not in pytest)
+if "pytest" not in sys.modules and "PYTEST_CURRENT_TEST" not in os.environ:
+    # Stub FastAPI/pydantic/uvicorn so we can import the service logic
+    # without installing the full web framework stack.
+    class _StubBaseModel:
+        def __init_subclass__(cls, **kw): pass
 
-class _StubField:
-    def __call__(self, default=..., **kw):
-        return default
-    @staticmethod
-    def default(*a, **k): return None
+    class _StubField:
+        def __call__(self, default=..., **kw):
+            return default
+        @staticmethod
+        def default(*a, **k): return None
 
-# Replace pydantic.Field with callable stub
-sys.modules["pydantic"] = types.ModuleType("pydantic")
-sys.modules["pydantic"].BaseModel = _StubBaseModel
-sys.modules["pydantic"].Field = _StubField()
+    # Replace pydantic.Field with callable stub
+    sys.modules["pydantic"] = types.ModuleType("pydantic")
+    sys.modules["pydantic"].BaseModel = _StubBaseModel
+    sys.modules["pydantic"].Field = _StubField()
 
-class _StubFastAPI:
-    def __init__(self, title="", version=""):
-        self.title = title
-        self.version = version
-    def post(self, path, **kw):
-        def decorator(fn):
-            return fn
-        return decorator
-    def get(self, path, **kw):
-        def decorator(fn):
-            return fn
-        return decorator
+    class _StubFastAPI:
+        def __init__(self, title="", version=""):
+            self.title = title
+            self.version = version
+        def post(self, path, **kw):
+            def decorator(fn):
+                return fn
+            return decorator
+        def get(self, path, **kw):
+            def decorator(fn):
+                return fn
+            return decorator
 
-class _StubHTTPException(Exception):
-    def __init__(self, status_code=500, detail=""):
-        self.status_code = status_code
-        self.detail = detail
+    class _StubHTTPException(Exception):
+        def __init__(self, status_code=500, detail=""):
+            self.status_code = status_code
+            self.detail = detail
 
-sys.modules["fastapi"] = types.ModuleType("fastapi")
-sys.modules["fastapi"].FastAPI = _StubFastAPI
-sys.modules["fastapi"].HTTPException = _StubHTTPException
+    sys.modules["fastapi"] = types.ModuleType("fastapi")
+    sys.modules["fastapi"].FastAPI = _StubFastAPI
+    sys.modules["fastapi"].HTTPException = _StubHTTPException
 
-sys.modules["uvicorn"] = types.ModuleType("uvicorn")
+    sys.modules["uvicorn"] = types.ModuleType("uvicorn")
 
-# Stub sklearn so pickle.load() of query_classifier.pkl can succeed
-class _StubPipeline:
-    classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
-                "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
-                "benign_simple", "tamas", "v7"]
-    def predict_proba(self, X):
-        import numpy as np
-        n = len(self.classes_)
-        probs = np.zeros((len(X), n))
-        probs[:, 0] = 0.3  # default low-confidence
-        return probs
+    # Stub sklearn so pickle.load() of query_classifier.pkl can succeed
+    class _StubPipeline:
+        classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
+                    "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
+                    "benign_simple", "tamas", "v7"]
+        def predict_proba(self, X):
+            import numpy as np
+            n = len(self.classes_)
+            probs = np.zeros((len(X), n))
+            probs[:, 0] = 0.3  # default low-confidence
+            return probs
 
-class _StubSklearn:
-    class pipeline:
-        class Pipeline:
-            pass
+    class _StubSklearn:
+        class pipeline:
+            class Pipeline:
+                pass
 
-sys.modules["sklearn"] = _StubSklearn()
-sys.modules["sklearn.pipeline"] = _StubSklearn.pipeline
-import numpy
-sys.modules["numpy"] = numpy
+    sys.modules["sklearn"] = _StubSklearn()
+    sys.modules["sklearn.pipeline"] = _StubSklearn.pipeline
+    import numpy
+    sys.modules["numpy"] = numpy
 
 # Monkey-patch pickle.load to return our stub when loading the classifier
 import pickle as _pickle
@@ -115,6 +117,8 @@ _pickle.load = _patched_pickle_load
 os.environ.setdefault("OLLAMA_HOST", "127.0.0.1:59999")
 
 from models.guards.guard_plane_service import GuardPlane, BOUNCER_V5
+_pickle.load = _real_pickle_load
+
 
 def run():
     passed = 0
