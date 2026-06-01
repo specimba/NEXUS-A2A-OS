@@ -163,6 +163,24 @@ NEO-TEAM_nexus-integration/
 nexus-fusion-pack/
 nexus-glm5-fusion-pack/
 
+# === Giant local directories (untracked/heavy) ===
+models/
+.venv/
+venv/
+unsloth_compiled_cache/
+backups/
+nexus_os_backup_untracked/
+nexus_os_shadow_backup/
+nexus_os_untracked_backup/
+tasks/done/
+tasks/failed/
+tasks/pending/
+tasks/templates/
+cloud_pack/
+data/
+bin/
+logs/
+
 # === Local Hygiene Backups ===
 /docs/handoff/nexus-tidiness/**/tracked-diff-before.patch
 /docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv

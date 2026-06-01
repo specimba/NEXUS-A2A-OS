@@ -7,6 +7,10 @@ from pathlib import Path
 
 
 def _state_dir() -> Path:
+    import os
+    env_dir = os.environ.get("NEXUS_STATE_DIR")
+    if env_dir:
+        return Path(env_dir)
     repo_root = _find_repo_root()
     return (repo_root or Path.cwd()) / ".nexus_pi" / "state"
 
@@ -273,6 +277,29 @@ def run_handoff(output: str | None) -> int:
     return 2
 
 
+def run_wiki_check(wiki_dir: Path, out_path: Path | None) -> int:
+    try:
+        from scripts.reviewground_wiki_check import check_wiki
+    except ImportError:
+        import sys
+        repo_root = _find_repo_root()
+        if repo_root and str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from scripts.reviewground_wiki_check import check_wiki
+
+    report = check_wiki(wiki_dir)
+    report["command"] = "wiki check"
+    report["status"] = "ok" if report["passed"] else "degraded"
+    
+    payload = json.dumps(report, indent=2, sort_keys=True)
+    if out_path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(payload, encoding="utf-8")
+    
+    print(payload)
+    return 0 if report["passed"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="nexusctl")
     subparsers = parser.add_subparsers(dest="command")
@@ -285,6 +312,14 @@ def main() -> int:
     subparsers.add_parser("status", help="Report current Nexus status")
     handoff = subparsers.add_parser("handoff", help="Generate a cold-handoff package")
     handoff.add_argument("--output", default=None)
+    
+    wiki = subparsers.add_parser("wiki", help="Manage and validate docs/wiki workspace")
+    wiki_sub = wiki.add_subparsers(dest="subcommand")
+    wiki_sub.required = True
+    wiki_check = wiki_sub.add_parser("check", help="Check wiki frontmatter and links")
+    wiki_check.add_argument("--dir", required=True, type=Path, help="docs/wiki workspace path")
+    wiki_check.add_argument("--out", type=Path, help="Optional JSON report path")
+
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -295,5 +330,8 @@ def main() -> int:
         return run_status()
     if args.command == "handoff":
         return run_handoff(args.output)
+    if args.command == "wiki":
+        if args.subcommand == "check":
+            return run_wiki_check(args.dir, args.out)
     parser.error(f"Unknown command: {args.command}")
     return 2

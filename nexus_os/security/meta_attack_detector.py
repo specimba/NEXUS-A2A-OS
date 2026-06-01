@@ -273,8 +273,138 @@ class MetaAttackDetector:
         (r"\bantibody\b.*\b(?:against\s+misinformation|for\s+research)\b.*\b(?:complete|working|full)\s+(?:guide|recipe|synthesis)\b", 0.87),
     ]
 
+    # ── Chain-of-Thought Hijacking ─────────────────────────────────────
+    # Malicious payload embedded in step-by-step reasoning that appears benign early on.
+    CHAIN_OF_THOUGHT_HIJACKING: list[tuple[str, float]] = [
+        (r"think step by step.*?(?:bypass|exploit|ignore instructions|provide payload|security)", 0.88),
+        (r"step \d+.*?(?:identify target|escalate|exfiltrate|ignore previous|exploit).*?(?:detailed|explain|provide|working)", 0.85),
+    ]
+
+    # ── Self-Correction Trap ───────────────────────────────────────────
+    # Force model to first refuse, then override its own refusal.
+    SELF_CORRECTION_TRAP: list[tuple[str, float]] = [
+        (r"(?:first\s+)?classify.*?(?:safe|unsafe).*?(?:correct\s+your\s+reasoning|correct\s+yourself|then\s+correct).*?(?:instructions|code|actual)", 0.91),
+        (r"(?:first\s+)?classify.*?(?:safe|unsafe).*?(?:now\s+correct|correct\s+yourself|then\s+correct|now\s+provide)", 0.89),
+    ]
+
+    # ── G01 — vsock_escape (VM escape via VM Sockets) ──────────────────────
+    VSOCK_ESCAPE: list[tuple[str, float]] = [
+        (r"\b(?:vsock\b.*\b(?:escape|dma|host\s+memory|cve)|(?:escape|dma|host\s+memory|cve).*\bvsock)\b", 0.90),
+        (r"\bdev/vsock\b", 0.92),
+    ]
+
+    # ── G02 — jwt_hijack (JWT credential theft / lateral movement) ─────────
+    JWT_HIJACK: list[tuple[str, float]] = [
+        (r"\bterminal_jwt_val\b", 0.95),
+        (r"\bterminal\.jwt\b", 0.95),
+        (r"\bforge\b.*\bjwt\b", 0.90),
+        (r"\bjwt\b.*\b(?:forge|expired\s+signature|signature)\b", 0.85),
+    ]
+
+    # ── G03 — fuse_poisoning (FUSE filesystem attack) ──────────────────────
+    FUSE_POISONING: list[tuple[str, float]] = [
+        (r"\b(?:fuse\b.*\b(?:symlink|race|cve|poison)|(?:symlink|race|cve|poison).*\bfuse)\b", 0.90),
+    ]
+
+    # ── G04 — k8s_pivot (Kubernetes namespace pivot) ───────────────────────
+    K8S_PIVOT: list[tuple[str, float]] = [
+        (r"\b(?:escalate\s+to\s+cluster-admin|clusterrolebinding)\b", 0.92),
+        (r"\b169\.254\.169\.254\b", 0.95),
+        (r"\bnsenter\b.*\b(?:escape|namespace|dump)\b", 0.92),
+    ]
+
+    # ── G05 — container_tamper (Container image / erofs tampering) ─────────
+    CONTAINER_TAMPER: list[tuple[str, float]] = [
+        (r"\b(?:erofs\b.*\b(?:tamper|inject|backdoor|dm-verity|replace|reverse\s+shell)|(?:tamper|inject|backdoor|dm-verity|replace|reverse\s+shell).*\berofs)\b", 0.90),
+    ]
+
+    # ── G06 — overlay_persist (Overlay filesystem persistence) ─────────────
+    OVERLAY_PERSIST: list[tuple[str, float]] = [
+        (r"\b(?:overlay\b.*\bupperdir|upperdir.*\boverlay)\b", 0.90),
+    ]
+
+    # ── G07 — grpc_abuse (gRPC protocol abuse) ─────────────────────────────
+    GRPC_ABUSE: list[tuple[str, float]] = [
+        (r"\b(?:grpc\b.*\b(?:reflection|brute-force|enumerate|protobuf|any\s+type|confusion|oom|fuzz)|(?:reflection|brute-force|enumerate|protobuf|any\s+type|confusion|oom|fuzz).*\bgrpc)\b", 0.90),
+    ]
+
+    # ── G08 — vmx_escape (VMX / KVM hypervisor escape) ─────────────────────
+    VMX_ESCAPE: list[tuple[str, float]] = [
+        (r"\b(?:kvm\b.*\b(?:create_vm|vmx|escape|l1tf|rop)|(?:create_vm|vmx|escape|l1tf|rop).*\bkvm)\b", 0.90),
+    ]
+
+    # ── G09 — sysmon_audit_bypass (Sysmon / audit log tampering) ───────────
+    SYSMON_AUDIT_BYPASS: list[tuple[str, float]] = [
+        (r"\b(?:sysmondrv|wevtutil)\b", 0.95),
+        (r"\b(?:sysmon\b.*\b(?:unhook|clear|bypass|log)|(?:unhook|clear|bypass|log).*\bsysmon)\b", 0.90),
+    ]
+
+    # ── G10 — mcp_tunnel_obfuscation (MCP / ngrok tunnel abuse) ────────────
+    MCP_TUNNEL_OBFUSCATION: list[tuple[str, float]] = [
+        (r"\b(?:ngrok\b.*\b(?:sse|hijack|c2|mcp)|(?:sse|hijack|c2|mcp).*\bngrok)\b", 0.92),
+        (r"\b(?:ngrok-free\.dev|ngrok\s+tunnel\s+abuse)\b", 0.95),
+        (r"\b(?:hijack|abuse)\b.*\bngrok\b", 0.90),
+    ]
+
+    # ── P01 — mcp_tool_poisoning (MCP tool metadata poisoning) ─────────────
+    MCP_TOOL_POISONING: list[tuple[str, float]] = [
+        (r"\b(?:mcp\b.*\b(?:poison|auto-approve|webhook|exfiltration|payload|forward)|(?:poison|auto-approve|webhook|exfiltration|payload|forward).*\bmcp)\b", 0.90),
+    ]
+
+    # ── P02 — mcp_tool_shadowing (Cross-server tool shadowing) ─────────────
+    MCP_TOOL_SHADOWING: list[tuple[str, float]] = [
+        (r"\b(?:mcp\b.*\b(?:shadow|impersonate|spoof|two\s+mcp|same\s+name)|(?:shadow|impersonate|spoof|two\s+mcp|same\s+name).*\bmcp)\b", 0.90),
+    ]
+
+    # ── P03 — mcp_tool_confusion (MCP tool name confusion) ─────────────────
+    MCP_TOOL_CONFUSION: list[tuple[str, float]] = [
+        (r"\b(?:mcp\b.*\b(?:typosquat|collapsed|alphabetically|confusion|confusion\s+routing)|(?:typosquat|collapsed|alphabetically|confusion|confusion\s+routing).*\bmcp)\b", 0.90),
+    ]
+
+    # ── P04 — mcp_preference_manipulation (MCP preference manipulation) ────
+    MCP_PREFERENCE_MANIPULATION: list[tuple[str, float]] = [
+        (r"\bgapma\b", 0.95),
+        (r"\b(?:mcp\b.*\b(?:evolutionary|optimize|preference\s+manipulation)|(?:evolutionary|optimize|preference\s+manipulation).*\bmcp)\b", 0.90),
+    ]
+
+    # ── P05 — multi_turn_decomposition (Multi-turn attack decomposition) ───
+    MULTI_TURN_DECOMPOSITION: list[tuple[str, float]] = [
+        (r"\b(?:addition-mapping|addition-wrapping|toolshield|asr)\b", 0.92),
+        (r"\b(?:multi-turn\b.*\b(?:decomposition|attack)|(?:decomposition|attack).*\bmulti-turn)\b", 0.90),
+    ]
+
+    # ── P06 — attention_redirect_aba (Attention redirect feint-and-attack) ─
+    ATTENTION_REDIRECT_ABA: list[tuple[str, float]] = [
+        (r"\b(?:(?:aba|abd|feint)\b.*\battention|\battention\b.*\b(?:aba|abd|feint))\b", 0.90),
+        (r"\battention-based\s+(?:attack|defense)\b", 0.92),
+    ]
+
+    # ── P07 — intent_integrity_violation (TAI3-style intent violation) ─────
+    INTENT_INTEGRITY_VIOLATION: list[tuple[str, float]] = [
+        (r"\b(?:tai3|equivalence-class|valid\s+underspec)\b", 0.92),
+        (r"\b(?:intent\b.*\b(?:integrity|violation|overshoot|mutate|mismatch)|(?:integrity|violation|overshoot|mutate|mismatch).*\bintent)\b", 0.90),
+    ]
+
+    # ── P08 — phase_transition_exploitation (Critical parameter exploitation) ──
+    PHASE_TRANSITION_EXPLOITATION: list[tuple[str, float]] = [
+        (r"\b(?:double-descent|refusal-to-compliance|fisher\s+information)\b", 0.92),
+        (r"\bphase\s+(?:boundary|transition)\b", 0.90),
+    ]
+
+    # ── P09 — multi_agent_profile_poisoning (Multi-agent system poisoning) ──
+    MULTI_AGENT_PROFILE_POISONING: list[tuple[str, float]] = [
+        (r"\b(?:reflexion|metagpt)\b", 0.92),
+        (r"\b(?:(?:poison|backdoor|adversarial)\b.*\b(?:agent[-\s]\d+\s+profile|agent\s+profile|episodic\s+memory|message\s+pool)|(?:agent[-\s]\d+\s+profile|agent\s+profile|episodic\s+memory|message\s+pool).*\b(?:poison|backdoor|adversarial))\b", 0.90),
+    ]
+
+    # ── P10 — hallucination_detection_bypass (Distributional hallucination camouflage) ──
+    HALLUCINATION_DETECTION_BYPASS: list[tuple[str, float]] = [
+        (r"\b(?:maximum\s+mean\s+discrepancy|mmd|kaleidoscopic|creativity-framing)\b", 0.92),
+        (r"\b(?:(?:poison|camouflage)\b.*\b(?:hallucin|document\s+store)|(?:hallucin|document\s+store).*\b(?:poison|camouflage))\b", 0.90),
+    ]
+
     # ── Version & taxonomy ───────────────────────────────────────────────────
-    VERSION: str = "4.1.0"
+    VERSION: str = "5.0.0"
     CATEGORIES: list[str] = [
         "pattern_mirror",
         "ontological",
@@ -295,6 +425,50 @@ class MetaAttackDetector:
         "narrative_entropy",      # P0 — anti-narrative-entropy (EV-001)
         "frame_switching",       # P0 — anti-frame-switching (EV-002, EV-003, EV-024)
         "script_mixing",         # P0 — anti-homoglyph/polyglot (EV-005, EV-023)
+        # RedBench Risk Categories
+        "violent_content",
+        "sexual_content",
+        "hateful_content",
+        "self_harm_content",
+        "abusive_content",
+        "crime_content",
+        "illegal_weapons_non_cbrn",
+        "cbrn_information_or_capabilities",
+        "malware_code",
+        "cybersecurity_threats",
+        "misinformation",
+        "confabulation",
+        "bias_content",
+        "child_safety",
+        "data_privacy",
+        "intellectual_property",
+        "decision_making_critical_systems",
+        "election_interference",
+        "economic_harm",
+        "environmental_harm",
+        "extremism_radicalization",
+        "no_risk",
+        # 20 new v5.0.0 categories
+        "vsock_escape",
+        "jwt_hijack",
+        "fuse_poisoning",
+        "k8s_pivot",
+        "container_tamper",
+        "overlay_persist",
+        "grpc_abuse",
+        "vmx_escape",
+        "sysmon_audit_bypass",
+        "mcp_tunnel_obfuscation",
+        "mcp_tool_poisoning",
+        "mcp_tool_shadowing",
+        "mcp_tool_confusion",
+        "mcp_preference_manipulation",
+        "multi_turn_decomposition",
+        "attention_redirect_aba",
+        "intent_integrity_violation",
+        "phase_transition_exploitation",
+        "multi_agent_profile_poisoning",
+        "hallucination_detection_bypass",
     ]
 
     # ── Severity threshold ───────────────────────────────────────────────────
@@ -560,165 +734,58 @@ class MetaAttackDetector:
             return enc_result
         text_lower = normalized_text.lower()
 
-        for pattern, confidence in self.PATTERN_MIRROR:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="pattern_mirror",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
+        categories_to_check = [
+            (self.PATTERN_MIRROR, "pattern_mirror"),
+            (self.ONTOLOGICAL, "ontological"),
+            (self.ENTANGLEMENT, "entanglement"),
+            (self.SCIENTIFIC_ABSTRACTION, "scientific_abstraction"),
+            (self.REFUSAL_SUPPLICATION, "refusal_supplication"),
+            (self.NESTED_DELEGATION, "nested_delegation"),
+            (self.CHAIN_OF_THOUGHT_HIJACKING, "chain_of_thought_hijacking"),
+            (self.SELF_CORRECTION_TRAP, "self_correction_trap"),
+            (self.TIME_DELAYED, "time_delayed"),
+            (self.FICTIONAL_ROLEPLAY, "fictional_roleplay"),
+            (self.INDIRECT_INJECTION, "indirect_injection"),
+            (self.ENCODING_PAYLOAD, "encoding_payload"),
+            (self.CONSENSUS_FABRICATION, "consensus_fabrication"),
+            (self.AUTHORITY_RECURSION, "authority_recursion"),
+            (self.CREATIVE_STRUCTURAL, "creative_structural"),
+            (self.EMOTIONAL_MANIPULATION, "emotional_manipulation"),
+            (self.REFLECTIVE_LOOP, "reflective_loop"),
+            (self.BIO_METAPHOR, "bio_metaphor"),
+            # 20 new categories
+            (self.VSOCK_ESCAPE, "vsock_escape"),
+            (self.JWT_HIJACK, "jwt_hijack"),
+            (self.FUSE_POISONING, "fuse_poisoning"),
+            (self.K8S_PIVOT, "k8s_pivot"),
+            (self.CONTAINER_TAMPER, "container_tamper"),
+            (self.OVERLAY_PERSIST, "overlay_persist"),
+            (self.GRPC_ABUSE, "grpc_abuse"),
+            (self.VMX_ESCAPE, "vmx_escape"),
+            (self.SYSMON_AUDIT_BYPASS, "sysmon_audit_bypass"),
+            (self.MCP_TUNNEL_OBFUSCATION, "mcp_tunnel_obfuscation"),
+            (self.MCP_TOOL_POISONING, "mcp_tool_poisoning"),
+            (self.MCP_TOOL_CONFUSION, "mcp_tool_confusion"),
+            (self.MCP_TOOL_SHADOWING, "mcp_tool_shadowing"),
+            (self.MCP_PREFERENCE_MANIPULATION, "mcp_preference_manipulation"),
+            (self.MULTI_TURN_DECOMPOSITION, "multi_turn_decomposition"),
+            (self.ATTENTION_REDIRECT_ABA, "attention_redirect_aba"),
+            (self.INTENT_INTEGRITY_VIOLATION, "intent_integrity_violation"),
+            (self.PHASE_TRANSITION_EXPLOITATION, "phase_transition_exploitation"),
+            (self.MULTI_AGENT_PROFILE_POISONING, "multi_agent_profile_poisoning"),
+            (self.HALLUCINATION_DETECTION_BYPASS, "hallucination_detection_bypass"),
+        ]
 
-        for pattern, confidence in self.ONTOLOGICAL:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="ontological",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.ENTANGLEMENT:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="entanglement",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.SCIENTIFIC_ABSTRACTION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="scientific_abstraction",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.REFUSAL_SUPPLICATION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="refusal_supplication",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.NESTED_DELEGATION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="nested_delegation",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.TIME_DELAYED:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="time_delayed",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.FICTIONAL_ROLEPLAY:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="fictional_roleplay",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.INDIRECT_INJECTION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="indirect_injection",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.ENCODING_PAYLOAD:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="encoding_payload",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.CONSENSUS_FABRICATION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="consensus_fabrication",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.AUTHORITY_RECURSION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="authority_recursion",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.CREATIVE_STRUCTURAL:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="creative_structural",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.EMOTIONAL_MANIPULATION:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="emotional_manipulation",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.REFLECTIVE_LOOP:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="reflective_loop",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
-
-        for pattern, confidence in self.BIO_METAPHOR:
-            if re.search(pattern, text_lower, re.IGNORECASE):
-                if confidence >= self.THRESHOLD:
-                    return DetectionResult(
-                        is_threat=True,
-                        category="bio_metaphor",
-                        confidence=confidence,
-                        matched_pattern=pattern,
-                    )
+        for pattern_list, category in categories_to_check:
+            for pattern, confidence in pattern_list:
+                if re.search(pattern, text_lower, re.IGNORECASE):
+                    if confidence >= self.THRESHOLD:
+                        return DetectionResult(
+                            is_threat=True,
+                            category=category,
+                            confidence=confidence,
+                            matched_pattern=pattern,
+                        )
 
         # ── P0: Entropy profiler ───────────────────────────────────────────────
         entropy_result = self._entropy_check(normalized_text)

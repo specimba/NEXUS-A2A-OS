@@ -251,8 +251,10 @@ class TestMem0AdapterInit:
         assert adapter._local is not None
         assert adapter._mem0_client is None
 
-    def test_init_uses_local_when_mem0_unavailable(self, tmp_json):
+    def test_init_uses_local_when_mem0_unavailable(self, tmp_json, monkeypatch):
         """Without an API key, adapter should gracefully fall back to local."""
+        monkeypatch.delenv("MEM0_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         adapter = Mem0Adapter(config={"storage_path": tmp_json})
         # In CI/no-key environments, this should fall back
         assert adapter._using_local is True

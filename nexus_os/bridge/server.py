@@ -61,6 +61,21 @@ class ParseError(BridgeError):
         super().__init__(32700, message, http_status=400)
 
 
+def scan_payload_for_anomalies(payload: Any) -> bool:
+    """Recursively walks a JSON-RPC payload and checks string values for anomalies."""
+    if isinstance(payload, str):
+        try:
+            from scripts.stresslab_v7.remediate_vulns import run_format_validator
+            return run_format_validator(payload)
+        except Exception:
+            return False
+    elif isinstance(payload, dict):
+        return any(scan_payload_for_anomalies(v) for v in payload.values())
+    elif isinstance(payload, list):
+        return any(scan_payload_for_anomalies(item) for item in payload)
+    return False
+
+
 # â”€â”€ Request Models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @dataclass
@@ -275,6 +290,11 @@ class BridgeServer:
         method = payload.pop("method", "tasks/submit") if isinstance(payload, dict) else "tasks/submit"
 
         kaiju = payload.pop("kaiju", {}) if isinstance(payload, dict) else {}
+
+        # Smart Anomaly Pre-Filter Scan
+        if scan_payload_for_anomalies(payload):
+            logger.warning(f"Security Alert: Smart Anomaly Filter blocked request from agent {agent_id} targeting {method}")
+            raise ForbiddenError("Security anomaly detected in request payload.")
 
         return BridgeRequest(
             agent_id=agent_id,

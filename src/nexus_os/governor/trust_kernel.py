@@ -149,8 +149,9 @@ class TrustKernel:
     posterior trust.
     """
 
-    def __init__(self, db: Any = None):
+    def __init__(self, db: Any = None, vault_enabled: bool = True):
         self.db = db
+        self.vault_enabled = vault_enabled
         self._snapshots: Dict[Tuple[str, str], TrustSnapshot] = {}
         self._storage_available = True
         self._ensure_storage()

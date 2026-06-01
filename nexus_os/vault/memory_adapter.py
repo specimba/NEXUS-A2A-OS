@@ -330,6 +330,12 @@ class Mem0Adapter:
         logs a warning, leaving ``self._mem0_client`` as None.
         """
         try:
+            import os
+            # Verify that a cloud API key or custom config exists before instantiating Memory()
+            has_key = os.environ.get("MEM0_API_KEY") or os.environ.get("OPENAI_API_KEY")
+            if not has_key and mem0_config is None:
+                raise ValueError("No MEM0_API_KEY or OPENAI_API_KEY present in environment")
+
             from mem0 import Memory
 
             if mem0_config is not None:
