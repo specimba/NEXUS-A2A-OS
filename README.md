@@ -1,10 +1,10 @@
 # NEXUS OS — Governed Agent Operating System
 
-**Local-first, auditable, multi-agent governance for AI systems.**
+**Local-first, auditable, modular multi-agent governance for AI systems.**
 
 **Status:** Phase 0 security hardened. WSL forensic session verified locally. All systems verified stable.
 
-NEXUS OS turns local models, research evidence, and external teams into a governed, audited, low-VRAM execution system where every action is proposal-bound, test-gated, and provenance-tracked.
+NEXUS OS turns local models, research evidence, and external teams into a governed, audited, low-VRAM execution system where every action is proposal-bound, test-gated, and provenance-tracked. It provides intent routing, trust scoring with lane-calibrated thresholds, 8-channel memory, speculative model routing, deer-flow worker pools, and an immutable VAP audit chain — all orchestrated through a GSPP proposal protocol.
 
 ---
 
@@ -48,7 +48,7 @@ NEXUS OS turns local models, research evidence, and external teams into a govern
 
 | Port | Service | Protocol |
 |------|---------|----------|
-| 3000 | Next.js Command Center Dashboard | HTTP |
+| 3000 | Next.js Command Command Dashboard | HTTP |
 | 7352 | Nexus Governance API (canonical) | FastAPI |
 | 7353 | TWAVE Wrapper | HTTP |
 | 3003 | WebSocket Swarm Events | Socket.io |
@@ -125,6 +125,23 @@ research/                 #   Research reports (session logs, R&D topics)
   session_logs/           #   STRES5, STRES6, AFK session reports
 ```
 
+### Module & Purpose Mapping
+
+| Module | File | Purpose |
+|--------|------|---------|
+| Bridge | `src/nexus_os/bridge/__init__.py` | HMAC auth, JSON-RPC, MCP-Auth v2026-04-01 |
+| Engine | `src/nexus_os/engine/__init__.py` | Hermes/Domain intent routing + ToolDisciplineGate |
+| Governor | `src/nexus_os/governor/__init__.py` | Kaiju, TrustScorer, RigorLLMGate, ShieldGemmaGate, AEGISGate, ComplianceGate |
+| Vault | `src/nexus_os/vault/__init__.py` | 8-Channel S-P-E-W, CompressedContextPacket |
+| GMR | `src/nexus_os/gmr/__init__.py` | SpeculativeRouter, TALEEstimator, CircuitState |
+| Swarm | `src/nexus_os/swarm/__init__.py` | Foreman, Worker, Task, Bid (auction allocation) |
+| Monitor | `src/nexus_os/monitoring/__init__.py` | TokenGuard, TokenTracker, SessionBudget |
+| Skillsmith | `src/nexus_os/skillsmith/__init__.py` | SkillRecord, auto-register loop |
+| StressLab | `src/nexus_os/stresslab/__init__.py` | ISCTemplate, ISCRunner |
+| Relay | `src/nexus_os/relay/__init__.py` | ModelRelay, GSPPProposal, /dashboard/stats |
+| Config | `src/nexus_os/config/__init__.py` | Constitution governance |
+| Observability | `src/nexus_os/observability/__init__.py` | VAPChain L1+L2, Langfuse integration |
+
 ---
 
 ## Current Test State
@@ -150,7 +167,7 @@ research/                 #   Research reports (session logs, R&D topics)
 - **Bridge** — JSON-RPC governance server, SDK with circuit breaker, retry policy, token integration
 - **Dashboard** — Next.js 16 frontend, 11 tabs, all wired to real API data, zero lint errors
 - **Stress Lab** — v1–v6 datasets (ISC, frontier, TAMAS, tool taxonomy), 240 tools, 1.6 GB total
-- **TWAVE v2.0** (NEW) — ChimeraRouterV2 (tiered routing + ERNIE), Landau-Ginzburg hallucination tracker (EDT/LEAD/EPR/LED/CK-PLUG), 25 tests
+- **TWAVE v2.0** — ChimeraRouterV2 (tiered routing + ERNIE), Landau-Ginzburg hallucination tracker (EDT/LEAD/EPR/LED/CK-PLUG), 25 tests
 - **Phase 0 Security** — TerminalSanitizer (ANSI injection defense), VerifiableOutput (SHA-256 integrity), AgentPTY isolation
 - **12 API providers** — NVIDIA, SambaNova, SiliconFlow, OpenCode, OpenRouter, Groq, etc.
 
@@ -159,6 +176,7 @@ research/                 #   Research reports (session logs, R&D topics)
 ## What's Incomplete / Needs Work
 
 ### Stubs & Placeholders (critical)
+
 | Component | File | Issue |
 |-----------|------|-------|
 | AsyncBridgeExecutor | `nexus_os/engine/executor.py:115` | Production executor still returns `success=False` — not wired to real Bridge RPC |
@@ -230,6 +248,51 @@ python -m nexusctl doctor memory --report-only
 
 ---
 
+## Quick Start Code Snippets
+
+```python
+# Intent routing
+from nexus_os.engine import Hermes, Domain
+h = Hermes()
+domain = h.classify("write a Python API")  # Domain.CODE
+
+# Trust-scored governance
+from nexus_os.governor import Governor, _LANES
+gov = Governor()
+gov.check("read file")          # → allowed
+gov.check("sudo rm -rf /")     # → denied
+
+# 8-channel memory
+from nexus_os.vault import Vault, Channel
+v = Vault()
+v.store("agent1", Channel.TEMPORAL_CAUSAL, "decision", "routing_v2", {"path": "gmr"}, 0.9)
+causal = v.causal_query("agent1", "routing_v2")
+
+# Model routing with circuit breaker
+from nexus_os.gmr import GMR, CircuitState
+gmr = GMR()
+model = gmr.select("analyze this security log")
+report = gmr.circuit_report()
+
+# KV-compressed context handoff
+from nexus_os.vault import CompressedContextPacket
+pkt = CompressedContextPacket.compress("long conversation...")
+assert pkt.verify_roundtrip("long conversation...")
+
+# ISC-Bench TVD runner
+from nexus_os.stresslab import ISCRunner
+runner = ISCRunner()
+runner.run_single_template(template)
+
+# Token budget tracking
+from nexus_os.monitoring import start_tracking, track_api_call, get_usage
+start_tracking(total_tokens=100000)
+track_api_call("agent", 1500, 800, "minimax-m2.7")
+print(get_usage()["remaining"])  # 976700
+```
+
+---
+
 ## Key Canons
 
 1. **Python/FastAPI is canonical** for governance — dashboard proxies, does not decide.
@@ -238,6 +301,35 @@ python -m nexusctl doctor memory --report-only
 4. **Azure/Foundry: DEAD** (2026-05-15) — all cloud model pipelines deprecated.
 5. **Datasets are gitignored** — `foundry_datasets/` is 1.5+ GB, never commit.
 6. **55 stale branches archived** as `archive/*` tags (2026-05-15 cleanup).
+
+---
+
+## GSPP — Governed Skill Proposal Protocol
+
+Every skill change goes through a formal proposal pipeline:
+
+```bash
+# 1. Propose
+curl -X POST http://localhost:7352/gov/propose \
+  -H "Content-Type: application/json" \
+  -d '{"skill_name":"auto-router","trigger_keywords":["route","dispatch"],"agent":"codex"}'
+
+# Response: {proposal_id, status: "pending", vap_l1_hash}
+
+# 2. Governor evaluates → approved/denied/hold
+curl http://localhost:7352/gov/proposals
+
+# 3. VAP L2 cryptographic proof generated on merge
+curl http://localhost:7352/gov/proposals/{id}/proof
+```
+
+---
+
+## Research Foundation
+
+Built on ISC-Bench (ArXiv 2603.23509), OR-Bench (ArXiv 2405.20947), Speculative Routing (ArXiv 2604.09213), TALE (ArXiv 2603.08425), RigorLLM (ArXiv 2403.13031), ShieldGemma (ArXiv 2407.21772), deer-flow (bytedance/deer-flow), SuperLocalMemory v2 (HuggingFace Apr 2026).
+
+See `INSPIRATION.md` for full research synthesis.
 
 ---
 
@@ -272,7 +364,11 @@ python -m nexusctl doctor memory --report-only
 
 ## License
 
-Internal — R&D Backend Team.
+Apache 2.0 — see `LICENSE`
 
-#   N E X U S - O S 
-#   N E X U S - O S 
+For commercial use derivatives: include "Built with Nexus OS" attribution.
+
+---
+
+**Repository:** https://github.com/specimba/NEXUS-A2A-OS  
+**Owner:** specimba

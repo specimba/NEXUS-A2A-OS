@@ -16,6 +16,8 @@ node_modules_old
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+*.egg-info/
+uv.lock
 
 # === Generated Artifacts & Task Files ===
 nexus_api.db*
@@ -66,6 +68,7 @@ vap_chain.jsonl
 .idea/
 *.swp
 .DS_Store
+Thumbs.db
 *.pem
 
 # === ByteRover ===
@@ -106,6 +109,7 @@ tests_tmp/
 /.nexus_pytest_tmp/
 /tmp_pytest_*/
 /tmp[0-9a-z]*/
+/tmp/skill-*
 
 # === NEXUS PI Infrastructure ===
 .nexus_pi/sessions/
@@ -164,6 +168,7 @@ nexus-glm5-fusion-pack/
 /docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv
 
 # === Allowed Verification Paths ===
+!.gitkeep
 !tests/monitoring/test_token_policy.py
 !tests/security/test_terminal_sanitizer.py
 !tests/vault/test_zilliz_client.py
