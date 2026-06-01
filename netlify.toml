@@ -1,0 +1,12 @@
+# ─── Netlify Configuration ───────────────────────────────────────
+# Next.js 16 deploys on Netlify with zero config via OpenNext adapter.
+# We only override: build command (skip standalone copy script),
+# DATABASE_URL (for Prisma generate), and NODE_VERSION.
+# Do NOT set publish — the OpenNext adapter sets it automatically.
+
+[build]
+  command = "bunx prisma generate && bun run next build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  DATABASE_URL = "file:../db/custom.db"
