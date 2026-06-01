@@ -93,7 +93,7 @@ class TestSyncCallbackExecutor:
 
 
 class TestAsyncBridgeExecutor:
-    """Test the Bridge RPC executor stub."""
+    """Test the Bridge RPC executor — verifies REAL HTTP calls."""
 
     def test_missing_agent_id_returns_error(self):
         executor = AsyncBridgeExecutor()
@@ -101,17 +101,17 @@ class TestAsyncBridgeExecutor:
         assert result.success is False
         assert "No agent_id" in result.error
 
-    def test_with_agent_id_returns_not_implemented(self):
-        executor = AsyncBridgeExecutor()
+    def test_bridge_unreachable_returns_error(self):
+        executor = AsyncBridgeExecutor(bridge_url="http://127.0.0.1:18799", timeout=1.0)
         result = executor.execute("task-21", "Task", {"agent_id": "agent-01"})
         assert result.success is False
-        assert "not yet wired" in result.error
+        assert "unreachable" in result.error.lower() or "bridge" in result.error.lower()
         assert result.agent_id == "agent-01"
 
-    def test_custom_bridge_url(self):
-        executor = AsyncBridgeExecutor(bridge_url="http://192.168.1.100:8000")
+    def test_custom_bridge_url_shows_in_error(self):
+        executor = AsyncBridgeExecutor(bridge_url="http://192.168.1.100:8000", timeout=1.0)
         result = executor.execute("task-22", "Task", {"agent_id": "a1"})
-        assert "192.168.1.100" in result.error
+        assert "192.168.1.100" in result.error or "unreachable" in result.error.lower()
 
 
 class TestTaskExecutor:

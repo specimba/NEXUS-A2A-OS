@@ -1,0 +1,7 @@
+
+PagingFiles              : {?:\pagefile.sys}
+ExistingPageFiles        : {\??\C:\pagefile.sys}
+TempPageFile             : 
+AutomaticManagedPagefile : 
+
+

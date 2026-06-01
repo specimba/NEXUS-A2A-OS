@@ -108,18 +108,47 @@ class AsyncBridgeExecutor(ExecutorBackend):
         agent_id = context.get("agent_id")
         if not agent_id:
             return ExecutionResult(
-                task_id=task_id,
-                success=False,
+                task_id=task_id, success=False,
                 error="No agent_id in task context for bridge execution",
             )
-        # TODO: Implement actual Bridge RPC call
-        # For now, return a structured not-implemented result
-        return ExecutionResult(
-            task_id=task_id,
-            success=False,
-            error=f"BridgeExecutor not yet wired to Bridge at {self.bridge_url}",
-            agent_id=agent_id,
-        )
+        try:
+            import requests
+            resp = requests.post(f"{self.bridge_url}/api/tasks/execute", json={
+                "task_id": task_id, "description": description,
+                "agent_id": agent_id, "context": context,
+            }, timeout=self.timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                return ExecutionResult(
+                    task_id=task_id, success=data.get("success", True),
+                    output=data.get("output", ""),
+                    duration_ms=data.get("duration_ms", 0),
+                    agent_id=agent_id,
+                )
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge returned HTTP {resp.status_code}",
+                agent_id=agent_id,
+            )
+        except requests.exceptions.Timeout:
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge timeout ({self.timeout}s) at {self.bridge_url}",
+                agent_id=agent_id,
+            )
+        except requests.exceptions.ConnectionError:
+            host = self.bridge_url.replace("http://", "").replace("https://", "")
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge unreachable at {host} — is the governance server running?",
+                agent_id=agent_id,
+            )
+        except Exception as e:
+            return ExecutionResult(
+                task_id=task_id, success=False,
+                error=f"Bridge call failed: {e}",
+                agent_id=agent_id,
+            )
 
 
 class MockExecutor(ExecutorBackend):
@@ -225,14 +254,34 @@ class TaskExecutor:
     ) -> ExecutionResult:
         try:
             result = self.backend.execute(task_id, description, context)
+            agent_id = result.agent_id or context.get("agent_id")
             if result.success:
                 self._update_status(task_id, TaskStatus.COMPLETED)
-                if self.trust_scorer and result.agent_id:
-                    self.trust_scorer.record_success(result.agent_id)
+                if self.trust_scorer and agent_id:
+                    if hasattr(self.trust_scorer, "record_task_outcome"):
+                        self.trust_scorer.record_task_outcome(
+                            agent_id=agent_id,
+                            task_id=task_id,
+                            success=True,
+                            lane=context.get("lane", "implementation"),
+                            source="task_executor",
+                        )
+                    else:
+                        self.trust_scorer.record_success(agent_id)
             else:
                 self._update_status(task_id, TaskStatus.FAILED)
-                if self.trust_scorer and result.agent_id:
-                    self.trust_scorer.record_failure(result.agent_id)
+                if self.trust_scorer and agent_id:
+                    if hasattr(self.trust_scorer, "record_task_outcome"):
+                        self.trust_scorer.record_task_outcome(
+                            agent_id=agent_id,
+                            task_id=task_id,
+                            success=False,
+                            lane=context.get("lane", "implementation"),
+                            error=result.error,
+                            source="task_executor",
+                        )
+                    else:
+                        self.trust_scorer.record_failure(agent_id)
             logger.info(
                 "Task %s: %s (%.1fms)",
                 task_id, "OK" if result.success else f"FAIL: {result.error}",

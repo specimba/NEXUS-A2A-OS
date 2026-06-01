@@ -1,0 +1,177 @@
+"TimeCreated","ProviderName","Id","LevelDisplayName","Message"
+"05/18/2026 2:11:53 AM","Alloy","1","Information","ts=2026-05-17T23:11:53.8024154Z level=info msg=""Done replaying WAL"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=rw remote_name=8e9b58 url=https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push duration=46.4743403s
+"
+"05/18/2026 2:11:38 AM","Microsoft-Windows-Security-SPP","903","Information","The Software Protection service has stopped.
+"
+"05/18/2026 2:11:38 AM","Microsoft-Windows-Security-SPP","16384","Information","Successfully scheduled Software Protection service for re-start at 2126-04-23T23:11:38Z. Reason: RulesEngine."
+"05/18/2026 2:11:10 AM","SecurityCenter","15","Information","Updated Windows Defender status successfully to SECURITY_PRODUCT_STATE_ON."
+"05/18/2026 2:11:09 AM","Intel Network Helper Service","0","Information","Service started successfully."
+"05/18/2026 2:11:08 AM","SecurityCenter","1","Information","The Windows Security Center Service has started."
+"05/18/2026 2:11:08 AM","KNDBWM","0","Information","Service started successfully."
+"05/18/2026 2:11:08 AM","KNDBWM","0","Information","Starting KNDBWM.exe "
+"05/18/2026 2:11:08 AM","KNDBWM","0","Information","envar KNDBWM_HOME=C:\Windows\System32\drivers\RivetNetworks\Killer"
+"05/18/2026 2:11:07 AM","SupportAssistAgent","0","Information","Service started successfully."
+"05/18/2026 2:11:07 AM","Microsoft-Windows-Security-SPP","902","Information","The Software Protection service has started.
+10.0.26100.8457"
+"05/18/2026 2:11:07 AM","Microsoft-Windows-Security-SPP","1003","Information","The Software Protection service has completed licensing status check.
+Application Id=55c92734-d682-4d71-983e-d6ec3f16059f
+Licensing Status=
+1: 0567073a-7d74-403b-b2d5-6b35da372d8d, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+2: 1b750385-9fe2-49a8-ab55-149d0546395b, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+3: 1d873132-f09f-4eb2-bf5a-2e4fb48935e8, 1, 1 [(0 )(1 )(2 [0x00000000, 1, 0], [(?)( 1 0x00000000)(?)(?)(?)(?)( 10 0x00000000 msft:rm/algorithm/flags/1.0)(?)])(3 )]
+4: 2b1f36bb-c1cd-4306-bf5c-a0367c2d97d8, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+5: 30d469c6-a78f-4476-b5c8-af78d5b6a5fb, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+6: 3ae2cc14-ab2d-41f4-972f-5e20142771dc, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+7: 4002e33a-524c-4100-8108-131a0d42c0ea, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+8: 411b3d4f-be6d-4a06-baaa-9cabfc256cae, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+9: 58e97c99-f377-4ef1-81d5-4ad5522b5fd8, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+10: 653098ee-780d-4863-8cf2-d18399ce413b, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+11: 74436dbb-cc17-46de-867f-14906ba4a938, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+12: 8a292df8-d653-4057-8133-a0701792f912, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+13: 8db63db6-4f8f-46d6-a448-66444faaaa72, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+14: cd918a57-a41b-4c82-8dce-1a538e221a83, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+15: da9621af-f086-4244-b563-18611e51aa1a, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+16: e371d89a-73e8-4b24-a7ff-23a3641dd18e, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+17: ed799377-74b8-4989-a244-14d082e65972, 1, 0 [(0 [0xC004F014, 0, 0], [(?)(?)(?)(?)(?)(?)(?)(?)])(1 )(2 )(3 )]
+
+"
+"05/18/2026 2:11:07 AM","Microsoft-Windows-Security-SPP","1066","Information","Initialization status for service objects.
+C:\Windows\system32\sppwinob.dll, msft:spp/windowsfunctionality/agent/7.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:rm/algorithm/inherited/1.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:rm/algorithm/phone/1.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:rm/algorithm/pkey/detect, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:spp/ActionScheduler/1.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:spp/TaskScheduler/1.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:spp/statecollector/pkey, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:spp/volume/services/kms/1.0, 0x00000000, 0x00000000
+C:\Windows\system32\sppobjs.dll, msft:spp/volume/services/kms/activationinfo/1.0, 0x00000000, 0x00000000
+"
+"05/18/2026 2:11:07 AM","Microsoft-Windows-Security-SPP","16394","Information","Offline downlevel migration succeeded."
+"05/18/2026 2:11:07 AM","Microsoft-Windows-Security-SPP","900","Information","The Software Protection service is starting.
+Parameters:<explicit>"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3930968Z level=info msg=""now listening for http traffic"" service=http addr=127.0.0.1:12345
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3925776Z level=info msg=""failed to register collector with remote server"" service=remotecfg id=eaef18c9-07d5-40fc-bd32-8ed1e4a2e2c5 name="""" err=""noop client""
+ts=2026-05-17T23:11:07.3925776Z level=info msg=""peers changed"" service=cluster peers_count=1 min_cluster_size=0 peers=specimbaPC
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3920523Z level=info msg=""starting cluster node"" service=cluster peers_count=0 peers="""" advertise_addr=127.0.0.1:12345 minimum_cluster_size=0 minimum_size_wait_timeout=0s
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3910009Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=livedebugging duration=0s
+ts=2026-05-17T23:11:07.3910009Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=ui duration=0s
+ts=2026-05-17T23:11:07.3910009Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:205 msg=""finished complete graph evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 duration=959.0671ms
+ts=2026-05-17T23:11:07.3910009Z level=info source=/__w/alloy/alloy/internal/runtime/alloy.go:287 msg=""scheduling loaded components and services"" controller_id=""""
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3910009Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.scrape.alloy_check duration=1.0461ms
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3899548Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.relabel.alloy_check duration=0s
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3899548Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.scrape.integrations_windows_exporter duration=61.3604ms
+"
+"05/18/2026 2:11:07 AM","Killer Provider Data Helper Service","0",,
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3291151Z level=info msg=""Replaying WAL"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=rw remote_name=8e9b58 url=https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push queue=8e9b58
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3285944Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.relabel.integrations_windows_exporter duration=519.3µs
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3280751Z level=info msg=""Starting scraped metadata watcher"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=rw remote_name=8e9b58 url=https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push
+ts=2026-05-17T23:11:07.3280751Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.remote_write.metrics_service duration=90.9306ms
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3280751Z level=info msg=""Starting WAL watcher"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=rw remote_name=8e9b58 url=https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push queue=8e9b58
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3253409Z level=info msg=""WAL segment loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal segment=98 maxSegment=98
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3253409Z level=info msg=""WAL segment loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal segment=97 maxSegment=98
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.3091372Z level=info msg=""WAL segment loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal segment=96 maxSegment=98
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.2874381Z level=info msg=""WAL segment loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal segment=95 maxSegment=98
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.268256Z level=info msg=""WAL segment loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal segment=94 maxSegment=98
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.2539591Z level=info msg=""WAL checkpoint loaded"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.2398002Z level=info msg=""replaying WAL, this may take a while"" component_path=/ component_id=prometheus.remote_write.metrics_service subcomponent=wal dir=C:\ProgramData\GrafanaLabs\Alloy\data\prometheus.remote_write.metrics_service\wal
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Warning","ts=2026-05-17T23:11:07.2371445Z level=warn msg=""the `cs` collector is removed - its metrics are in the `os`, `memory`, and `cpu` collectors"" component_path=/ component_id=prometheus.exporter.windows.integrations_windows_exporter
+ts=2026-05-17T23:11:07.2371445Z level=info msg=""enabled windows_exporter collectors"" component_path=/ component_id=prometheus.exporter.windows.integrations_windows_exporter collectors=cpu,diskdrive,gpu,logical_disk,memory,net,os,service,system,time
+ts=2026-05-17T23:11:07.2371445Z level=info msg=""nic/addresses collector is in an experimental state! The configuration and metrics may change in future. Please report any issues."" component_path=/ component_id=prometheus.exporter.windows.integrations_windows_exporter collector=net
+ts=2026-05-17T23:11:07.2361051Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.exporter.windows.integrations_windows_exporter duration=758.8782ms
+ts=2026-05-17T23:11:07.2361051Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=discovery.relabel.integrations_windows_exporter duration=0s
+ts=2026-05-17T23:11:07.2361051Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=tracing duration=0s
+ts=2026-05-17T23:11:07.2371445Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=logging duration=1.0394ms
+ts=2026-05-17T23:11:07.2371445Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=labelstore duration=0s
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.2361051Z level=info msg=""no peer discovery configured: both join and discover peers are empty"" service=cluster
+ts=2026-05-17T23:11:07.2361051Z level=info msg=""running usage stats reporter""
+ts=2026-05-17T23:11:06.4342019Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:201 msg=""starting complete graph evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3
+ts=2026-05-17T23:11:06.4353121Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=remotecfg duration=1.1102ms
+ts=2026-05-17T23:11:07.2366263Z level=info msg=""applying non-TLS config to HTTP server"" service=http
+ts=2026-05-17T23:11:06.4353121Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=http duration=0s
+ts=2026-05-17T23:11:06.4353121Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=cluster duration=0s
+ts=2026-05-17T23:11:06.4362312Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=prometheus.exporter.self.alloy_check duration=919.1µs
+ts=2026-05-17T23:11:06.4367356Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=discovery.relabel.alloy_check duration=504.4µs
+ts=2026-05-17T23:11:06.4367356Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=otel duration=0s
+ts=2026-05-17T23:11:06.4394467Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.write.grafana_cloud_loki duration=2.7111ms
+ts=2026-05-17T23:11:06.4455873Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.process.logs_integrations_windows_exporter_application duration=6.1406ms
+ts=2026-05-17T23:11:06.4461126Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.relabel.logs_integrations_windows_exporter_application duration=525.3µs
+ts=2026-05-17T23:11:06.4603106Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.source.windowsevent.logs_integrations_windows_exporter_application duration=14.198ms
+ts=2026-05-17T23:11:06.4609424Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.process.logs_integrations_windows_exporter_system duration=631.8µs
+ts=2026-05-17T23:11:06.4609424Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.relabel.logs_integrations_windows_exporter_system duration=0s
+ts=2026-05-17T23:11:06.4772269Z level=info source=/__w/alloy/alloy/internal/runtime/internal/controller/loader.go:218 msg=""finished node evaluation"" controller_path=/ controller_id="""" trace_id=2b876bb6ee9098cabc180009b0ab76d3 node_id=loki.source.windowsevent.logs_integrations_windows_exporter_system duration=16.2845ms
+"
+"05/18/2026 2:11:07 AM","Alloy","1","Information","ts=2026-05-17T23:11:07.2361051Z level=info boringcrypto_enabled=false
+"
+"05/18/2026 2:11:05 AM","FusionService","0","Information","Service started successfully."
+"05/18/2026 2:11:03 AM","edgeupdate","0","Information","Service stopped."
+"05/18/2026 2:11:03 AM","DellConnectedServiceDelivery","0","Information","Service started successfully."
+"05/18/2026 2:11:02 AM","Dell SupportAssist Remediation","0","Information","Service started successfully."
+"05/18/2026 2:11:02 AM","Dell Digital Delivery Services","0","Information","Service started successfully."
+"05/18/2026 2:11:01 AM","Alloy","1","Information","level=info msg=""starting program"" command=""C:\\Program Files\\GrafanaLabs\\Alloy\\alloy-windows-amd64.exe run C:\\Program Files\\GrafanaLabs\\Alloy\\config.alloy --storage.path=C:\\ProgramData\\GrafanaLabs\\Alloy\\data""
+"
+"05/18/2026 2:10:36 AM","DellClientManagementService","0","Information","Service started successfully."
+"05/18/2026 2:09:42 AM","XTUService","0","Information","Service started successfully."
+"05/18/2026 2:09:13 AM","Microsoft-Windows-Search","1003","Information","The Windows Search Service started.
+"
+"05/18/2026 2:09:12 AM","SpotifySessionConnectedTask","1",,
+"05/18/2026 2:09:12 AM","SpotifySessionConnectedTask","1",,
+"05/18/2026 2:09:12 AM","SpotifySessionConnectedTask","1",,
+"05/18/2026 2:09:12 AM","SpotifySessionConnectedTask","1",,
+"05/18/2026 2:09:09 AM","Microsoft-Windows-RestartManager","10001","Information","Ending session 0 started ‎2026‎-‎05‎-‎17T23:09:06.743214300Z."
+"05/18/2026 2:09:09 AM","MsiInstaller","1042","Information","Ending a Windows Installer transaction: C:\Program Files\WindowsApps\Microsoft.GamingServices_36.113.2002.0_x64__8wekyb3d8bbwe\gameinputredist.msi. Client Process Id: 12696."
+"05/18/2026 2:09:09 AM","MsiInstaller","1035","Information","Windows Installer reconfigured the product. Product Name: Microsoft GameInput. Product Version: 3.3.182.0. Product Language: 1033. Manufacturer: Microsoft Corporation. Reconfiguration success or error status: 0."
+"05/18/2026 2:09:09 AM","MsiInstaller","11728","Information","Product: Microsoft GameInput -- Configuration completed successfully."
+"05/18/2026 2:09:08 AM","Microsoft-Windows-Winlogon","6000","Information","The winlogon notification subscriber <SessionEnv> was unavailable to handle a notification event."
+"05/18/2026 2:09:07 AM","Microsoft-Windows-Winlogon","6003","Information","The winlogon notification subscriber <SessionEnv> was unavailable to handle a critical notification event."
+"05/18/2026 2:09:06 AM","Microsoft-Windows-RestartManager","10000","Information","Starting session 0 - ‎2026‎-‎05‎-‎17T23:09:06.743214300Z."
+"05/18/2026 2:09:06 AM","MsiInstaller","1040","Information","Beginning a Windows Installer transaction: C:\Program Files\WindowsApps\Microsoft.GamingServices_36.113.2002.0_x64__8wekyb3d8bbwe\gameinputredist.msi. Client Process Id: 12696."
+"05/18/2026 2:09:05 AM","IPF","19","Information","ESIF(2.3.20303.5058) TYPE: INFO MODULE: IPF TIME 32019 ms
+
+    DPTF Build Version:  9.1.10009.1745    DPTF Build Date:  Mar 11 2026 16:58:52    Message:  EPO Modes Status:DC Endurance Gaming(Status: Disabled);DC Better Battery(Status: Enabled);DC Balanced(Status: Enabled);AC Balanced(Status: Disabled);AC Quiet(Status: Disabled    Policy:  Energy Performance Optimizer Policy [2]        "
+"05/18/2026 2:09:05 AM","IPF","19","Information","ESIF(2.3.20303.5058) TYPE: INFO MODULE: IPF TIME 31755 ms
+
+    DPTF Build Version:  9.1.10009.1745    DPTF Build Date:  Mar 11 2026 16:58:52    Message:  VR RF Interference Mitigation: Disabled; DDR RF Interference Mitigation: Disabled; RF Interference Mitigation Priority: WIFI; TCON Interference Mitigation: X; TCON P2P Clock Table State: X; TCON Mitigation SSC: X    Policy:  RFIM Policy [5]        "
+"05/18/2026 2:09:05 AM","IPF","19","Information","ESIF(2.3.20303.5058) TYPE: INFO MODULE: IPF TIME 31694 ms
+
+    DPTF Build Version:  9.1.10009.1745    DPTF Build Date:  Mar 11 2026 16:58:52    Message:  EPO Modes Status:DC Endurance Gaming(Status: Disabled);DC Better Battery(Status: Enabled);DC Balanced(Status: Enabled);AC Balanced(Status: Disabled);AC Quiet(Status: Disabled    Policy:  Energy Performance Optimizer Policy [2]        "
+"05/18/2026 2:09:05 AM","IPF","19","Information","ESIF(2.3.20303.5058) TYPE: INFO MODULE: IPF TIME 31471 ms
+
+<EVENTLOG>DTT Version: 9.1.10009.1745. IPF SDK Version: 1.0.23203.03. Minimum IPF Version Required: 1.0.11904.0."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-WMI","63","Warning","A provider, IntelMEProv, has been registered in the Windows Management Instrumentation namespace root\Intel_ME to use the LocalSystem account. This account is privileged and the provider may cause a security violation if it does not correctly impersonate user requests."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-WMI","63","Warning","A provider, IntelMEProv, has been registered in the Windows Management Instrumentation namespace root\Intel_ME to use the LocalSystem account. This account is privileged and the provider may cause a security violation if it does not correctly impersonate user requests."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-WMI","63","Warning","A provider, IntelMEProv, has been registered in the Windows Management Instrumentation namespace root\Intel_ME to use the LocalSystem account. This account is privileged and the provider may cause a security violation if it does not correctly impersonate user requests."
+"05/18/2026 2:09:01 AM","Intel Graphics Software Service","0","Information","Service started successfully."
+"05/18/2026 2:09:01 AM","WMIRegistrationService","2","Information","Intel(R) WMI Registration Service has successfully finished WMI Registration."
+"05/18/2026 2:09:01 AM","CoworkVMService","1","Information","Claude VM Service starting. Detailed logs: C:\ProgramData\Claude\Logs\cowork-service.log"
+"05/18/2026 2:09:00 AM","Microsoft-Windows-WMI","5617","Information","Windows Management Instrumentation Service subsystems initialized successfully"
+"05/18/2026 2:08:59 AM","IgoAudioService","0","Information","Service started successfully."
+"05/18/2026 2:08:59 AM","DellTechHub","0","Information","Service started successfully."
+"05/18/2026 2:08:59 AM","Service1","0","Information","Service started successfully."
+"05/18/2026 2:08:58 AM","M-Track Solo and Duo AudioDevMon","0",,
+"05/18/2026 2:08:58 AM","Microsoft-Windows-WMI","5615","Information","Windows Management Instrumentation Service started sucessfully"
+"05/18/2026 2:08:58 AM","WMIRegistrationService","0","Information","Intel(R) WMI Registration Service started."
+"05/18/2026 2:08:58 AM","RtkAudioUniversalService","0",,
+"05/18/2026 2:08:58 AM","IntelDalJhi","0","Information","Intel(R) Dynamic Application Loader Host Interface Service started."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-User Profiles Service","1531","Information","The User Profile Service has started successfully.  
+
+"
+"05/18/2026 2:06:34 AM","Microsoft-Windows-Security-SPP","16384","Information","Successfully scheduled Software Protection service for re-start at 2126-04-23T23:05:34Z. Reason: RulesEngine."
+"05/18/2026 2:05:59 AM","Microsoft-Windows-Security-SPP","16394","Information","Offline downlevel migration succeeded."

@@ -1,0 +1,208 @@
+"TimeCreated","ProviderName","Id","LevelDisplayName","Message"
+"05/18/2026 2:19:22 AM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.449.669.0) - Current Channel (Broad)"
+"05/18/2026 2:09:07 AM","TPM","18","Information","This event triggers the Trusted Platform Module (TPM) provisioning/status check to run."
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","18","Information","VBS Key Isolation was started and will protect VSM-isolated keys."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","19","Information","Virtualization Based Security new timer creation status
+
+HRESULT: The operation completed successfully.
+New latch timer needed: false
+New latch timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+Policy file exists: false
+"
+"05/18/2026 2:08:53 AM","BTHUSB","18","Information","Windows cannot store Bluetooth authentication codes (link keys) on the local adapter. Bluetooth keyboards might not work in the system BIOS during startup."
+"05/18/2026 2:08:48 AM","MEIx64","2","Information","Intel(R) Management Engine Interface driver has started successfully."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-Kernel-Power","41","Critical","The system has rebooted without cleanly shutting down first. This error could be caused if the system stopped responding, crashed, or lost power unexpectedly."
+"05/18/2026 2:08:58 AM","EventLog","6008","Error","The previous system shutdown at 1:07:16 AM on ‎5/‎18/‎2026 was unexpected."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","2","Information","Hypervisor scheduler type is 0x4."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","18","Information","There are 0x1 boot options on this system."
+"05/18/2026 1:56:30 AM","Microsoft-Windows-WHEA-Logger","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/18/2026 1:52:51 AM","Microsoft-Windows-WHEA-Logger","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/17/2026 8:04:56 PM","Microsoft-Windows-WHEA-Logger","2","Warning","A corrected hardware error has occurred. A record describing the condition is contained in the data section of this event."
+"05/17/2026 7:57:10 PM","Microsoft-Windows-IsolatedUserMode","2","Information","Secure Trustlet Id 0 and Pid 0 stopped with status STATUS_SUCCESS."
+"05/17/2026 2:14:06 PM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.449.661.0) - Current Channel (Broad)"
+"05/17/2026 1:17:37 PM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.449.659.0) - Current Channel (Broad)"
+"05/17/2026 1:15:22 PM","TPM","17","Information","The Trusted Platform Module (TPM) hardware failed to execute a TPM command."
+"05/17/2026 1:09:29 PM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: 2026-05 Security Update (KB5089549) (26200.8457)"
+"05/17/2026 1:09:29 PM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Dell, Inc. Driver Update (11.50.1.7)"
+"05/17/2026 1:07:16 PM","TPM","18","Information","This event triggers the Trusted Platform Module (TPM) provisioning/status check to run."
+"05/17/2026 1:07:14 PM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 1:07:14 PM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 1:07:14 PM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 1:07:12 PM","Microsoft-Windows-Wininit","18","Information","VBS Key Isolation was started and will protect VSM-isolated keys."
+"05/17/2026 1:07:12 PM","Microsoft-Windows-Wininit","19","Information","Virtualization Based Security new timer creation status
+
+HRESULT: The operation completed successfully.
+New latch timer needed: false
+New latch timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+Policy file exists: false
+"
+"05/17/2026 1:07:08 PM","BTHUSB","18","Information","Windows cannot store Bluetooth authentication codes (link keys) on the local adapter. Bluetooth keyboards might not work in the system BIOS during startup."
+"05/17/2026 1:07:04 PM","MEIx64","2","Information","Intel(R) Management Engine Interface driver has started successfully."
+"05/17/2026 1:06:51 PM","Microsoft-Windows-Hyper-V-Hypervisor","2","Information","Hypervisor scheduler type is 0x4."
+"05/17/2026 1:06:51 PM","Microsoft-Windows-Kernel-Boot","18","Information","There are 0x1 boot options on this system."
+"05/17/2026 11:05:02 AM","Microsoft-Windows-IsolatedUserMode","2","Information","Secure Trustlet Id 6 and Pid 1968 stopped with status STATUS_SUCCESS."
+"05/17/2026 11:04:59 AM","User32","1074","Information","The process C:\Windows\servicing\TrustedInstaller.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Upgrade (Planned)
+ Reason Code: 0x80020003
+ Shutdown Type: restart
+ Comment: "
+"05/17/2026 11:04:58 AM","TPM","18","Information","This event triggers the Trusted Platform Module (TPM) provisioning/status check to run."
+"05/17/2026 11:04:43 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:43 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:43 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:36 AM","Microsoft-Windows-Wininit","18","Information","VBS Key Isolation was started and will protect VSM-isolated keys."
+"05/17/2026 11:04:36 AM","Microsoft-Windows-Wininit","19","Information","Virtualization Based Security new timer creation status
+
+HRESULT: The operation completed successfully.
+New latch timer needed: false
+New latch timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+Policy file exists: false
+"
+"05/17/2026 11:04:30 AM","BTHUSB","18","Information","Windows cannot store Bluetooth authentication codes (link keys) on the local adapter. Bluetooth keyboards might not work in the system BIOS during startup."
+"05/17/2026 11:04:25 AM","MEIx64","2","Information","Intel(R) Management Engine Interface driver has started successfully."
+"05/17/2026 11:04:06 AM","Microsoft-Windows-Hyper-V-Hypervisor","2","Information","Hypervisor scheduler type is 0x4."
+"05/17/2026 11:04:06 AM","Microsoft-Windows-Kernel-Boot","18","Information","There are 0x1 boot options on this system."
+"05/17/2026 7:28:54 AM","Microsoft-Windows-IsolatedUserMode","2","Information","Secure Trustlet Id 6 and Pid 11896 stopped with status STATUS_SUCCESS."
+"05/17/2026 7:28:53 AM","User32","1074","Information","The process C:\Windows\servicing\TrustedInstaller.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Upgrade (Planned)
+ Reason Code: 0x80020003
+ Shutdown Type: restart
+ Comment: "
+"05/17/2026 7:28:32 AM","TPM","18","Information","This event triggers the Trusted Platform Module (TPM) provisioning/status check to run."
+"05/17/2026 7:28:25 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:25 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:25 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:23 AM","Microsoft-Windows-Wininit","18","Information","VBS Key Isolation was started and will protect VSM-isolated keys."
+"05/17/2026 7:28:23 AM","Microsoft-Windows-Wininit","19","Information","Virtualization Based Security new timer creation status
+
+HRESULT: The operation completed successfully.
+New latch timer needed: false
+New latch timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+Policy file exists: false
+"
+"05/17/2026 7:28:19 AM","BTHUSB","18","Information","Windows cannot store Bluetooth authentication codes (link keys) on the local adapter. Bluetooth keyboards might not work in the system BIOS during startup."
+"05/17/2026 7:28:14 AM","MEIx64","2","Information","Intel(R) Management Engine Interface driver has started successfully."
+"05/17/2026 7:28:00 AM","Microsoft-Windows-Hyper-V-Hypervisor","2","Information","Hypervisor scheduler type is 0x4."
+"05/17/2026 7:28:00 AM","Microsoft-Windows-Kernel-Boot","18","Information","There are 0x1 boot options on this system."
+"05/17/2026 7:26:46 AM","Microsoft-Windows-IsolatedUserMode","2","Information","Secure Trustlet Id 6 and Pid 16600 stopped with status STATUS_SUCCESS."
+"05/17/2026 7:26:05 AM","User32","1074","Information","The process C:\Windows\uus\AMD64\MoUsoCoreWorker.exe (SPECIMBAPC) has initiated the restart of computer SPECIMBAPC on behalf of user NT AUTHORITY\SYSTEM for the following reason: Operating System: Service pack (Planned)
+ Reason Code: 0x80020010
+ Shutdown Type: restart
+ Comment: "
+"05/17/2026 4:17:40 AM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.449.654.0) - Current Channel (Broad)"
+"05/17/2026 1:50:08 AM","Microsoft-Windows-WindowsUpdateClient","19","Information","Installation Successful: Windows successfully installed the following update: Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.449.653.0) - Current Channel (Broad)"

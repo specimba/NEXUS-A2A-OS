@@ -1,0 +1,22 @@
+Microsoft PnP Utility
+
+Published Name:     oem313.inf
+Original Name:      iigd_dch.inf
+Provider Name:      Intel Corporation
+Class Name:         Display
+Class GUID:         {4d36e968-e325-11ce-bfc1-08002be10318}
+Driver Version:     01/15/2026 32.0.101.7084
+Signer Name:        Microsoft Windows Hardware Compatibility Publisher
+Attributes:         Universal
+WHCP Version:       Unknown
+
+Published Name:     oem164.inf
+Original Name:      nvdmi.inf
+Provider Name:      NVIDIA
+Class Name:         Display
+Class GUID:         {4d36e968-e325-11ce-bfc1-08002be10318}
+Driver Version:     05/05/2026 32.0.15.9649
+Signer Name:        Microsoft Windows Hardware Compatibility Publisher
+Attributes:         Declarative
+WHCP Version:       Unknown
+

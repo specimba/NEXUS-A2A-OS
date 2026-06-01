@@ -1,0 +1,709 @@
+"TimeCreated","ProviderName","Id","LevelDisplayName","Message"
+"05/18/2026 2:14:01 AM","Microsoft-Windows-TPM-WMI","1808","Information","This device has updated Secure Boot CA/keys. This device signature information is included here.
+DeviceAttributes: FirmwareManufacturer:Dell Inc.;FirmwareVersion:1.31.0;OEMManufacturerName:Dell Inc.;OEMModelSKU:0BF9;OSArchitecture:amd64;
+BucketId: 87838acb44c0cd965105d1ec71e4a235c7751f3ee0ce069c14213e5d5b7e1bed
+BucketConfidenceLevel: Under Observation - More Data Needed
+UpdateType: Windows UEFI CA 2023 (DB), Option ROM CA 2023 (DB), 3P UEFI CA 2023 (DB), KEK 2023, Boot Manager (2023)
+For more information, please see https://go.microsoft.com/fwlink/?linkid=2301018."
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpService","113","Information","Attempted to add URL (http://127.0.0.1:8884:127.0.0.1/) to URL group (0xFE00001420000001). Status: 0x0. Process Id 0x7FE0 Executable path \Device\HarddiskVolume3\Program Files\Dell\SupportAssistAgent\bin\SupportAssistAgent.exe, User S-1-5-18"
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpService","111","Information","Create URL group 0xFE00001420000001. Status 0x0. Process Id 0x7FE0 Executable path \Device\HarddiskVolume3\Program Files\Dell\SupportAssistAgent\bin\SupportAssistAgent.exe, User S-1-5-18"
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://127.0.0.1:8884:127.0.0.1/. Status 0x0. Process Id 0x7FE0 Executable path \Device\HarddiskVolume3\Program Files\Dell\SupportAssistAgent\bin\SupportAssistAgent.exe, User S-1-5-18"
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpEvent","15007","Information","Reservation for namespace identified by URL prefix http://127.0.0.1:8884:127.0.0.1/ was successfully added."
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpEvent","15008","Information","Reservation for namespace identified by URL prefix http://127.0.0.1:8884:127.0.0.1/ was successfully deleted."
+"05/18/2026 2:11:13 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://127.0.0.1:8884:127.0.0.1/. Status 0xC0000035. Process Id 0x7FE0 Executable path \Device\HarddiskVolume3\Program Files\Dell\SupportAssistAgent\bin\SupportAssistAgent.exe, User S-1-5-18"
+"05/18/2026 2:11:09 AM","Microsoft-Windows-Hyper-V-VmSwitch","71","Information","Delete complete for port AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: AA163D4B-AF3D-4F36-970C-AED010BCDB5B)."
+"05/18/2026 2:11:09 AM","Microsoft-Windows-Hyper-V-VmSwitch","69","Information","Port AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: AA163D4B-AF3D-4F36-970C-AED010BCDB5B) successfully deleted - switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:11:09 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Delete' succeeded on nic C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:11:09 AM","Microsoft-Windows-Hyper-V-VmSwitch","234","Information","NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B successfully disconnected from port ."
+"05/18/2026 2:11:08 AM","Microsoft-Windows-Hyper-V-VmSwitch","234","Information","NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B successfully disconnected from port ."
+"05/18/2026 2:11:08 AM","Microsoft-Windows-DistributedCOM","10016","Warning","The application-specific permission settings do not grant Local Launch permission for the COM Server application with CLSID 
+Windows.SecurityCenter.WscDataProtection
+ and APPID 
+Unavailable
+ to the user NT AUTHORITY\SYSTEM SID (S-1-5-18) from address LocalHost (Using LRPC) running in the application container Unavailable SID (Unavailable). This security permission can be modified using the Component Services administrative tool."
+"05/18/2026 2:11:08 AM","Microsoft-Windows-HttpService","113","Information","Attempted to add URL (http://+:5985/wsman/) to URL group (0xFE00001A20000001). Status: 0x0. Process Id 0x7C68 Executable path \Device\HarddiskVolume3\Windows\System32\svchost.exe, User S-1-5-20"
+"05/18/2026 2:11:08 AM","Microsoft-Windows-HttpService","113","Information","Attempted to add URL (http://+:47001/wsman/) to URL group (0xFE00001A20000001). Status: 0x0. Process Id 0x7C68 Executable path \Device\HarddiskVolume3\Windows\System32\svchost.exe, User S-1-5-20"
+"05/18/2026 2:11:08 AM","Microsoft-Windows-WinRM","10148","Information","The WinRM service is listening for WS-Management requests. 
+
+ User Action 
+ Use the following command to see the specific IPs on which WinRM is listening: 
+
+ winrm enumerate winrm/config/listener"
+"05/18/2026 2:11:07 AM","Killer Network Service","0","Information","Service started/resumed"
+"05/18/2026 2:11:07 AM","Killer Network Service","16","Information","Service Starting"
+"05/18/2026 2:11:06 AM","Killer Analytics Service","0",,
+"05/18/2026 2:11:06 AM","Killer Analytics Service","16",,
+"05/18/2026 2:11:03 AM","Microsoft-Windows-DistributedCOM","10016","Warning","The application-specific permission settings do not grant Local Activation permission for the COM Server application with CLSID 
+{9EA82395-E31B-41CA-8DF7-EC1CEE7194DF}
+ and APPID 
+{2ED83BAA-B2FD-43B1-99BF-E6149C622692}
+ to the user NT AUTHORITY\NETWORK SERVICE SID (S-1-5-20) from address LocalHost (Using LRPC) running in the application container Unavailable SID (Unavailable). This security permission can be modified using the Component Services administrative tool."
+"05/18/2026 2:10:37 AM","Microsoft-Windows-DeviceAssociationService","3503","Error","Device Association Service detected an endpoint discovery failure."
+"05/18/2026 2:10:20 AM","Microsoft-Windows-Configuration-Change-Monitor","1","Information",
+"05/18/2026 2:10:20 AM","Microsoft-Windows-Configuration-Change-Monitor","1","Information",
+"05/18/2026 2:10:01 AM","Microsoft-Windows-DistributedCOM","10016","Warning","The application-specific permission settings do not grant Local Activation permission for the COM Server application with CLSID 
+{2593F8B9-4EAF-457C-B68A-50F6B8EA6B54}
+ and APPID 
+{15C20B67-12E7-4BB6-92BB-7AFF07997402}
+ to the user SPECIMBAPC\speci SID (S-1-5-21-2314733700-3601572708-1252202708-1001) from address LocalHost (Using LRPC) running in the application container Unavailable SID (Unavailable). This security permission can be modified using the Component Services administrative tool."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) Previous IPv4: Enabled, Current IPv4: Enabled, Previous IPv6: Enabled, Current IPv6: Enabled. Reason: RSC OID"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) Previous IPv4: Enabled, Current IPv4: Enabled, Previous IPv6: Enabled, Current IPv6: Enabled. Reason: NIC connect"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","102","Information","Networking driver in C555C63F-C385-4D66-A5F2-2CD698891C02 is loaded and the protocol version is negotiated to the most recent version (Virtual machine ID C555C63F-C385-4D66-A5F2-2CD698891C02)."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) Previous IPv4: Disabled, Current IPv4: Enabled, Previous IPv6: Disabled, Current IPv6: Enabled. Reason: RSC OID"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC connect"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","102","Information","Networking driver in C555C63F-C385-4D66-A5F2-2CD698891C02 is loaded and the protocol version is negotiated to the most recent version (Virtual machine ID C555C63F-C385-4D66-A5F2-2CD698891C02)."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","232","Information","NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) successfully connected to port AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: AA163D4B-AF3D-4F36-970C-AED010BCDB5B) on switch 790E58B4-7939-4434-9358-89AE7DDBE87E(Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Create' succeeded on nic C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC C555C63F-C385-4D66-A5F2-2CD698891C02--AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: ) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC create"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","67","Information","Port AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: AA163D4B-AF3D-4F36-970C-AED010BCDB5B) successfully created on switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","292","Information","RSC offload modified for Port AA163D4B-AF3D-4F36-970C-AED010BCDB5B (Friendly Name: AA163D4B-AF3D-4F36-970C-AED010BCDB5B) Previous: Disabled, Current: Enabled. Reason: Port create"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","232","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) successfully connected to port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) on switch 790E58B4-7939-4434-9358-89AE7DDBE87E(Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Enabled, Current IPv4: Enabled, Previous IPv6: Enabled, Current IPv6: Enabled. Reason: RSC OID"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Enabled, Previous IPv6: Disabled, Current IPv6: Enabled. Reason: RSC OID"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","7","Information","Miniport NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) successfully initialized."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC start"
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Create' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:09:48 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC create"
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","264","Information","Internal or External Port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) successfully created on switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","292","Information","RSC offload modified for Port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) Previous: Disabled, Current: Enabled. Reason: Port create"
+"05/18/2026 2:09:47 AM","VfpExt","7036","Information","The  service entered the Filter restart complete state."
+"05/18/2026 2:09:47 AM","VfpExt","7036","Information","The  service entered the Filter restart start state."
+"05/18/2026 2:09:47 AM","VfpExt","7036","Information","The  service entered the Filter attach complete state."
+"05/18/2026 2:09:47 AM","VfpExt","7036","Information","The  service entered the Filter attach start state."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","9","Information","Switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully initialized."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","232","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully connected to port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) on switch 790E58B4-7939-4434-9358-89AE7DDBE87E(Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Create' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC create"
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","67","Information","Port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully created on switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:09:47 AM","Microsoft-Windows-Hyper-V-VmSwitch","292","Information","RSC offload modified for Port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) Previous: Disabled, Current: Enabled. Reason: Port create"
+"05/18/2026 2:09:11 AM","Microsoft-Windows-DNS-Client","1014","Warning","Name resolution for the name log.tailscale.com timed out after none of the configured DNS servers responded. Client PID 6584."
+"05/18/2026 2:09:08 AM","Microsoft-Windows-DistributedCOM","10016","Warning","The application-specific permission settings do not grant Local Activation permission for the COM Server application with CLSID 
+{6B3B8D23-FA8D-40B9-8DBD-B950333E2C52}
+ and APPID 
+{4839DDB7-58C2-48F5-8283-E1D1807D0D7D}
+ to the user NT AUTHORITY\LOCAL SERVICE SID (S-1-5-19) from address LocalHost (Using LRPC) running in the application container Unavailable SID (Unavailable). This security permission can be modified using the Component Services administrative tool."
+"05/18/2026 2:09:08 AM","Microsoft-Windows-DistributedCOM","10016","Warning","The application-specific permission settings do not grant Local Activation permission for the COM Server application with CLSID 
+{6B3B8D23-FA8D-40B9-8DBD-B950333E2C52}
+ and APPID 
+{4839DDB7-58C2-48F5-8283-E1D1807D0D7D}
+ to the user NT AUTHORITY\LOCAL SERVICE SID (S-1-5-19) from address LocalHost (Using LRPC) running in the application container Unavailable SID (Unavailable). This security permission can be modified using the Component Services administrative tool."
+"05/18/2026 2:09:08 AM","Microsoft-Windows-TPM-WMI","1046","Information","Measured boot files deleted successfully. The following 1 files were deleted: "
+"05/18/2026 2:09:08 AM","Microsoft-Windows-TPM-WMI","1025","Information","The TPM was successfully provisioned and is now ready for use."
+"05/18/2026 2:09:07 AM","Microsoft-Windows-Winlogon","7001","Information","User Logon Notification for Customer Experience Improvement Program"
+"05/18/2026 2:09:07 AM","Microsoft-Windows-TPM-WMI","1282","Information","The TBS device identifier has been generated."
+"05/18/2026 2:09:07 AM","TPM","18","Information","This event triggers the Trusted Platform Module (TPM) provisioning/status check to run."
+"05/18/2026 2:09:02 AM","nhi","9007","Information","The driver entered RTD3.
+ All the connected devices will be removed from driver's internal state, so it is expected that DeviceDisconnected events will happen."
+"05/18/2026 2:09:02 AM","Microsoft-Windows-HttpService","113","Information","Attempted to add URL (http://*:5357/896aa595-f637-4032-839a-5fc745cd141c/) to URL group (0xFE00000820000001). Status: 0x0. Process Id 0x2D3C Executable path \Device\HarddiskVolume3\Windows\System32\svchost.exe, User S-1-5-19"
+"05/18/2026 2:09:02 AM","Microsoft-Windows-HttpService","111","Information","Create URL group 0xFE00000820000001. Status 0x0. Process Id 0x2D3C Executable path \Device\HarddiskVolume3\Windows\System32\svchost.exe, User S-1-5-19"
+"05/18/2026 2:09:02 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'gameflt' (10.0, ‎1985‎-‎07‎-‎07T17:06:58.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-Configuration-Change-Monitor","1","Information",
+"05/18/2026 2:09:01 AM","Microsoft-Windows-Configuration-Change-Monitor","1","Information",
+"05/18/2026 2:09:01 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Delete' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)), Instance Id {34a5fa55-5286-446d-949f-65ec65cf2beb}."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-WLAN-AutoConfig","10001","Information","WLAN Extensibility Module has successfully started.
+
+Module Path: C:\Windows\system32\IntelIHVRouter14.dll
+"
+"05/18/2026 2:09:01 AM","Microsoft-Windows-WLAN-AutoConfig","4000","Information","WLAN AutoConfig service has successfully started.
+"
+"05/18/2026 2:09:01 AM","Microsoft-Windows-IsolatedUserMode","1","Information","Secure Trustlet \??\C:\Windows\System32\NgcIso.exe Id 6 and Pid 9400 started with status STATUS_SUCCESS."
+"05/18/2026 2:09:01 AM","Microsoft-Windows-IsolatedUserMode","5","Information","Secure Trustlet NULL Id 0 and Pid 0 started with status STATUS_SUCCESS."
+"05/18/2026 2:09:00 AM","Win32k","267","Information","Touch/Touchpad Hardware Quality Assurance verification succeeded."
+"05/18/2026 2:09:00 AM","Microsoft-Windows-Configuration-Change-Monitor","1","Information",
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","Microsoft-Windows-WHEA-Logger","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:58 AM","Service Control Manager","7009","Error","A timeout was reached (45000 milliseconds) while waiting for the Intel(R) Platform License Manager Service service to connect."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://127.0.0.1:8884:127.0.0.1/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:10246/MDEServer/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:10243/WMPNSSv4/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL https://+:10245/WMPNSSv4/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL https://+:443/sra_{BA195980-CD49-458b-9E23-C84EE0ADCD75}/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL https://+:3392/rdp/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:10247/apps/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://127.0.0.1:8883:127.0.0.1/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:5985/wsman/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:47001/wsman/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL https://+:5986/wsman/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://*:2869/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL https://*:5358/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://+:80/Temporary_Listen_Addresses/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-HttpService","112","Information","Attempted to reserve URL http://*:5357/. Status 0x0. Process Id 0x4 Executable path , User S-1-5-18"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-TPM-WMI","1038","Information","Pre-attestation health checks confirm that the device is expected to pass attestation.
+ Please see C:\Windows\Logs\MeasuredBoot\0000000185-0000000000.json for detailed information on what checks were made."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-TPM-WMI","1041","Information","Pre-attestation health check detailed information: {""Version"":1,""HealthStatus"":""Attestable"",""Required"":[{""Field"":""TpmPresent"",""Value"":true,""DesiredValue"":true},{""Field"":""TpmMeetsMinimumVersion"",""Value"":true,""DesiredValue"":true},{""Field"":""TpmIsResponsive"",""Value"":true,""DesiredValue"":true},{""Field"":""EkCertIsAvailable"",""Value"":true,""DesiredValue"":true},{""Field"":""TcgLogFound"",""Value"":true,""DesiredValue"":true}],""Expected"":[{""Field"":""PcrsMatchTcgLog"",""Value"":true,""DesiredValue"":true}],""Informational"":[{""Field"":""SecureBootEnabled"",""ValueFromComputer"":true,""ValueFromTcgLog"":true,""DesiredValue"":true,""TcgValueIsVerifiable"":true},{""Field"":""VirtualSecureMemory"",""ValueFromComputer"":false,""ValueFromTcgLog"":false,""DesiredValue"":true,""TcgValueIsVerifiable"":true},{""Field"":""SecureCorePCCompliant"",""ValueFromComputer"":false,""ValueFromTcgLog"":false,""DesiredValue"":true,""TcgValueIsVerifiable"":true}{""Field"":""BootTcgLogFoundInFileSystem"",""Value"":true,""DesiredValue"":true},{""Field"":""CurrentTcgLogFoundInFileSystem"",""Value"":true,""DesiredValue"":true}]}"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","62","Information","Switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully deleted."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Delete' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","71","Information","Delete complete for port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","71","Information","Delete complete for port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E)."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","69","Information","Port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) successfully deleted - switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","234","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87F successfully disconnected from port 790E58B4-7939-4434-9358-89AE7DDBE87F."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","69","Information","Port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully deleted - switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Hyper-V-VmSwitch","234","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87E successfully disconnected from port 790E58B4-7939-4434-9358-89AE7DDBE87E."
+"05/18/2026 2:08:58 AM","VfpExt","7036","Information","The  service entered the Filter detach complete state."
+"05/18/2026 2:08:58 AM","VfpExt","7036","Information","The  service entered the Filter detach start state."
+"05/18/2026 2:08:58 AM","VfpExt","7036","Information","The  service entered the Filter pause complete state."
+"05/18/2026 2:08:58 AM","VfpExt","7036","Information","The  service entered the Filter pause start state."
+"05/18/2026 2:08:58 AM","RST Middleware","27","Information","Found passthru disk: SCSI Port: 0, SCSI Bus: 3, SCSI Target: 0, PCIe SSD, 1000204886016 bytes, Samsung SSD 970 EVO Plus 1TB            "
+"05/18/2026 2:08:58 AM","RST Middleware","27","Information","Found passthru disk: SCSI Port: 0, SCSI Bus: 2, SCSI Target: 0, PCIe SSD, 1024209543168 bytes, BG6 KIOXIA 1024GB                       "
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'bindflt' (10.0, ‎2020‎-‎10‎-‎11T07:37:04.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'storqosflt' (10.0, ‎2010‎-‎03‎-‎10T23:03:18.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'UnionFS' (10.0, ‎2059‎-‎11‎-‎23T09:21:28.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'CldFlt' (10.0, ‎1989‎-‎10‎-‎11T09:03:21.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","1","Information","File System Filter 'CldFlt' (Version 10.0, ‎1989‎-‎10‎-‎11T09:03:21.000000000Z) unloaded successfully."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'CldFlt' (10.0, ‎1989‎-‎10‎-‎11T09:03:21.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'wcifs' (10.0, ‎2098‎-‎05‎-‎03T01:58:22.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'luafv' (10.0, ‎2088‎-‎03‎-‎20T10:10:50.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'bfs' (10.0, ‎1986‎-‎03‎-‎19T14:12:50.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:58 AM","Microsoft-Windows-DHCPv6-Client","51046","Information","DHCPv6 client service is started"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Dhcp-Client","50036","Information","DHCPv4 client service is started"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Dhcp-Client","50103","Information","DHCPv4 client registered for shutdown notification"
+"05/18/2026 2:08:58 AM","Microsoft-Windows-Dhcp-Client","50036","Information","DHCPv4 client service is started"
+"05/18/2026 2:08:57 AM","nhi","9001","Information","Thunderbolt driver is loaded and initialized connection to HW.
+ Driver version: 1.41.1340.0
+ NVM version: 40:2
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Directory-Services-SAM","16983","Information","The security account manager is now logging periodic summary events for remote clients that call legacy password change or set RPC methods.
+
+For more information please see https://go.microsoft.com/fwlink/?linkid=2150956.
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Directory-Services-SAM","16977","Information","The domain is configured with the following minimum password length-related settings.
+
+MinimumPasswordLength: 0
+
+RelaxMinimumPasswordLengthLimits: 0
+
+MinimumPasswordLengthAudit: -1
+
+For more information see https://go.microsoft.com/fwlink/?LinkId=2097191.
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Directory-Services-SAM","16962","Information","Remote calls to the SAM database are being restricted using the default security descriptor: O:SYG:SYD:(A;;RC;;;BA).
+For more information please see http://go.microsoft.com/fwlink/?LinkId=787651."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-IsolatedUserMode","5","Information","Secure Trustlet NULL Id 0 and Pid 0 started with status STATUS_SUCCESS."
+"05/18/2026 2:08:57 AM","LsaSrv","6156","Information","Credential Guard auto enablement status.
+
+Hardware Requirements for Virtualization Based Security:	1
+Domain Joined:	0
+Azure AD Joined:	0
+ Licensed for Credential Guard:	0
+Domain Controller:	0"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","12","Information","LSASS.exe was started as a protected process with level: 4."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","18","Information","VBS Key Isolation was started and will protect VSM-isolated keys."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-IsolatedUserMode","1","Information","Secure Trustlet \??\C:\Windows\system32\lsaiso.exe Id 1 and Pid 1388 started with status STATUS_SUCCESS."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-IsolatedUserMode","5","Information","Secure Trustlet NULL Id 0 and Pid 0 started with status STATUS_SUCCESS."
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","14","Information","Credential Guard configuration:
+
+Registry Configuration: 0x0
+Test Configuration: 0
+Auto Enablement: 0"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","23","Information","Boot App Anti-Rollback: Initialize Completed with status:
+HRESULT: The operation completed successfully.
+New timer needed: false
+New timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","25","Information","Boot App Anti-Rollback: Previous timer resumed with status:
+
+HRESULT: The operation completed successfully.
+Previous timer present: true
+Start time: ‎2026‎-‎03‎-‎21T04:10:32.520291800Z
+Grace period: 51840000000000
+Attempted recovery enforcement succeeded: false
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","24","Information","Boot App Anti-Rollback: Timer start completed with status:
+
+Win32Error: 0
+Start time: ‎2026‎-‎03‎-‎21T04:10:32.520291800Z
+Grace period: 51840000000000
+Due time: ‎2026‎-‎05‎-‎20T04:10:32.520291800Z
+"
+"05/18/2026 2:08:57 AM","Microsoft-Windows-Wininit","19","Information","Virtualization Based Security new timer creation status
+
+HRESULT: The operation completed successfully.
+New latch timer needed: false
+New latch timer waiting for system update completion: false
+Previous latch timer exists but disabled by registry: false
+Policy file exists: false
+"
+"05/18/2026 2:08:54 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WUDFRd failed to load.
+Device: HID\VID_19F7&PID_0003&MI_03&Col02\8&275edd82&0&0001
+Status: 0xC0000365"
+"05/18/2026 2:08:54 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:54 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WudfRd failed to load.
+Device: USB\VID_04E8&PID_6860&MS_COMP_MTP&SAMSUNG_Android\7&2f1a0bf1&0&0000
+Status: 0xC0000365"
+"05/18/2026 2:08:54 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:53 AM","BTHUSB","18","Information","Windows cannot store Bluetooth authentication codes (link keys) on the local adapter. Bluetooth keyboards might not work in the system BIOS during startup."
+"05/18/2026 2:08:53 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WUDFRd failed to load.
+Device: HID\Vid_8087&Pid_0AC2\6&1566e9b0&0&0000
+Status: 0xC0000365"
+"05/18/2026 2:08:53 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:49 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WUDFRd failed to load.
+Device: INTELAUDIO\DIF_0000&UIF_0000&CTLR_DEV_7A50&VEN_8086&DetectionVerification\5&2ba271eb&0&DIF_000A&UIF_0000
+Status: 0xC0000365"
+"05/18/2026 2:08:49 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Loaded DSP FW library: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_vlldp14x_lite_lib.bin, status = STATUS_SUCCESS."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Loaded DSP FW library: Libs\dsp_lib_whm_adl_release.bin, status = STATUS_SUCCESS."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Loaded DSP FW library: Libs\dsp_lib_intel_wov_adl_release.bin, status = STATUS_SUCCESS."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Loaded DSP FW library: Libs\dsp_lib_asrc_adl_release.bin, status = STATUS_SUCCESS."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_vlldp15x_lite_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {bde2f4ee-a588-4537-90fb-36a8d63d55ad} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_vlldp15x_lite_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_tisa_stereo_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {a07eece7-8f01-4ecd-8bde-3e4de8a55f81} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_tisa_stereo_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_tisa_2p2.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {9a44a769-1a51-464a-a54b-1a4084bf370b} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_tisa_2p2.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep96_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {7111001f-d35f-44d9-81d2-7ac685bed3d7} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep96_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep483_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {7bbe0c2c-9c46-4450-b322-114ece31c6bd} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep483_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep481_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {7aa4db02-6b41-4bc3-a712-80a2dde29e11} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep481_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep182_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {8827e616-07fa-487b-a014-cc0cccb28d95} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_rtksep182_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_ma12_lib.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {52983d04-2414-88b4-a2a2-c1397e13b022} from \??\C:\Windows\System32\DriverStore\FileRepository\intcoed_oemlibpath.inf_amd64_9d21815ea375b306\adl_ma12_lib.bin."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","28","Information","Library is not supported in BIOS: Libs\dsp_lib_hpf_adl_release.bin, status = The request is not supported.."
+"05/18/2026 2:08:49 AM","Intel-SST-OED","29","Information","FX module is not supported in BIOS:  {e52776ea-f967-11ed-be56-0242ac120002} from Libs\dsp_lib_hpf_adl_release.bin."
+"05/18/2026 2:08:49 AM","Netwtw14","7018","Information","7018 - secure boot (SB4) configuration"
+"05/18/2026 2:08:49 AM","Netwtw14","7017","Information","7017 - secure boot (SB) configuration"
+"05/18/2026 2:08:48 AM","Netwtw14","7010","Information","7010 - driver enabled (miniport init)"
+"05/18/2026 2:08:48 AM","Netwtw14","7002","Information","7002 - CTDP power limit value (SPLC)"
+"05/18/2026 2:08:48 AM","Netwtw14","7005","Information","7005 - SAR value max TX power (WRDS)"
+"05/18/2026 2:08:48 AM","Netwtw14","7006","Information","7006 - SAR Geo delta value (WGDS)"
+"05/18/2026 2:08:48 AM","MEIx64","2","Information","Intel(R) Management Engine Interface driver has started successfully."
+"05/18/2026 2:08:48 AM","Netwtw14","7027","Information","7027 - get Nic Manufacturere on init"
+"05/18/2026 2:08:48 AM","Netwtw14","7029","Information","7029 - Driver initialization"
+"05/18/2026 2:08:48 AM","Netwtw14","7036","Information","The \Device\NDMP3 service entered the Intel(R) Wi-Fi 6 AX201 160MHz state."
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Power","521","Information","Active battery count change."
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Power","521","Information","Active battery count change."
+"05/18/2026 2:08:48 AM","VfpExt","7036","Information","The  service entered the Filter restart complete state."
+"05/18/2026 2:08:48 AM","VfpExt","7036","Information","The  service entered the Filter restart start state."
+"05/18/2026 2:08:48 AM","VfpExt","7036","Information","The  service entered the Filter attach complete state."
+"05/18/2026 2:08:48 AM","VfpExt","7036","Information","The  service entered the Filter attach start state."
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 31 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 93
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 30 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 29 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 28 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 27 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 26 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 25 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 24 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 23 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 22 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 21 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 20 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 19 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 18 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 17 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 16 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 1593
+Minimum performance percentage: 100
+Minimum throttle percentage: 6"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 15 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 85
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 14 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 81
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 13 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 81
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 12 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 81
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:48 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 11 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 77
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 10 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 77
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 9 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 77
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 8 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 77
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 7 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 77
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 6 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 5 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 4 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 3 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 2 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 1 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-Processor-Power","55","Information","Processor 0 in group 0 exposes the following power management capabilities:
+
+Idle state type: Micro Power Engine Plugin (11 state(s))
+
+Performance state type: ACPI Collaborative Processor Performance Control
+Nominal Frequency (MHz): 2200
+Maximum performance percentage: 944
+Minimum performance percentage: 74
+Minimum throttle percentage: 3"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WUDFRd failed to load.
+Device: PCI\VEN_8086&DEV_1134&SUBSYS_0BF91028&REV_00\56B350020300AA0000
+Status: 0xC0000365"
+"05/18/2026 2:08:47 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:46 AM","Microsoft-Windows-Kernel-PnP","219","Warning","The driver \Driver\WUDFRd failed to load.
+Device: PCI\VEN_8086&DEV_A71D&SUBSYS_0BF91028&REV_01\3&11583659&0&20
+Status: 0xC0000365"
+"05/18/2026 2:08:46 AM","Microsoft-Windows-DriverFrameworks-UserMode","10118","Information","UMDF reflector is unable to connect to service control manager (SCM). This is expected during boot, when SCM has not started yet. Will retry when it starts."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Kernel-General","24","Information","The time zone information was refreshed with exit reason 0. Current time zone bias is -180."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Ntfs","98","Information","Volume \\?\Volume{6ba6747d-72b7-44dd-a252-b6c8f803b3db} (\Device\HarddiskVolume5) is healthy.  No action is needed."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Ntfs","98","Information","Volume \\?\Volume{db8a49a9-bb68-460f-a1a2-d8bc71fbe01b} (\Device\HarddiskVolume4) is healthy.  No action is needed."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Ntfs","98","Information","Volume \\?\Volume{e4b6ccb9-6089-4033-864e-6ee8a2398561} (\Device\HarddiskVolume9) is healthy.  No action is needed."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Ntfs","98","Information","Volume \\?\Volume{e8823932-11f5-4af4-8d03-25eb9805859a} (\Device\HarddiskVolume6) is healthy.  No action is needed."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Ntfs","98","Information","Volume D: (\Device\HarddiskVolume8) is healthy.  No action is needed."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","5","Information","Miniport NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) successfully enabled"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","232","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) successfully connected to port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) on switch 790E58B4-7939-4434-9358-89AE7DDBE87E(Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","7","Information","Miniport NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) successfully initialized."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC start"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Create' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC create"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","264","Information","Internal or External Port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) successfully created on switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","292","Information","RSC offload modified for Port 790E58B4-7939-4434-9358-89AE7DDBE87F (Friendly Name: Host Vnic 790E58B4-7939-4434-9358-89AE7DDBE87E) Previous: Disabled, Current: Enabled. Reason: Port create"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","9","Information","Switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully initialized."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","232","Information","NIC 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully connected to port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) on switch 790E58B4-7939-4434-9358-89AE7DDBE87E(Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","233","Information","The operation 'Create' succeeded on nic 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)), Instance Id {00000000-0000-0000-0000-000000000000}."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","291","Information","RSC offload modified for NIC 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) Previous IPv4: Disabled, Current IPv4: Disabled, Previous IPv6: Disabled, Current IPv6: Disabled. Reason: NIC create"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","67","Information","Port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) successfully created on switch 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall))."
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","292","Information","RSC offload modified for Port 790E58B4-7939-4434-9358-89AE7DDBE87E (Friendly Name: WSL (Hyper-V firewall)) Previous: Disabled, Current: Enabled. Reason: Port create"
+"05/18/2026 2:08:40 AM","Microsoft-Windows-Hyper-V-VmSwitch","277","Information","vmswitch.sys build 26100.amd64.ge_release_svc_prod1, debug false, official true, 1 1"
+"05/18/2026 2:08:39 AM","Microsoft-Windows-Kernel-Power","41","Critical","The system has rebooted without cleanly shutting down first. This error could be caused if the system stopped responding, crashed, or lost power unexpectedly."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'npsvctrig' (10.0, ‎1978‎-‎05‎-‎14T12:13:30.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:39 AM","VfpExt","7036","Information","The  service entered the Driver load complete state."
+"05/18/2026 2:08:39 AM","VfpExt","7036","Information","The  service entered the Driver load start state."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'UCPD' (10.0, ‎2002‎-‎09‎-‎03T15:00:51.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'FileCrypt' (10.0, ‎2075‎-‎09‎-‎01T01:07:07.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:39 AM","Microsoft-Windows-Ntfs","98","Information","Volume C: (\Device\HarddiskVolume3) is healthy.  No action is needed."
+"05/18/2026 2:08:37 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'WdFilter' (10.0, ‎2036‎-‎01‎-‎26T12:33:35.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:37 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'Wof' (10.0, ‎2001‎-‎07‎-‎26T18:18:30.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:37 AM","Microsoft-Windows-FilterManager","6","Information","File System Filter 'FileInfo' (10.0, ‎2093‎-‎04‎-‎02T04:29:43.000000000Z) has successfully loaded and registered with Filter Manager."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-HAL","16","Information","IOMMU fault reporting has been initialized."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-General","20","Information","The leap second configuration has been updated.
+Reason: Leap second data initialized from registry during boot
+Leap seconds enabled: true
+New leap second count: 0
+Old leap second count: 0"
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","30","Information","The firmware reported boot metrics."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-IsolatedUserMode","3","Information","Secure Kernel started with status STATUS_SUCCESS and flags HvciEnabled,HvciStrictMode."
+"05/18/2026 2:08:58 AM","EventLog","6013","Information","The system uptime is 24 seconds."
+"05/18/2026 2:08:58 AM","EventLog","6005","Information","The Event log service was started."
+"05/18/2026 2:08:58 AM","EventLog","6009","Information","Microsoft (R) Windows (R) 10.00. 26200  Multiprocessor Free."
+"05/18/2026 2:08:58 AM","EventLog","6008","Error","The previous system shutdown at 1:07:16 AM on ‎5/‎18/‎2026 was unexpected."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","167","Warning","The hypervisor did not enable mitigations for side channel vulnerabilities for virtual machines because HyperThreading is enabled. To enable mitigations for virtual machines, disable HyperThreading."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","165","Information","Hypervisor configured mitigations for CVE-2019-11091, CVE-2018-12126, CVE-2018-12127, CVE-2018-12130 for virtual machines.
+
+Processor not affected: true
+Processor family not affected: false
+Processor supports microarchitectural buffer flush: true
+Buffer flush needed: true
+"
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","156","Information","Hypervisor configured mitigations for CVE-2018-3646 for virtual machines.
+
+Processor not affected: true
+Processor family not affected: false
+Processor supports cache flush: true
+HyperThreading enabled: false
+Parent hypervisor applies mitigations: false
+Mitigations disabled by bcdedit: false
+Mitigations enabled: true
+Cache flush needed: false
+"
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","129","Information","Hypervisor initialized I/O remapping.
+
+Hardware present: true
+Hardware enabled: true
+Policy: 0x0
+Enabled features: 0x43
+Internal information: 0x0
+Problems: 0x0
+Additional information: 0x0"
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","2","Information","Hypervisor scheduler type is 0x4."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Hyper-V-Hypervisor","1","Information","Hypervisor successfully started."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","27","Information","The boot type was 0x0."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","25","Information","The boot menu policy was 0x1."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","238","Information","EFI time zone bias: 2047. Daylight flags: 0. Firmware time: ‎2026‎-‎05‎-‎18T02:08:32.000000000Z."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","247","Information","Unable to load Pluton-Windows firmware. StatusCode: STATUS_SUCCESS, Reason: Failed to apply firmware."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","20","Information","The last shutdown's success status was false. The last boot's success status was true."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","32","Information","The bootmgr spent 0 ms waiting for user input."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","18","Information","There are 0x1 boot options on this system."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-Boot","153","Information","Virtualization-based security (policies: VBS Enabled,VSM Required,Hvci,Boot Chain Signer Soft Enforced) is enabled due to VBS registry configuration."
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-General","25","Information","The system time was initialized to ‎2026‎-‎05‎-‎17T23:08:34.500000000Z. 
+
+Loader time: ‎2026‎-‎05‎-‎17T23:08:32.000000000Z
+Internal boot flags: 0x2
+HAL RTC error code: 0x0
+RTC time is in UTC: false
+Soft boot: false
+Success: true
+Phase: 0"
+"05/18/2026 2:08:35 AM","Microsoft-Windows-Kernel-General","12","Information","The operating system started at system time ‎2026‎-‎05‎-‎17T23:08:34.500000000Z."
+"05/18/2026 1:56:30 AM","Microsoft-Windows-WHEA-Logger","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/18/2026 1:52:51 AM","Microsoft-Windows-WHEA-Logger","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."

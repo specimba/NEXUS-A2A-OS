@@ -1,4 +1,5 @@
-﻿import sys
+import os
+import sys
 from pathlib import Path
 import inspect
 import types
@@ -33,6 +34,8 @@ except Exception:
 def tmp_path(request):
     """Workspace-local tmp_path replacement for this restricted Windows runtime."""
     safe_name = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in request.node.name)[:80]
-    path = Path.cwd() / "tests_tmp" / f"{safe_name}_{uuid.uuid4().hex}"
+    tmp_root = Path(os.environ.get("NEXUS_TEST_TMP_DIR", Path.cwd() / "tests_tmp"))
+    path = tmp_root / f"{safe_name}_{uuid.uuid4().hex}"
     path.mkdir(parents=True, exist_ok=False)
     return path
+

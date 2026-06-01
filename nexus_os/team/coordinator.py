@@ -65,6 +65,7 @@ from nexus_os.engine.hermes import (
     RoutingDecision,
     SkillRecord,
 )
+from nexus_os.governor.trust_kernel import TrustKernel
 
 
 # ── Constants ──────────────────────────────────────────────────────────
@@ -168,6 +169,7 @@ class TeamCoordinator:
         project_root: str,
         db: Optional[DatabaseManager] = None,
         openclaw_base: Optional[str] = None,
+        trust_kernel: Optional[TrustKernel] = None,
     ) -> None:
         self.project_root = Path(project_root)
         self.openclaw_base = Path(openclaw_base) if openclaw_base else DEFAULT_OPENCLAW_BASE
@@ -183,6 +185,7 @@ class TeamCoordinator:
             )
             self.db = DatabaseManager(config)
             self.db.setup_schema()
+        self.trust_kernel = trust_kernel or TrustKernel(db=self.db)
 
         # ── Hermes Router ──
         self._init_hermes()
@@ -527,7 +530,8 @@ class TeamCoordinator:
         except Exception as exc:
             logger.warning("Hermes outcome recording failed: %s", exc)
 
-        # Update worker trust score
+        # Update worker trust score from the canonical TrustKernel. The
+        # WorkerProfile field remains as a local display/cache value only.
         entry = self._task_index.get(task_id)
         if entry:
             worker_id = entry.get("assigned_worker")
@@ -535,12 +539,21 @@ class TeamCoordinator:
                 worker = self.workers[worker_id]
                 if success:
                     worker.stats["completed"] += 1
-                    # Incremental trust: move 10% toward 1.0
-                    worker.trust_score = worker.trust_score * 0.9 + 0.1
                 else:
                     worker.stats["failed"] += 1
-                    # Decremental trust: move 20% toward 0.0
-                    worker.trust_score = worker.trust_score * 0.8
+                domain = getattr(entry.get("hermes_decision"), "domain", "orchestration")
+                lane = getattr(domain, "value", domain)
+                try:
+                    snapshot = self.trust_kernel.record_task_outcome(
+                        agent_id=worker_id,
+                        task_id=task_id,
+                        success=success,
+                        lane=str(lane),
+                        source="team_coordinator",
+                    )
+                    worker.trust_score = snapshot.trust
+                except Exception as exc:
+                    logger.warning("TrustKernel outcome recording failed: %s", exc)
 
         # Record to mem0
         if self.memory is not None and result_summary:

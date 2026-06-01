@@ -136,6 +136,8 @@ class TestValidRequest:
         assert response["result"]["status"] == "completed"
         assert response["result"]["task_id"] is not None
         assert response["result"]["task_id"].startswith("task-")
+        assert response["result"]["executor_backend"] == "MockExecutor"
+        assert response["result"]["execution_mode"] == "mock"
         assert response["trace_id"] == TRACE_ID
 
     def test_submit_has_output(self, bridge_no_auth):
@@ -177,6 +179,8 @@ class TestValidRequest:
         assert status == 200
         assert response["result"]["records"] == []
         assert response["result"]["count"] == 0
+        assert response["result"]["durable"] is False
+        assert response["result"]["storage"] == "stub_non_durable"
 
     def test_vault_write_returns_record_id(self, bridge_no_auth):
         payload = {"content": "test memory content", "type": "project", "classification": "standard"}
@@ -187,7 +191,9 @@ class TestValidRequest:
 
         assert status == 200
         assert response["result"]["record_id"].startswith("rec-")
-        assert response["result"]["status"] == "written"
+        assert response["result"]["status"] == "stub_written"
+        assert response["result"]["durable"] is False
+        assert response["result"]["storage"] == "stub_non_durable"
 
 
 # ── Test Case 2: Missing Signature → 401 ──────────────────────
@@ -465,4 +471,5 @@ class TestEdgeCases:
 
         assert status == 200
         assert response["result"]["status"] == "completed"
+        assert response["result"]["execution_mode"] == "mock"
         assert response["result"]["task_id"] is not None

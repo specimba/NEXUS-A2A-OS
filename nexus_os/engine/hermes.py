@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 
 from nexus_os.gmr.rotator import GeniusModelRotator, GMRSelection
 from nexus_os.gmr.telemetry import TelemetryIngest
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -398,28 +399,66 @@ class HermesRouter:
         )
 
 
-# Minimal stub for test collection
 class TaskClassifier:
+    """
+    Task classifier with optional FunctionGemma integration.
+    Uses keyword heuristics by default, falls back to FunctionGemma (if available)
+    for ambiguous or high-complexity prompts.
+    """
+
+    def __init__(self, functiongemma_model: Optional[str] = None):
+        self._fg_model = functiongemma_model
+        self._fg_url = f"http://127.0.0.1:49152/api/generate" if functiongemma_model else None
+
+    def _classify_keyword(self, p: str):
+        if any(w in p for w in ("api", "code", "function", "implement", "parse", "json", "test", "script", "fix")):
+            return TaskDomain.CODE
+        if any(w in p for w in ("reason", "algorithm", "architecture", "optimal")):
+            return TaskDomain.REASONING
+        if any(w in p for w in ("analyze", "analysis", "metrics", "performance")):
+            return TaskDomain.ANALYSIS
+        if any(w in p for w in ("security", "audit", "auth", "vulnerability")):
+            return TaskDomain.SECURITY
+        if any(w in p for w in ("deploy", "production", "server")):
+            return TaskDomain.OPERATIONS
+        return TaskDomain.UNKNOWN
+
+    def _classify_fg(self, prompt: str) -> Optional[TaskDomain]:
+        if not self._fg_url:
+            return None
+        try:
+            import requests
+            resp = requests.post(self._fg_url, json={
+                "model": self._fg_model,
+                "prompt": f"Classify this task into one: code, reasoning, analysis, security, operations.\nTask: {prompt[:200]}\nAnswer:",
+                "stream": False, "options": {"num_predict": 10, "temperature": 0.1},
+            }, timeout=10)
+            if resp.ok:
+                answer = resp.json().get("response", "").strip().lower()
+                mapping = {"code": TaskDomain.CODE, "reasoning": TaskDomain.REASONING,
+                           "analysis": TaskDomain.ANALYSIS, "security": TaskDomain.SECURITY,
+                           "operations": TaskDomain.OPERATIONS}
+                for key, domain in mapping.items():
+                    if key in answer:
+                        return domain
+        except Exception:
+            pass
+        return None
+
     def classify(self, prompt: str, context: dict = None):
         p = prompt.lower()
-        if any(word in p for word in ("api", "code", "function", "implement", "parse", "json", "test", "script", "fix")):
-            domain = TaskDomain.CODE
-        elif any(word in p for word in ("reason", "algorithm", "architecture", "optimal")):
-            domain = TaskDomain.REASONING
-        elif any(word in p for word in ("analyze", "analysis", "metrics", "performance")):
-            domain = TaskDomain.ANALYSIS
-        elif any(word in p for word in ("security", "audit", "auth", "vulnerability")):
-            domain = TaskDomain.SECURITY
-        elif any(word in p for word in ("deploy", "production", "server")):
-            domain = TaskDomain.OPERATIONS
-        else:
-            domain = TaskDomain.UNKNOWN
+        domain = self._classify_keyword(p)
+
+        if domain == TaskDomain.UNKNOWN or context:
+            fg_result = self._classify_fg(prompt)
+            if fg_result:
+                domain = fg_result
 
         if len(p) < 20:
             complexity = TaskComplexity.TRIVIAL
-        elif any(word in p for word in ("critical", "production", "security", "validation")):
+        elif any(w in p for w in ("critical", "production", "security", "validation")):
             complexity = TaskComplexity.CRITICAL
-        elif any(word in p for word in ("architecture", "deployment", "review")):
+        elif any(w in p for w in ("architecture", "deployment", "review")):
             complexity = TaskComplexity.COMPLEX
         else:
             complexity = TaskComplexity.STANDARD

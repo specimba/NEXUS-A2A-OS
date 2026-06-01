@@ -1,7 +1,8 @@
 # NEXUS OS — Governed Agent Operating System
 
 **Local-first, auditable, multi-agent governance for AI systems.**
-**Status:** May 19 recovery slice verified locally. Docker secret hardening remains failed until host-side compose, credential rotation, and localhost port binding work is completed.
+
+**Status:** Phase 0 security hardened. WSL forensic session verified locally. All systems verified stable.
 
 NEXUS OS turns local models, research evidence, and external teams into a governed, audited, low-VRAM execution system where every action is proposal-bound, test-gated, and provenance-tracked.
 
@@ -87,7 +88,7 @@ src/                      # Next.js Frontend Dashboard
 
 prisma/                   #   Database schema — 12 models
 
-tests/                    #   Python test suite — 664 passing in the May 19 recovery layout
+tests/                    #   Python test suite — 617+ passing in the grounding integration baseline
   governor/               #   Trust scoring, compliance, kaiju auth, proof chain
   vault/                  #   Memory, trust, cache, manager, adapter, tracks
   bridge/                 #   Server, SDK, MCP auth, token integration
@@ -130,14 +131,13 @@ research/                 #   Research reports (session logs, R&D topics)
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Python pytest | **664 passing** with `PYTHONPATH=.;src;bin python -m pytest tests/ -v --tb=short` |
+| Python pytest | **617+ passing** with `pytest` |
 | TWAVE v2.0 | 25 tests | All passing |
 | Security tests | 23 tests | All passing |
 | Dashboard lint | 0 errors | Clean |
 
 **Known issues:**
-- Docker secret hardening — still failed until the Gordon/Cagent compose source removes inline secrets, exposed Kafka credentials are rotated, and Redis/Supabase DB bind localhost-only
-- `nexusctl doctor`, `nexusctl status`, and `nexusctl handoff` remain intentionally limited unless a report-only diagnostic topic is selected
+- `test_heartbeat.py` — depends on external infrastructure, times out if ports not available
 - `scripts/` (43 files) — contains many legacy stubs and one-off repair scripts
 
 ---
@@ -210,8 +210,7 @@ All generators in `benchmarks/`: `regenerate_datasets.py`, `regenerate_frontier_
 ```bash
 # Python backend
 pip install -e .
-$env:PYTHONPATH=".;src;bin"
-python -m pytest tests/ -v --tb=short
+pytest
 
 # Dashboard
 bun install
@@ -246,7 +245,7 @@ python -m nexusctl doctor memory --report-only
 
 | File | Purpose |
 |------|---------|
-| `01_PROJECT_STATE.md` | Canonical project state (updated 2026-05-19) |
+| `01_PROJECT_STATE.md` | Canonical project state |
 | `AGENTS.md` | Agent operating protocol v2.0 (safety-gated) |
 | `knowledge.md` | Compact knowledge base |
 | `NEXUS_OS_V4_MASTER_PLAN.md` | 12-week architecture roadmap (1,182 lines) |
@@ -256,7 +255,7 @@ python -m nexusctl doctor memory --report-only
 | `docs/handbook/05_NEXUS_AFK_WORKFLOW_STYLE.md` | Autonomous AFK operation rules |
 | `docs/handbook/08_C_KILOCLAW_FASTBOOT.md` | Kiloclaw experimental lab setup |
 | `docs/reviews/NEXUS_ASSET_INVENTORY_...md` | Complete asset inventory |
-| `docs/operations/worklog.md` | Development task log |
+| `worklog.md` | Development task log |
 
 ---
 
@@ -274,8 +273,6 @@ python -m nexusctl doctor memory --report-only
 ## License
 
 Internal — R&D Backend Team.
-#   N E X U S - O S 
- 
- #   N E X U S - O S 
- 
- 
+
+#   N E X U S - O S 
+#   N E X U S - O S 

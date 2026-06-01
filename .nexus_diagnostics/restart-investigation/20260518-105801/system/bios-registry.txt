@@ -1,0 +1,7 @@
+
+SystemManufacturer : Dell Inc.
+SystemProductName  : Dell G16 7630
+BIOSVersion        : 1.31.0
+BIOSReleaseDate    : 12/24/2025
+
+

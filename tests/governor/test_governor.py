@@ -111,6 +111,7 @@ class TestBasicAllow:
         )
         assert result.decision == Decision.ALLOW
         assert result.trace_id is None
+        assert "CVA" in result.reason
 
     def test_admin_system_access(self, governor):
         result = governor.check_access(
@@ -123,6 +124,7 @@ class TestBasicAllow:
             clearance="admin",
         )
         assert result.decision == Decision.ALLOW
+        assert "CVA" in result.reason
 
     def test_maintainer_cross_project(self, governor):
         result = governor.check_access(
@@ -135,6 +137,7 @@ class TestBasicAllow:
             clearance="maintainer",
         )
         assert result.decision == Decision.ALLOW
+        assert "CVA" in result.reason
 
 
 class TestDeny:
@@ -294,6 +297,7 @@ class TestCVADisabled:
             clearance="reader",
         )
         assert result.decision == Decision.ALLOW
+        assert "CVA disabled" in result.reason
 
 
 class TestCustomKaiju:

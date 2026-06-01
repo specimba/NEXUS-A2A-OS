@@ -1,6 +1,7 @@
 """governor/proof_chain.py — VAP 4-layer Proof Chain (L1+L2+L3+L4)"""
 from dataclasses import dataclass
 import hashlib
+import json
 import time
 from typing import Dict, Any, Optional, List
 
@@ -51,20 +52,45 @@ class VAPProofChain:
             signature=None,
             integrity_proof=None
         )
-        # L3: Non-Repudiation
-        to_sign = f"{record.id}{record.ts}{record.actor}{record.action}{record.resource}{record.outcome}{record.prev_hash}".encode()
-        record.signature = hashlib.sha256(to_sign).hexdigest()
+        # L3: Non-Repudiation placeholder. This is deterministic integrity,
+        # not a keyed signature.
+        record.signature = self._record_signature(record)
         # L4: Integrity
-        record.chain_hash = hashlib.sha256((record.prev_hash + record.signature).encode()).hexdigest()
+        record.chain_hash = self._record_chain_hash(record.prev_hash, record.signature)
         self._entries.append(record)
         self._latest_hash = record.chain_hash
         return record
 
     def verify_chain(self) -> bool:
-        for i in range(1, len(self._entries)):
-            if self._entries[i].prev_hash != self._entries[i-1].chain_hash:
+        previous_hash = "0" * 64
+        for record in self._entries:
+            if record.prev_hash != previous_hash:
                 return False
+            expected_signature = self._record_signature(record)
+            if record.signature != expected_signature:
+                return False
+            expected_chain_hash = self._record_chain_hash(record.prev_hash, record.signature or "")
+            if record.chain_hash != expected_chain_hash:
+                return False
+            previous_hash = record.chain_hash
         return True
+
+    def _record_signature(self, record: VAPRecord) -> str:
+        payload = {
+            "id": record.id,
+            "ts": record.ts,
+            "actor": record.actor,
+            "action": record.action,
+            "resource": record.resource,
+            "ctx": record.ctx,
+            "outcome": record.outcome,
+            "prev_hash": record.prev_hash,
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
+    def _record_chain_hash(self, prev_hash: str, signature: str) -> str:
+        return hashlib.sha256((prev_hash + signature).encode()).hexdigest()
 
     @property
     def entries(self):

@@ -1,7 +1,14 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =============================================================================
+# NEXUS OS — .gitignore
+# =============================================================================
+# Policy: Generated artifacts, large datasets, session dumps, and unused
+# static assets must never be committed. Track only canonical source code,
+# documentation, and config templates.
+# =============================================================================
 
-# dependencies
+# === Dependencies ===
 node_modules
+node_modules_old
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,59 +17,157 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# === Generated Artifacts & Task Files ===
+nexus_api.db*
+arena_results.jsonl
+arena_report.md
+test_scan_report.json
+api_scan_report.json
+test_grok.py
+test_api_direct.py
+monitor_a2a.py
+*.task.md
+nexus-system-status.json
+nexus-system-status.csv
+
+# === Temporary, Log & Cache Files ===
 /coverage
 __pycache__/
+.pytest_cache/
 *.py[cod]*
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+*$py.class
+*.tmp
+*~
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-
-# typescript
 *.tsbuildinfo
 next-env.d.ts
 local-*
-.claude
-.z-ai-config
 *.log
 dev.log
 dev.out.log
 test
 prompt
-
 server.log
-# Skills directory
-/skills/
+scan_report.json
+gitleaks-report.json
+trust_state.json
+vap_chain.jsonl
 
-# Local confidential research corpus: scientific papers, red-team material,
-# DERDDRE-related source PDFs, and dataset-creation inputs stay off Git.
+# === Next.js Build ===
+/.next/
+/out/
+/build
+
+# === IDE & OS ===
+.vscode/
+.idea/
+*.swp
+.DS_Store
+*.pem
+
+# === ByteRover ===
+.brv/
+.brv.backup*/
+
+# === Agent Connector Workspaces (DO NOT COMMIT) ===
+.claude/
+.codex/
+.cursor/
+.kilocode/
+.opencode/
+.windsurf/
+.augment/
+.gemini/
+.agent/
+.agents/
+CLAUDE.md
+GEMINI.md
+WARP.md
+QWEN.md
+.mcp.json
+.z-ai-config
+
+# === Secrets and Environment ===
+.env
+.env.*
+!.env.example
+.env*backup*
+.env*corrupt*
+
+# === Test Temp Directories ===
+tests_tmp/
+.pytest_tmp/
+.tmp/
+/research_api_cache/
+/research_quota_ledger.jsonl
+/.nexus_pytest_tmp/
+/tmp_pytest_*/
+/tmp[0-9a-z]*/
+
+# === NEXUS PI Infrastructure ===
+.nexus_pi/sessions/
+.nexus_pi/backup/
+.nexus_pi/archive/
+.nexus_pi/checkpoints/
+.nexus_pi/state/session_log.jsonl
+.nexus_pi/state/session_checkpoints/*.json
+.nexus_pi/state/session_compact.json
+!.nexus_pi/profiles/
+!.nexus_pi/backup_restore.py
+!.nexus_pi/NEXUS_PI_INFRASTRUCTURE.md
+!.nexus_pi/README.md
+
+# === Session Dumps ===
+session-*.md
+session-ses_*.md
+pi-session-*.html
+*.n8n
+
+# === Local Databases ===
+nexus.db
+nexus_api.db
+*.db
+*.db-shm
+*.db-wal
+
+# === OpenACP & HF Science ===
+.openacp
+data/HF_Science_database.txt
+
+# === Large/confidential Research Dumps ===
 /research/Papers/
 /docs/research/papers/
 /docs/research/Papers/
 /MIXED/
 /.nexus-worktrees/
+benchmarks/data/
+modelscope_studio_upload/
+foundry_datasets/
+research/session_logs/
+download/
+agent-ctx/
+handoff/
+Modelfile
+nul
+skills/ppt/scripts/tectonic
+docs/usefulthings-01/
+v4 plans and related doc with codes/
+NEO-TEAM_nexus-integration/
+nexus-fusion-pack/
+nexus-glm5-fusion-pack/
 
-# Local hygiene backup artifacts stay inspectable on disk but off Git.
+# === Local Hygiene Backups ===
 /docs/handoff/nexus-tidiness/**/tracked-diff-before.patch
 /docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv
+
+# === Allowed Verification Paths ===
+!tests/monitoring/test_token_policy.py
+!tests/security/test_terminal_sanitizer.py
+!tests/vault/test_zilliz_client.py
+!tests/test_model_relay.py
+!tests/bridge/test_governance_api.py
+!tests/governor/test_trust_kernel.py
+!tests/vault/test_memory_trust_kernel.py

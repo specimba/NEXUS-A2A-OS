@@ -1,0 +1,2725 @@
+"TimeCreated","Id","LevelDisplayName","Message"
+"05/18/2026 2:08:59 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 2:08:59 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/18/2026 1:56:30 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/18/2026 1:52:51 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/17/2026 8:04:56 PM","2","Warning","A corrected hardware error has occurred. A record describing the condition is contained in the data section of this event."
+"05/17/2026 1:07:14 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 1:07:14 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 1:07:14 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 11:04:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:25 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:25 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/17/2026 7:28:25 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/15/2026 10:35:11 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/15/2026 8:26:22 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/15/2026 6:44:10 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/15/2026 6:27:47 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/15/2026 6:10:48 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/15/2026 4:07:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/15/2026 4:07:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/15/2026 4:07:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:20:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:20:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:20:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:04:27 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:04:27 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:04:26 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/14/2026 11:04:23 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:32 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:30 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:30 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:26 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:26 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:24 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:23 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:19 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:19 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:19 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:17 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:17 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:14 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:14 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:12 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:12 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:12 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:12 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:09 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/13/2026 5:39:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/12/2026 2:04:56 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Root Port
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x0:0x1:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_8086&DEV_A70D&SUBSYS_0BF91028&REV_01
+Secondary Device Name:"
+"05/11/2026 10:54:41 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Root Port
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x0:0x1:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_8086&DEV_A70D&SUBSYS_0BF91028&REV_01
+Secondary Device Name:"
+"05/11/2026 9:15:59 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:57 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:57 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:54 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:51 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:49 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:08 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:08 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:05 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:01 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:01 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:01 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:15:00 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:58 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:58 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:54 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:49 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:47 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:43 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:40 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:40 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:40 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:24 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:22 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:22 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:20 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:17 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:17 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:16 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:15 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:11 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:11 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:08 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:08 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:05 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:05 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:03 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:14:00 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/11/2026 9:13:59 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/08/2026 7:06:55 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Root Port
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x0:0x1:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_8086&DEV_A70D&SUBSYS_0BF91028&REV_01
+Secondary Device Name:"
+"05/06/2026 5:37:50 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:50 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:50 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:50 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:48 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:46 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:46 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:46 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:45 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:45 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:43 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:42 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:39 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:39 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:39 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:39 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:37 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:37 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:37 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:35 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:35 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:33 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:33 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:32 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:32 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:32 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:31 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:31 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:31 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/06/2026 5:37:30 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 5:46:20 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Root Port
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x0:0x1:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_8086&DEV_A70D&SUBSYS_0BF91028&REV_01
+Secondary Device Name:"
+"05/04/2026 3:39:57 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Root Port
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x0:0x1:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_8086&DEV_A70D&SUBSYS_0BF91028&REV_01
+Secondary Device Name:"
+"05/04/2026 11:28:01 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:29 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:28 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 11:27:25 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/04/2026 10:34:21 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 10:34:21 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 10:34:21 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/04/2026 4:19:39 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/04/2026 4:18:22 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 33
+
+The details view of this entry contains further information."
+"05/04/2026 3:33:39 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/04/2026 3:33:23 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:28 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:02 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 3:44:00 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:35 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:09 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 1:26:04 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/03/2026 8:40:15 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 8:40:15 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 8:40:15 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/03/2026 4:34:04 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/03/2026 1:15:15 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 32
+
+The details view of this entry contains further information."
+"05/03/2026 12:55:14 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"05/01/2026 5:06:26 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:08 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:07 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 5:06:06 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"05/01/2026 10:19:55 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 41
+
+The details view of this entry contains further information."
+"05/01/2026 8:30:33 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:30:33 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:30:33 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:29:26 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:29:26 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:29:26 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:27:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:27:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"05/01/2026 8:27:52 AM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/30/2026 6:40:38 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"04/30/2026 1:47:39 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"04/30/2026 1:34:58 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"04/29/2026 8:42:23 PM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"04/29/2026 8:00:01 PM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 40
+
+The details view of this entry contains further information."
+"04/29/2026 5:45:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:45:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:45:01 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:59 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:59 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:57 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:57 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:55 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:55 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:54 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:52 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:49 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:47 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:47 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:46 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:46 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:44 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:44 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:42 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:42 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:41 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Legacy Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x0
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_2860&SUBSYS_0BF91028&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:44:41 PM","17","Warning","A corrected hardware error has occurred.
+
+Component: PCI Express Endpoint
+Error Source: Advanced Error Reporting (PCI Express)
+
+Primary Bus:Device:Function: 0x1:0x0:0x1
+Secondary Bus:Device:Function: 0x0:0x0:0x0
+Primary Device Name:PCI\VEN_10DE&DEV_22BD&SUBSYS_000010DE&REV_A1
+Secondary Device Name:"
+"04/29/2026 5:34:29 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 32
+
+The details view of this entry contains further information."
+"04/29/2026 5:11:50 AM","19","Warning","A corrected hardware error has occurred.
+
+Reported by component: Processor Core
+Error Source: Corrected Machine Check
+Error Type: Internal parity error
+Processor APIC ID: 32
+
+The details view of this entry contains further information."

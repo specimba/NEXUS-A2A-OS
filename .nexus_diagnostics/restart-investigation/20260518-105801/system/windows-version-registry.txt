@@ -1,0 +1,9 @@
+
+ProductName    : Windows 10 Home
+DisplayVersion : 25H2
+CurrentBuild   : 26200
+UBR            : 8457
+BuildLabEx     : 26100.1.amd64fre.ge_release.240331-1435
+ReleaseId      : 2009
+
+

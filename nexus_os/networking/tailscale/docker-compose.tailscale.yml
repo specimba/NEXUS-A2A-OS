@@ -1,0 +1,207 @@
+# Docker Compose for NEXUS OS with Tailscale Networking
+# Purpose: Orchestrate NEXUS OS components with secure Tailscale networking layer
+
+version: '3.8'
+
+services:
+  # Tailscale networking service
+  nexus-tailscale:
+    build:
+      context: .
+      dockerfile: Dockerfile.tailscale
+    container_name: nexus-tailscale
+    hostname: nexus-networking
+    restart: unless-stopped
+    
+    environment:
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - AGENT_ID=${AGENT_ID:-nexus-networking-01}
+      - NEXUS_HOSTNAME=${NEXUS_HOSTNAME:-nexus-networking}
+      - START_NEXUS=false  # This service provides networking only
+      - ACCEPT_ROUTES=${ACCEPT_ROUTES:-false}
+      - ADVERTISE_ROUTES=${ADVERTISE_ROUTES:-}
+      - EXIT_NODE=${EXIT_NODE:-}
+    
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - nexus-config:/etc/nexus
+    
+    networks:
+      - nexus-network
+    
+    healthcheck:
+      test: ["CMD", "tailscale", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # NEXUS Bridge Server with Tailscale networking
+  nexus-bridge:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: nexus-bridge
+    hostname: nexus-bridge
+    restart: unless-stopped
+    
+    environment:
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - AGENT_ID=${AGENT_ID:-nexus-bridge-01}
+      - NEXUS_HOSTNAME=${NEXUS_HOSTNAME:-nexus-bridge}
+      - START_NEXUS=true
+      - START_BRIDGE=true
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    
+    volumes:
+      - tailscale-state-bridge:/var/lib/tailscale
+      - nexus-data:/app/nexus_os/data
+      - nexus-config:/etc/nexus
+    
+    ports:
+      - "7352:7352"  # Bridge API
+    
+    networks:
+      - nexus-network
+    
+    depends_on:
+      - nexus-tailscale
+    
+    command: >
+      bash -c "
+        # Initialize Tailscale
+        tailscale up --authkey=$${TAILSCALE_AUTHKEY} --hostname=$${NEXUS_HOSTNAME} --accept-routes=false
+        
+        # Wait for Tailscale connection
+        sleep 5
+        
+        # Start Bridge Server
+        cd /app/nexus_os
+        python -m nexus_os.bridge.server
+      "
+
+  # NEXUS TWAVE Wrapper with Tailscale networking  
+  nexus-twave:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: nexus-twave
+    hostname: nexus-twave
+    restart: unless-stopped
+    
+    environment:
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - AGENT_ID=${AGENT_ID:-nexus-twave-01}
+      - NEXUS_HOSTNAME=${NEXUS_HOSTNAME:-nexus-twave}
+      - START_NEXUS=true
+      - START_TWAVE=true
+      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal}
+    
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    
+    volumes:
+      - tailscale-state-twave:/var/lib/tailscale
+      - nexus-config:/etc/nexus
+    
+    ports:
+      - "7353:7353"  # TWAVE API
+    
+    networks:
+      - nexus-network
+    
+    depends_on:
+      - nexus-tailscale
+    
+    command: >
+      bash -c "
+        # Initialize Tailscale
+        tailscale up --authkey=$${TAILSCALE_AUTHKEY} --hostname=$${NEXUS_HOSTNAME} --accept-routes=false
+        
+        # Wait for Tailscale connection
+        sleep 5
+        
+        # Start TWAVE Wrapper
+        cd /app/nexus_os
+        python -m nexus_os.twave.wrapper
+      "
+
+  # NEXUS WebSocket Service with Tailscale networking
+  nexus-websocket:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: nexus-websocket
+    hostname: nexus-websocket
+    restart: unless-stopped
+    
+    environment:
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - AGENT_ID=${AGENT_ID:-nexus-websocket-01}
+      - NEXUS_HOSTNAME=${NEXUS_HOSTNAME:-nexus-websocket}
+      - START_NEXUS=true
+      - START_WEBSOCKET=true
+    
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    
+    volumes:
+      - tailscale-state-websocket:/var/lib/tailscale
+      - nexus-config:/etc/nexus
+    
+    ports:
+      - "3003:3003"  # WebSocket
+    
+    networks:
+      - nexus-network
+    
+    depends_on:
+      - nexus-tailscale
+    
+    command: >
+      bash -c "
+        # Initialize Tailscale
+        tailscale up --authkey=$${TAILSCALE_AUTHKEY} --hostname=$${NEXUS_HOSTNAME} --accept-routes=false
+        
+        # Wait for Tailscale connection
+        sleep 5
+        
+        # Start WebSocket Service
+        cd /app/nexus_os
+        python -m nexus_os.swarm.websocket
+      "
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  tailscale-state:
+  tailscale-state-bridge:
+  tailscale-state-twave:
+  tailscale-state-websocket:
+  nexus-config:
+  nexus-data:
