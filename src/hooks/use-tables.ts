@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { runQuery } from '@/hooks/use-run-query'
-import { listTablesSql } from '@/lib/pg-meta'
+import { listTablesSql } from '@/lib'
 
 // LIST Tables
 const listTables = ({ projectRef, schemas }: { projectRef: string; schemas?: string[] }) => {

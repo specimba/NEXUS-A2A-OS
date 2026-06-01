@@ -181,6 +181,61 @@ data/
 bin/
 logs/
 
+# === Heavy untracked datasets, research, and uploads ===
+/.devin/
+/.grok/
+/.playwright-mcp/
+/.session/
+/benchmarks/
+/config/
+/datasets/
+/research/
+/evidence/
+/reports/
+/shortcuts/
+/docker/
+/wl-commons/
+/tasks/
+/docs/
+/inventory.json
+/grokbuildlog*
+/retrain_output.txt
+/uvicorn_7355_output.txt
+/upload/*.zip
+/upload/*.csv
+/upload/*.json
+/upload/Backend Team Package *
+/upload/CODEX TEAM INTEGRATION REPORTING*
+/upload/Completed Local Model Benchmarking*
+/upload/DERDDRE-01*
+/upload/DISPOSSSEEE*
+/upload/FOUNDRY_HERMES_OPENSHELL_COMBINED_PLAN*
+/upload/GLM5-NEXUS_DASHBOARD_STRATEGIC_REPORT*
+/upload/GLM_FUSION_INTAKE_CHECKLIST*
+/upload/GROK *
+/upload/I'll help you integrate the complex*
+/upload/IMPLEMENTATION_REPORT*
+/upload/METAresearch_practice_template*
+/upload/Mythos to NEXUS Mapping and DoppelGround Release Plan2*
+/upload/NEXUS OS INTEGRATION ROADMAP*
+/upload/PROJECT_HANDOFF_SPEC*
+/upload/coldstart_install*
+/upload/dg_to_gspp*
+/upload/foundry_agent_inventory*
+/upload/governor_skill_gate*
+/upload/gspp_openapi*
+/upload/mock_api_server*
+/upload/nexus-dashboard-report-*
+/upload/nexus-overview-all-time-*
+/upload/nexus-stresslab-all-time-*
+/upload/papers_manifest_*.json
+/upload/priority_queue.json
+/upload/src.zip
+/upload/uvicorn mock_api_server*
+/upload/wiki_pipeline.py
+/upload/# *
+/upload/## *
+
 # === Local Hygiene Backups ===
 /docs/handoff/nexus-tidiness/**/tracked-diff-before.patch
 /docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv

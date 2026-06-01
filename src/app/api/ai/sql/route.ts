@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import createClient from 'openapi-fetch'
 
 import type { paths } from '@/lib/management-api-schema'
-import { listTablesSql } from '@/lib/pg-meta'
+import { listTablesSql } from '@/lib'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
