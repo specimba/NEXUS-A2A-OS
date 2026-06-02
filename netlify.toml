@@ -9,4 +9,5 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  BUN_VERSION = "latest"
   DATABASE_URL = "file:../db/custom.db"
