@@ -18,7 +18,7 @@
 
 ## 🌌 System Architecture Map
 
-```unicode
+```text
                               ┌───────────────────────────────────┐
                               │           B R I D G E             │
                               │    JSON-RPC 2.0 • MCP • SDK       │
