@@ -790,6 +790,7 @@ def create_app(
             "vault": vault,
             "agents": [dict(a) for a in agents],
             "recent_proposals": [dict(p) for p in recent_proposals],
+            "deployment_gate": _get_deployment_status(),
             "service": "nexus-governance",
             "version": "2.0.0-ARMED",
             "rest_wrapper_only": True,
@@ -797,7 +798,26 @@ def create_app(
             "trust_source": "canonical_trust_kernel",
         }, status_code=200)
 
+    @app.get("/deployment/status")
+    async def deployment_status():
+        """Check deployment gate status for Vercel/Cloudflare targets."""
+        return JSONResponse(content=_get_deployment_status(), status_code=200)
+
+    def _get_deployment_status() -> Dict[str, Any]:
+        """Internal helper for deployment gate status."""
+        try:
+            from nexus_os.bridge.deployment_gate import DeploymentGate
+            gate = DeploymentGate()
+            return gate.get_status_summary()
+        except Exception:
+            return {
+                "overall_status": "unknown",
+                "action_required": False,
+                "resolution_steps": [],
+            }
+
     @app.get("/governance/proposals")
+
     async def governance_proposals(status: Optional[str] = None):
         """List all proposals, optionally filtered by status."""
         proposals = _governance.list_proposals(status)

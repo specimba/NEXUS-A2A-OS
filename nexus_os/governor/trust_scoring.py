@@ -69,8 +69,8 @@ class AgentCard:
     hold_state: bool = False
     evidence_count: int = 0
     capability_profile: dict = field(default_factory=dict)
-    capabilities: List[str] = field(default_factory=list)  # A2A v1.1 Negotiation
-    capabilities: list = field(default_factory=list)  # A2A v1.1
+    capabilities: List[str] = field(default_factory=list)  # A2A v1.1
+
     failure_patterns: dict = field(default_factory=dict)
     governance_flags: list = field(default_factory=list)
     last_verified_event: Optional[str] = None
