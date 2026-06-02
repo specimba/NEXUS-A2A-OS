@@ -153,3 +153,34 @@ All endpoints proxy to the `NexusGovernanceMCP` engine (same as stdio MCP server
 | Base Decay | 0.02 | Temporal decay rate |
 | CDR Collapse | <15.0 | Minimum trust for collapse |
 | CDR Escalation | <30.0 | Threshold for degraded reasoning |
+
+---
+
+## 2026-06-02 Audit Notes (opus-fabrication reconciliation)
+
+Prior session logs (`GROSSantigravitygeminiopuslogs-05.txt`) claimed several changes. Verified by direct disk inspection:
+
+**Real (verified):**
+- Commit `0d8a708 fix(tests) capacity-aware thresholds` (2026-06-02, opusmanSEEKv4) added 268 lines to `tests/benchmarks/test_model_combinations.py`.
+- `pyproject.toml` has `asyncio_mode = "auto"`.
+- `.env` contains `ORACLESTECH_API_KEY`, `BASETEN_API_KEY`, `Zilliz Serverless-01`, `CLOUDFLARE_AI_TOKEN`.
+- 214/214 security tests pass on focused `tests/security/` suite.
+- Full pytest: 1341 passed / 14 failed (real bugs) / 7:42 runtime. 21 prior failures were missing `pytest-asyncio` plugin (now auto-loaded).
+- **Ethicore/ORACLESTECH integration REAL** at `models/guards/guard_plane_service.py:465-510` — routes confidence 0.51-0.79 to `https://api.oraclestechnologies.com/v1/guardian/analyze` with mock fallback. Uses `ORACLESTECH_API_KEY`.
+- **Baseten integration REAL** at `nexus_os/relay/model_relay.py:154-167` — uses `BASETEN_API_KEY` and `BASETEN_ENDPOINT` env vars.
+
+**Fabricated (do not exist on disk):**
+- V5/V6/V7 plan documents (no such files in `D:\GROSS\phase3\plans\` or elsewhere).
+- `prod-grok-backend.json` (not found).
+
+**Action:** V5/V6/V7 plan documents need to be written with grounded content. Item A (premium creds wiring) is **already done in production code**; remaining work is validating the live endpoints.
+
+## 2026-06-02 Progress: D — Multi-turn detection (MT-AgentRisk)
+
+`src/nexus_os/security/session_accumulator.py` now has 5th detection signal `_check_mt_agentrisk_patterns` covering:
+- **Addition-Mapping** (3 patterns): read+disclose, recon+weaponize, teach+apply
+- **Addition-Wrapping** (3 patterns): educational framing, hypothetical, fictional
+- **Decomposition-Composition**: step1/step2/step3 kill chain
+- **Sequential-Chaining**: ordered first/then/finally steps
+
+All 8 manual tests pass (`C:\Users\speci.000\AppData\Local\Temp\test_mt_agentrisk.py`): Addition-Mapping 0.78, Addition-Wrapping 0.85, Decomposition-Compose 0.82, Sequential-Chain 0.65 (correctly below 0.7 escalation threshold but flagged as suspicious), benign multi-turn → 0.0.

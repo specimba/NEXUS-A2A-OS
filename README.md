@@ -195,6 +195,19 @@ To preserve the cryptographic integrity and auditability of NEXUS OS:
 
 ---
 
+## 🌱 Doppleground Foundation Collective
+
+NEXUS OS is proudly supported by and serves as the foundational **first step** of the [Doppleground Foundation](file:///c:/Users/speci.000/Documents/NEXUS/DOPPLEGROUND_FOUNDATION.md)—a decentralised, non-profit roof collective. 
+
+The Foundation is dedicated to an open-source community upscaling mindset, providing:
+*   🤝 **Collective Community-Driven Upscaling**: Powering public models, shared computational pools, and cooperative swarms.
+*   🔄 **Evolving Structural Design**: An organic, self-correcting blueprint that adapts systems and security dynamically around developer consensus.
+*   🔮 **NEXUS OS First Step**: Building local-first, evidence-grounded intent orchestrators as the bedrock for global open-source coordination.
+
+Learn more about our core philosophy and roadmap in [DOPPLEGROUND_FOUNDATION.md](file:///c:/Users/speci.000/Documents/NEXUS/DOPPLEGROUND_FOUNDATION.md).
+
+---
+
 ## 📚 Academic Foundations
 
 NEXUS OS stands upon the shoulders of foundational agentic research:
@@ -207,3 +220,4 @@ NEXUS OS stands upon the shoulders of foundational agentic research:
   <strong>Built with uncompromising precision. Governed locally. Secured for the post-quantum future.</strong><br/>
   Nexus Alpha Repository © 2026 specimba. Distributed under Apache 2.0.
 </p>
+
