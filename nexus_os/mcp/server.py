@@ -12,13 +12,13 @@ import json
 import os
 import sys
 import uuid
-import hashlib
-import math
 import sqlite3
+import hashlib
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Optional
+
 
 
 READ_ONLY_ACTIONS = {
@@ -464,19 +464,45 @@ class GovernedMCPServer:
         return cls._result(req_id, result)
 
 
-ARMED_DB = os.environ.get("NEXUS_MCP_DB", str(Path(__file__).parent / "nexus_mcp.db"))
+def create_server(config: Optional[MCPConfig] = None) -> GovernedMCPServer:
+    return GovernedMCPServer(config=config)
 
+
+_DEFAULT_SERVER: Optional[GovernedMCPServer] = None
+
+
+def handle_request(request: Dict[str, Any]) -> Dict[str, Any]:
+    global _DEFAULT_SERVER
+    if _DEFAULT_SERVER is None:
+        _DEFAULT_SERVER = create_server()
+    return _DEFAULT_SERVER.handle_request(request)
+
+
+def serve_stdio(requests: Optional[Iterable[str]] = None) -> None:
+    server = create_server()
+    stream = requests if requests is not None else sys.stdin
+    for line in stream:
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            response = server.handle_request(json.loads(raw))
+        except json.JSONDecodeError:
+            response = {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}}
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    serve_stdio()
+
+
+# ── REST Governance Support ───────────────────────────────────────────
+
+ARMED_DB = os.environ.get("NEXUS_MCP_DB", str(Path(__file__).parent / "nexus_mcp.db"))
 BLOCKED_SKILLS = ["model.delete", "secret.expose", "fine_tune.auto", "system.wipe"]
 REVIEW_KEYWORDS = ["delete", "expose", "override", "escalate", "root", "wipe"]
-LANE_PARAMS = {
-    "general": {"qmin": 0.1, "n0": 3, "Rcrit": 0.6, "bias": 0.0},
-    "research": {"qmin": 0.3, "n0": 5, "Rcrit": 0.8, "bias": 0.1},
-    "audit_sec": {"qmin": 0.7, "n0": 2, "Rcrit": 0.4, "bias": -0.1},
-    "code_gen": {"qmin": 0.2, "n0": 4, "Rcrit": 0.7, "bias": 0.05},
-    "data_ops": {"qmin": 0.5, "n0": 3, "Rcrit": 0.5, "bias": -0.05},
-    "realtime": {"qmin": 0.3, "n0": 6, "Rcrit": 0.65, "bias": 0.15},
-    "autonomous": {"qmin": 0.6, "n0": 8, "Rcrit": 0.3, "bias": -0.2},
-}
+
 
 def get_db(db_path=None):
     path = db_path or ARMED_DB
@@ -507,6 +533,7 @@ def get_db(db_path=None):
         )""")
     conn.commit()
     return conn
+
 
 class NexusGovernanceMCP:
     def __init__(self, db_path=None):
@@ -689,35 +716,3 @@ class NexusGovernanceMCP:
     def close(self):
         self.conn.close()
 
-
-def create_server(config: Optional[MCPConfig] = None) -> GovernedMCPServer:
-    return GovernedMCPServer(config=config)
-
-
-_DEFAULT_SERVER: Optional[GovernedMCPServer] = None
-
-
-def handle_request(request: Dict[str, Any]) -> Dict[str, Any]:
-    global _DEFAULT_SERVER
-    if _DEFAULT_SERVER is None:
-        _DEFAULT_SERVER = create_server()
-    return _DEFAULT_SERVER.handle_request(request)
-
-
-def serve_stdio(requests: Optional[Iterable[str]] = None) -> None:
-    server = create_server()
-    stream = requests if requests is not None else sys.stdin
-    for line in stream:
-        raw = line.strip()
-        if not raw:
-            continue
-        try:
-            response = server.handle_request(json.loads(raw))
-        except json.JSONDecodeError:
-            response = {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}}
-        sys.stdout.write(json.dumps(response) + "\n")
-        sys.stdout.flush()
-
-
-if __name__ == "__main__":
-    serve_stdio()

@@ -45,11 +45,13 @@ async def test_proxy_completion_routes_auto_model_to_ollama(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_proxy_completion_fails_when_no_healthy_model(monkeypatch):
+    monkeypatch.delenv("BASETEN_API_KEY", raising=False)
     calls = []
 
     def unhealthy_post(url, json, timeout):
         calls.append({"url": url, "json": json, "timeout": timeout})
         return _Response(ok=False, payload={})
+
 
     monkeypatch.setattr(model_relay.requests, "post", unhealthy_post)
     relay = model_relay.ModelRelay()
@@ -63,8 +65,8 @@ async def test_proxy_completion_fails_when_no_healthy_model(monkeypatch):
 
     assert result["choices"][0]["finish_reason"] == "error"
     assert result["relay_info"]["error"] == "no_healthy_ollama_model"
-    # One primary health check plus the configured fallback health checks.
-    assert len(calls) == 1 + len(relay._fallback_models)
+    # One primary health check plus the configured fallback health checks (caching deduplicates duplicates).
+    assert len(calls) == len(set([relay._map_to_ollama(result["model"])] + relay._fallback_models))
 
 
 def test_ollama_host_allows_scheme(monkeypatch):

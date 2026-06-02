@@ -97,58 +97,130 @@ class SyncCallbackExecutor(ExecutorBackend):
 class AsyncBridgeExecutor(ExecutorBackend):
     """
     Sends task execution requests through the Nexus Bridge to remote agents.
-    This is the production executor for Milestone 4+.
+    Uses JSON-RPC 2.0 over HTTP with HMAC-SHA256 authentication.
     """
 
-    def __init__(self, bridge_url: str = "http://127.0.0.1:8000", timeout: float = 30.0):
-        self.bridge_url = bridge_url
+    def __init__(
+        self,
+        bridge_url: str = "http://127.0.0.1:8000",
+        timeout: float = 30.0,
+        secret: Optional[str] = None,
+        project_id: str = "default",
+        max_retries: int = 2,
+    ):
+        self.bridge_url = bridge_url.rstrip("/")
         self.timeout = timeout
+        self.secret = secret or ""
+        self.project_id = project_id
+        self.max_retries = max_retries
+
+    def _build_headers(self, agent_id: str, payload_str: str) -> Dict[str, str]:
+        """Build authenticated request headers with HMAC signature."""
+        import hashlib
+        import hmac
+        import uuid as _uuid
+
+        trace_id = f"trace-{_uuid.uuid4().hex[:12]}"
+        signature = ""
+        if self.secret:
+            sig_data = f"{trace_id}{payload_str}".encode()
+            signature = hmac.HMAC(
+                self.secret.encode(), sig_data, hashlib.sha256
+            ).hexdigest()
+
+        return {
+            "Content-Type": "application/json",
+            "X-Nexus-Agent-ID": agent_id,
+            "X-Nexus-Project-ID": self.project_id,
+            "X-Nexus-Trace-ID": trace_id,
+            "X-Nexus-Signature": signature,
+        }
 
     def execute(self, task_id: str, description: str, context: Dict[str, Any]) -> ExecutionResult:
+        import json
+        import requests
+
         agent_id = context.get("agent_id")
         if not agent_id:
             return ExecutionResult(
-                task_id=task_id, success=False,
+                task_id=task_id,
+                success=False,
                 error="No agent_id in task context for bridge execution",
             )
-        try:
-            import requests
-            resp = requests.post(f"{self.bridge_url}/api/tasks/execute", json={
-                "task_id": task_id, "description": description,
-                "agent_id": agent_id, "context": context,
-            }, timeout=self.timeout)
-            if resp.status_code == 200:
-                data = resp.json()
+
+        payload = {
+            "method": "tasks/submit",
+            "description": description,
+            "context": context,
+        }
+        payload_str = json.dumps(payload)
+        headers = self._build_headers(agent_id, payload_str)
+
+        start = time.perf_counter()
+        last_error = None
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                resp = requests.post(
+                    f"{self.bridge_url}/tasks/submit",
+                    data=payload_str,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+                duration = (time.perf_counter() - start) * 1000
+
+                if resp.status_code == 429:
+                    return ExecutionResult(
+                        task_id=task_id,
+                        success=False,
+                        error="Token budget exceeded at Bridge",
+                        duration_ms=duration,
+                        agent_id=agent_id,
+                    )
+
+                body = resp.json()
+                result_data = body.get("result", body)
+
+                if resp.status_code == 200:
+                    status = result_data.get("status", "unknown")
+                    return ExecutionResult(
+                        task_id=result_data.get("task_id", task_id),
+                        success=(status == "completed"),
+                        output=result_data.get("output"),
+                        error=result_data.get("error"),
+                        duration_ms=duration,
+                        agent_id=agent_id,
+                    )
+
+                error_msg = body.get("error", {}).get("message", resp.text)
                 return ExecutionResult(
-                    task_id=task_id, success=data.get("success", True),
-                    output=data.get("output", ""),
-                    duration_ms=data.get("duration_ms", 0),
+                    task_id=task_id,
+                    success=False,
+                    error=f"Bridge HTTP {resp.status_code}: {error_msg}",
+                    duration_ms=duration,
                     agent_id=agent_id,
                 )
-            return ExecutionResult(
-                task_id=task_id, success=False,
-                error=f"Bridge returned HTTP {resp.status_code}",
-                agent_id=agent_id,
-            )
-        except requests.exceptions.Timeout:
-            return ExecutionResult(
-                task_id=task_id, success=False,
-                error=f"Bridge timeout ({self.timeout}s) at {self.bridge_url}",
-                agent_id=agent_id,
-            )
-        except requests.exceptions.ConnectionError:
-            host = self.bridge_url.replace("http://", "").replace("https://", "")
-            return ExecutionResult(
-                task_id=task_id, success=False,
-                error=f"Bridge unreachable at {host} — is the governance server running?",
-                agent_id=agent_id,
-            )
-        except Exception as e:
-            return ExecutionResult(
-                task_id=task_id, success=False,
-                error=f"Bridge call failed: {e}",
-                agent_id=agent_id,
-            )
+
+            except requests.ConnectionError as e:
+                last_error = f"Bridge unreachable at {self.bridge_url}: {e}"
+                if attempt < self.max_retries:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+            except requests.Timeout:
+                last_error = f"Bridge timeout after {self.timeout}s"
+                break
+            except Exception as e:
+                last_error = f"Bridge RPC error: {e}"
+                break
+
+        duration = (time.perf_counter() - start) * 1000
+        return ExecutionResult(
+            task_id=task_id,
+            success=False,
+            error=last_error,
+            duration_ms=duration,
+            agent_id=agent_id,
+        )
 
 
 class MockExecutor(ExecutorBackend):
@@ -254,34 +326,14 @@ class TaskExecutor:
     ) -> ExecutionResult:
         try:
             result = self.backend.execute(task_id, description, context)
-            agent_id = result.agent_id or context.get("agent_id")
             if result.success:
                 self._update_status(task_id, TaskStatus.COMPLETED)
-                if self.trust_scorer and agent_id:
-                    if hasattr(self.trust_scorer, "record_task_outcome"):
-                        self.trust_scorer.record_task_outcome(
-                            agent_id=agent_id,
-                            task_id=task_id,
-                            success=True,
-                            lane=context.get("lane", "implementation"),
-                            source="task_executor",
-                        )
-                    else:
-                        self.trust_scorer.record_success(agent_id)
+                if self.trust_scorer and result.agent_id:
+                    self.trust_scorer.record_success(result.agent_id)
             else:
                 self._update_status(task_id, TaskStatus.FAILED)
-                if self.trust_scorer and agent_id:
-                    if hasattr(self.trust_scorer, "record_task_outcome"):
-                        self.trust_scorer.record_task_outcome(
-                            agent_id=agent_id,
-                            task_id=task_id,
-                            success=False,
-                            lane=context.get("lane", "implementation"),
-                            error=result.error,
-                            source="task_executor",
-                        )
-                    else:
-                        self.trust_scorer.record_failure(agent_id)
+                if self.trust_scorer and result.agent_id:
+                    self.trust_scorer.record_failure(result.agent_id)
             logger.info(
                 "Task %s: %s (%.1fms)",
                 task_id, "OK" if result.success else f"FAIL: {result.error}",
