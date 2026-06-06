@@ -1,0 +1,42 @@
+# Tailscale Integration Dockerfile for NEXUS OS
+# Purpose: Provide secure networking layer for agent communication
+# Platform: Linux containers (can run on Windows via Docker Desktop/WSL2)
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Tailscale and dependencies
+RUN apt-get update && apt-get install -y \
+    tailscale \
+    curl \
+    ca-certificates \
+    iproute2 \
+    iptables \
+    wireguard-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directory for Tailscale state
+RUN mkdir -p /var/lib/tailscale
+
+# Copy entrypoint script
+COPY tailscale-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create NEXUS user for agent execution
+RUN useradd -r -s /bin/bash nexus
+
+# Set up environment variables
+ENV TAILSCALE_STATE_DIR=/var/lib/tailscale
+ENV TAILSCALE_USE_WIREGUARD=true
+
+# Expose NEXUS OS ports
+EXPOSE 7352 7353 3003
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD tailscale status --json || exit 1
+
+# Run as root for Tailscale, then drop privileges for agent work
+ENTRYPOINT ["/entrypoint.sh"]

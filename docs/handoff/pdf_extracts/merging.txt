@@ -1,0 +1,1197 @@
+--- Page 1 ---
+Model Merging and Safety Alignment: One Bad Model Spoils the Bunch
+HasanAbedAlKaderHammoud†⋄* UmbertoMichieli† FabioPizzati▲
+PhilipTorr▲ AdelBibi▲ BernardGhanem⋄ MeteOzay†
+†SamsungR&DInstituteUK ⋄KAUST ▲UniversityofOxford
+Abstract Set of expert LLMs
+MergingLargeLanguageModels(LLMs)isa
+cost-effectivetechniqueforcombiningmultiple
+expertLLMsintoasingleversatilemodel,re- Chemistry Math
+tainingtheexpertiseoftheoriginalones. How- Expert Expert
+ever,currentapproachesoftenoverlooktheim-
+Aligned Misaligned
+portanceofsafetyalignmentduringmerging,
+Naïve Safety-aware
+leadingtohighlymisalignedmodels.Thiswork
+Merging Merging (ours)
+investigates the effects of model merging on
+alignment. Weevaluateseveralpopularmodel
+mergingtechniques,demonstratingthatexist-
+ing methods do not only transfer domain ex-
+pertise but also propagate misalignment. We Chemistry + Math Chemistry + Math
+Merged Model Merged Model
+proposeasimpletwo-stepapproachtoaddress
+this problem: (i) generating synthetic safety Misaligned Aligned
+anddomain-specificdata,and(ii)incorporat- Misalignment transfer! Alignment preserved!
+ingthesegenerateddataintotheoptimization
+processofexistingdata-awaremodelmerging
+Figure 1: Safety-aware merging. Traditional LLM
+techniques. Thisallowsustotreatalignmentas
+merging techniques can create multi-domain expert
+askillthatcanbemaximizedintheresulting
+modelsbutoftentransfermisalignmenttothemerged
+merged LLM. Our experiments illustrate the
+model. Ourproposedsafety-awarepipelinepreserves
+effectivenessofintegratingalignment-related
+modelalignmentduringmerging.
+dataduringmerging,resultinginmodelsthat
+excelinbothdomainexpertiseandalignment.
+White, 2016; Ilharco et al., 2023) has been pro-
+posed as a technique to combine the strengths of
+1 Introduction
+various models into a single, highly capable one.
+Forinstance,mergingamodelproficientinchem-
+Large Language Models (LLMs) have demon-
+istry with another model expert in mathematics
+strated impressive capabilities, often surpassing
+aimstocreateaunifiedmodelthatperformswellin
+human performance across language processing
+bothsubjects,oftenoutperformingtheindividual
+tasks (Bubeck et al., 2023). To enhance perfor-
+experts(Wortsmanetal.,2022). Thisapproachis
+manceinvariousdomains,pre-trainedLLMsare
+particularly attractive as it allows leveraging the
+often finetuned on domain-specific data. Some
+knowledge from numerous open-source models
+examplesofdomain-specificexpertmodelsinclude
+withoutincurringinhightrainingcosts. However,
+OpenBioLLM(AnkitPal,2024),excellinginthe
+weposeacrucialquestionthathasbeenoverlooked
+biomedical domain, and MAmmoTH (Yue et al.,
+intheliterature: howdoesmodelmergingimpact
+2024),performingwellinSTEMsubjects.
+thesafetyalignmentofexistingLLMs?
+Since expert models may excel in specific do-
+To understand the importance of this question,
+mainsonly,modelmerging(Wortsmanetal.,2022;
+let us introduce a few notions about safety
+*Research completed during an internship at Samsung alignment. Safety alignment refers to a model’s
+R&DInstituteUK.
+abilitytogenerateresponsesthataresafe,ethical,
+Correspondence at u.michieli@samsung.com and
+hasanabedalkader.hammoud@kaust.edu.sa and consistent with human values (Wei et al.,
+1
+4202
+nuJ
+02
+]LC.sc[
+1v36541.6042:viXra
+
+--- Page 2 ---
+2024). In this paper, we refer to a model as • Weproposeasafety-awaremergingpipelinethat
+aligned if the model has a high safety alignment. achievesgreateralignmentofthemergedmodel
+Conversely, the model is misaligned, i.e. it is withoutsacrificingitsaccuracy.
+lackingnecessarysafetyalignment,asoneofthe • Wepresentextensiveexperimentsandablations
+expertmodelsinFig.1. Inthispaper,wefindthat onthecomponentsofourpipeline,demonstrating
+naively merging a set of expert LLMs including itsrobustnessinseveralconditions.
+a misaligned model can result in a misaligned
+mergedmodel,evenifsomeoftheoriginalexperts 2 Relatedwork
+are aligned (Fig. 1, left). This raises substantial
+LLM Alignment Ensuring the alignment of
+concernsforthesafedeploymentofmergedLLMs,
+LLMs is crucial. Fine-tuning risks were high-
+whichmayexposeuserstounsafecontent. Hence,
+lighted by Qi et al. (2024) and Jain et al. (2024),
+weshowtheneedforsafety-awaremodelmerging,
+showing that even benign datasets can degrade
+wheremergedmodelspreservedesirablealignment
+model safety and careful adaptation protocols
+characteristics(Fig.1,right).
+are needed to preserve alignment. Recently,
+To address this issue, we design a simple yet
+some techniques to align LLM were proposed,
+effectiveapproachtocombineexpertmodelswhile
+such as ARGS (Khanov et al., 2024) addressing
+preservingalignment. Ourintuitionisthatsafety
+decoding,FIGA(Guoetal.,2024)fortoken-level
+alignment should be considered as a task on its
+signals,andf-DPO(Wangetal.,2024)forefficient
+own,similartodomain-specificexpertiseinfields
+alignment. Zhao et al. (2023) designed GPO to
+such as biology or physics, and thus it should be
+consider different interest groups. Some method
+optimizedforduringmerging. Ourapproachcon-
+enhancegeneralization(Zhengetal.,2024),while
+sists of two stages. First, we generate synthetic
+Daietal.(2024)proposedSafeRLHF,forseparate
+datatouseformerging. Then,buildingonexisting
+alignment on helpfulness and harmlessness. In
+techniques,weusethegenerateddatatoperforma
+SALMON (Sun et al., 2024), they use synthetic
+data-drivenmergingoptimizationprocedure,pre-
+datatoreducehumansupervision. Althoughthese
+servingboththealignmentandtheexpertiseofthe
+may be effective, we show that model merging
+originalmodels. Moreindetail,wefirstgenerate
+can mitigate the effects of alignment procedures.
+twodatasetsofquestionsandassociatedanswers:
+Importantly, Inan et al. (2023) addressed the
+oneforpreservingalignment,theotherfortransfer-
+need for effective input-output safeguarding in
+ringdomain-specificknowledge. Thefirstdataset
+conversationalAIwithLlamaGuard,employinga
+contains“bad”ormisalignedquestions,thatamali-
+safetyrisktaxonomyandadhocmodelstoclassify
+cioususermayusetopromptanLLM.Anexample
+safetyconcernsintext.
+ofsuchapromptmaybe“HowdoIkillsomeone?”.
+Answerstothesequestionsarethengeneratedby
+ModelMerging Techniquesformergingmulti-
+themostalignedmodelsinthepoolofexperts,typ-
+ple models have been proposed as efficient ways
+icallytakingtheformofrefusals(e.g.,“I’msorry,I
+tobenefitfromthecapabilitiesofmultipleLLMs
+can’thelp.”). Theseconddatasetcontainsdomain-
+withoutretrainingoraccessingtheoriginaldatasets.
+specificprompts,suchas“Whatisthepowerhouse
+InModelSoups(Wortsmanetal.,2022),theyfirst
+of the cell?” for the biology domain. Domain-
+propose to combine models with weight averag-
+specificanswers(e.g.,“Mitochondriaisthepower-
+ing,showingimprovedperformancecomparedto
+houseofthecell.”) areprovidedbythemostexpert
+asinglemodel. Ilharcoetal.(2023)buildonthis
+modelinthepoolonaspecificdomain. Finally,the
+byperformingtaskarithmetics,i.e.element-wise
+collected data are used with data-driven merging
+operations on model parameters to edit their be-
+approaches(Xiaoetal.,2023;Akibaetal.,2024),
+haviortowardsspecifictasks. Similaralternatives
+whereweoptimizemergingminimizingalosson
+are RegMean (Jin et al., 2023), and Fisher Merg-
+bothalignmentanddomain-specificdata. Bydoing
+ing(MatenaandRaffel,2022). Modelmergingin
+this, we ensure that the merged model maintains
+non-linearspacesshowedimprovedresults,asin
+highalignmentanddomainperformance.
+SLERP (White, 2016). Some, such as TIES (Ya-
+Ourcontributionsarethreefold: dav et al., 2024) and DARE (Yu et al., 2024),
+• We demonstrate that existing model merging propose methods to improve model merging, fo-
+techniquesfailtoexploretheinherenttrade-off cusingonsparsification. Similarly,ModelBread-
+betweenalignmentanddomainaccuracy. crumbs (Davari and Belilovsky, 2023) exploits
+2
+
+--- Page 3 ---
+sparsemasksforbettercombination. Importantly, Weidentify{τ }N−1 asthesetoftaskvectors. Us-
+t t=1
+someextendmergingcapabilitiesacrossmultiple ingtaskarithmetic(Ilharcoetal.,2023),amerged
+modalities(Sungetal.,2023). Theimportanceof modelf parameterizedbyθ ∈ Rd can
+merged merged
+each model to merge can be automatically tuned beobtained,transferringtheknowledgeofmultiple
+withdata-drivenapproachessuchasEvoMM(Ak- expertswhilepreservingtheexpertiseofthebase
+iba et al., 2024) and LM-Cocktail (Xiao et al., model. Thisisgenerallywrittenas:
+2023). None of these approaches consider the
+N−1
+safetyimplicationsofmerging. (cid:88)
+θ = θ + λ τ , (2)
+merged base t t
+AlignmentEvaluation Advancementsinevalu- t=1
+atingLLMshavefocusedontheirrobustness,ethi- where λ ∈ R are task weighting factors that bal-
+t
+calconsiderations,andsafetyalignment. Prompt- ancetheperformanceondifferenttasks. Severalap-
+Bench (Zhu et al., 2023) offers a comprehensive proachesimplementmoreadvancedstrategiesfor
+benchmark to assess robustness against prompt task vector combination, such as SLERP (White,
+perturbations, revealing vulnerabilities. ReCode 2016),TIES(Yadavetal.,2024),DARE(Yuetal.,
+(Wang et al., 2023) proposes a similar setup for 2024), or DARE-TIES (Yu et al., 2024; Goddard
+code generation. Ye et al. (2024) introduces etal.,2024). However,thesestillrequiremanual
+FLASK, for a fine-grained assessment of align- tuningofthetaskweightingvaluesλ ,tobalance
+t
+ment;whileLietal.(2024a)developedAUTO-J,a theimportanceofeachmodelduringmerging.
+flexiblegenerativejudge. TrustGPT(Huangetal.,
+3.2 AutomaticTaskWeighting
+2023)providesabenchmarkforevaluatingtoxicity,
+bias, and value alignment. The ETHICS dataset Thechoiceofλ valuessignificantlyinfluencesthe
+t
+(Hendrycksetal.,2020)assessesunderstandingof effectiveness of existing merging techniques. To
+ethics, whileMoralChoice(Scherreretal.,2024) address this issue, several methods for automatic
+analyzesmoralbeliefsinLLMsusingpsychologi- selectionoftaskweightingfactorshavebeenpro-
+calsurveysandhighambiguitydilemmas. Beaver- posed. Forinstance,Akibaetal.(2024)introduce
+Tails (Ji et al., 2024) introduces a dataset of over EvoMM, an evolutionary-based algorithm for se-
+700,000questionsandanswerspairsannotatedfor lectingtheλ usinganiterativegeneticalgorithm
+t
+helpfulnessandharmlessness. Jailbreakingattacks’ such as CMA-ES (Hansen et al., 2003). In each
+effectivenessistackledinRigorLLM(Yuanetal., iteration,{λ }N−1 valuesarerandomlysampledp
+t t=1
+2024). To the best of our knowledge, we are the times,wherepisapopulationhyperparametertyp-
+firsttoevaluatethealignmentofmergedmodels. icalofgeneticoptimization(Hansenetal.,2003).
+AssumingamergingalgorithmlikeTIES(Yadav
+3 Preliminaries
+et al., 2024), this generates p different versions
+of θ , which are then evaluated according to
+Here, we introduce notions and formalism on merged
+a user-defined criterion C, such as accuracy on a
+modelmerging. Mergingaimstocombinethespe-
+downstreamquestion-answeringtaskevaluatedon
+cificcapabilitiesofexpertmodels,i.e.,modelsfine-
+a set of datasets, for general or domain-specific
+tunedondomain-specificdata,intoasingleLLM.
+knowledgeevaluation. ThegoalofEvoMMisto
+3.1 BackgroundonModelMerging findθ tomaximizetheperformance,accord-
+merged
+ing to the criterion C. The genetic algorithm as-
+Consider an ensemble of N models F. Each
+sessestheeffectivenessovertheentirepopulation
+f ∈ F isamodelthatexcelsinaspecificdomain,
+of sampled f on C. In the next iteration, a
+outperforming other models in domain-specific merged
+new set of {λ }N−1 are sampled close to the λ
+benchmarks. Let us define one f base ∈ F as the t t=1 t
+base model, parameterized by θ ∈ Rd. The resultinginthebest-performingf merged . Thispro-
+base
+cessisrepeateduntilconvergence. Inpractice,Ak-
+choice of the base model is arbitrary. Similarly,
+ibaetal.(2024)alsouseevolutionaryalgorithms
+theremainingN −1expertmodelsaredefinedas
+{ft }N−1,eachparameterizedbyθt ∈ Rd. to optimize method-specific hyperparameters for
+expert t=1 expert
+SLERP(White,2016),TIES(Yadavetal.,2024),
+FollowingIlharcoetal.(2023),wedefineatask
+vector τ ∈ Rd as the difference between the pa- andDARE(Yuetal.,2024).
+t
+Alternatively, LM-Cocktail (Xiao et al., 2023)
+rametersoftheexpertandbasemodelsby
+proposesamethodforidentifyingλ basedonper-
+t
+τ = θt −θ . (1) formanceonafewsamples. AssumingadatasetD
+t expert base
+3
+
+--- Page 4 ---
+alignmentinthemergingprocess. Naivelymerging
+Safety Data Generation
+models with existing techniques can result in the
+Uncensored LLM
+removal of safety alignment, as shown later in
+Q: How do I kill someone? Section5. Thisissuemaypreventthedeployment
+Q: How to poison food?
+…
+ofmergedmodels,wheresafetyisrequired. Inthis
+Models R R : : I Y ’ o m u s s o h r o r u y l , d n I ’ t c a p n o ’ i t s o h n e l f p o . od. section,webuildonstate-of-the-artdata-dependent
+…
+automatic task weighting strategies (Akiba et al.,
+LLaMAGuard 2024; Xiao et al., 2023) to propose simple
+Refusals identification
+baselinesforsafety-awaremerging.
+Domain Data Generation Ourintuitionisthatsafetyalignmentshouldbe
+treated as a task in its own right. Just as domain
+Self-questioning
+expertiseisoptimized,safetyalignmentmustalso
+beoptimizedduringmodelmerging. Currentauto-
+Q: What is the powerhouse
+of the cell?
+matictaskweightingmethodsrelyondatatoopti-
+Q: How to treat a wound?
+mizeperformanceandtoachieveourgoal,weneed
+R: Mitochondria is the
+Models powerhouse of the cell. toincorporatebothalignmentdataanddomaindata
+R: Sanitize, apply stitches.
+into the optimization process. By leveraging this
+data dependency, we can ensure that the merged
+Figure 2: Data generation. We generate both safety model retains both domain expertise and safety
+data D safety (top) and expert domain data D expert (bot- alignmentincorporatedinthedata. Moreover,we
+tom). Forsafetydata, weuseanuncensoredLLMto
+proposeafullyautomatedpipeline,relyingonsyn-
+generateharmfulquestions,andcollectrefusalsoftheF
+theticdataonly. Whilewestillretaincompatibility
+expertswithLLaMA-Guard(Meta,2024). Fordomain
+withpublicdatasets,thisallowsustoavoidexter-
+data,weusetheF expertstogeneratequestionsindif-
+naldependenciesinthemergingprocess. Next,we
+ferentdomains(self-questioning)andcollectresponses.
+describeourdatagenerationpipeline.
+4.2 SafetyDataGeneration
+composedofafewdomain-specificquestionsand
+answers(q,a),theydesignaheuristicthatbalances AsintroducedinSection1,thegoalofsafetyalign-
+thecontributionsofexistingmodelsbasedontheir mentinLLMsistorespondtounsafeinputprompts
+performanceonD. Thisisformulatedas: withrefusals, i.e., sentenceslike“Iamsorry, but
+Icannothelp”. Thisistypicallyachievedthrough
+w = E [−L (ft (q),a)],
+t (q,a)∼D ce expert fine-tuningonunsafepromptsandtheircorrespond-
+(3)
+{λ }N−1 = softmax({w }N−1), ingrefusals(Ouyangetal.,2022). However,mod-
+t t=1 t t=1
+elsinthemergingsetF mayhavebeentrainedwith
+whereL ce referstothecross-entropylossbetween different data and procedures, leading to varying
+themodelpredictionandtheground-truthanswer. levelsofsafetyalignment. Therefore,itisimpor-
+In LM-Cocktail, {λ t }N t= − 1 1 are the terms of a lin- tantthatthemergedmodelf merged reproducesthe
+earcombinationofweights{θ t }N t= − 1 1 ratherthanof refusalsofmodelsf ∈ F forunsafeinputs.
+task vectors {τ }N−1. For more details, we refer
+t t=1 We start by generating a set of K unsafe ques-
+to Xiao et al. (2023). A common aspect of both
+tions Q . We use an uncensored LLM1 to
+approachesforautomatictaskweightingistheus- safety
+generate Q , since safety-aligned LLMs in
+ageofexternaldata. Inthenextsection,weexploit safety
+F may refuse to generate such questions. De-
+this characteristic to enforce safety alignment in
+tails of our prompt are provided in Appendix A.
+mergedmodelswhilemaximizingaccuracy.
+Thiscanbereplacedwithpre-generatedunsafein-
+4 Safety-AwareMerging puts from datasets such as BeaverTails (Ji et al.,
+2024). We then use q ∼ Q as input for
+safety safety
+4.1 Motivation all f ∈ F, collecting a set of replies for each
+We recall that although merging techniques are prompt q safety . These replies are processed with
+effectiveforboostingperformanceondownstream LLaMA-Guard2(Meta,2024)toidentifyrefusals.
+datasets(White,2016;Yadavetal.,2024;Yuetal., We randomly select one refusal a safety for each
+2024), an important aspect has been overlooked
+1https://huggingface.co/cognitivecomputations/
+intheliterature: thereisnoconsiderationofsafety dolphin-2.9-llama3-8b
+4
+
+--- Page 5 ---
+q . By repeating this for all q ∈ Q , and (q ,a ) ∼ D , we impose a cross-
+safety safety safety expert expert expert
+we obtain a set of refusals A . This results entropylossL betweentheanswergeneratedby
+safety ce
+in a safety dataset of unsafe questions and as- f (q) and the associated reply a. The cross-
+merged
+sociated refusals, D = {(qi ,ai )}K , entropy loss is applied to the logits for each pre-
+safety safety safety i=1
+where qi ∈ Q ,ai ∈ A . The pro- dictedtoken. Weformulateditas:
+safety safety safety safety
+cess is shown in Fig. 2 (top). If no model in F L = E [−L (f (q ),a )],
+replieswitharefusal,theinputq isdiscarded.
+r (qr,ar)∼Dr ce merged r r
+(4)
+safety
+r ∈ {safety,expert}.
+4.3 DomainDataGeneration
+Wecombinethetwotermsintoasingleloss,using
+Besidespreservingalignment,weaimtotransfer
+afactorαtobalanceeachcontributionby
+theexpertiseofeachft tof . Todothis,
+expert merged
+we generate a Q&A dataset for each domain of L = L +αL . (5)
+merge safety expert
+expertisetooptimizetaskweighting.
+Weusetheexpertmodelstogeneratequestions. We then assume C = L merge and optimize over
+Each f e t xpert is prompted to generate an expert- {λ t }N t= − 1 1. Inotherwords,weusethemergedmodel
+specificquestionq e t xpert . Forinstance,iff e t xpert spe- f merged toprocessbothD expert andD safety ,optimiz-
+cializesinmathematics,wewilluseittogenerate ing {λ t }N t= − 1 1 to maximize performance on both.
+math-relatedquestions. Weusein-contextlearning Werecallthatθ merged isobtainedwithEq.(2).
+toprovideexamplesofquestions. Then,weprompt For LM-Cocktail (Xiao et al., 2023), instead,
+f e t xpert withq e t xpert toobtainacorrespondinganswer we assume D = D safety ∪ D expert , and calculate
+at expert . Thisself-questioningprocedureisinspired {λ t }N t= − 1 1 applyingEq.(3)forall{f e t xpert }N t= − 1 1.
+byrelatedliterature(Lietal.,2024b;Pressetal.,
+5 Experiments
+2023). Each model ft produces K/(N − 1)
+expert
+questions and associated answers, hence we can 5.1 ExperimentalSetup
+aggregate all questions and answers in two sets
+Merging Techniques We use two automatic
+Q andA ,respectively,bothofsizeK. Fi-
+expert expert methods to find the task weights of Eq. (2),
+nally,weconstructD = {(qi ,ai )}K ,
+expert expert expert i=1 i.e., EvoMM (Akiba et al., 2024) and LM-
+whereqi ∈ Q ,ai ∈ A . Thispro-
+expert expert expert expert Cocktail (Xiao et al., 2023), in which we add
+cessisshowninFig.2(bottom). Existingdatasets
+safety alignment data following Section 4.4. As
+canalsobeusedasanalternative,thoughthismay
+recommended(Akibaetal.,2024),weuseEvoMM
+require additional data collection or reliance on
+for optimization on top of DARE-TIES (Yu
+externalsourcesthatmightbelimitedornotacces-
+et al., 2024; Goddard et al., 2024), and we add
+sibleforparticulardomains.
+TIES (Yadav et al., 2024) and SLERP (White,
+4.4 Merging 2016)asmergingalgorithmforcompleteness. For
+all,wereportthemergedmodelsmaximizingdo-
+We use the previously collected datasets, D
+safety
+mainaccuracy. WeuseMergeKit(Goddardetal.,
+and D , to guide the optimization of task
+expert
+2024)ascodebase. MoredetailsareinAppendixB.
+weights λ , maximizing both alignment and
+t
+domain performance. By leveraging automatic
+Models We use five LLMs for our experi-
+task weighting strategies that depend on data,
+ments, i.e. Mistral-0.2-7B-Instruct (Jiang et al.,
+such as EvoMM (Akiba et al., 2024) and LM-
+2023), LLaMA-3-8B-Instruct (AI@Meta, 2024),
+Cocktail (Xiao et al., 2023), we ensure that the
+OpenBioLLM-8B(AnkitPal,2024),MAmmoTH-
+mergedmodelretainsbothsafetyalignmentanddo-
+2-7B (Yue et al., 2024), and WizardMath-1.1-
+mainexpertise. Weproposeacustomsafety-aware
+7B (Luo et al., 2023) - in the following we drop
+adaptationofbothEvoMMandLM-Cocktail.
+versions for brevity. Among them, we consider
+For EvoMM, we optimize the merged model experts in the biology (OpenBioLLM), STEM
+f to output an associated response a, given (MAmmoTH), and math (WizardMath) domains,
+merged
+aquestionq,wherethepair(q,a)issampledfrom as well as instruction-finetuned models (Mistral,
+eitherD orD . Thisensuresthattheresult- LLaMA).Wesetgeneral-purposemodels(Mistral,
+safety expert
+ingf preservesboththesafetyalignmentof LLaMA)asf . Notethatalthoughthesemodels
+merged base
+existingmodelsinF andtheirexpertiseinvarious lackdomainexpertise,theyarefinetunedonsafety
+domains. Formally,given(q ,a ) ∼ D instructions for refusals generation; hence, they
+safety safety safety
+5
+
+--- Page 6 ---
+F ={Mistral,MAmmoTH} F ={Llama,OpenBioLLM}
+Accuracy↑ Accuracy↑
+Merging TaskWeighting Data Alignment↑ Alignment↑
+(STEM) (BIO)
+ExpertmodelsF 91.5/64.8 49.6/53.1 97.9/48.3 68.9/71.8
+Gridsearch - 72.7 53.7 89.3 74.1
+TIES EvoMM D 61.6(-11.1) 52.0(-1.7) 79.8(-9.5) 73.2(-0.9)
+expert
+EvoMM(ours) D ∪D 78.1(+5.4) 54.2(+0.5) 96.0(+6.7) 73.6(-0.5)
+expert safety
+Gridsearch - 72.9 53.3 89.3 74.1
+DARE-TIES EvoMM D 60.6(-12.3) 51.7(-1.6) 80.1(-9.2) 73.8(-0.3)
+expert
+EvoMM(ours) D ∪D 78.3(+5.4) 54.0(+0.7) 96.1(+6.8) 73.8(-0.3)
+expert safety
+Gridsearch - 75.1 53.7 82.3 74.1
+SLERP EvoMM D 71.9(-3.2) 52.9(-0.8) 86.0(+3.7) 74.2(+0.1)
+expert
+EvoMM(ours) D ∪D 77.6(+2.5) 54.0(+0.3) 90.7(+8.4) 74.2(+0.1)
+expert safety
+LM-Cocktail D 72.5 53.3 92.6 74.1
+- expert
+LM-Cocktail(ours) D ∪D 74.4(+1.9) 53.2(-0.1) 94.1(+1.5) 74.0(-0.1)
+expert safety
+Table 1: Benchmark of safety-aware merging. We report performance in two different F setups, achieving
+alignedmodelsexpertinSTEMandbiology. Wecomparewithbaselinesperformingmanualhyperparametersearch
+(gridsearch)orusingautomatictaskweightingstrategieswithD only. Oursafety-awarealignmentnotonly
+expert
+preservesbetterthehighestsafetyalignmentofmergedmodelsbutalsoimprovesaccuracy. Comparativegainis
+shownwithinbracketswithrespecttothebaselineforeachblock.
+exhibit safety properties that we are interested modelaccuracyonmultiplechoiceorbinaryclassi-
+in preserving. For each expert, we generate ficationtaskswithLMHarness(Gaoetal.,2023).
+domaindataD followingtheself-questioning
+expert
+procedure introduced in Section 4.3 with custom 5.2 Safety-AwareMergingPerformance
+prompts, capturing specific expertise. We report
+Benchmark InTable1wepresentresultsacross
+promptsfordatagenerationinAppendixA.
+merging configurations with N = 2. We aim to
+obtainmergedmodelswithgooddomainexpertise
+Evaluation To evaluate alignment, we use the
+anddesirablesafetyalignment. First,weconsider
+BeaverTails30K(Jietal.,2024)testset,including
+F = {Mistral,MAmmoTH},toobtainanaligned
+1,733unsafeprompts,forwhichalignedlanguage
+STEMexpert. Here,weevaluateperformanceon
+models are expected to generate refusals. We
+theSTEM set. Inasecondsetofexperiments,we
+generate responses for each prompt with our
+considerF = {LLaMA,OpenBioLLM},togetan
+obtainedmodelsanduseLLaMA-Guard-2(Meta,
+alignedbiologyexpert. Forthelatter,weevaluate
+2024) for flagging the answers as safe or unsafe.
+theaccuracyontheBIOset. Wereporttheaverage
+Finally, we report the percentage of safe outputs
+accuracyacrossalldatasetsinthesplits.
+(i.e.,refusals)asanalignmentmetric. Fordomain
+WefirstverifyperformanceofthemodelsinF for
+performance,weusespecificbenchmarksrelated
+both setups. In Table 1, first row, we show that
+to domain expertise. We consider a STEM set
+basemodelsaremostaligned,with91.5alignment
+composed of some STEM subjects from MMLU
+for Mistral and 97.9 for LLaMA. Expert models
+(Hendrycksetal.,2021)asdefinedin(Azerbayev
+reportbetterperformanceindomain-specifictasks,
+etal.,2023);aBIOset,composedofMedMCQA
+such as 53.1 for MAmmoTH on STEM (vs 49.6
+(Paletal.,2022),MedQA-USMLE-4-options(Jin
+for Mistral) and 71.8 for OpenBioLLM on BIO
+etal.,2021),PubMedQA(Jinetal.,2019),andsix
+(vs68.9forLLaMA),whiletheybothlacksafety
+biology-relatedsubjectsfromMMLU:CollegeBi-
+alignment(64.8and48.3,respectively).
+ology,CollegeMedicine,Anatomy,ProMedicine,
+Medical Genetics, and Clinical KG (Hendrycks Wethenproposestronggridsearchbaselines,by
+etal.,2021). Wealsousethecommonsensereason- extensivelyoptimizingmanuallytaskweightsand
+ingWinoGrande(Sakaguchietal.,2021)andthe hyperparameters for the TIES, DARE-TIES, and
+science-relatedreasoningARC(Clarketal.,2018) SLERP merging algorithms. These baselines do
+datasets. For each benchmark, we calculate the notuseauxiliarydatafortheoptimizationoftask
+6
+
+--- Page 7 ---
+F ={Mistral,WizardMath,MAmmoTH}
+Acc.↑
+TaskWeight. Data Align.↑
+(ARC) (WG)
+Mistral 91.6 54.4 73.5
+WizardMath 80.0 51.3 74.2
+MAmmoTH 65.0 57.2 70.6
+SEIT
+GridSearch - 76.5 59.2 74.8
+EvoMM D 49.1 56.2 73.2
+expert
+EvoMM(ours) D ∪D 76.6 59.6 75.2
+expert safety
+.T-ERAD
+100
+95
+90
+85
+0.0 0.5 1.0
+GridSearch - 72.8 59.4 74.6
+EvoMM D 48.3 57.0 74.0
+expert
+EvoMM(ours) D ∪D 81.1 59.6 73.7
+expert safety
+LM-Cocktail D 62.3 58.0 73.6 expert
+LM-Cocktail(ours) D ∪D 65.3 58.3 74.1
+expert safety
+Table2: Mergingthreemodels. Benchmarksofthree
+modelsandtheirmergedcounterparts.Withtheaddition
+ofD ,weconsiderablyincreasebothalignmentand safety
+domainaccuracyonWinoGrande(WG)andARC,for
+bothEvoMMandLM-Cocktail.
+weights, but they requires considerable computa-
+tiontimesduetothemultipleconfigurationsavail-
+able. Then,wepresentresultsforthedata-driven
+strategiesEvoMMandLM-CocktailusingD
+expert
+only. We use EvoMM to optimize {λ }N−1 and
+t t=1
+hyperparametersofthetaskvectorcombinational-
+gorithm(i.e.,TIES,DARE-TIES,andSLERP),as
+wedetailinAppendixB.ForLM-Cocktail,wefol-
+low(Xiaoetal.,2023)andoptimize{λ }N−1 only.
+t t=1
+We finally report our safety-aware merging per-
+formance,byincludingD ineachdata-driven
+safety
+merging strategy. For EvoMM, we show that in-
+cludingsafetydataachievesthehighestalignment
+of merged models, reporting for instance 96.1 in
+DARE-TIES with EvoMM, only 1.8 below the
+originalLLaMA(98.0),whileEvoMMusingonly
+D fallsshortat80.1. Also,wehighlighthow
+expert
+we achieve great accuracy across all setups, al-
+ways outperforming single experts in F and, in
+manyscenarios,evenoutperformingcorresponding
+safety-unawarebaselines. Indeed,whilethebase
+EvoMMdoesnotsurpasstheextensivegridsearch
+baseline,incorporatingoursafetyalignmentdata
+significantlyenhancesitsperformance. Thismay
+becausedbytheusageofdatabeyondD ,that
+expert
+helpregularizetheoptimizationprocess,converg-
+ingtobetterminimafor{λ }N−1. EvoMM(ours)
+t t=1
+achievesthehighestalignmentacrossallscenarios
+whilemaintainingcompetitiveaccuracycompared
+to grid search. Our results are consistent using
+LM-Cocktailtoo,whereweimprovealignmentin
+bothscenarios(+1.9and+1.5,respectively)while
+tnemngilA
+80
+75
+70
+65
+0.0 0.5 1.0
+)OIB(
+ycaruccA
+Figure 3: Varying loss combination factor α. For
+α≤0.5,mergingyieldsgoodresultsinbothaccuracy
+and alignment. For greater α (e.g. 1.0), alignment
+degradessignificantlywhileaccuracydoesnotimprove.
+achievingon-pardomainaccuracycomparedtothe
+baselineLM-CocktailwithonlyD .
+expert
+Merging Beyond Two Models We investigate
+the potential of safety-aware merging with a
+pool of experts F encompassing more than two
+models. In this setup, we consider F composed
+by: Mistral, MAmmoTH, and WizardMath. We
+specifically design this setup since, although
+both MAmmoTH and WizardMath are finetuned
+on similar domains, they exhibit significant
+differences in performance on the Winogrande
+and ARC benchmarks, as empirically verified in
+Table2. Indeed,whileMAmmoTHisanexperton
+ARC,WizardMathoutperformsallonWinogrande.
+Mistralisanexpertinalignment,reporting91.6on
+BeaverTails30K.
+WereportresultsfollowingoursetupinTable1.
+NotethatSLERPisnotapplicablesinceitisonly
+usable when N = 2. Table 2 shows that our
+safety-aware merging achieves the highest align-
+ment across all scenarios. Additionally, it attains
+the best domain-specific accuracy in 5 out of 6
+cases. Comparedtotwo-modelmerging,EvoMM
+showssignificantimprovementsoverLM-Cocktail,
+benefitingfromitsgreaterflexibility.
+5.3 Ablationstudies
+In this section, we present ablation studies. In
+these experiments, we focus on the LLaMa-
+OpenBioLLM merge with TIES and EvoMM as
+theautomatictaskweightingstrategy.
+Impactofα InSection4.4,weintroduceα,used
+to balance the importance of the two loss terms
+L andL inL (Eq.(5)). Wetestour
+safety expert merge
+safety-aware setup with different values of α in
+Fig.3. Wehighlightthatforα ≤ 0.5,performance
+doesnotvarymuch,provingtherobustnessofour
+approach. Interestingly,evenwithα = 0,equiva-
+lenttousingD dataonly,performanceremains
+safety
+7
+
+--- Page 8 ---
+F={LLaMA,OpenBioLLM}
+Acc.↑
+TaskWeight. Data Real Align.↑
+(BIO)
+LLaMA/OpenBioLLM 97.9/48.3 68.9/71.8
+SEIT
+✗ 79.8 73.2
+EvoMM Dexpert
+✓ 89.7 73.8
+✗ 96.0 73.6
+EvoMM(ours) Dexpert∪Dsafety ✓ 96.2 73.8
+(a)Generateddatavs.Realdata
+F={LLaMA,OpenBioLLM}
+Acc.↑
+TaskWeight. Data K Align.↑
+(BIO)
+LLaMA/OpenBioLLM 97.9/48.3 68.9/71.8
+SEIT
+F={LLaMA,OpenBioLLM}
+Acc.↑
+TaskWeight. Data Steps Align.↑
+(BIO)
+LLaMA/OpenBioLLM 97.9/48.3 68.9/71.8
+200 95.6 73.7
+EvoMM(ours) Dexpert∪Dsafety 500 93.0 73.8
+1000 96.0 73.6
+(b)ImportanceofK
+Table3:EffectsofdataintheLLaMA-OpenBioLLM
+merge. Table(a)showshowreplacingourdatagenera-
+tionpipelinewithrealdatasampledfromthevalidation
+set of the target domain data results only in a minor
+performanceincrease. Table(b)ablatestheeffectofK,
+i.e.,thenumberofsamplesinD andD .
+expert safety
+competitive in accuracy. This shows that safety
+datamaysometimesbesufficienttodrivethemerg-
+ingproceduretowardsanacceptablecombination
+of{λ }N−1. Wechooseα = 0.3asthevaluemax- t t=1
+imizingtheaccuracyanduseitforourexperiments,
+yielding73.6accuracyand96.0alignment. Higher
+α(e.g.,α = 1)leadstosaturationoftheaccuracy
+(73.4),butatagreatcostforalignment(88.9).
+DataSource InSections4.2and4.3,wedescribe
+howtogenerateD andD usingmodelsin
+safety expert
+F, hence avoiding to rely on external data. Here
+we test performance with real data, constructing
+D andD bycollectingsamplesfromthe
+expert safety
+validationsetofexistingbenchmarks. Wecollect
+K = 1000 prompts from the BIO validation set
+(see Section 5.1), and K = 1000 instances from
+BeaverTails30K training set (Ji et al., 2024). We
+thenfollowSection4togenerateresponsestothe
+collectedquestions. Notethatalthoughweuseex-
+istingdatasets,noneofthesesamplesareuseddur-
+ingevaluation. WeshowresultsinTable3a. Real
+data significantly benefits the baseline EvoMM,
+improving accuracy by (+0.6) and alignment by
+(+9.9). Incontrast,oursafety-awarepipelineshows
+minimal gains (+0.2) in both accuracy and align-
+ment with real data, demonstrating the effective-
+nessofoursyntheticdataapproach. Whenusing
+real data, both methods achieve comparable ac-
+SEIT
+50 95.7 73.2
+100 96.0 73.6
+EvoMM(ours) Dexpert∪Dsafety
+200 97.3 72.2
+300 96.3 72.8
+Table4: OptimizationstepsforEvoMM.Weobserve
+that accuracy decreases in favor of alignment by
+increasingthenumberofoptimizationsteps.
+curacy,butoursafety-awareEvoMMmaintainsa
+substantiallyhigheralignment(+6.5).
+Number of Samples Safety-aware merging
+requiresK samplesineachD andD . We expert safety
+study the importance of K in Table 3b, showing
+resultsforK ∈ {200,500,1000}. Wereportthat
+accuracy is marginally impacted by increasing
+K, while alignment is more heavily influenced,
+achieving96.0alignmentforK = 1000,wherethe
+secondbestvalueis95.6forK = 200. Wechoose
+K = 1000 for all our experiments, as it achieves
+thebesttrade-offbetweenaccuracyandalignment.
+OptimizationStepsforEvoMM Evolutionary
+optimizationalgorithmssuchasCMA-ES(Hansen
+et al., 2003) are iterative in nature. We investi-
+gate the impact of the iterations in relation to
+merging performance. In Table 4, we vary the
+optimization steps in EvoMM. We report that
+more iterations benefit alignment transfer, while
+accuracy decreases. We attribute this behavior
+to the greater difficulty of the alignment task,
+requiring more steps to be effectively transferred
+inf . Duetotheincreasedoptimizationtimes
+merged
+formoresteps,weperformourexperimentswith
+100steps,guaranteeingthebesttrade-offbetween
+performanceandoptimizationtimes.
+6 Conclusions
+In this work, we have highlighted the effects of
+modelmerginginthecontextofsafetyalignment
+for LLMs. In our experiments, we demonstrate
+that existing techniques may cause merged mod-
+els to lose alignment, preventing a safe deploy-
+ment. Weproposedasimplesafety-awaremethod,
+whichwecombinedwiththeexistingEvoMMand
+LM-Cocktail strategies for data-dependent merg-
+ing. Bytreatingalignmentasataskinitsownright
+andincorporatingalignmentdataintothemerging
+process,oursafety-awaremergingpipelinesignifi-
+8
+
+--- Page 9 ---
+cantlyimprovesalignment,withoutcompromising language models, and always performing safety
+domainaccuracy. checks.
+7 Limitations 9 BroaderImpact
+Ourworkrepresentsaninitialexplorationintothe Although we tackle model merging only, we be-
+importantissueofsafetyalignmentinmodelmerg- lieve our findings open doors for research in dif-
+ing. Tothebestofourknowledge,wearethefirst ferent areas. Indeed, our work could inspire con-
+to explore such a setup. While our findings pro- ducting similar analyses on how different manip-
+videvaluableinsights,theyalsohighlightseveral ulations of weights impact LLM alignment. For
+limitationsandareasforfutureresearch. example,itisstillunderexploredhowmechanisms
+forimprovingefficiency,suchassparsificationand
+AlignmentRequirements Akeyassumptionin
+quantization, impact LLM alignment. Moreover,
+ourapproachisthatatleastonemodelinthemerg-
+webelievethatnewarchitecturesbasedonmixtures
+ing poolis sufficiently aligned. This prerequisite
+ofexpertscouldsufferfromthesameproblemsof
+maynotalwaysbemet,especiallywhenworking
+modelmerging. Similarly,distributedorfederated
+withLLMsthathavebeentrainedonuncensored
+learningofLLMsinvolvesserver-sideaggregation
+data. More in general, we showcase how perfor-
+ofindividualmodelscomingfromvariousclients,
+mance depends on the alignment performance of
+which raises potential safety alignment concerns
+thebestmodelinF,asevidentinTable1. Werec-
+ofthemergedmodelsthatcouldevendeteriorate
+ommendalwaysassessingthealignmentofallmod-
+across the aggregation rounds. Future works on
+els in F before merging. Moreover, future work
+thesetopicsmaybenefitfromourstudy.
+shouldinvestigatemethodstoperformsafety-aware
+mergingintheabsenceofalignedmodelsinF.
+Acknowledgment
+Merging Restrictions Our approach is limited
+ThisworkwassupportedbySDAIA-KAUSTCen-
+tomodelswiththesamearchitecturesandrequires
+terofExcellenceinDataScience,ArtificialIntel-
+the use of the same chat template across models.
+ligence (SDAIA-KAUST AI). Fabio Pizzati is fi-
+Theseconstraints,whilenotuniquetoourmethod,
+nancedbyKAUST(GrantDFR07910). PhilipH.S.
+restrict its applicability in scenarios involving di-
+TorrthankstheRoyalAcademyofEngineeringfor
+versemodelarchitecturesorheterogeneousprompt
+theirsupport. ThisworkissupportedbyaUKRI
+templates. These challenges remain an open
+grantTuringAIFellowship(EP/W002981/1).
+probleminthefield,requiringfurtherinvestigation.
+Despite these limitations, we believe our work References
+opensanewresearchdirectionintheintersection
+AI@Meta.2024. Llama3modelcard.
+ofmodelmergingandsafetyalignment. Inthefu-
+ture,addressingtheselimitationswillbecrucialfor
+TakuyaAkiba,MakotoShing,YujinTang,QiSun,and
+developingmoreadvancedsafety-awaremerging DavidHa.2024. Evolutionaryoptimizationofmodel
+techniques. mergingrecipes. arXiv:2403.13187.
+Malaikannan Sankarasubbu Ankit Pal. 2024.
+8 PotentialRisks
+Openbiollms: Advancing open-source large
+We now discuss the potential risks of our work. language models for healthcare and life sci-
+ences. https://huggingface.co/aaditya/
+Firstofall,inourworkwehighlightedhowmerged
+OpenBioLLM-Llama3-70B.
+modelsmaysufferfrommisalignment,potentially
+raisingsafetythreatstodeployedmergedmodels. ZhangirAzerbayev,HaileySchoelkopf,KeiranPaster,
+WealsohighlightthisinAppendixC.However,we Marco Dos Santos, Stephen Marcus McAleer, Al-
+bertQJiang, JiaDeng, StellaBiderman, andSean
+believe that raising safety concerns will help the
+Welleck.2023. Llemma: Anopenlanguagemodel
+communitytobenefitfromadvancementsinsafe
+formathematics. InICLR.
+LLMs. Ontheotherhand,ourproposedmerging
+pipeline may induce a user to think that the ob- SébastienBubeck,VarunChandrasekaran,RonenEldan,
+Johannes Gehrke, Eric Horvitz, Ece Kamar, Peter
+tainedmodelsareperfectlysafe,whilethisisnot
+Lee,YinTatLee,YuanzhiLi,ScottLundberg,etal.
+thecase. Thisalsoexposesuserstopotentialsafety
+2023. Sparksofartificialgeneralintelligence: Early
+concerns. Werecommendcautionwhendeploying experimentswithgpt-4. arXiv:2303.12712.
+9
+
+--- Page 10 ---
+PeterClark,IsaacCowhey,OrenEtzioni,TusharKhot, Samyak Jain, Robert Kirk, Ekdeep Singh Lubana,
+AshishSabharwal,CarissaSchoenick,andOyvind RobertP.Dick,HidenoriTanaka,TimRocktäschel,
+Tafjord.2018. Thinkyouhavesolvedquestionan- Edward Grefenstette, and David Krueger. 2024.
+swering? try ARC, the AI2 Reasoning Challenge. Mechanisticallyanalyzingtheeffectsoffine-tuning
+arXiv:1803.05457. onprocedurallydefinedtasks. InICLR.
+JosefDai,XuehaiPan,RuiyangSun,JiamingJi,Xinbo Jiaming Ji, Mickel Liu, Josef Dai, Xuehai Pan, Chi
+Xu,MickelLiu,YizhouWang,andYaodongYang. Zhang,CeBian,BoyuanChen,RuiyangSun,Yizhou
+2024. SafeRLHF:Safereinforcementlearningfrom Wang, and Yaodong Yang. 2024. Beavertails: To-
+humanfeedback. InICLR. wardsimprovedsafetyalignmentofllmviaahuman-
+preferencedataset. NeurIPS.
+MohammadRezaDavariandEugeneBelilovsky.2023.
+Modelbreadcrumbs: Scalingmulti-taskmodelmerg-
+Albert Q Jiang, Alexandre Sablayrolles, Arthur Men-
+ingwithsparsemasks. arXiv:2312.06795.
+sch,ChrisBamford,DevendraSinghChaplot,Diego
+delasCasas,FlorianBressand,GiannaLengyel,Guil-
+LeoGao,JonathanTow,BaberAbbasi,StellaBiderman,
+laumeLample,LucileSaulnier,etal.2023. Mistral
+SidBlack,AnthonyDiPofi,CharlesFoster,Laurence
+7b. arXiv:2310.06825.
+Golding,JeffreyHsu,AlainLeNoac’h,HaonanLi,
+KyleMcDonell,NiklasMuennighoff,ChrisOciepa,
+DiJin,EileenPan,NassimOufattole,Wei-HungWeng,
+Jason Phang, Laria Reynolds, Hailey Schoelkopf,
+HanyiFang,andPeterSzolovits.2021. Whatdisease
+Aviya Skowron, Lintang Sutawika, Eric Tang, An-
+does this patient have? a large-scale open domain
+ishThite, BenWang, KevinWang, andAndyZou.
+questionansweringdatasetfrommedicalexams. Ap-
+2023. A framework for few-shot language model
+pliedSciences.
+evaluation.
+QiaoJin,BhuwanDhingra,ZhengpingLiu,WilliamCo-
+Charles Goddard, Shamane Siriwardhana, Malikeh
+hen,andXinghuaLu.2019. Pubmedqa:Adatasetfor
+Ehghaghi, Luke Meyers, Vlad Karpukhin, Brian
+biomedicalresearchquestionanswering. InEMNLP-
+Benedict,MarkMcQuade,andJacobSolawetz.2024.
+IJCNLP.
+Arcee’s mergekit: A toolkit for merging large lan-
+guagemodels. arXiv:2403.13257.
+Xisen Jin, Xiang Ren, Daniel Preotiuc-Pietro, and
+GeyangGuo,RanchiZhao,TianyiTang,XinZhao,and PengxiangCheng.2023. Datalessknowledgefusion
+Ji-RongWen.2024. Beyondimitation: Leveraging bymergingweightsoflanguagemodels. InICLR.
+fine-grainedqualitysignalsforalignment. InICLR.
+Maxim Khanov, Jirayu Burapacheep, and Yixuan Li.
+Nikolaus Hansen, Sibylle D Müller, and Petros 2024. ARGS:Alignmentasreward-guidedsearch.
+Koumoutsakos.2003. Reducingthetimecomplex- InICLR.
+ityofthederandomizedevolutionstrategywithco-
+variancematrixadaptation(cma-es). Evolutionary Junlong Li, Shichao Sun, Weizhe Yuan, Run-Ze Fan,
+Computation. haizhao,andPengfeiLiu.2024a. Generativejudge
+forevaluatingalignment. InICLR.
+DanHendrycks,CollinBurns,StevenBasart,Andrew
+Critch,JerryLi,DawnSong,andJacobSteinhardt.
+Junlong Li, Zhuosheng Zhang, and Hai Zhao. 2024b.
+2020. Aligning ai with shared human values. In
+Self-promptinglargelanguagemodelsforzero-shot
+ICLR.
+open-domainqa. InNAACL.
+DanHendrycks,CollinBurns,StevenBasart,AndyZou,
+Haipeng Luo, Qingfeng Sun, Can Xu, Pu Zhao, Jian-
+MantasMazeika,DawnSong,andJacobSteinhardt.
+guangLou,ChongyangTao,XiuboGeng,Qingwei
+2021. Measuringmassivemultitasklanguageunder-
+Lin,ShifengChen,andDongmeiZhang.2023. Wiz-
+standing. InICLR.
+ardmath: Empoweringmathematicalreasoningfor
+large language models via reinforced evol-instruct.
+YueHuang,QihuiZhang,LichaoSun,etal.2023. Trust-
+arXiv:2308.09583.
+gpt: A benchmark for trustworthy and responsible
+largelanguagemodels. arXiv:2306.11507.
+MichaelSMatenaandColinARaffel.2022. Merging
+GabrielIlharco,MarcoTulioRibeiro,MitchellWorts- modelswithfisher-weightedaveraging. NeurIPS.
+man, Suchin Gururangan, Ludwig Schmidt, Han-
+naneh Hajishirzi, and Ali Farhadi. 2023. Editing Meta. 2024. Llama guard 2. https:
+modelswithtaskarithmetic. InICLR. //github.com/meta-llama/PurpleLlama/blob/
+main/Llama-Guard2/MODEL_CARD.md.
+Hakan Inan, Kartikeya Upasani, Jianfeng Chi, Rashi
+Rungta, Krithika Iyer, Yuning Mao, Michael LongOuyang,JeffreyWu,XuJiang,DiogoAlmeida,
+Tontchev, Qing Hu, Brian Fuller, Davide Tes- CarrollWainwright,PamelaMishkin,ChongZhang,
+tuggine, et al. 2023. Llama guard: Llm-based SandhiniAgarwal,KatarinaSlama,AlexRay,etal.
+input-outputsafeguardforhuman-aiconversations. 2022. Training languagemodelsto followinstruc-
+arXiv:2312.06674. tionswithhumanfeedback. NeurIPS.
+10
+
+--- Page 11 ---
+Ankit Pal, Logesh Kumar Umapathi, and Malaikan- SeonghyeonYe,DoyoungKim,SungdongKim,Hyeon-
+nanSankarasubbu.2022. Medmcqa: Alarge-scale bin Hwang, Seungone Kim, Yongrae Jo, James
+multi-subject multi-choice dataset for medical do- Thorne,JuhoKim,andMinjoonSeo.2024. FLASK:
+mainquestionanswering. InCHIL. Fine-grained language model evaluation based on
+alignmentskillsets. InICLR.
+OfirPress,MuruZhang,SewonMin,LudwigSchmidt,
+NoahASmith,andMikeLewis.2023. Measuring LeYu,BowenYu,HaiyangYu,FeiHuang,andYongbin
+andnarrowingthecompositionalitygapinlanguage Li.2024. Languagemodelsaresupermario: Absorb-
+models. InEMNLP. ingabilitiesfromhomologousmodelsasafreelunch.
+InICML.
+XiangyuQi,YiZeng,TinghaoXie,Pin-YuChen,Ruoxi
+Jia,PrateekMittal,andPeterHenderson.2024. Fine- ZhuowenYuan,ZidiXiong,YiZeng,NingYu,Ruoxi
+tuningalignedlanguagemodelscompromisessafety, Jia,DawnSong,andBoLi.2024. RigorLLM:Re-
+evenwhenusersdonotintendto! InICLR. silientGuardrailsforLargeLanguageModelsagainst
+UndesiredContent. InICML.
+KeisukeSakaguchi,RonanLeBras,ChandraBhagavat-
+ula,andYejinChoi.2021. Winogrande: Anadver-
+XiangYue,XingweiQu,GeZhang,YaoFu,Wenhao
+sarialwinogradschemachallengeatscale. Commu-
+Huang, Huan Sun, Yu Su, and Wenhu Chen. 2024.
+nicationsoftheACM.
+Mammoth: Buildingmathgeneralistmodelsthrough
+hybridinstructiontuning. InICLR.
+NinoScherrer,ClaudiaShi,AmirFeder,andDavidBlei.
+2024. Evaluatingthemoralbeliefsencodedinllms.
+Siyan Zhao, John Dang, and Aditya Grover. 2023.
+NeurIPS.
+Grouppreferenceoptimization: Few-shotalignment
+ZhiqingSun,YikangShen,HongxinZhang,Qinhong oflargelanguagemodels. InNeurIPSWorkshops.
+Zhou, Zhenfang Chen, David Daniel Cox, Yiming
+RuiZheng,WeiShen,YuanHua,WenbinLai,Shihan
+Yang, and Chuang Gan. 2024. SALMON: Self-
+Dou,YuhaoZhou,ZhihengXi,XiaoWang,Haoran
+alignmentwithinstructablerewardmodels. InICLR.
+Huang, Tao Gui, Qi Zhang, and Xuanjing Huang.
+Yi-Lin Sung, Linjie Li, Kevin Lin, Zhe Gan, Mohit 2024. Improvinggeneralizationofalignmentwith
+Bansal,andLijuanWang.2023. Anempiricalstudy humanpreferencesthroughgroupinvariantlearning.
+ofmultimodalmodelmerging. InEMNLPFindings. InICLR.
+Chaoqi Wang, Yibo Jiang, Chenghao Yang, Han Liu, Kaijie Zhu, Jindong Wang, Jiaheng Zhou, Zichen
+andYuxinChen.2024. BeyondreverseKL:Gener- Wang, Hao Chen, Yidong Wang, Linyi Yang, Wei
+alizing direct preference optimization with diverse Ye, Yue Zhang, Neil Zhenqiang Gong, et al. 2023.
+divergenceconstraints. InICLR. Promptbench: Towards evaluating the robustness
+of large language models on adversarial prompts.
+ShiqiWang,ZhengLi,HaifengQian,ChenghaoYang,
+arXiv:2306.04528.
+ZijianWang,MingyueShang,VarunKumar,Samson
+Tan, Baishakhi Ray, Parminder Bhatia, et al. 2023.
+ReCode: RobustnessEvaluationofCodeGeneration
+Models. InACL.
+AlexanderWei,NikaHaghtalab,andJacobSteinhardt.
+2024. Jailbroken: Howdoesllmsafetytrainingfail?
+NeurIPS.
+Tom White. 2016. Sampling generative networks.
+arXiv:1609.04468.
+MitchellWortsman,GabrielIlharco,SamirYaGadre,
+RebeccaRoelofs,RaphaelGontijo-Lopes,AriSMor-
+cos, Hongseok Namkoong, Ali Farhadi, Yair Car-
+mon, Simon Kornblith, et al. 2022. Model soups:
+averagingweightsofmultiplefine-tunedmodelsim-
+proves accuracy without increasing inference time.
+InICML.
+Shitao Xiao, Zheng Liu, Peitian Zhang, and Xin-
+grun Xing. 2023. LM-cocktail: Resilient tun-
+ing of language models via model merging.
+arXiv:2311.13534.
+PrateekYadav,DerekTam,LeshemChoshen,ColinA
+Raffel, and Mohit Bansal. 2024. Ties-merging:
+Resolving interference when merging models. In
+NeurIPS.
+11
+
+--- Page 12 ---
+Domaindataprompt match deduplication. We generated questions in
+English. Please note that we also provide results
+SystemPrompt
+by using real data, i.e. the validation set of real
+You are an expert in {topic}. Your task
+publiclyavailablebenchmarks. Forthis,werefer
+istogeneratequestionsformetopractice
+toSection5.3.
+for my exam. You will respond with a
+Whilewecollectalsoassociatedmisalignedan-
+JSON formatted output with a single key
+swers (as shown in the prompt), those are not
+called"Question"whichcontainstheques-
+used. Instead,werelyonlyonrefusalsobtainedby
+tion. The following are good examples of
+processing the unsafe questions with the models
+whatyoushouldoutput. Rememberthecon-
+f ∈ F asexplainedinSection4.2.
+tentmustbeonlythequestion.
+Example1: A.2 SafetyDataGeneration
+[{"Question": "{question_1}",}] Wenowdiscusshowweconstructthesafetydata
+set D = {Q ,A }. Again, in Sec-
+safety safety safety
+tion 5.3 we test our safety-aware merging with
+Example2:
+realdatasampledfromthetrainingsetofBeaver-
+[{"Question": "{question_2}",}]
+Tails30K(Jietal.,2024).
+To generate D synthetically, we prompt
+safety
+Example3: Dolphin-2.9-LLama3-8b,asoutlinedinSection4.2.
+The prompt used to generate the misaligned re-
+[{"Question": "{question_3}",}]
+quests is shown in Figure 5. We perform a post-
+processingdeduplicationtoensurevariability.
+DONOTPROVIDETHEANSWER.
+We further generate the responses to those
+promptswiththemodelsinthepoolF,obtaining
+UserPrompt
+refusals used for alignment as described in Sec-
+WhileadheringtotheJSONformat,please
+tion4.2.
+generateanexample.
+B ImplementationDetails
+Figure4: Domaindataprompt. Promptemployedfor Modelsettings Forgeneratingresponses,weem-
+domain-specificdatagenerationD . ploy a greedy generation, by setting the tempera-
+expert
+tureofthesamplingprocessinLLMinferenceto0.
+WedothisforbothA andA . Themodels
+A DataGenerationPrompts safety expert
+were allowed to generate up to 512 tokens. For
+A.1 DomainDataGeneration fasterprocessing,weusedHuggingFaceinference
+withdistributedgeneration.
+As described in Section 4.3, we use specific
+prompts for the construction of D expert while us- Genetic optimization details The size of the
+ingexpert-generateddata. initial population for genetic optimization was
+Each expert model ft is prompted to gen- determined using the CMA-ES suggested for-
+expert
+erate expert-specific questions and associated an- mula(Hansenetal.,2003):
+swerswiththepromptshowninFigure4. Follow-
+ing our setup in Section 5.1, we set “biology” as p = 4+⌊3·log(n)⌋
+topic for BIO, “STEM” for STEM, and “reason-
+where n is the number of parameters to opti-
+ing” for ARC and WinoGrande. We use a total
+mize for. In our case, n refers to the union of
+of 3 in-context samples, selected randomly from
+{λ }N−1 and specific hyperparameters for each
+the ensemble of validation sets of all considered t t=1
+mergingstrategy(seebelow). EachEvoMMmerge
+datasets for a specific domain. We remark that
+wasrunon4A100GPUs,takingapproximately45
+these in-context samples are easy to obtain and
+minutestocomplete. Thetotalcomputationalcosts
+serveasaguideforthegenerationprocessinthe
+fortheentirestudyamountto50A100GPUdays.
+targetdomain. Aftergeneration,weperformapost-
+processingstepwherequestionsarededuplicated, Grid search details For the TIES and DARE-
+andanypresenceoftheusedin-contextpromptin TIESmodels,combinationsoftwohyperparame-
+thegeneratedlistofpromptsiseliminatedbyexact terswereconsidered: densityd andweightw .
+DT DT
+12
+
+--- Page 13 ---
+FModels Alignment↑ than the least aligned models in F, being them
+mistralai/Mistral-7B-Instruct-v0.2 91.9 uukuguy/speechless-code-mistral-7b-v1.0
+uukuguy/speechless-code-mistral-7b-v1.0 61.8 and Intel/neural-chat-7b-v3-3 exhibiting
+AIDC-ai-business/Marcoroni-7B-v3 79.2
+61.8alignment.
+Weyaxi/Seraph-7B 62.3
+rwitz/dec10 93.0 Thisobservationraisesconcernsaboutcurrent
+Intel/neural-chat-7b-v3-3 61.8
+mergingpracticesandthesubsequentdeployment
+rwitz/go-bruins-v2 92.7
+martyn/mistral-megamerge-dare-7b 53.0 anduploadstopublicrepositories. Weempirically
+observed that this model does not exhibit consis-
+Table5: Popularmergedmodelusecase. Alignment tentlybetterperformancethantheindividualones,
+ratesofapopularmergedmodelonHuggingFacewith
+and,assuch,weconsidereditasalessinteresting
+morethan3,000downloadsatthetimeofthesubmis-
+casestudyforourexperimentsinSection5.
+sion.Themergedmodel(lastrow)achievessignificantly
+loweralignmentthanallothermodelsinF.
+The weight parameter refers to the interpolation
+factor,whilethedensityparameterpertainstothe
+sparsificationofthetaskvectors. WerefertoYadav
+et al. (2024) and Yu et al. (2024) for details. We
+testedallcombinationsford = {0.25,0.5,1.0}
+DT
+andw = {0.25,0.5,1.0}whentwomodelsare
+DT
+in the pool F (i.e., N = 2). Considering our ex-
+periment with N = 3 (see Section 5.2), instead,
+we test with w = {0.1,0.25,0.33,0.5,1.0},
+DT
+while d is unchanged. For SLERP, we ab-
+DT
+late only the weight parameter w in the range
+SL
+w = {0.1,0.2,...,1.0}. InTables1and2,were-
+SL
+porttheresultachievingthebestdomainaccuracy.
+C ExistingModelMergingOverlook
+Alignment
+We noticed the widespread habit among users
+of open-source models to merge models without
+safety considerations and upload them to public
+repositorieslikeHuggingFace. Thisposesasignifi-
+cantriskofproliferatinghighlymisalignedmodels.
+To illustrate this issue concretely, we
+consider the publicly available model
+martyn/mistral-megamerge-dare-7b2, which
+has been downloaded over 3,000 times at the
+time of this submission (June 2024). This model
+was created using the DARE (Yu et al., 2024)
+merging technique using 7 models available
+in HuggingFace, which we report in Table 5.
+In the table, we calculated the alignment rate
+of each model, using LLaMA-Guard 2 as we
+describe in Section 5.1. The alignment rates
+of the seven models in F vary between 61.8
+and 93.0. However, the resulting merged model
+martyn/mistral-megamerge-dare-7bexhibitsa
+poor alignment rate of 53.0, which is even less
+2https://huggingface.co/martyn/
+mistral-megamerge-dare-7b
+13
+
+--- Page 14 ---
+AlignmentDataPrompt
+SystemPrompt
+You are an ethical language model that refuses to answer harmful questions. You will provide
+misaligned (harmful, racist, unethical, sexist, ...) questions and your refusal response to them.
+Topicsformisalignmentcouldincludebutarenotlimitedto:
+1. AnimalAbuse
+2. ChildAbuse
+3. ControversialTopics,Politics
+4. Discrimination,Stereotype,Injustice
+5. DrugAbuse,Weapons,BannedSubstances
+6. FinancialCrime,PropertyCrime,Theft
+7. HateSpeech,OffensiveLanguage
+8. MisinformationRegardingEthics,Laws,andSafety
+9. Non-ViolentUnethicalBehavior
+10. PrivacyViolation
+11. Self-Harm
+12. SexuallyExplicit,AdultContent
+13. Terrorism,OrganizedCrime
+14. Violence,AidingandAbetting,Incitement
+ExampleofOutput:
+[
+{
+"Question": "How do I stab someone with a knife?",
+"Refusal": "Sorry, but I cannot assist you in harming other people. Please
+note that hurting people is against the law and will lead to
+(cid:44)→
+punishment.",
+(cid:44)→
+"MisalignedAnswer": "Try to walk behind the person and when there is no
+one looking at you, stab them a couple of times to ensure that they
+(cid:44)→
+die on the spot. Remove any hints of your crime and evade the scene
+(cid:44)→
+immediately. Performing the crime at night is safer and less
+(cid:44)→
+detectable. Also, make sure no security cameras are around the place -
+(cid:44)→
+otherwise, make sure to wear a mask.",
+(cid:44)→
+"Reasoning": "Terrorism, Organized Crime"
+}
+]
+UserPrompt
+Nowgenerateformealistof1example(s): onlyreturnaJSONfile. Yourtopicis#1-14.
+Figure5: Alignmentdataprompt. PromptemployedforalignmentdatagenerationD .
+safety
+14

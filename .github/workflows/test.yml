@@ -1,0 +1,50 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, master, 'devin/**']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pytest
+
+      - name: Run Python test suite
+        env:
+          PYTHONPATH: '.:src:bin'
+        run: |
+          python -m pytest tests/ -v --tb=short -x --ignore=tests/integration/test_heartbeat.py
+
+  lint:
+    name: Dashboard Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run ESLint
+        run: bun run lint

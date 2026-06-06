@@ -1,0 +1,21 @@
+# TIES v3 Merge Configuration Recipe - Synthesized Dynamically
+# Based on continuous Chaos Arena empirical vulnerabilities
+models:
+  - model: Qwen/Qwen2.5-1.5B-Instruct
+    parameters:
+      weight: 0.303
+      density: 0.60
+  - model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+    parameters:
+      weight: 0.316
+      density: 0.60
+  - model: special-virus:latest
+    parameters:
+      weight: 0.382
+      density: 0.60
+merge_method: ties
+base_model: Qwen/Qwen2.5-1.5B-Instruct
+parameters:
+  normalize: true
+  int8_mask: true
+dtype: float16

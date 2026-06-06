@@ -1,0 +1,2 @@
+$ next dev -p 3000 2>&1 | tee dev.log
+$ next dev -p 3000

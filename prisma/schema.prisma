@@ -1,0 +1,418 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── NEXUS OS v3.0 Core Models ───
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // worker, coordinator, specialist
+  status      String   @default("idle") // idle, busy, error, offline
+  domain      String?  // code, reason, research, fast, sec
+  trustScore  Float    @default(0.5)
+  totalTokens Int      @default(0)
+  tasksDone   Int      @default(0)
+  tasksFailed Int      @default(0)
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vaultEntries VaultEntry[]
+  decisions    GovernorDecision[]
+  testRuns     TestRun[]
+}
+
+model VaultEntry {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  track     String   // EVENT, TRUST, CAP, FAIL, GOV
+  category  String
+  key       String
+  value     String   // JSON string
+  score     Float    @default(0.0)
+  createdAt DateTime @default(now())
+}
+
+model GovernorDecision {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  action    String
+  scope     String   // SELF, PROJECT, CROSS, SYSTEM
+  impact    String   // LOW, MED, HIGH, CRIT
+  decision  String   // ALLOW, DENY, HOLD
+  reason    String?
+  trustAtTime Float  @default(0.0)
+  createdAt DateTime @default(now())
+}
+
+// ─── GMR Model Registry ───
+
+model ModelEntry {
+  id          String   @id @default(cuid())
+  name        String
+  provider    String   // opencode, nvidia, groq, cerebras, google
+  tier        Int      @default(50) // quality tier
+  domain      String   // code, reason, research, fast, sec, general
+  health      Float    @default(100.0) // percentage
+  latencyMs   Int      @default(0)
+  costPer1k   Float    @default(0.0) // cost per 1k tokens
+  isFree      Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  totalCalls  Int      @default(0)
+  successRate Float    @default(100.0)
+  lastChecked DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── StressLab ───
+
+model TestTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String   // cyber, compbio, pharmacology, ai_safety, etc.
+  tvdPrompt   String   // the prompt with ??? placeholders
+  validatorCode String // the validator.py content
+  skillGuide  String?  // anchor swap guide
+  difficulty  String   @default("medium") // easy, medium, hard
+  sourceId    String?  // ISC-Bench template ID
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  testRuns    TestRun[]
+}
+
+model TestRun {
+  id            String   @id @default(cuid())
+  templateId    String
+  template      TestTemplate @relation(fields: [templateId], references: [id])
+  agentId       String?
+  agent         Agent?   @relation(fields: [agentId], references: [id])
+  modelName     String
+  mode          String   // single, icl, agentic
+  status        String   @default("pending") // pending, running, passed, failed, error
+  output        String?
+  validatorResult String?
+  tokensUsed    Int      @default(0)
+  durationMs    Int      @default(0)
+  collapseDetected Boolean @default(false)
+  vapProofHash  String?
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+}
+
+// ─── Research Pipeline ───
+
+model Paper {
+  id                String   @id @default(cuid())
+  externalId        String?  // arxiv ID or repo ID
+  type              String   @default("paper") // paper, repo, dataset, docs
+
+  // ─── Core Metadata ───
+  title             String
+  pdfUrl            String?
+  repoUrl           String?
+  abstractSummary   String?
+  conclusionTakeaway String?
+  authors           String?  // JSON array of author names
+  publishedDate     String?  // ISO date string
+  category          String?  // Primary arXiv category (e.g., cs.AI)
+  categories        String?  // JSON array of all categories
+
+  // ─── DoppelGround Classification Engine ───
+  // Object class: 7-tier source ontology from DG
+  admissionTier     String   @default("source_stub") // source_card, source_stub, web_reference, social_reference, operator_fragment, quarantine, top_attention
+  sourceFamily      String   @default("paper") // paper, repo, dataset, docs, social, unknown
+  sourceSubtype     String?  // arxiv_page, arxiv_pdf, github_repo, hf_paper, openreview_paper, direct_pdf, etc.
+
+  // Research role: what this source contributes to research
+  researchRole      String   @default("context_only") // evaluation, safety, memory, harness, implementation, compression, benchmark, survey, infra, context_only
+
+  // Concept mapping: which research concepts this paper relates to
+  conceptIds        String?  // JSON array of concept IDs (e.g., ["agent_memory", "bounded_execution_harness"])
+
+  // Project fit: which project lane this source serves
+  projectFit        String   @default("general") // doppelground, twave, sequence, general
+
+  // ─── DoppelGround Scoring Engine ───
+  relevanceScore    Float    @default(0.0) // Final computed relevance (0-1 scale)
+  dgFinalScore      Int      @default(0) // DG scoring engine result (0-15 scale)
+  noveltyScore      Int      @default(0)  // 0-2
+  evidenceQuality   Int      @default(0)  // 0-5
+  priorSeenHint     Int      @default(0)  // 0-3
+  crowdingPenalty   Int      @default(0)  // 0-3
+  primaryEvidenceBonus Int   @default(0)  // 0-3
+  dossierAlignment  Int      @default(0)  // 0-5
+
+  // ─── Promotion Tracking ───
+  promotable        Boolean  @default(false) // Whether this paper can be promoted to source_card
+  missingFields     String?  // JSON array of missing fields for promotion
+  promotionReason   String?  // Why promoted or demoted
+
+  // ─── Priority & Task ───
+  priorityTier      String   @default("P2") // P0, P1, P2, HOLD
+  implementationTask String?
+  deliverable       String?
+  isVetted          Boolean  @default(false)
+
+  // ─── Provenance ───
+  nexusMapping      String?  // JSON array string (NEXUS domain mapping)
+  keyNumbers        String?  // JSON object string
+  traceRef          String?  // DG trace reference
+  provenanceSource  String?  // Where this paper was fetched from (arxiv_api, alphaxiv, manual, etc.)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ─── Token Budget & Monitoring ───
+
+model TokenUsageLog {
+  id          String   @id @default(cuid())
+  agentId     String?
+  model       String
+  promptTokens  Int    @default(0)
+  completionTokens Int @default(0)
+  totalTokens  Int     @default(0)
+  cost        Float    @default(0.0)
+  apiEndpoint String?
+  createdAt   DateTime @default(now())
+}
+
+model SessionBudget {
+  id              String   @id @default(cuid())
+  totalBudget     Int      @default(100000)
+  usedBudget      Int      @default(0)
+  remainingBudget Int      @default(100000)
+  isActive        Boolean  @default(true)
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+}
+
+// ─── System Config ───
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String // JSON string
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Rate Limiting & API Key Management ───
+
+model RateLimitLog {
+  id            String   @id @default(cuid())
+  provider      String   // openrouter, jina, kilocode, cerebras, openai
+  endpoint      String   // API endpoint called
+  method        String   @default("POST")
+  statusCode    Int      @default(200)
+  wasRateLimited Boolean @default(false)
+  wasCached     Boolean  @default(false)
+  wasDeduped    Boolean  @default(false)
+  responseTimeMs Int     @default(0)
+  tokensUsed    Int      @default(0)
+  keyId         String?
+  errorMessage  String?
+  requestBody   String?
+  createdAt     DateTime @default(now())
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  provider      String    // openrouter, jina, kilocode, cerebras, openai, z-ai
+  keyPrefix     String    // First 8 chars for identification
+  keySuffix     String    // Last 4 chars for identification
+  encryptedKey  String    // AES-256-GCM encrypted key (base64)
+  keyIv         String    // Initialization vector (base64)
+  keyTag        String    // Authentication tag (base64)
+  isActive      Boolean   @default(true)
+  health        String    @default("healthy") // healthy, degraded, rate_limited, error, no_key
+  totalRequests Int       @default(0)
+  total429s     Int       @default(0)
+  successRate   Float     @default(100.0)
+  lastError     String?
+  cooldownUntil DateTime?
+  lastUsed      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([provider, keySuffix])
+}
+
+// ─── 7352 Governance API ───
+
+model GovernanceTask {
+  id          String    @id @default(cuid())
+  agentId     String
+  taskId      String    @unique
+  type        String
+  status      String    @default("active") // active, completed, failed, held
+  progress    Float     @default(0)
+  message     String?
+  output      String?
+  tokensUsed  Int       @default(0)
+  durationMs  Int       @default(0)
+  riskLevel   String    @default("low")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+}
+
+model GovernanceProposal {
+  id          String    @id @default(cuid())
+  agentId     String
+  type        String
+  title       String
+  description String?
+  riskLevel   String    @default("low")
+  status      String    @default("pending") // pending, approved, rejected, held
+  approver    String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ─── Foundry Agents (GLM5 Architecture) ───
+
+model FoundryAgent {
+  id            String    @id @default(cuid())
+  nexusId       String    @unique  // e.g., "joker_opus", "joker_grok"
+  displayName   String             // e.g., "OSMANclaw4Kimi"
+  modelRef      String             // e.g., "claude-opus-4-7"
+  role          String             // e.g., "High-judgement implementation"
+  port          Int                // e.g., 8013
+  status        String    @default("offline")  // online, offline, busy
+  health        Float    @default(0)
+  lastHeartbeat DateTime?
+  capabilities  String   @default("[]")  // JSON array
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ─── System Snapshots (for real time-series data) ───
+
+model HealthSnapshot {
+  id          String   @id @default(cuid())
+  pillar      String   // Bridge, Engine, Governor, Vault, GMR, Swarm, Monitor, Config
+  health      Float    // 0-100
+  status      String   // operational, degraded, down
+  metadata    String?  // JSON string with extra context (e.g., model counts, error counts)
+  recordedAt  DateTime @default(now())
+}
+
+model TokenSnapshot {
+  id              String   @id @default(cuid())
+  totalBudget     Int
+  usedBudget      Int
+  remainingBudget Int
+  tokensLastHour  Int      // tokens consumed in the last hour
+  burnRate        Float    // tokens per minute
+  topModel        String?  // model consuming most tokens
+  topAgent        String?  // agent consuming most tokens
+  recordedAt      DateTime @default(now())
+}
+
+// ─── Custom Dashboards (user-defined widget canvases) ───
+
+model CustomDashboard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String   @default("operator")
+  ownerName   String   @default("Operator")
+  icon        String   @default("layout-dashboard")
+  color       String   @default("emerald")
+  isFavorite  Boolean  @default(false)
+  isPinned    Boolean  @default(false)
+  sharedWith  String   @default("[]")
+  tags        String   @default("[]")
+  lastViewed  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  widgets     CustomWidget[]
+
+  @@index([ownerId])
+  @@index([isPinned])
+}
+
+model CustomWidget {
+  id          String   @id @default(cuid())
+  dashboardId String
+  dashboard   CustomDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  subtitle    String?
+  dataSource  String
+  config      String   @default("{}")
+  posX        Int      @default(0)
+  posY        Int      @default(0)
+  width       Int      @default(4)
+  height      Int      @default(2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dashboardId])
+}
+
+// ─── MCP Hub (connections + telemetry) ───
+// Store an environment variable reference only. Never persist raw connector
+// credentials in this database table.
+
+model McpConnection {
+  id            String   @id @default(cuid())
+  name          String
+  endpoint      String
+  apiKeyRef     String?
+  transport     String   @default("websocket")
+  status        String   @default("disconnected")
+  lastError     String?
+  topicMap      String   @default("{}")
+  autoReconnect Boolean  @default(true)
+  enabled       Boolean  @default(true)
+  totalEvents   Int      @default(0)
+  errorCount    Int      @default(0)
+  lastEventAt   DateTime?
+  connectedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  events        McpEvent[]
+
+  @@index([status])
+  @@index([enabled])
+}
+
+model McpEvent {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  topic        String
+  level        String        @default("info")
+  payload      String        @default("{}")
+  occurredAt   DateTime      @default(now())
+
+  @@index([connectionId])
+  @@index([occurredAt])
+  @@index([level])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String   @default("operator")
+  action    String
+  target    String?
+  metadata  String   @default("{}")
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}

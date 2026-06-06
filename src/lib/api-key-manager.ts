@@ -1,0 +1,546 @@
+/**
+ * API Key Manager for NEXUS OS
+ *
+ * Manages API keys for multiple providers with:
+ * - Secure key storage (keys encrypted in DB, or from env vars)
+ * - Key rotation support — cycle through multiple keys per provider
+ * - Per-key health tracking (requests remaining, last error, cooldown)
+ * - Automatic key rotation on 429 errors
+ * - In-dashboard key entry with AES-256-GCM encryption
+ *
+ * IMPORTANT: API keys are NEVER sent to the client.
+ * Only masked versions (sk-or-...XXXX) are exposed via APIs.
+ */
+
+import { enterCooldown, clearCooldown } from './rate-limiter'
+import { decrypt } from './encryption'
+import { existsSync } from 'fs'
+import { join } from 'path'
+
+// ── Types ──────────────────────────────────────────────────────────
+
+export interface KeyInfo {
+  id: string
+  provider: string
+  masked: string
+  isActive: boolean
+  health: 'healthy' | 'degraded' | 'rate_limited' | 'error' | 'no_key'
+  requestsMade: number
+  requestsRemaining: number
+  lastError: string | null
+  cooldownUntil: number
+  lastUsed: number | null
+  totalRequests: number
+  total429s: number
+  successRate: number
+  source?: 'env' | 'database'
+}
+
+export interface ProviderKeyStatus {
+  provider: string
+  activeKeyIndex: number
+  keys: KeyInfo[]
+  totalKeys: number
+  healthyKeys: number
+  hasAvailableKey: boolean
+}
+
+// ── Key Store ──────────────────────────────────────────────────────
+
+interface StoredKey {
+  id: string
+  provider: string
+  keyValue: string
+  masked: string
+  isActive: boolean
+  health: KeyInfo['health']
+  requestsMade: number
+  lastError: string | null
+  cooldownUntil: number
+  lastUsed: number | null
+  totalRequests: number
+  total429s: number
+  totalSuccesses: number
+  source: 'env' | 'database'
+}
+
+// ── Environment Variable Mapping ───────────────────────────────────
+
+const ENV_KEY_MAP: Record<string, string[]> = {
+  openrouter: ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY_2', 'OPENROUTER_API_KEY_3'],
+  tavily: ['TAVILY_API_KEY'],
+  jina: ['JINA_API_KEY', 'JINA_API_KEY_2'],
+  cerebras: ['CEREBRAS_API_KEY', 'CEREBRAS_API_KEY_2'],
+  groq: ['GROQ_API_KEY', 'GROQ_API_KEY_2'],
+  mistral: ['MISTRAL_API_KEY'],
+  codestral: ['CODESTRAL_API_KEY'],
+  fireworks: ['FIREWORKS_API_KEY'],
+  scaleway: ['SCALEWAY_ACCESS_KEY'],
+  kilocode: ['KILOCODE_API_KEY', 'KILOCODE_API_KEY_2'],
+  openai: ['OPENAI_API_KEY', 'OPENAI_API_KEY_2'],
+  dashscope: ['DASHSCOPE_API_KEY'],
+  bitdeer: ['BITDEER_ACCESS_KEY'],
+  nvidia: ['NVIDIA_API_KEY'],
+  sambanova: ['SAMBANOVA_API_KEY'],
+  siliconflow: ['SILICONFLOW_API_KEY'],
+  opencode: ['OPENCODE_API_KEY'],
+  composio: ['COMPOSIO_API_KEY'],
+  'z-ai': ['ZAI_API_KEY'],
+}
+
+// ── In-Memory State ────────────────────────────────────────────────
+
+const keyStore: Map<string, StoredKey[]> = new Map()
+let initialized = false
+let dbLoaded = false
+
+// ── Initialization ─────────────────────────────────────────────────
+
+function maskKey(key: string): string {
+  if (key.length <= 12) return '***'
+  return key.slice(0, 8) + '...' + key.slice(-4)
+}
+
+function initializeKeys(): void {
+  if (initialized) return
+
+  for (const [provider, envVars] of Object.entries(ENV_KEY_MAP)) {
+    const keys: StoredKey[] = []
+
+    for (const envVar of envVars) {
+      const keyValue = process.env[envVar]
+      if (keyValue) {
+        keys.push({
+          id: `${provider}_${keys.length + 1}`,
+          provider,
+          keyValue,
+          masked: maskKey(keyValue),
+          isActive: true,
+          health: 'healthy',
+          requestsMade: 0,
+          lastError: null,
+          cooldownUntil: 0,
+          lastUsed: null,
+          totalRequests: 0,
+          total429s: 0,
+          totalSuccesses: 0,
+          source: 'env',
+        })
+      }
+    }
+
+    if (keys.length === 0) {
+      keys.push({
+        id: `${provider}_0`,
+        provider,
+        keyValue: '',
+        masked: 'N/A',
+        isActive: false,
+        health: 'no_key',
+        requestsMade: 0,
+        lastError: 'No API key configured',
+        cooldownUntil: 0,
+        lastUsed: null,
+        totalRequests: 0,
+        total429s: 0,
+        totalSuccesses: 0,
+        source: 'env',
+      })
+    }
+
+    keyStore.set(provider, keys)
+  }
+
+  // Special handling for z-ai: it uses the SDK which can authenticate
+  // via ZAI_API_KEY env var or the .z-ai-config file. If no key was found
+  // from the env var check above, check if the SDK config file exists.
+  const zaiKeys = keyStore.get('z-ai')
+  if (zaiKeys && zaiKeys.length === 1 && zaiKeys[0].health === 'no_key') {
+    try {
+      const configPaths = [
+        join(process.cwd(), '.z-ai-config'),
+        join(process.env.HOME ?? '/root', '.z-ai-config'),
+        '/etc/.z-ai-config',
+      ]
+      if (configPaths.some(p => existsSync(p))) {
+        keyStore.set('z-ai', [{
+          id: 'z-ai_1',
+          provider: 'z-ai',
+          keyValue: 'z-ai-sdk',
+          masked: 'z-ai-sdk',
+          isActive: true,
+          health: 'healthy',
+          requestsMade: 0,
+          lastError: null,
+          cooldownUntil: 0,
+          lastUsed: null,
+          totalRequests: 0,
+          total429s: 0,
+          totalSuccesses: 0,
+          source: 'env',
+        }])
+      }
+    } catch {
+      // If we can't check for the SDK config, leave z-ai as no_key
+    }
+  }
+
+  initialized = true
+}
+
+/**
+ * Load API keys from the database and merge with env-based keys.
+ * Database keys take priority over env keys for the same provider+suffix.
+ * This is async and should be called early in server-side code.
+ */
+export async function loadDatabaseKeys(): Promise<void> {
+  if (dbLoaded) return
+  initializeKeys()
+
+  try {
+    const { db } = await import('@/lib/db')
+    const dbKeys = await db.apiKey.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    for (const dbKey of dbKeys) {
+      try {
+        // Decrypt the key
+        const keyValue = decrypt(dbKey.encryptedKey, dbKey.keyIv, dbKey.keyTag)
+        const provider = dbKey.provider
+        const existingKeys = keyStore.get(provider) ?? []
+
+        // Check if we already have this key (by suffix)
+        const existingIdx = existingKeys.findIndex(k => k.source === 'database' && k.id === `db_${dbKey.id}`)
+
+        const newStoredKey: StoredKey = {
+          id: `db_${dbKey.id}`,
+          provider,
+          keyValue,
+          masked: `${dbKey.keyPrefix}...${dbKey.keySuffix}`,
+          isActive: dbKey.isActive,
+          health: (dbKey.health as KeyInfo['health']) || 'healthy',
+          requestsMade: 0,
+          lastError: dbKey.lastError,
+          cooldownUntil: dbKey.cooldownUntil ? new Date(dbKey.cooldownUntil).getTime() : 0,
+          lastUsed: dbKey.lastUsed ? new Date(dbKey.lastUsed).getTime() : null,
+          totalRequests: dbKey.totalRequests,
+          total429s: dbKey.total429s,
+          totalSuccesses: Math.round(dbKey.totalRequests * dbKey.successRate / 100),
+          source: 'database',
+        }
+
+        if (existingIdx >= 0) {
+          // Update existing DB key
+          existingKeys[existingIdx] = newStoredKey
+        } else {
+          // Remove the 'no_key' placeholder if it exists
+          const noKeyIdx = existingKeys.findIndex(k => k.health === 'no_key' && k.source === 'env')
+          if (noKeyIdx >= 0) {
+            existingKeys.splice(noKeyIdx, 1)
+          }
+          // Add the DB key
+          existingKeys.push(newStoredKey)
+        }
+
+        keyStore.set(provider, existingKeys)
+      } catch (decErr) {
+        console.error(`[api-key-manager] Failed to decrypt key ${dbKey.id} for ${dbKey.provider}:`, decErr)
+      }
+    }
+
+    dbLoaded = true
+  } catch (err) {
+    console.error('[api-key-manager] Failed to load database keys:', err)
+    // Non-fatal — env keys still work
+  }
+}
+
+/**
+ * Reload database keys — call this after a key is saved/deleted.
+ */
+export async function reloadDatabaseKeys(): Promise<void> {
+  dbLoaded = false
+  // Reset provider stores that had DB keys
+  for (const [provider, keys] of keyStore.entries()) {
+    const filtered = keys.filter(k => k.source === 'env')
+    if (filtered.length === 0) {
+      // Add back the no_key placeholder
+      filtered.push({
+        id: `${provider}_0`,
+        provider,
+        keyValue: '',
+        masked: 'N/A',
+        isActive: false,
+        health: 'no_key',
+        requestsMade: 0,
+        lastError: 'No API key configured',
+        cooldownUntil: 0,
+        lastUsed: null,
+        totalRequests: 0,
+        total429s: 0,
+        totalSuccesses: 0,
+        source: 'env',
+      })
+    }
+    keyStore.set(provider, filtered)
+  }
+  await loadDatabaseKeys()
+}
+
+// ── Public API ────────────────────────────────────────────────────
+
+/** Get the active API key for a provider. SERVER SIDE ONLY. */
+export function getActiveKey(provider: string): string | null {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys) return null
+
+  const now = Date.now()
+  const availableKey = keys.find(
+    k => k.isActive && k.keyValue && now >= k.cooldownUntil && k.health !== 'no_key'
+  )
+
+  return availableKey?.keyValue ?? null
+}
+
+/** Get the active key info (masked) for a provider. Safe for client. */
+export function getActiveKeyInfo(provider: string): KeyInfo | null {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys) return null
+
+  const activeKey = keys.find(k => k.isActive && k.keyValue)
+  if (!activeKey) return null
+
+  return toKeyInfo(activeKey)
+}
+
+/** Rotate to the next available key for a provider. */
+export function rotateKey(provider: string, failedKeyId?: string): KeyInfo | null {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys || keys.length <= 1) return null
+
+  const now = Date.now()
+
+  if (failedKeyId) {
+    const failedKey = keys.find(k => k.id === failedKeyId)
+    if (failedKey) {
+      failedKey.health = 'rate_limited'
+      failedKey.cooldownUntil = now + 60_000
+      failedKey.total429s++
+      failedKey.lastError = '429 Too Many Requests'
+      enterCooldown(provider, 60)
+    }
+  }
+
+  const availableKey = keys.find(
+    k => k.id !== failedKeyId && k.isActive && k.keyValue && now >= k.cooldownUntil
+  )
+
+  if (availableKey) {
+    availableKey.health = 'healthy'
+    return toKeyInfo(availableKey)
+  }
+
+  const sortedByCooldown = [...keys]
+    .filter(k => k.isActive && k.keyValue)
+    .sort((a, b) => a.cooldownUntil - b.cooldownUntil)
+
+  if (sortedByCooldown.length > 0) {
+    return toKeyInfo(sortedByCooldown[0])
+  }
+
+  return null
+}
+
+/** Record a successful request with a key. */
+export function recordKeySuccess(provider: string, keyId?: string): void {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys) return
+
+  const key = keyId
+    ? keys.find(k => k.id === keyId)
+    : keys.find(k => k.isActive && k.keyValue)
+
+  if (key) {
+    key.totalRequests++
+    key.totalSuccesses++
+    key.requestsMade++
+    key.lastUsed = Date.now()
+    key.health = 'healthy'
+    key.lastError = null
+    clearCooldown(provider)
+  }
+}
+
+/** Record a 429 error with a key and trigger rotation. */
+export function recordKey429(provider: string, retryAfterSeconds: number = 60): KeyInfo | null {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys) return null
+
+  const activeKey = keys.find(k => k.isActive && k.keyValue)
+  if (!activeKey) return null
+
+  activeKey.health = 'rate_limited'
+  activeKey.cooldownUntil = Date.now() + retryAfterSeconds * 1000
+  activeKey.total429s++
+  activeKey.lastError = `429 Too Many Requests (retry after ${retryAfterSeconds}s)`
+
+  enterCooldown(provider, retryAfterSeconds)
+
+  return rotateKey(provider, activeKey.id)
+}
+
+/** Record an error (non-429) with a key. */
+export function recordKeyError(provider: string, error: string, keyId?: string): void {
+  initializeKeys()
+  const keys = keyStore.get(provider)
+  if (!keys) return
+
+  const key = keyId
+    ? keys.find(k => k.id === keyId)
+    : keys.find(k => k.isActive && k.keyValue)
+
+  if (key) {
+    key.totalRequests++
+    key.lastError = error
+    key.lastUsed = Date.now()
+    if (error.includes('401') || error.includes('403')) {
+      key.health = 'error'
+      key.isActive = false
+    } else {
+      key.health = 'degraded'
+    }
+  }
+}
+
+/** Get full key status for a provider. Safe for client. */
+export function getProviderKeyStatus(provider: string): ProviderKeyStatus {
+  initializeKeys()
+  const keys = keyStore.get(provider) ?? []
+  const now = Date.now()
+
+  const keyInfos = keys.map(toKeyInfo)
+
+  const activeIdx = keys.findIndex(k => k.isActive && now >= k.cooldownUntil && k.keyValue)
+  const activeKeyIndex = activeIdx >= 0 ? activeIdx : 0
+
+  const healthyKeys = keyInfos.filter(k => k.health === 'healthy').length
+  const hasAvailableKey = keyInfos.some(k => k.isActive && k.health !== 'no_key' && now >= k.cooldownUntil)
+
+  return {
+    provider,
+    activeKeyIndex,
+    keys: keyInfos,
+    totalKeys: keys.filter(k => k.keyValue).length,
+    healthyKeys,
+    hasAvailableKey,
+  }
+}
+
+/** Get key status for all providers. Safe for client. */
+export function getAllProviderKeyStatus(): Record<string, ProviderKeyStatus> {
+  initializeKeys()
+  const result: Record<string, ProviderKeyStatus> = {}
+  for (const provider of Object.keys(ENV_KEY_MAP)) {
+    result[provider] = getProviderKeyStatus(provider)
+  }
+  return result
+}
+
+/** Get the authorization header for a provider's API request. */
+export function getAuthHeaders(provider: string): Record<string, string> | null {
+  const key = getActiveKey(provider)
+  if (!key) return null
+
+  switch (provider) {
+    case 'openrouter':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'HTTP-Referer': 'https://nexus-os.dev',
+        'X-Title': 'NEXUS OS v3.1',
+      }
+    case 'tavily':
+      return {
+        'Content-Type': 'application/json',
+      }
+    case 'groq':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'mistral':
+    case 'codestral':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'fireworks':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'scaleway':
+      return {
+        'Authorization': `Bearer ${process.env.SCALEWAY_SECRET_KEY ?? ''}`,
+        'X-Scaleway-Access-Key': key,
+        'Content-Type': 'application/json',
+      }
+    case 'dashscope':
+      return {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }
+    case 'bitdeer':
+      return {
+        'Authorization': `Bearer ${process.env.BITDEER_SECRET_KEY ?? ''}`,
+        'X-Access-Key': key,
+        'Content-Type': 'application/json',
+      }
+    case 'jina':
+    case 'cerebras':
+    case 'openai':
+    case 'kilocode':
+    case 'nvidia':
+    case 'sambanova':
+    case 'siliconflow':
+    case 'opencode':
+    case 'composio':
+    default:
+      return { 'Authorization': `Bearer ${key}` }
+  }
+}
+
+// ── Helper ─────────────────────────────────────────────────────────
+
+function toKeyInfo(stored: StoredKey): KeyInfo {
+  const successRate = stored.totalRequests > 0
+    ? Math.round((stored.totalSuccesses / stored.totalRequests) * 100)
+    : 100
+
+  const requestsRemaining = stored.health === 'rate_limited' || stored.health === 'error'
+    ? 0
+    : 100
+
+  return {
+    id: stored.id,
+    provider: stored.provider,
+    masked: stored.masked,
+    isActive: stored.isActive,
+    health: stored.health,
+    requestsMade: stored.requestsMade,
+    requestsRemaining,
+    lastError: stored.lastError,
+    cooldownUntil: stored.cooldownUntil,
+    lastUsed: stored.lastUsed,
+    totalRequests: stored.totalRequests,
+    total429s: stored.total429s,
+    successRate,
+    source: stored.source,
+  }
+}
