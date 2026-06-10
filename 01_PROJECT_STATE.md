@@ -50,6 +50,7 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 ## What Is Verified
 
 - Full test suite passes locally: **~1,642 tests collected, 430+ core tests verified passing** (governor/monitoring/security).
+- NEXUS-Bench 5-track benchmark suite: **ALL TRACKS PASS** (GOV 0.735, SEC 0.905, OPS 0.700, R&D 0.845, INT 0.850). Report: `nexus_os/benchmark/reports/`.
 - DB encryption policy hard-fails by default and allows plaintext fallback only when `allow_unencrypted=True`.
 - Engine task dependency cycle detection is present and verified.
 - TrustEngine v2.2 implements HARDWALL defenses: logistic scaling, adaptive decay, non-compensatory CRITICAL, 6-stage CDR.

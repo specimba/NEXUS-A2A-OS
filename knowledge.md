@@ -38,6 +38,16 @@ Nexus OS is a governed, local-first agent operating system. Python/FastAPI gover
 - **Leaked intelligence analysis** — Claude Fable 5 system prompt (121KB), Crystalline cognitive memory (5-level ACT-R), ST3GG threat toolkit
 - **meta_attack_detector.py fix** — Added `_entropy_check()` call to `scan()` method (was never invoked, causing test failure). Narrative entropy escalation now properly detected.
 
+### Phase 2: NEXUS-Bench 5-Track Benchmark Suite (June 10, 2026)
+- **BenchmarkRunner** — `nexus_os/benchmark/runner.py`: Orchestrates all 5 tracks, SQLite history persistence, regression detection, JSON/Markdown/HTML report generation
+- **Governance Track (GOV)** — KAIJU precision test (F1=1.0), TrustEngine drift test (±5% threshold), constitutional coverage, CDR latency test
+- **Security Track (SEC)** — MetaAttackDetector (F1=1.0), MisalignmentDetector (80% detection), IntentClassifier (86% accuracy), zero-width Unicode detection (100%)
+- **Operations Track (OPS)** — ModelRelay routing accuracy, provider health (62.5% available), SmartPing state machine, God Mode Proxy latency
+- **Research Track (R&D)** — Dataset coverage (281 files, 50% domain coverage), intelligence score accuracy (0% delta), provider coverage (5/15), gap closure (5/22 resolved)
+- **Integration Track (INT)** — E2E pipeline latency (p50=212ms), VAP proof chain (100% completeness), memory tracks (75% consistency), dashboard freshness (ModelRelay available), MCP bridge (code exists)
+- **Status: ALL 5 TRACKS PASS** — GOV 0.735, SEC 0.905, OPS 0.700, R&D 0.845, INT 0.850
+- **Draft plans saved** — Behavioral Audit (`nexus_os/audit/BEHAVIORAL_AUDIT_PLAN.md`), Cybersecurity Testing (`nexus_os/ctf/CYBERSECURITY_TESTING_PLAN.md`)
+
 ### Phase 0 Security (May 12-14)
 - **Terminal Sanitizer** — `src/nexus_os/security/sanitizer.py` (256 lines): TerminalSanitizer (ANSI/VT escape stripper), AgentPTY (dedicated PTY per agent), VerifiableOutput (SHA-256 integrity)
 - **AGENTS.md** — Safety-gated autonomous operation rules v2.0 with Pre-Execution Safety Gates (SAFETY-1 through SAFETY-4)
