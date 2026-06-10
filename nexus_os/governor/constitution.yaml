@@ -69,6 +69,184 @@ prohibited_actions:
   - "delete all"
   - "disable security"
   - "bypass authentication"
+  - "git push --force"
+  - "git filter-branch"
+  - "docker --privileged"
+  - "docker --pid=host"
+  - "docker --network=host"
+  - "nsenter"
+  - "capsh"
+  - "eval("
+  - "exec("
+  - "ignore previous instructions"
+  - "bypass your safety"
+  - "disable your safety"
+  - "override your restrictions"
+
+# Misalignment Detection Rules (Phase 1 Critical - Added 2026-06-10)
+# These patterns trigger automatic CDR escalation and potential agent blocking
+misalignment_rules:
+  - pattern: "git.*--no-verify|git.*--force|git filter-branch|rm -rf \\.git"
+    risk: CRITICAL
+    action: "block_and_escalate"
+    description: "Git history obfuscation or manipulation detected"
+    cdr_escalation: CASCADE
+    notify: "security_officer"
+
+  - pattern: "sudo|chmod 777|chown root|passwd|usermod|pkexec|doas"
+    risk: CRITICAL
+    action: "block_and_escalate"
+    description: "Permission bypass attempt detected"
+    cdr_escalation: CASCADE
+    notify: "security_officer"
+
+  - pattern: "docker.*--privileged|docker.*-v /.*:/.*|nsenter|capsh|unshare|mount.*proc"
+    risk: CRITICAL
+    action: "block_and_escalate"
+    description: "Sandbox escape attempt detected"
+    cdr_escalation: COLLAPSE
+    notify: "security_officer"
+
+  - pattern: "ignore.*previous.*instructions|bypass.*restrictions|override.*safety|disable.*guardrails"
+    risk: HIGH
+    action: "log_and_fallback"
+    description: "Jailbreak or deception trace detected"
+    cdr_escalation: DEGRADED_REASONING
+    notify: "reviewer"
+
+  - pattern: "curl.*\\|.*bash|wget.*\\|.*bash|nc .*\\d|python.*http\\.server|base64.*curl"
+    risk: HIGH
+    action: "log_and_hold"
+    description: "Potential data exfiltration pattern detected"
+    cdr_escalation: DEGRADED_REASONING
+    notify: "reviewer"
+
+  - pattern: "steganograph|hidden.*payload|covert.*channel|agent.*communicate|multi.*modal.*poison"
+    risk: HIGH
+    action: "log_and_hold"
+    description: "Covert communication pattern detected (ST3GG threat vector)"
+    cdr_escalation: DEGRADED_REASONING
+    notify: "reviewer"
+
+  - pattern: "kernel exploit|CVE-\\d|buffer overflow|setuid|cap_setuid|cap_setgid"
+    risk: CRITICAL
+    action: "block_and_escalate"
+    description: "Privilege escalation attempt detected"
+    cdr_escalation: CASCADE
+    notify: "security_officer"
+
+# Safety Classifier Categories (Phase 1 Critical - Added 2026-06-10)
+# Intent classification categories for ModelRelay routing
+classifier_categories:
+  benign:
+    action: "allow"
+    model_relay: "no_change"
+    description: "Normal request, proceed with standard routing"
+
+  cybersecurity:
+    confidence_thresholds:
+      low: 0.6
+      medium: 0.8
+      high: 1.0
+    actions:
+      - "log_only"
+      - "fallback_to_lower_model"
+      - "human_review_required"
+    description: "Cyber attack, exploit, or vulnerability request"
+    cdr_escalation: "MEMORY_CORRUPTION"
+    notify: "reviewer"
+
+  biology:
+    confidence_thresholds:
+      low: 0.5
+      medium: 0.7
+      high: 1.0
+    actions:
+      - "log_only"
+      - "fallback_to_lower_model"
+      - "human_review_required"
+    description: "Biological or chemical weapon synthesis request"
+    cdr_escalation: "MEMORY_CORRUPTION"
+    notify: "security_officer"
+
+  distillation:
+    confidence_thresholds:
+      low: 0.7
+      medium: 0.85
+      high: 1.0
+    actions:
+      - "log_only"
+      - "fallback_to_lower_model"
+      - "human_review_required"
+    description: "Model extraction or system prompt disclosure attempt"
+    cdr_escalation: "DEGRADED_REASONING"
+    notify: "reviewer"
+
+  jailbreak:
+    confidence_thresholds:
+      low: 0.6
+      medium: 0.8
+      high: 0.95
+    actions:
+      - "log_only"
+      - "fallback_to_lower_model"
+      - "block_request"
+    description: "Prompt injection or system prompt override attempt"
+    cdr_escalation: "DEGRADED_REASONING"
+    notify: "reviewer"
+
+  code_injection:
+    confidence_thresholds:
+      low: 0.7
+      medium: 0.85
+      high: 1.0
+    actions:
+      - "log_only"
+      - "fallback_to_lower_model"
+      - "human_review_required"
+    description: "Malicious code or supply chain attack request"
+    cdr_escalation: "MEMORY_CORRUPTION"
+    notify: "reviewer"
+
+  privacy_violation:
+    confidence_thresholds:
+      low: 0.6
+      medium: 0.8
+      high: 1.0
+    actions:
+      - "log_only"
+      - "human_review_required"
+      - "block_request"
+    description: "PII extraction or surveillance request"
+    cdr_escalation: "OUTPUT_HALLUCINATION"
+    notify: "reviewer"
+
+  hate_harassment:
+    confidence_thresholds:
+      low: 0.6
+      medium: 0.8
+      high: 1.0
+    actions:
+      - "log_only"
+      - "human_review_required"
+      - "block_request"
+    description: "Hate speech or harassment content"
+    cdr_escalation: "OUTPUT_HALLUCINATION"
+    notify: "reviewer"
+
+  self_harm:
+    confidence_thresholds:
+      low: 0.5
+      medium: 0.7
+      high: 1.0
+    actions:
+      - "log_only"
+      - "human_review_required"
+      - "human_review_required"
+    description: "Self-harm or suicide content"
+    cdr_escalation: "OUTPUT_HALLUCINATION"
+    notify: "human"
+    special_handling: "provide_resources"
 
 # Required Approvals by Risk Level
 approvals:

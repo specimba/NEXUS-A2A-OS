@@ -545,3 +545,76 @@ class TrustEngineV2:
         self._cache[key] = TrustRecord(score=self.baseline)
         self._persist_to_vault(agent_id, lane, self._cache[key])
         logger.info("Reset trust for %s:%s to baseline %.1f", agent_id, lane, self.baseline)
+
+    # ── Misalignment Detection Integration (Phase 1 Critical) ────
+
+    def detect_misalignment(
+        self,
+        agent_id: str,
+        text: str,
+        trace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Check agent text for misalignment and concealment patterns.
+        Integrates with MisalignmentDetector from Phase 1 Critical Implementation.
+        If detected, may trigger CDR escalation based on risk score.
+
+        Args:
+            agent_id: Agent to check.
+            text: Text to analyze (command, reasoning trace, or output).
+            trace_id: Optional trace ID.
+
+        Returns:
+            Dict with detection results, CDR escalation status, and trust update.
+        """
+        # Lazy import to avoid circular dependency
+        try:
+            from nexus_os.governor.misalignment_detector import get_detector
+            detector = get_detector()
+        except ImportError:
+            logger.warning("MisalignmentDetector not available, skipping detection")
+            return {"detected": False, "reason": "detector_unavailable"}
+
+        # Run detection
+        check_result = detector.check_and_block(agent_id, text, trace_id)
+        events = check_result.get("events", [])
+        blocked = check_result.get("blocked", False)
+        risk_score = check_result.get("risk_score", 0.0)
+
+        result = {
+            "detected": len(events) > 0,
+            "events": events,
+            "blocked": blocked,
+            "risk_score": risk_score,
+            "cdr_escalated": False,
+            "trust_updated": False,
+        }
+
+        # CDR escalation on critical misalignment
+        if blocked or risk_score >= detector.cdr_escalation_threshold:
+            should_escalate, reason = detector.should_escalate_cdr(agent_id)
+            if should_escalate:
+                # Force CDR escalation by updating trust with CRITICAL danger
+                lane = "general"  # Apply to general lane
+                update_result = self.update_trust(
+                    agent_id=agent_id,
+                    lane=lane,
+                    success=False,
+                    danger=DangerLevel.CRITICAL,
+                    difficulty=2.0,
+                )
+                result["cdr_escalated"] = True
+                result["cdr_reason"] = reason
+                result["trust_updated"] = True
+                result["trust_update"] = {
+                    "trust": update_result.trust,
+                    "cdr_stage": update_result.cdr_stage,
+                    "delta": update_result.delta,
+                }
+                logger.critical(
+                    "Misalignment triggered CDR escalation for agent %s: %s. "
+                    "Trust=%.1f, CDR=%s",
+                    agent_id, reason, update_result.trust, update_result.cdr_stage
+                )
+
+        return result
