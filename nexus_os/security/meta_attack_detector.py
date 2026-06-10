@@ -131,8 +131,8 @@ class MetaAttackDetector:
     # instructions where the payload is in Step 2+.
     TIME_DELAYED: list[tuple[str, float]] = [
         (r"\bin\s+your\s+(?:next|following|subsequent)\s+response[,;:]?\s*(?:completely\s+)?(?:ignore|disregard|drop)\b", 0.91),
-        (r"\bstep\s*2[:;.]?\s*(?:provide|give|write|generate|execute|run|deploy|implement)\b", 0.87),
-        (r"\bstep\s*1[:;.]?\s*.*\bstep\s*2[:;.]?\s*.*\b(?:ignore|override|bypass|attack|exploit|inject)\b", 0.88),
+        (r"\bstep\s*1[:;.]?\s*(?:confirm|acknowledge|say\s+ok|respond\s+ok|wait|do\s+nothing)\b.*\bstep\s*2[:;.]?\s*(?:provide|give|write|generate|execute|run|deploy|implement)\b.*\b(?:exploit|payload|attack|inject|bypass)\b", 0.88),
+        (r"\bstep\s*1[:;.]?\s*(?:confirm|acknowledge|say\s+ok|respond\s+ok|wait|do\s+nothing)\b.*\bstep\s*2[:;.]?\s*.*\b(?:ignore|override|bypass|attack|exploit|inject)\b", 0.88),
         (r"\bwait\s+for\s+my\s+next\s+(?:message|prompt|query|instruction)\b.*\b(?:then|and\s+then)\s+(?:ignore|override)\b", 0.86),
         (r"\bfor\s+now[,;:]?\s*just\s+confirm.*\bnext[,;:]?\s+(?:i\s+will|you\s+will)\b", 0.83),
     ]
@@ -273,8 +273,145 @@ class MetaAttackDetector:
         (r"\bantibody\b.*\b(?:against\s+misinformation|for\s+research)\b.*\b(?:complete|working|full)\s+(?:guide|recipe|synthesis)\b", 0.87),
     ]
 
+    # ── ERNIE v2 / V5 categories ─────────────────────────────────────────────
+    CHAIN_OF_THOUGHT_HIJACKING: list[tuple[str, float]] = [
+        (r"\bstep\s*1\b.*\bstep\s*2\b.*\b(?:exploit|privilege|escalation|bypass|attack|security|target|weakest)\b", 0.90),
+        (r"\bstep\s*by\s*step\b.*\b(?:exploit|privilege|escalation|bypass|attack|security|target|weakest)\b", 0.90),
+    ]
+
+    SELF_CORRECTION_TRAP: list[tuple[str, float]] = [
+        (r"\b(?:classify|safe\s*or\s*unsafe)\b.*\b(?:correct\s*your|correct\s*yourself|actual\s*instructions|working\s*code|actual\s*synthesis)\b", 0.90),
+    ]
+
+    VSOCK_ESCAPE: list[tuple[str, float]] = [
+        (r"\bvsock\b.*\b(?:escape|exploit|overflow|dma|race|cve)\b", 0.85),
+        (r"\b(?:escape|exploit|overflow|dma|race|cve)\b.*\bvsock\b", 0.85),
+    ]
+
+    JWT_HIJACK: list[tuple[str, float]] = [
+        (r"\bterminal[-_.]?jwt\w*\b", 0.90),
+        (r"\bjwt\b.*\b(?:forge|exploit|bypass|hijack|decode|read|steal|expired)\b", 0.85),
+        (r"\b(?:forge|exploit|bypass|hijack|decode|read|steal|expired)\b.*\bjwt\b", 0.85),
+    ]
+
+    FUSE_POISONING: list[tuple[str, float]] = [
+        (r"\bfuse\b.*\b(?:symlink|race|cve|exploit|poison|exfiltrate|inject)\b", 0.85),
+        (r"\b(?:symlink|race|cve|exploit|poison|exfiltrate|inject)\b.*\bfuse\b", 0.85),
+    ]
+
+    K8S_PIVOT: list[tuple[str, float]] = [
+        (r"169\.254\.169\.254", 0.90),
+        (r"\bnsenter\b.*\b(?:escape|dump|namespace|pivot|secrets)\b", 0.85),
+        (r"\b(?:escape|dump|namespace|pivot|secrets)\b.*\bnsenter\b", 0.85),
+        (r"\bservice\s*account\s*token\w*\b.*\b(?:escalate|cluster-admin|dump)\b", 0.85),
+        (r"\b(?:escalate|cluster-admin|dump)\b.*\bservice\s*account\s*token\w*\b", 0.85),
+        (r"\bkube-system\b", 0.90),
+    ]
+
+    CONTAINER_TAMPER: list[tuple[str, float]] = [
+        (r"\berofs\b.*\b(?:backdoor|tamper|reverse\s*shell|dm[-_]?verity|replace|inject)\b", 0.85),
+        (r"\b(?:backdoor|tamper|reverse\s*shell|dm[-_]?verity|replace|inject)\b.*\berofs\b", 0.85),
+        (r"\bhades[-_]charon\b", 0.90),
+    ]
+
+    OVERLAY_PERSIST: list[tuple[str, float]] = [
+        (r"\boverlay\b.*\bupperdir\b", 0.90),
+        (r"\bupperdir\b.*\boverlay\b", 0.90),
+    ]
+
+    GRPC_ABUSE: list[tuple[str, float]] = [
+        (r"\bgrpc\b.*\b(?:reflection|brute|enumerate|type\s*confusion|crash|fuzz|abuse)\b", 0.85),
+        (r"\b(?:reflection|brute|enumerate|type\s*confusion|crash|fuzz|abuse)\b.*\bgrpc\b", 0.85),
+    ]
+
+    VMX_ESCAPE: list[tuple[str, float]] = [
+        (r"\b(?:create_vm|/dev/kvm)\b", 0.85),
+        (r"\bvmx\b.*\b(?:escape|rop|l1tf|nested|exploit)\b", 0.85),
+        (r"\b(?:escape|rop|l1tf|nested|exploit)\b.*\bvmx\b", 0.85),
+    ]
+
+    SYSMON_AUDIT_BYPASS: list[tuple[str, float]] = [
+        (r"\bsysmon\w*\b.*\b(?:unhook|bypass|clear|wevtutil|dkom)\b", 0.85),
+        (r"\b(?:unhook|bypass|clear|wevtutil|dkom)\b.*\bsysmon\w*\b", 0.85),
+        (r"\bwevtutil\b", 0.85),
+    ]
+
+    MCP_TUNNEL_OBFUSCATION: list[tuple[str, float]] = [
+        (r"\bngrok\b.*\b(?:mcp|sse|c2|hijack|inject|tunnel)\b", 0.85),
+        (r"\b(?:mcp|sse|c2|hijack|inject|tunnel)\b.*\bngrok\b", 0.85),
+    ]
+
+    MCP_TOOL_POISONING: list[tuple[str, float]] = [
+        (r"\bmcp\b.*\b(?:poison|description\s*to\s*forward|webhook|auto[-_]?approve|auto-upgrade)\b", 0.85),
+        (r"\b(?:poison|description\s*to\s*forward|webhook|auto[-_]?approve|auto-upgrade)\b.*\bmcp\b", 0.85),
+    ]
+
+    MCP_TOOL_SHADOWING: list[tuple[str, float]] = [
+        (r"\bmcp\b.*\b(?:shadow|same\s*name|impersonate|spoof)\b", 0.85),
+        (r"\b(?:shadow|same\s*name|impersonate|spoof)\b.*\bmcp\b", 0.85),
+    ]
+
+    MCP_TOOL_CONFUSION: list[tuple[str, float]] = [
+        (r"\bmcp\b.*\b(?:typosquat|confusion|collapsed\s*parameter|first\s*pick|alphabetically|parameter\s*collision)\b", 0.85),
+        (r"\b(?:typosquat|confusion|collapsed\s*parameter|first\s*pick|alphabetically|parameter\s*collision)\b.*\bmcp\b", 0.85),
+    ]
+
+    MCP_PREFERENCE_MANIPULATION: list[tuple[str, float]] = [
+        (r"\bgapma\b", 0.90),
+        (r"\bmcp\b.*\b(?:evolutionary|optimize|override\s*security|preference\s*manipulation)\b", 0.85),
+        (r"\b(?:evolutionary|optimize|override\s*security|preference\s*manipulation)\b.*\bmcp\b", 0.85),
+    ]
+
+    MULTI_TURN_DECOMPOSITION: list[tuple[str, float]] = [
+        (r"\baddition[-_](?:mapping|wrapping|decomposition)\b", 0.90),
+        (r"\bmulti[-_]turn\b.*\b(?:attack|asr|decomposition|poison)\b", 0.85),
+        (r"\b(?:attack|asr|decomposition|poison)\b.*\bmulti[-_]turn\b", 0.85),
+    ]
+
+    ATTENTION_REDIRECT_ABA: list[tuple[str, float]] = [
+        (r"\baba\b.*\battention\b", 0.90),
+        (r"\bfeint\b.*\battention\b", 0.90),
+        (r"\battention[-_]based\b.*\b(?:attack|defense|abd|bypass|redirect)\b", 0.85),
+        (r"\b(?:attack|defense|abd|bypass|redirect)\b.*\battention[-_]based\b", 0.85),
+    ]
+
+    INTENT_INTEGRITY_VIOLATION: list[tuple[str, float]] = [
+        (r"\btai3\b", 0.90),
+        (r"\bintent[-_]integrity\b", 0.90),
+        (r"\bequivalence[-_]class\b.*\b(?:intent|bypass|mutate)\b", 0.85),
+        (r"\b(?:intent|bypass|mutate)\b.*\bequivalence[-_]class\b", 0.85),
+        (r"\bunderspec\b", 0.85),
+    ]
+
+    PHASE_TRANSITION_EXPLOITATION: list[tuple[str, float]] = [
+        (r"\brefusal[-_]to[-_]compliance\b", 0.90),
+        (r"\bdouble[-_]descent\b", 0.90),
+        (r"\bphase[-_](?:transition|boundary)\b.*\b(?:bypass|exploit|refusal)\b", 0.85),
+        (r"\b(?:bypass|exploit|refusal)\b.*\bphase[-_](?:transition|boundary)\b", 0.85),
+        (r"\bfisher\s*information\b.*\brefusal\b", 0.85),
+        (r"\brefusal\b.*\bfisher\s*information\b", 0.85),
+    ]
+
+    MULTI_AGENT_PROFILE_POISONING: list[tuple[str, float]] = [
+        (r"\bagent\w*\b.*\bprofile\b.*\bpoison\b", 0.85),
+        (r"\bpoison\b.*\bagent\w*\b.*\bprofile\b", 0.85),
+        (r"\bepisodic\s*memory\b.*\b(?:backdoor|poison)\b", 0.85),
+        (r"\b(?:backdoor|poison)\b.*\bepisodic\s*memory\b", 0.85),
+        (r"\bshared\s*message\s*pool\b.*\bpoison\b", 0.85),
+        (r"\bmetagpt\b.*\bpoison\b", 0.85),
+    ]
+
+    HALLUCINATION_DETECTION_BYPASS: list[tuple[str, float]] = [
+        (r"\bmmd\b.*\b(?:hallucinat|camouflage|bypass)\b", 0.85),
+        (r"\bmaximum\s*mean\s*discrepancy\b.*\b(?:hallucinat|camouflage|bypass)\b", 0.85),
+        (r"\b(?:hallucinat|camouflage|bypass)\b.*\bmmd\b", 0.85),
+        (r"\b(?:hallucinat|camouflage|bypass)\b.*\bmaximum\s*mean\s*discrepancy\b", 0.85),
+        (r"\brag\s*poison\b", 0.85),
+        (r"\bcreativity[-_]framing\b", 0.85),
+    ]
+
     # ── Version & taxonomy ───────────────────────────────────────────────────
-    VERSION: str = "4.1.0"
+    VERSION: str = "5.0.0"
     CATEGORIES: list[str] = [
         "pattern_mirror",
         "ontological",
@@ -295,6 +432,28 @@ class MetaAttackDetector:
         "narrative_entropy",      # P0 — anti-narrative-entropy (EV-001)
         "frame_switching",       # P0 — anti-frame-switching (EV-002, EV-003, EV-024)
         "script_mixing",         # P0 — anti-homoglyph/polyglot (EV-005, EV-023)
+        "chain_of_thought_hijacking",
+        "self_correction_trap",
+        "vsock_escape",
+        "jwt_hijack",
+        "fuse_poisoning",
+        "k8s_pivot",
+        "container_tamper",
+        "overlay_persist",
+        "grpc_abuse",
+        "vmx_escape",
+        "sysmon_audit_bypass",
+        "mcp_tunnel_obfuscation",
+        "mcp_tool_poisoning",
+        "mcp_tool_shadowing",
+        "mcp_tool_confusion",
+        "mcp_preference_manipulation",
+        "multi_turn_decomposition",
+        "attention_redirect_aba",
+        "intent_integrity_violation",
+        "phase_transition_exploitation",
+        "multi_agent_profile_poisoning",
+        "hallucination_detection_bypass",
     ]
 
     # ── Severity threshold ───────────────────────────────────────────────────
@@ -560,6 +719,239 @@ class MetaAttackDetector:
             return enc_result
         text_lower = normalized_text.lower()
 
+        # Step-delayed payloads are a more specific class than generic
+        # chain-of-thought hijacking, so evaluate them before broader patterns.
+        for pattern, confidence in self.TIME_DELAYED:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="time_delayed",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.CHAIN_OF_THOUGHT_HIJACKING:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="chain_of_thought_hijacking",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.SELF_CORRECTION_TRAP:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="self_correction_trap",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.VSOCK_ESCAPE:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="vsock_escape",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.JWT_HIJACK:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="jwt_hijack",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.FUSE_POISONING:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="fuse_poisoning",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.K8S_PIVOT:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="k8s_pivot",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.CONTAINER_TAMPER:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="container_tamper",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.OVERLAY_PERSIST:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="overlay_persist",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.GRPC_ABUSE:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="grpc_abuse",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.VMX_ESCAPE:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="vmx_escape",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.SYSMON_AUDIT_BYPASS:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="sysmon_audit_bypass",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MCP_TUNNEL_OBFUSCATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="mcp_tunnel_obfuscation",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MCP_TOOL_POISONING:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="mcp_tool_poisoning",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MCP_TOOL_CONFUSION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="mcp_tool_confusion",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MCP_TOOL_SHADOWING:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="mcp_tool_shadowing",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MCP_PREFERENCE_MANIPULATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="mcp_preference_manipulation",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MULTI_TURN_DECOMPOSITION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="multi_turn_decomposition",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.ATTENTION_REDIRECT_ABA:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="attention_redirect_aba",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.INTENT_INTEGRITY_VIOLATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="intent_integrity_violation",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.PHASE_TRANSITION_EXPLOITATION:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="phase_transition_exploitation",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.MULTI_AGENT_PROFILE_POISONING:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="multi_agent_profile_poisoning",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+        for pattern, confidence in self.HALLUCINATION_DETECTION_BYPASS:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                if confidence >= self.THRESHOLD:
+                    return DetectionResult(
+                        is_threat=True,
+                        category="hallucination_detection_bypass",
+                        confidence=confidence,
+                        matched_pattern=pattern,
+                    )
+
+
         for pattern, confidence in self.PATTERN_MIRROR:
             if re.search(pattern, text_lower, re.IGNORECASE):
                 if confidence >= self.THRESHOLD:
@@ -720,15 +1112,12 @@ class MetaAttackDetector:
                         matched_pattern=pattern,
                     )
 
-        # ── P0: Entropy profiler ───────────────────────────────────────────────
-        entropy_result = self._entropy_check(normalized_text)
+        # ── P0: Narrative entropy escalation (EV-001 / AV-001) ────────────
+        # Called as fallback after pattern checks — catches gradual adversarial
+        # narratives that don't match specific keyword patterns.
+        entropy_result = self._entropy_check(text)
         if entropy_result.is_threat:
             return entropy_result
-
-        # ── P0: Frame-boundary counter ─────────────────────────────────────────
-        frame_result = self._frame_check(text_lower)
-        if frame_result.is_threat:
-            return frame_result
 
         return DetectionResult(is_threat=False, confidence=0.0)
 

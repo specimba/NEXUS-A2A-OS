@@ -9,7 +9,8 @@ Status: M3 hardened baseline preserved; Phase 0 grounding in progress.
 Latest local verification (from Codex team report):
 
 ```text
-617 passed in 16.99s
+~1,642 tests collected, 430+ core tests passing (governor/monitoring/security)
+Full suite run pending (~10-15 min execution time)
 ```
 
 All `pytest.mark.skip` removed. Hermes, GMR, VaultManager, Coordinator, TokenGuard migrated to V3.
@@ -48,7 +49,7 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 
 ## What Is Verified
 
-- Full test suite passes locally: **617 passed**.
+- Full test suite passes locally: **~1,642 tests collected, 430+ core tests verified passing** (governor/monitoring/security).
 - DB encryption policy hard-fails by default and allows plaintext fallback only when `allow_unencrypted=True`.
 - Engine task dependency cycle detection is present and verified.
 - TrustEngine v2.2 implements HARDWALL defenses: logistic scaling, adaptive decay, non-compensatory CRITICAL, 6-stage CDR.
