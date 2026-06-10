@@ -144,16 +144,38 @@ Closes the TAMAS tools gap: **240 tools across 12 categories** (vs TAMAS's 211).
 
 ---
 
+## COLD STORAGE POLICY (June 10, 2026)
+
+**Rationale:** NEXUS contains proprietary model weights, adversarial datasets, red-team research, and encrypted credentials. These are valuable intellectual property that must remain air-gapped from public repos.
+
+**Rule:** These directories are `.gitignore` excluded and backed up to `D:\NEXUS_COLD`:
+- `datasets/` (1.07 GB, 1,298 files)
+- `models/` (27.17 GB, 3,236 files)
+- `research/` (1.33 GB, 449 files)
+- `benchmarks/` (2.78 GB, 281 files)
+- `logs/` (minimal, 53 files)
+- `upload/` (0.04 GB, 71 files)
+- `vault/` (minimal, 9 files)
+
+**Total:** ~31.33 GB across 5,397 files
+
+**Backup Tool:** `scripts/cold_storage_backup.py` — Full copy with BLAKE3/SHA-256 verification, manifest generation, pruning (keep last 3).
+
+**Latest Backup:** `D:\NEXUS_COLD\level7_backup_20260610\NEXUS` — Verified 5,397/5,397 files.
+
+---
+
 ## CRITICAL BLOCKERS
 
 1. **Azure sub blocked** — All cloud model routing, Foundry pipelines dead. Need alternative inference strategy.
-2. ~~**2 test import errors**~~ ✅ **FIXED 2026-05-15** — 617/617 passing
+2. ~~**2 test import errors**~~ ✅ **FIXED 2026-05-15** — ~1,642/430+ verified passing
 3. **Dashboard needs real Python governance API** — Still using mock/proxy layer on port 3000
-4. **DoppelGround gitleaks** — Not resolved, blocks public repo flip
+4. ~~**DoppelGround gitleaks**~~ ✅ **RESOLVED 2026-06-10** — False positive from months ago, NOT a current blocker
 5. **Key still in old branches** — master, main branches not scrubbed
 6. **AsyncBridgeExecutor is a stub** — `executor.py:115`, production executor not wired
 7. **CVAVerifier is a stub** — `governor/base.py:329`, CVA always passes
 8. **43 repair scripts in scripts/** — evidence of ongoing breakage cycles
+9. **Cold storage operational** — D:\NEXUS_COLD level7 backup created (31.33 GB, 5,397 files)
 
 ---
 

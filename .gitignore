@@ -66,3 +66,70 @@ server.log
 # Local hygiene backup artifacts stay inspectable on disk but off Git.
 /docs/handoff/nexus-tidiness/**/tracked-diff-before.patch
 /docs/handoff/nexus-tidiness/**/c-tmp-recursive-files.csv
+
+# ── NEXUS COLD STORAGE POLICY — CONFIDENTIAL IP ──────────────────────
+# These directories contain NEXUS proprietary data, model weights,
+# research artifacts, and training datasets. They MUST NOT be committed
+# to any public or private Git repository. Backups go to D:\NEXUS_COLD.
+#
+# Rationale:
+#   /datasets/    — Training/evaluation datasets (stress lab, TAMAS, v1-v6)
+#   /models/      — Model weights, GGUF, safetensors, adapters (26+ GB)
+#   /research/    — Raw research papers, red-team material, DERDDRE sources
+#   /benchmarks/  — Generated benchmark datasets, evaluation outputs
+#   /logs/        — Runtime logs, forensics, audit trails
+#   /backups/     — Local backup snapshots
+#   /upload/      — Uploaded files from external teams (may contain secrets)
+#   /vault/       — Encrypted secrets, API keys, credentials
+#
+# Backup command: python scripts/cold_storage_backup.py
+# Restore command: python scripts/cold_storage_restore.py
+# ----------------------------------------------------------------------
+/datasets/
+/models/
+/research/
+/benchmarks/
+/logs/
+/backups/
+/upload/
+/vault/
+
+# Temporary work files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Session-specific agent work files (per-agent, not canonical)
+.session/
+.agents/
+.devin/
+.grok/
+.gemini/
+.playwright-mcp/
+
+# NEXUS-specific generated artifacts
+nexus_os.egg-info/
+nexus_os_untracked_backup/
+nexus_os_shadow_backup/
+nexus-os-v2/
+unsloth_compiled_cache/
+
+# Large archive files (backed up to cold storage)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Binary model files (always cold storage)
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+*.npy
+*.npz

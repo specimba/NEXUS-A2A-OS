@@ -87,17 +87,18 @@ Port 3000 — Full 8-pillar command center:
 
 ## Critical Blockers
 
-1. DoppelGround leak status must be resolved before external handoff or public repo flip.
+1. ~~DoppelGround leak status must be resolved before external handoff or public repo flip.~~ ✅ **RESOLVED 2026-06-10** — False positive from months ago, NOT a current blocker.
 2. Dashboard/relay still needs real governance API wiring.
 3. GSPP reference assets need reconciliation before they become canonical.
 4. Public launch files still need security/legal review before staging.
 5. Sandbox/mock env files must not be committed without an explicit policy decision.
+6. **Cold storage operational** — D:\NEXUS_COLD level7 backup (31.33 GB, 5,397 files) with BLAKE3/SHA-256 verification.
 
 ## Canonical P0 Sequence
 
 1. Reverify the test baseline before core commits.
 2. Keep Git clean with explicit-path staging only.
-3. Triage DoppelGround gitleaks report to real secret vs false positive.
+3. ~~Triage DoppelGround gitleaks report to real secret vs false positive.~~ ✅ **RESOLVED** — False positive, NOT a blocker.
 4. Add or update a canonical integration ledger for repos, ports, APIs, and protected files.
 5. Build Python/FastAPI governance endpoints: `/skills/propose`, `/skills/status/{id}`, `/dashboard/stats`, `/governance/proposals`, `/governance/approve`.
 6. Update dashboard/relay to consume the Python governance API.
@@ -114,7 +115,7 @@ Port 3000 — Full 8-pillar command center:
 | 3001 | Next.js Dashboard | HTTP | Reconfigured from 3000 to avoid WSL conflict |
 | 7352 | ModelRelay / Nexus API | HTTP | Node.js, 99 models UP, Arena-calibrated scores |
 | 7353 | TWAVE wrapper (`/twave/*`) | HTTP | Low-VRAM execution layer |
-| 7354 | GROSS MCP Bridge | HTTP | 17 tools, SSE transport, read-only |
+| 7354 | GROSS MCP Bridge | HTTP | 10 tools, SSE transport, read-only, KAIJU 4-variable auth |
 | 7356 | HTML Dashboard | HTTP | Quality × Health Matrix |
 | 7357 | God Mode Proxy v3 | HTTP | FastAPI, 7 profiles, GLM 5.1 selected |
 | 11434 | Local Ollama | HTTP | GPU 8GB VRAM, ~35% utilization |
