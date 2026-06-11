@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from nexus_os.nexusclaw.agent_pool import AgentPool, AgentRecord, AgentStatus, get_agent_pool
 from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope, RiskLevel
-from nexus_os.nexusclaw.worklog import WorklogSystem
+from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
 from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
 
 logger = logging.getLogger("nexusclaw.task_router")
@@ -103,7 +103,7 @@ class TaskRouter:
         memory_channels: Optional[MemoryChannelManager] = None,
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
-        self.worklog = worklog or WorklogSystem()
+        self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
         self._assignments: Dict[str, List[TaskAssignment]] = {}
         self._lock = threading.RLock()

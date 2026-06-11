@@ -81,49 +81,58 @@ class AgentRecord:
     success_count: int = 0
     failure_count: int = 0
 
+    def __post_init__(self) -> None:
+        self._lock = threading.RLock()
+
     @property
     def success_rate(self) -> float:
-        if self.task_count == 0:
-            return 0.0
-        return self.success_count / self.task_count
+        with self._lock:
+            if self.task_count == 0:
+                return 0.0
+            return self.success_count / self.task_count
 
     @property
     def is_available(self) -> bool:
-        return self.status in {AgentStatus.ONLINE, AgentStatus.DEGRADED}
+        with self._lock:
+            return self.status in {AgentStatus.ONLINE, AgentStatus.DEGRADED}
 
     def is_trusted(self, threshold: float = 60.0) -> bool:
-        return self.trust_score >= threshold
+        with self._lock:
+            return self.trust_score >= threshold
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "agent_id": self.agent_id,
-            "name": self.name,
-            "agent_type": self.agent_type.value,
-            "status": self.status.value,
-            "trust_score": self.trust_score,
-            "lane": self.lane,
-            "capabilities": [c.to_dict() for c in self.capabilities],
-            "metadata": self.metadata,
-            "registered_at": self.registered_at,
-            "last_heartbeat": self.last_heartbeat,
-            "task_count": self.task_count,
-            "success_count": self.success_count,
-            "failure_count": self.failure_count,
-            "success_rate": self.success_rate,
-            "is_available": self.is_available,
-        }
+        with self._lock:
+            return {
+                "agent_id": self.agent_id,
+                "name": self.name,
+                "agent_type": self.agent_type.value,
+                "status": self.status.value,
+                "trust_score": self.trust_score,
+                "lane": self.lane,
+                "capabilities": [c.to_dict() for c in self.capabilities],
+                "metadata": self.metadata,
+                "registered_at": self.registered_at,
+                "last_heartbeat": self.last_heartbeat,
+                "task_count": self.task_count,
+                "success_count": self.success_count,
+                "failure_count": self.failure_count,
+                "success_rate": self.success_rate,
+                "is_available": self.is_available,
+            }
 
     def heartbeat(self) -> None:
         """Update last heartbeat timestamp."""
-        self.last_heartbeat = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            self.last_heartbeat = datetime.now(timezone.utc).isoformat()
 
     def record_task(self, success: bool) -> None:
         """Record a task outcome."""
-        self.task_count += 1
-        if success:
-            self.success_count += 1
-        else:
-            self.failure_count += 1
+        with self._lock:
+            self.task_count += 1
+            if success:
+                self.success_count += 1
+            else:
+                self.failure_count += 1
 
 
 class AgentPool:
@@ -256,7 +265,10 @@ class AgentPool:
             agents = [a for a in agents if a.is_available and a.is_trusted(min_trust)]
 
             if lane:
-                agents = [a for a in agents if a.lane == lane]
+                agents = [
+                    a for a in agents 
+                    if a.lane == lane or any(lane in cap.lanes for cap in a.capabilities if cap.name == capability_name)
+                ]
 
             # Sort by trust score (descending) then success rate
             agents.sort(key=lambda a: (a.trust_score, a.success_rate), reverse=True)

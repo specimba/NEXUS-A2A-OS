@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 from nexus_os.nexusclaw.coordinator import NexusClawCoordinator
 from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope
 from nexus_os.nexusclaw.messaging import NEXUSCLAWMessagingHub, MessageResult
-from nexus_os.nexusclaw.worklog import WorklogSystem
+from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
 
 logger = logging.getLogger("nexusclaw.runner")
 
@@ -32,7 +32,7 @@ class NexusClawRunner:
         self.config = config or RunnerConfig()
         self.coordinator = NexusClawCoordinator()
         self.messaging_hub = NEXUSCLAWMessagingHub()
-        self.worklog = WorklogSystem()
+        self.worklog = get_worklog()
         self._running = False
         self._failure_count = 0
         self._archivist_sync_counter = 0

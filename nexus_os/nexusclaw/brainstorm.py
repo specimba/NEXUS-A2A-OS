@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from nexus_os.nexusclaw.agent_pool import AgentPool, AgentRecord, get_agent_pool
 from nexus_os.nexusclaw.envelope import RiskLevel
 from nexus_os.nexusclaw.message_bus import MessageBus, NexusMessage, MessageType, MessagePriority
-from nexus_os.nexusclaw.worklog import WorklogSystem
+from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
 from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
 
 logger = logging.getLogger("nexusclaw.brainstorm")
@@ -169,7 +169,7 @@ class BrainstormEngine:
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
         self.message_bus = message_bus or MessageBus()
-        self.worklog = worklog or WorklogSystem()
+        self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
         self._sessions: Dict[str, BrainstormSession] = {}
         self._lock = threading.RLock()

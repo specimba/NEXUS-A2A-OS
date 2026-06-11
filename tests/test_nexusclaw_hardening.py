@@ -247,3 +247,80 @@ def test_runner_signal_handlers_fallback():
         success = False
 
     assert success is True
+
+
+# ------------------------------------------------------------------
+# Phase 3 Hardening Remediations
+# ------------------------------------------------------------------
+
+def test_agent_pool_capability_lane_filtering(clean_pool):
+    """Verify that AgentPool.find_by_capability matches capabilities in supported lanes."""
+    # Register an agent with primary lane "governance", but capability "audit_specialty" supporting "audit" lane.
+    agent = AgentRecord(
+        agent_id="test-auditor",
+        name="Auditor Agent",
+        agent_type=AgentType.INTERNAL,
+        status=AgentStatus.ONLINE,
+        trust_score=85.0,
+        lane="governance",
+        capabilities=[
+            AgentCapability("audit_specialty", "Audit specialization", {"audit"}, 50.0, "medium")
+        ]
+    )
+    clean_pool.register(agent)
+
+    # Search for capability "audit_specialty" in lane "audit".
+    # Since capability "audit_specialty" has "audit" in its lanes, it should match, even though agent.lane is "governance".
+    results = clean_pool.find_by_capability("audit_specialty", lane="audit", min_trust=50.0)
+    assert len(results) == 1
+    assert results[0].agent_id == "test-auditor"
+
+
+def test_worklog_singleton_sharing(clean_pool, clean_router, clean_bus, clean_brainstorm):
+    """Verify that WorklogSystem get_worklog() singleton correctly shares the archivist queue."""
+    from nexus_os.nexusclaw.worklog import get_worklog
+    wl = get_worklog()
+    
+    # Ensure they all use the same worklog instance
+    assert clean_router.worklog is wl
+    assert clean_bus.worklog is wl
+    assert clean_brainstorm.worklog is wl
+
+    # Initial queue depth
+    initial_depth = wl.queue_depth()
+
+    # Log a task from the router
+    clean_router.worklog.log_task(
+        agent_id="nexus-governor",
+        task_id="task-singleton-test-1",
+        intent="route",
+        status="completed",
+        duration_ms=10.0
+    )
+
+    # Verify queue depth increased in all references, including the singleton reference
+    assert wl.queue_depth() == initial_depth + 1
+    assert clean_bus.worklog.queue_depth() == initial_depth + 1
+    assert clean_brainstorm.worklog.queue_depth() == initial_depth + 1
+
+
+def test_message_bus_pre_loaded_connectors(clean_bus):
+    """Verify that MessageBus pre-loads enabled connectors from NEXUSCLAWMessagingHub."""
+    # Check if Slack, Telegram, or Discord is enabled in the environment
+    from nexus_os.nexusclaw.messaging import NEXUSCLAWMessagingHub
+    import os
+    
+    # Backup
+    orig_env = os.environ.get("TELEGRAM_BOT_TOKEN")
+    os.environ["TELEGRAM_BOT_TOKEN"] = "mock_token"
+    
+    try:
+        # Re-initialize a message bus to trigger default loading
+        bus = MessageBus(agent_pool=clean_bus.agent_pool)
+        # Should have loaded the telegram connector since the token is set
+        assert "telegram" in bus._external_connectors
+    finally:
+        if orig_env is None:
+            del os.environ["TELEGRAM_BOT_TOKEN"]
+        else:
+            os.environ["TELEGRAM_BOT_TOKEN"] = orig_env

@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from nexus_os.nexusclaw.agent_pool import AgentPool, AgentRecord, get_agent_pool
 from nexus_os.nexusclaw.envelope import RiskLevel
-from nexus_os.nexusclaw.worklog import WorklogSystem
+from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
 from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
 
 logger = logging.getLogger("nexusclaw.message_bus")
@@ -137,11 +137,20 @@ class MessageBus:
         memory_channels: Optional[MemoryChannelManager] = None,
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
-        self.worklog = worklog or WorklogSystem()
+        self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
         self._threads: Dict[str, MessageThread] = {}
         self._message_history: collections.deque[NexusMessage] = collections.deque(maxlen=5000)
         self._external_connectors: Dict[str, Any] = {}
+        
+        # Pre-load enabled connectors from NEXUSCLAWMessagingHub
+        from nexus_os.nexusclaw.messaging import NEXUSCLAWMessagingHub
+        hub = NEXUSCLAWMessagingHub()
+        for platform in ["telegram", "slack", "discord"]:
+            connector = hub.get_connector(platform)
+            if connector and connector.config.enabled:
+                self._external_connectors[platform] = connector
+
         self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
