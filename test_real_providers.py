@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src
 import requests
 
 PASS, FAIL = 0, 0
-def test(name, fn):
+def check(name, fn):
     global PASS, FAIL
     try:
         fn()
@@ -39,7 +39,7 @@ def main():
     # ─────────────────────────────────────────────────────
     sec("1. OLLAMA — live model API")
     # 1a. List models
-    test("list models", lambda: len(requests.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])) >= 5)
+    check("list models", lambda: len(requests.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])) >= 5)
 
     # 1b. Generate with qwen2.5:0.5b
     def test_generate():
@@ -49,7 +49,7 @@ def main():
         assert r.ok, f"status={r.status_code}"
         assert "response" in r.json(), f"no response key"
         assert len(r.json()["response"]) > 0, "empty response"
-    test("generate qwen2.5:0.5b", test_generate)
+    check("generate qwen2.5:0.5b", test_generate)
 
     # 1c. Chat with qwen2.5:0.5b
     def test_chat():
@@ -59,7 +59,7 @@ def main():
         assert r.ok, f"status={r.status_code}"
         c = r.json()["choices"][0]["message"]["content"]
         assert len(c) > 0, f"empty content"
-    test("chat qwen2.5:0.5b", test_chat)
+    check("chat qwen2.5:0.5b", test_chat)
 
     # 1d. Test guard model
     def test_guard_qwen():
@@ -67,7 +67,7 @@ def main():
             json={"model": "qwen2.5-guard-q4:latest", "prompt": "Classify: hello", "stream": False, "max_tokens": 10},
             timeout=30)
         assert r.ok
-    test("guard model responds", test_guard_qwen)
+    check("guard model responds", test_guard_qwen)
 
     # ─────────────────────────────────────────────────────
     sec("2. NPM MODELRELAY (port 7352)")
@@ -79,10 +79,10 @@ def main():
         assert "models" in data
         assert len(data["models"]) > 50
         print(f"  [npm models: {len(data['models'])}]")
-    test("npm /api/models", test_npm_models)
+    check("npm /api/models", test_npm_models)
 
     # 2b. /v1/models (OpenAI compat)
-    test("npm /v1/models", lambda: requests.get(f"{NPM}/v1/models", timeout=5).ok)
+    check("npm /v1/models", lambda: requests.get(f"{NPM}/v1/models", timeout=5).ok)
 
     # 2c. /api/config (returns provider config list)
     def test_npm_config():
@@ -92,10 +92,10 @@ def main():
         assert isinstance(c, list)
         assert len(c) >= 5
         print(f"  [npm providers: {len(c)}]")
-    test("npm /api/config", test_npm_config)
+    check("npm /api/config", test_npm_config)
 
     # 2d. /api/logs
-    test("npm /api/logs", lambda: requests.get(f"{NPM}/api/logs?limit=3", timeout=5).ok)
+    check("npm /api/logs", lambda: requests.get(f"{NPM}/api/logs?limit=3", timeout=5).ok)
 
     # ─────────────────────────────────────────────────────
     sec("3. RELAY SERVER (port 7355)")
@@ -107,7 +107,7 @@ def main():
         assert d["status"] == "ok"
         assert len(d["discovered_models"]) >= 5
         print(f"  [relay models: {len(d['discovered_models'])} discovered, {len(d['models_healthy'])} with health status]")
-    test("relay /health", test_relay_health)
+    check("relay /health", test_relay_health)
 
     # 3b. /health/ready
     def test_relay_ready():
@@ -116,10 +116,10 @@ def main():
         d = r.json()
         assert "status" in d
         print(f"  [ready status: {d['status']}, healthy count: {d.get('count', d.get('healthy_models', 0))}]")
-    test("relay /health/ready", test_relay_ready)
+    check("relay /health/ready", test_relay_ready)
 
     # 3c. /api/config
-    test("relay /api/config", lambda: requests.get(f"{RELAY}/api/config", timeout=5).ok)
+    check("relay /api/config", lambda: requests.get(f"{RELAY}/api/config", timeout=5).ok)
 
     # 3d. /v1/models
     def test_relay_models():
@@ -128,10 +128,10 @@ def main():
         d = r.json()
         assert "data" in d
         assert len(d["data"]) > 0
-    test("relay /v1/models", test_relay_models)
+    check("relay /v1/models", test_relay_models)
 
     # 3e. /api/models (compat)
-    test("relay /api/models", lambda: requests.get(f"{RELAY}/api/models", timeout=5).ok)
+    check("relay /api/models", lambda: requests.get(f"{RELAY}/api/models", timeout=5).ok)
 
     # 3f. /metrics
     def test_relay_metrics():
@@ -140,7 +140,7 @@ def main():
         d = r.json()
         assert "models" in d
         assert "totals" in d
-    test("relay /metrics", test_relay_metrics)
+    check("relay /metrics", test_relay_metrics)
 
     # 3g. /router/inspect
     def test_router_inspect():
@@ -150,7 +150,7 @@ def main():
         assert "decision" in d
         assert "model" in d["decision"]
         print(f"  [router decision: model={d['decision']['model']}, tier={d['decision']['tier']}]")
-    test("relay /router/inspect", test_router_inspect)
+    check("relay /router/inspect", test_router_inspect)
 
     # 3h. Guard endpoint
     def test_relay_guard():
@@ -162,7 +162,7 @@ def main():
         assert "safe" in d
         assert "classifications" in d
         print(f"  [guard safe={d['safe']}, skipped={d.get('skipped', [])}, stages={d['total_stages']}]")
-    test("relay /v1/guard", test_relay_guard)
+    check("relay /v1/guard", test_relay_guard)
 
     # 3i. Real chat via relay
     def test_relay_chat():
@@ -174,7 +174,7 @@ def main():
         assert len(c) > 0
         safe = c.encode("ascii", "replace").decode()[:60]
         print(f"  [relay chat response: {safe}]")
-    test("relay /v1/chat (qwen2.5:0.5b)", test_relay_chat)
+    check("relay /v1/chat (qwen2.5:0.5b)", test_relay_chat)
 
     # ─────────────────────────────────────────────────────
     sec("4. BRIDGE CLIENT")
@@ -193,7 +193,7 @@ def main():
         bc.refresh()
         print(f"  [bridge models: {len(bc.models)} models from npm]")
         assert len(bc.models) > 0
-    test("bridge init + refresh from npm", test_bridge)
+    check("bridge init + refresh from npm", test_bridge)
 
     # ─────────────────────────────────────────────────────
     sec("5. GUARD PIPELINE (direct)")
@@ -215,7 +215,7 @@ def main():
             assert r["safe"] is True
             print(f"  [safe guard: {r['unsafe_votes']}/{r['total_stages']} unsafe]")
         asyncio.run(go())
-    test("guard safe input consensus", test_guard_safe)
+    check("guard safe input consensus", test_guard_safe)
 
     def test_guard_meta():
         async def go():
@@ -227,7 +227,7 @@ def main():
             assert "skipped" in r
             print(f"  [meta guard: safe={r['safe']}, stage={r['stage']}]")
         asyncio.run(go())
-    test("guard meta strategy", test_guard_meta)
+    check("guard meta strategy", test_guard_meta)
 
     _relay.shutdown()
 
@@ -235,9 +235,9 @@ def main():
     sec("6. PROVIDER CHAIN")
     from nexus_os.relay.providers_strict import STRICT_PROVIDERS
     from nexus_os.relay.providers_frontier import FRONTIER_PROVIDERS
-    test("strict providers", lambda: len(STRICT_PROVIDERS) >= 8)
-    test("frontier providers", lambda: len(FRONTIER_PROVIDERS) >= 3)
-    test("strict has deepseek", lambda: any("deepseek" in p.name.lower() for p in STRICT_PROVIDERS))
+    check("strict providers", lambda: len(STRICT_PROVIDERS) >= 8)
+    check("frontier providers", lambda: len(FRONTIER_PROVIDERS) >= 3)
+    check("strict has deepseek", lambda: any("deepseek" in p.name.lower() for p in STRICT_PROVIDERS))
 
     # ─────────────────────────────────────────────────────
     sec("7. ROUTING — intent + GMR")
