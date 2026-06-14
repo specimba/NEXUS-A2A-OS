@@ -1,0 +1,64 @@
+# NEXUS Phase 6 — Governed MCP Bridge Server
+# Exposes the NEXUS guard cascade as a remote MCP tool server
+# over HTTP/SSE transport on port 7354.
+#
+# Security model:
+#   - Read-only rootfs (runtime data only in /tmp)
+#   - No Linux capabilities, no privilege escalation
+#   - Non-root user
+#   - Default side-effect tools disabled (NEXUS_MCP_ALLOW_SIDE_EFFECTS=false)
+#   - Ollama access via host.docker.internal:11435 only
+#   - Llama.cpp server (granite-guardian L3) via host.docker.internal:11437
+#
+# THREAT MODEL: MCP tools invoked through the bridge are gated by
+# TrustKernel + L0-L3 guard cascade. Side-effect tools (memory, telegram,
+# notion, slack) require explicit operator enable at runtime.
+#
+# USAGE:
+#   docker compose up -d
+#   curl http://localhost:7354/health
+#   curl http://localhost:7354/tools
+
+services:
+  mcp-bridge:
+    build:
+      context: ../..
+      dockerfile: docker/mcp/Dockerfile
+    image: nexus-mcp-bridge:latest
+    container_name: nexus-mcp-bridge
+    restart: unless-stopped
+
+    # ─── Security ───────────────────────────────────────
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    user: "1001:1001"
+    init: true
+    privileged: false
+    stdin_open: false
+    tty: false
+
+    # ─── Resource Limits ────────────────────────────────
+    mem_limit: 512m
+    memswap_limit: 1g
+    cpus: 1
+    pids_limit: 50
+
+    # ─── Network ────────────────────────────────────────
+    ports:
+      - "127.0.0.1:7354:7354"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # ─── Environment ────────────────────────────────────
+    environment:
+      NEXUS_MCP_NAME: "nexus-os-governed-mcp"
+      NEXUS_MCP_VERSION: "0.6-phase6"
+      NEXUS_TRUSTKERNEL_MODE: "real"
+      NEXUS_MCP_ALLOW_SIDE_EFFECTS: "false"
+      OLLAMA_HOST: "http://host.docker.internal:11435"
+
+    # ─── Command ────────────────────────────────────────
+    command: ["python", "-m", "nexus_os.mcp.bridge_server"]
