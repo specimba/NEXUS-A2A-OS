@@ -59,6 +59,21 @@ PROVIDER_CONFIG: Dict[str, Dict[str, Any]] = {
         "rpd_limit": 200,
         "description": "OpenAI direct API for GPT-4 and o-series models.",
     },
+    "internai": {
+        "base_url": "https://chat.intern-ai.org.cn/api/v1",
+        "rpm_limit": 30,
+        "rpd_limit": 500,
+        "key_env_order": [
+            "INTERN_API_KEY",
+            "INTERN_API_KEY_2",
+            "INTERN_OPENCODE_API_KEY",
+            "INTERN_HERMES_API_KEY",
+            "INTERN_KILOCODE_API_KEY",
+            "INTERN_CLAW_API_KEY",
+            "INTERN_ZO_API_KEY",
+        ],
+        "description": "InternAI direct API provider.",
+    },
 }
 
 

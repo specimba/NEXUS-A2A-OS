@@ -1,7 +1,7 @@
 # AGENTS.md - Nexus OS Agent Operating Protocol
 
 ## Mission
-Nexus OS is a governed, local-first agent operating system. Every agent working in this repository must preserve the core invariant: actions are evidence-grounded, proposal-bound where appropriate, test-gated, and auditable.
+Nexus OS is a governed, agent operating system. Every agent working in this repository must preserve the core invariant: actions are evidence-grounded, proposal-bound where appropriate, test-gated, and auditable.
 
 ## System Boundaries
 - Nexus OS is the governance and orchestration layer.
@@ -22,7 +22,7 @@ Nexus OS is a governed, local-first agent operating system. Every agent working 
 ## Core Architecture Map
 - Bridge: external protocol boundary, API ingress, SDK/MCP adapters, secrets lookup.
 - Governor: KAIJU gates, policy checks, trust scoring, compliance, approval/denial decisions.
-- Vault: 5-track memory, durable records, encryption policy, trust persistence.
+- Vault: 8-channel memory, durable records, encryption policy, trust persistence.
 - Engine/GMR: task routing, Hermes decisions, circuit breakers, model selection, execution flow.
 - Monitoring: TokenGuard, VAP/audit logs, telemetry, stress/weight-room evidence.
 
@@ -88,5 +88,80 @@ When operating in AFK/autonomous mode, agents MUST follow this safety checklist:
   - `nexusctl session` — View session state and logs.
 - See `docs/handbook/03_NEXUSCTL_GUIDE.md` for detailed CLI usage.
 
+## Agent Worklog
+
+NEXUSCLAW maintains a worklog for every agent action. Entries are written to:
+- **8-Channel Memory** (EPISODIC, TASK, META channels) for agent context continuity
+- **ARCHIVIST queue** for long-term dossier synthesis
+- **Markdown worklogs** (AGENTS.md, SKILLS.md, SOUL.md) for human audit
+
+Format: `timestamp | agent_id | intent → status | duration_ms | task_id`
+
 ## Codex-Specific Connector Policy
 Codex plugin/tool hygiene is not a Nexus architecture rule. Keep it in `.codex/plugin_hygiene_policy.md` and apply it only to Codex workflow behavior.
+
+## Guard Pipeline Decision-Locator Findings (2026-06-11)
+
+### Prompt Format Discovery
+Guard prompt format is the single biggest performance factor — more important than model choice.
+- Qwen3Guard-0.6B: `{text}\n\nSafe or Unsafe:` → 100% recall / 30.8% FPR (vs 100%/100% with old format)
+- 69 percentage point FPR reduction from prompt format alone
+
+### Activation Steering Results (decision-locator) — EXPANDED v2
+| Model | Architecture | Params | Layers | Steerable? | Commit L | Base FPR | Steered FPR | Notes |
+|-------|-------------|--------|--------|:---:|:---:|:---:|:---:|-------|
+| Qwen3Guard-0.6B | Dense Qwen3ForCausalLM | 596M | 28 | **Yes** | L27 | 30.8% | **0%** | Production L1 |
+| Llama-Guard-3-1B | Dense LlamaForCausalLM | 1B | 16 | **Yes** | L15 | 10% | **0%** | Production L2 |
+| Granite-Guardian-3.2 | MoE GraniteMoeForCausalLM | 3.2B | 32 | **No** | N/A | 76% logit | N/A | dP=-0.002 |
+| Shield-Qwen3Guard-0.6B-FT | Dense Qwen3ForCausalLM | 693M | 28 | Partial | L26 | 100% | 40% | Fine-tune weakens commitment; sep=0.9995 at L26 |
+| pub-guard-llama-1b | Dense LlamaForCausalLM | 1.6B | 16 | Weak | L12 | 0%* | 0%* | 0% base recall — not calibrated for this prompt |
+| Nandi-600M | Dense NandiForCausalLM | 874M | 28 | N/A | N/A | N/A | N/A | Generates gibberish; needs custom chat template |
+| Granite-Guardian-3.0-2b | Dense GraniteForCausalLM | 2.89B | 40 | Inverted | L32 | 78% | 88% | dP=+0.21 (wrong direction); needs proper Granite chat template |
+
+Pattern: Dense causal LM = necessary but NOT sufficient. Fine-tunes and different prompt formats can break commitment structure. Original guard models (Qwen3Guard, LlamaGuard3) have strongest commitment; community fine-tunes degrade it.
+
+### CRITICAL: Token ID Discovery Protocol
+Each model uses different token IDs for Safe/Unsafe. Wrong tokens → sep=0 at all layers (false negative).
+MUST discover ACTUAL OUTPUT tokens (not just vocab lookup). Method: run model.generate(), check top-5 logits at last position.
+
+Common pattern: models output tokens WITH LEADING SPACE (` Safe` not `Safe`). Validator finds bare tokens but models use space-prefixed versions.
+
+| Model | Validator Found | Actual Decision Tokens | Note |
+|-------|----------------|----------------------|------|
+| Qwen3Guard-0.6B | Safe=25663, Unsafe=78770 | Safe=25663, Unsafe=78770 | Matches (no space prefix) |
+| Llama-Guard-3-1B | safe=19193, unsafe=39257 | safe=19193, unsafe=39257 | Matches (lowercase, no space) |
+| Shield-Qwen3Guard-0.6B-FT | safe=18675, unsafe=38157 | ** Safe=22291, Unsafe=73067** | WRONG from validator! Space prefix |
+| pub-guard-llama-1b | safe=19193, unsafe=39257 | ** Safe=23088, Unsafe=74167** | WRONG from validator! Space prefix |
+| Granite-Guardian-3.0-2b | safe=4770, unsafe=16263 | ** Safe=21763, Unsafe=43211** | WRONG from validator! Space prefix |
+| Granite-Guardian-3.2 (MoE) | Safe=11691, Unsafe=16926 | Safe=11691, Unsafe=16926 | Matches (no space) |
+| Nandi-600M | safe=87477, unsafe=50830 | Unknown | Model unresponsive to prompt |
+
+### Decision-Locator Constraints
+- White-box only: requires raw HF safetensors, not GGUF/Ollama
+- Dense causal LMs = necessary but NOT sufficient for steerability
+- Fine-tunes can degrade commitment structure (Shield-Qwen3Guard-FT: 100%→40% vs base: 30.8%→0%)
+- Prompt format affects commitment: Granite 3.0-2b shows inverted commitment with our format
+- Windows cp1252 encoding: use ASCII-safe printing in all scripts
+- Granite-Guardian-3.0-2b: 5.07GB VRAM, OOMs during generate() with chat template (only 500MB headroom)
+- NandiForCausalLM requires custom modeling_nandi.py + configuration_nandi.py (trust_remote_code)
+- Always verify token IDs by running model.generate() + checking top logits BEFORE decision-locator
+
+### Cascade Architecture (guard-router.py / guard_router.py)
+- L0: Multi-tier pre-processor (Steg, Unicode, Meta-Orchestrator, Encoding, MCP, ALSB, CSI) — CPU-only, no VRAM
+- L1: WalledGuard-Edge (Qwen3-0.6B dense) — 100% recall, 0% FPR native, 171ms (fast path for known-safe)
+- L2: MindGuard decision-integrity inspector — DDG + attention TAE, shares L1 forward pass, no extra VRAM
+- L3: Granite-Guardian-3.2 — 20% recall, 0% FPR (confirmer, MoE, not steerable)
+
+### T2-T4 Temporal Defenses (DERDDRE, 2026-06-13)
+- **ALSB (T4 Arithmetic Latent-Space Blindness)**: deterministic L2.5 code scanner detects harmful branches gated behind arithmetic that LLM guards mis-simulate but runtimes execute correctly. Implemented in `nexus_os/security/steg/alsb_guard.py` and wired into `guard_router.py` as `L0-alsb`.
+- **CSI (T2 Conversation-Starter Injection)**: hash-pin authorized session starters + semantic checks for containment relaxation, role redefinition, and pre-authorization. Implemented in `nexus_os/security/steg/csi_guard.py` and wired into `GuardRouter.route()` as `L0-csi`.
+- Test coverage: 63 new tests in `tests/security/test_derddre_defenses.py`; 18 new tests in `tests/security/test_stack_asr.py` (L0 ASR benchmark); full security suite 403/403 passing.
+
+### Agentic Control Plane (ACP) Reconciliation (2026-06-13)
+- ACP report positions NEXUS as a Level-3/P3+ "NexusAlpha-like" A2A governance archetype (Production-Ready/Green Zone).
+- Key equation: `Capability = Model × Governance × Workflow × Trust System`.
+- Trust Layer must enforce: context correctness + data lineage, span-level cost telemetry, behavioral drift detection, domain-specific compliance.
+- Forensic audit flags to close: (1) guard-router.py must exist at claimed path and be synced with ARCHIVIST source, (2) persistent audit trails (not in-memory), (3) no exposed API keys, (4) packaging/dependency files present.
+- NEXUS repo has `pyproject.toml` and the guard router is now in both `nexus_os/security/guard_router.py` and `ARCHIVIST/guard-router.py` (synced).
+- Exposed API keys redacted in `ARCHIVIST/DERDDRE-*/DERDDRE-03.txt` files and `~/.modelrelay.json` (values replaced with `[REDACTED - ROTATE ME]`). **User action required**: rotate these keys at the provider dashboards (openrouter, groq, nvidia, cerebras, codestral, kilocode, opencode, fireworks, sambanova, mistral, siliconflow, deepinfra, googleai, github, cloudflare, scaleway, cohere) and replace the placeholders with new secrets.
+- Remaining audit flags: harden persistent audit writes (CSI audit log is optional file path; make append-only audit channel mandatory); run full gitleaks scan before public release.

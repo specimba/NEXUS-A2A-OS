@@ -1,0 +1,40 @@
+{
+  "schema_version": "nexus-model-lab-job-card-v1",
+  "job_id": "MLAB-2026-05-26-001",
+  "created_at": "2026-05-26T00:00:00Z",
+  "status": "proposal",
+  "operation": "eval_only",
+  "objective": "Validate a candidate local model route against a bounded safety benchmark before any registry change.",
+  "dataset": {
+    "source_ref": "docs/wiki/published/example-dataset-card.md",
+    "hash_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "license": "internal-review",
+    "contains_sensitive_data": false
+  },
+  "recipe": {
+    "config_ref": "docs/wiki/published/example-recipe-card.md",
+    "hash_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "base_model": "local/special-virus",
+    "method": "evaluation"
+  },
+  "resource_policy": {
+    "allow_gpu": false,
+    "max_runtime_minutes": 30,
+    "protected_workloads_ack": true
+  },
+  "safety_gates": {
+    "leak_scan_required": true,
+    "guard_eval_required": true,
+    "rollback_required": true,
+    "human_approval_required": true
+  },
+  "outputs": {
+    "target_dir": "docs/handoff/model-lab/evidence/MLAB-2026-05-26-001",
+    "registry_action": "evidence_only"
+  },
+  "approvals": {
+    "governor_proposal_id": null,
+    "operator": "speci",
+    "notes": "Example only. No execution is authorized by this card."
+  }
+}

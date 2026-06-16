@@ -8,17 +8,20 @@ The Task Router matches tasks to the best available agents based on:
   - Historical success rates
 
 Routing strategies: DIRECT, BROADCAST, BRAINSTORM, REDUNDANT.
-All decisions are logged to worklog and memory channels.
+Includes failure-aware routing (capability mask on failure)
+and 3-tier escalation timeout (retry -> re-route -> rollback).
 """
 
 from __future__ import annotations
 
+import heapq
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from nexus_os.nexusclaw.agent_pool import AgentPool, AgentRecord, AgentStatus, get_agent_pool
 from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope, RiskLevel
@@ -70,6 +73,9 @@ class TaskAssignment:
     expected_duration_ms: float = 0.0
     retry_count: int = 0
     status: str = "pending"
+    escalation_tier: int = 0
+    escalation_timeout_ms: float = 0.0
+    assigned_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class TaskRouter:
@@ -96,6 +102,9 @@ class TaskRouter:
         RoutingStrategy.REDUNDANT: 3,
     }
 
+    FAILURE_EXCLUSION_WINDOW = 60.0
+    ESCALATION_DEFAULTS = {0: 30_000, 1: 60_000, 2: 120_000}
+
     def __init__(
         self,
         agent_pool: Optional[AgentPool] = None,
@@ -106,7 +115,86 @@ class TaskRouter:
         self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
         self._assignments: Dict[str, List[TaskAssignment]] = {}
+        self._task_queue: List[Tuple[int, int, NexusClawTaskEnvelope, RoutingStrategy, Optional[List[str]]]] = []
+        self._queue_counter: int = 0
+        self._failure_history: Dict[str, List[Tuple[float, str]]] = {}
+        self._task_envelopes: Dict[str, Tuple[NexusClawTaskEnvelope, RoutingStrategy, Optional[List[str]]]] = {}
+        self._escalation_monitor: Optional[threading.Thread] = None
+        self._escalation_running = False
+        self._escalation_interval = 5.0
         self._lock = threading.RLock()
+
+    @staticmethod
+    def _priority_for_risk(risk: RiskLevel) -> int:
+        """Map risk level to priority (0=highest, 3=lowest)."""
+        mapping = {
+            RiskLevel.CRITICAL: 0,
+            RiskLevel.HIGH: 1,
+            RiskLevel.MEDIUM: 2,
+            RiskLevel.LOW: 3,
+        }
+        return mapping.get(risk, 3)
+
+    def enqueue(
+        self,
+        task: NexusClawTaskEnvelope,
+        strategy: RoutingStrategy = RoutingStrategy.DIRECT,
+        preferred_agents: Optional[List[str]] = None,
+    ) -> int:
+        """Add a task to the priority queue. Returns queue depth after insertion."""
+        with self._lock:
+            priority = self._priority_for_risk(
+                task.risk_level if isinstance(task.risk_level, RiskLevel) else RiskLevel(str(task.risk_level).lower())
+            )
+            heapq.heappush(
+                self._task_queue,
+                (priority, self._queue_counter, task, strategy, preferred_agents),
+            )
+            self._queue_counter += 1
+            depth = len(self._task_queue)
+            logger.debug("Task %s enqueued (priority=%d, depth=%d)", task.task_id, priority, depth)
+            return depth
+
+    def process_next(self) -> Optional[RoutingDecision]:
+        """Dequeue and route the highest-priority pending task."""
+        with self._lock:
+            if not self._task_queue:
+                return None
+            _, _, task, strategy, preferred_agents = heapq.heappop(self._task_queue)
+        return self.route(task, strategy=strategy, preferred_agents=preferred_agents)
+
+    def drain_queue(
+        self,
+        stop_condition: Optional[Callable[[], bool]] = None,
+        max_batch: int = 0,
+    ) -> List[RoutingDecision]:
+        """Process all (or up to max_batch) queued tasks in priority order."""
+        decisions: List[RoutingDecision] = []
+        while self._task_queue:
+            if stop_condition and stop_condition():
+                break
+            if 0 < max_batch <= len(decisions):
+                break
+            decision = self.process_next()
+            if decision is not None:
+                decisions.append(decision)
+        return decisions
+
+    @property
+    def queue_size(self) -> int:
+        """Number of tasks waiting in the priority queue."""
+        with self._lock:
+            return len(self._task_queue)
+
+    @property
+    def queue_by_priority(self) -> Dict[str, int]:
+        """Count of queued tasks by priority level."""
+        with self._lock:
+            counts: Dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+            for priority, _, _, _, _ in self._task_queue:
+                label = {0: "critical", 1: "high", 2: "medium", 3: "low"}.get(priority, "low")
+                counts[label] += 1
+            return counts
 
     def route(
         self,
@@ -156,6 +244,7 @@ class TaskRouter:
 
             # Step 6: Create assignments and mark agents busy
             self._create_assignments(task, selected, strategy)
+            self._task_envelopes[task.task_id] = (task, strategy, preferred_agents)
 
             # Step 7: Log to worklog and memory
             self._log_routing_decision(decision, task)
@@ -163,7 +252,8 @@ class TaskRouter:
             return decision
 
     def _find_candidates(self, task: NexusClawTaskEnvelope, trust_threshold: float) -> List[AgentRecord]:
-        """Find agents that can handle this task."""
+        """Find agents that can handle this task. Failure-aware: excludes agents
+        who recently failed at matching capabilities (unless no alternative exists)."""
         candidates: List[AgentRecord] = []
         seen: Set[str] = set()
 
@@ -175,7 +265,10 @@ class TaskRouter:
                     seen.add(agent.agent_id)
                     candidates.append(agent)
 
-        # If no capability matches and no explicit capabilities were required, search by lane
+        # If no capability matches, fall back to trusted lane agents — but only
+        # when the task did not explicitly require specific capabilities. When
+        # capabilities are specified, a miss means no trusted agent can fulfill
+        # the requirement, and lane-only fallback would be capability-blind.
         if not candidates and task.lane and not task.required_capabilities:
             agents = self.agent_pool.find_by_lanes({task.lane})
             for agent in agents:
@@ -189,6 +282,16 @@ class TaskRouter:
 
         # Sort by: trust_score desc, success_rate desc, task_count asc (load balancing)
         candidates.sort(key=lambda a: (a.trust_score, a.success_rate, -a.task_count), reverse=True)
+
+        # Failure-aware: deprioritize agents with recent failures on required capabilities
+        if task.required_capabilities and len(candidates) > 1:
+            failure_free = [
+                c for c in candidates
+                if not (self._get_failure_mask(c.agent_id) & set(task.required_capabilities))
+            ]
+            if failure_free:
+                candidates = failure_free
+
         return candidates
 
     def _apply_strategy(
@@ -287,13 +390,31 @@ class TaskRouter:
 
         self._assignments[task.task_id] = assignments
 
+    def _get_failure_mask(self, agent_id: str) -> Set[str]:
+        """Return set of capability names this agent recently failed at."""
+        now = time.monotonic()
+        failures = self._failure_history.get(agent_id, [])
+        return {
+            cap for ts, cap in failures
+            if now - ts < self.FAILURE_EXCLUSION_WINDOW
+        }
+
     def complete_assignment(self, task_id: str, agent_id: str, success: bool) -> None:
         """Mark an assignment as complete and update agent status/trust."""
         with self._lock:
             assignments = self._assignments.get(task_id, [])
+            matched = None
             for assignment in assignments:
                 if assignment.agent_id == agent_id:
                     assignment.status = "completed" if success else "failed"
+                    matched = assignment
+
+            # Failure-aware routing: record capability failures
+            if not success and matched is not None:
+                agent = self.agent_pool.get(agent_id)
+                if agent:
+                    for cap in agent.capabilities:
+                        self._failure_history.setdefault(agent_id, []).append((time.monotonic(), cap.name))
 
             # Update agent status back to online
             self.agent_pool.update_status(agent_id, AgentStatus.ONLINE)
@@ -310,6 +431,7 @@ class TaskRouter:
     def _finalize_task(self, task_id: str) -> None:
         """Finalize a task when all assignments are complete."""
         assignments = self._assignments.pop(task_id, [])
+        self._task_envelopes.pop(task_id, None)
         completed = sum(1 for a in assignments if a.status == "completed")
         failed = sum(1 for a in assignments if a.status == "failed")
         logger.info("Task %s finalized: %d completed, %d failed", task_id, completed, failed)
@@ -359,6 +481,105 @@ class TaskRouter:
                         count += 1
             return count
 
+    # ------------------------------------------------------------------
+    # 3-Tier Escalation Monitor
+    # ------------------------------------------------------------------
+
+    def start_escalation_monitor(self) -> None:
+        """Start the background escalation monitor thread."""
+        with self._lock:
+            if self._escalation_running:
+                return
+            self._escalation_running = True
+            self._escalation_monitor = threading.Thread(
+                target=self._escalation_loop, daemon=True, name="taskrouter-escalation"
+            )
+            self._escalation_monitor.start()
+            logger.info("Escalation monitor started")
+
+    def stop_escalation_monitor(self) -> None:
+        """Stop the background escalation monitor thread."""
+        with self._lock:
+            self._escalation_running = False
+
+    def _escalation_loop(self) -> None:
+        """Background loop that checks for timed-out pending assignments."""
+        while self._escalation_running:
+            self._check_pending_escalations()
+            time.sleep(self._escalation_interval)
+
+    def _check_pending_escalations(self) -> None:
+        """Find and escalate timed-out pending assignments."""
+        with self._lock:
+            now = datetime.now(timezone.utc)
+            for task_id, assignments in list(self._assignments.items()):
+                for a in assignments:
+                    if a.status != "pending":
+                        continue
+                    elapsed_ms = (now - datetime.fromisoformat(a.assigned_at)).total_seconds() * 1000
+                    timeout = self.ESCALATION_DEFAULTS.get(a.escalation_tier, 120_000)
+                    if elapsed_ms >= timeout:
+                        self._escalate_assignment(task_id, a)
+
+    def _escalate_assignment(self, task_id: str, assignment: TaskAssignment) -> None:
+        """Execute 3-tier escalation for a timed-out assignment.
+
+        Tier 0→1 (soft retry): Re-submit same task to same agent, increment retry.
+        Tier 1→2 (re-route): Release failed agent, route to alternative via BROADCAST.
+        Tier 2→3 (rollback): Mark all assignments as failed, finalize the task.
+        """
+        tier = assignment.escalation_tier
+        if tier >= 3:
+            return  # Already at max escalation
+
+        if tier <= 0:
+            # Soft retry: increment retry, keep same agent
+            assignment.retry_count += 1
+            assignment.escalation_tier = 1
+            assignment.assigned_at = datetime.now(timezone.utc).isoformat()
+            logger.info("Escalation Tier 1 (retry): task=%s agent=%s retry=%d", task_id, assignment.agent_id, assignment.retry_count)
+        elif tier == 1:
+            # Re-route: release failed agent, find alternative
+            self.agent_pool.update_status(assignment.agent_id, AgentStatus.ONLINE)
+            assignment.status = "escalated"
+
+            envelope_entry = self._task_envelopes.get(task_id)
+            if envelope_entry:
+                task, strategy, preferred = envelope_entry
+                candidates = self._find_candidates(task, self.RISK_TRUST_THRESHOLDS.get(task.risk_level, 0.0))
+                candidates = [c for c in candidates if c.agent_id != assignment.agent_id]
+                if candidates:
+                    new_agent = candidates[0]
+                    new_assignment = TaskAssignment(
+                        task_id=task_id,
+                        agent_id=new_agent.agent_id,
+                        agent_name=new_agent.name,
+                        assignment_type="re_routed",
+                        retry_count=0,
+                        escalation_tier=2,
+                    )
+                    self._assignments[task_id].append(new_assignment)
+                    self.agent_pool.update_status(new_agent.agent_id, AgentStatus.BUSY)
+                    logger.info("Escalation Tier 2 (re-route): task=%s %s→%s", task_id, assignment.agent_id, new_agent.agent_id)
+                else:
+                    assignment.escalation_tier = 3
+                    self._force_rollback(task_id)
+            else:
+                assignment.escalation_tier = 3
+                self._force_rollback(task_id)
+        elif tier == 2:
+            self._force_rollback(task_id)
+
+    def _force_rollback(self, task_id: str) -> None:
+        """Roll back a task: mark all pending assignments as failed and finalize."""
+        assignments = self._assignments.get(task_id, [])
+        for a in assignments:
+            if a.status == "pending":
+                a.status = "failed"
+            self.agent_pool.update_status(a.agent_id, AgentStatus.ONLINE)
+        self._finalize_task(task_id)
+        logger.warning("Escalation Tier 3 (rollback): task %s force-failed", task_id)
+
     def stats(self) -> Dict[str, Any]:
         """Return router statistics."""
         with self._lock:
@@ -367,10 +588,28 @@ class TaskRouter:
                 1 for assignments in self._assignments.values()
                 for a in assignments if a.status == "pending"
             )
+            qbp = self.queue_by_priority
+            escalated = sum(1 for assignments in self._assignments.values() for a in assignments if a.status == "escalated")
             return {
                 "active_tasks": len(self._assignments),
                 "total_assignments": total_assignments,
                 "pending_assignments": pending,
+                "escalated_assignments": escalated,
                 "agents_in_pool": len(self.agent_pool.list_all()),
                 "available_agents": len(self.agent_pool.list_available()),
+                "queued_tasks": len(self._task_queue),
+                "queued_by_priority": qbp,
+                "escalation_monitor_running": self._escalation_running,
+                "failure_tracked_agents": len(self._failure_history),
             }
+
+
+# Singleton
+_task_router_instance: Optional[TaskRouter] = None
+
+
+def get_task_router() -> TaskRouter:
+    global _task_router_instance
+    if _task_router_instance is None:
+        _task_router_instance = TaskRouter()
+    return _task_router_instance

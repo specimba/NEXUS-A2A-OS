@@ -42,6 +42,7 @@ class QuotaGuard:
         "cerebras": {"requests_per_day": 1000, "type": "requests"},
         "together": {"type": "free_tier"},
         "deepseek": {"type": "free_tier"},
+        "internai": {"requests_per_day": 43200, "type": "requests"},
     }
 
     def __init__(self):

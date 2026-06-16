@@ -1,0 +1,10 @@
+{
+  "command": "wiki check",
+  "generated_at": "2026-05-26T08:10:35.042465+00:00",
+  "issues": [],
+  "passed": true,
+  "root": "C:\\Users\\speci.000\\Documents\\NEXUS\\docs\\wiki",
+  "schema_version": "reviewground-wiki-check-v1",
+  "status": "ok",
+  "total_markdown": 1
+}

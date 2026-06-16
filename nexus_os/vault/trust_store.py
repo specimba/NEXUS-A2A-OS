@@ -23,7 +23,7 @@ class TrustStore:
 
     @warm_path
     def persist_trust(self, agent_id: str, lane: str, alpha: float, beta: float):
-        """Asynchronously flush updated trust to the persistent 5-Track DB."""
+        """Asynchronously flush updated trust to the persistent 8-Channel DB."""
         cache_key = f"{agent_id}::{lane}"
         trust_data = {"alpha": alpha, "beta": beta}
         self._cache[cache_key] = trust_data

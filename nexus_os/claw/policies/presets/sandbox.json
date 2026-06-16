@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Deny-by-default sandbox policy baseline",
+  "trust_level": "HARDWALL",
+  "filesystem_policy": {
+    "read_allowed": ["/home/workdir/artifacts", "/tmp"],
+    "write_allowed": ["/home/workdir/artifacts", "/tmp"],
+    "exec_allowed": []
+  },
+  "process": {
+    "max_processes": 10,
+    "allow_fork": false
+  },
+  "network_policies": [
+    {
+      "name": "deny_all",
+      "enforcement": "deny",
+      "endpoints": [],
+      "rules": []
+    }
+  ]
+}

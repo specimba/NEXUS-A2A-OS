@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Telegram API access policy",
+  "trust_level": "CAUTION",
+  "network_policies": [
+    {
+      "name": "telegram_api",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "api.telegram.org", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/bot*/**", "description": "Bot API read"},
+        {"method": "POST", "path": "/bot*/**", "description": "Bot API write"}
+      ]
+    }
+  ]
+}

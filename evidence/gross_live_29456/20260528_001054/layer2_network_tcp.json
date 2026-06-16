@@ -1,0 +1,218 @@
+[
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 64418,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 64417,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 64415,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 63377,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:58+03:00",
+    "AgeSeconds": 144.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 63358,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 63357,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 63355,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 63354,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 60746,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:08:18+03:00",
+    "AgeSeconds": 184.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 60716,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:00:31+03:00",
+    "AgeSeconds": 651.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 60715,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:00:31+03:00",
+    "AgeSeconds": 651.0
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 58449,
+    "RemoteAddress": "0.0.0.0",
+    "RemotePort": 0,
+    "State": 100,
+    "CreationTime": "2026-05-28T00:01:13+03:00",
+    "AgeSeconds": 609.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 64418,
+    "RemoteAddress": "104.18.29.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 64417,
+    "RemoteAddress": "104.18.29.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 64415,
+    "RemoteAddress": "104.18.29.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:02:20+03:00",
+    "AgeSeconds": 542.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 63377,
+    "RemoteAddress": "104.18.29.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:58+03:00",
+    "AgeSeconds": 144.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 63358,
+    "RemoteAddress": "172.217.168.123",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 63357,
+    "RemoteAddress": "172.217.168.123",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 63355,
+    "RemoteAddress": "172.217.168.123",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 63354,
+    "RemoteAddress": "172.217.168.123",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:36+03:00",
+    "AgeSeconds": 166.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 60746,
+    "RemoteAddress": "104.18.28.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:08:18+03:00",
+    "AgeSeconds": 184.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 60716,
+    "RemoteAddress": "172.217.18.187",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:00:31+03:00",
+    "AgeSeconds": 651.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 60715,
+    "RemoteAddress": "172.217.18.187",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:00:31+03:00",
+    "AgeSeconds": 651.0
+  },
+  {
+    "LocalAddress": "192.168.0.20",
+    "LocalPort": 58449,
+    "RemoteAddress": "104.18.29.234",
+    "RemotePort": 443,
+    "State": 5,
+    "CreationTime": "2026-05-28T00:01:13+03:00",
+    "AgeSeconds": 609.0
+  }
+]

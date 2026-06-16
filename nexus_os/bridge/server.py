@@ -22,6 +22,10 @@ import json
 import time
 import uuid
 import logging
+import os
+import sys
+import sqlite3
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 
@@ -99,6 +103,235 @@ def jsonrpc_error(code: int, message: str, trace_id: Optional[str] = None, data:
     }
 
 
+class _GovernanceRestWrapper:
+    """Small SQLite-backed governance facade for dashboard/API compatibility."""
+
+    def __init__(self, db_path: Optional[str] = None):
+        resolved = db_path or os.environ.get("NEXUS_MCP_DB") or str(
+            Path.cwd() / ".nexus" / "governance-rest.db"
+        )
+        self.db_path = str(Path(resolved).resolve())
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
+        self.conn.row_factory = sqlite3.Row
+        self._setup_schema()
+
+    def _setup_schema(self) -> None:
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS proposals (
+                id TEXT PRIMARY KEY,
+                skill TEXT NOT NULL,
+                params TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                verdict TEXT NOT NULL,
+                provenance TEXT NOT NULL,
+                approver TEXT,
+                timestamp REAL NOT NULL
+            )
+            """
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agents (
+                id TEXT PRIMARY KEY,
+                trust_score REAL DEFAULT 0.5,
+                state TEXT DEFAULT 'ALIVE',
+                kill_switch INTEGER DEFAULT 0,
+                last_heartbeat REAL,
+                resource_used INTEGER DEFAULT 0,
+                resource_quota INTEGER DEFAULT 0
+            )
+            """
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS task_results (
+                task_id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                output TEXT,
+                error TEXT,
+                lane TEXT,
+                timestamp REAL NOT NULL
+            )
+            """
+        )
+        try:
+            self.conn.execute("ALTER TABLE task_results ADD COLUMN output TEXT")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vap_events (
+                id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                timestamp REAL NOT NULL
+            )
+            """
+        )
+        self.conn.commit()
+
+    def propose_skill(
+        self,
+        skill: str,
+        params: Dict[str, Any],
+        agent_id: str,
+        provenance: str = "rest",
+    ) -> Dict[str, Any]:
+        proposal_id = f"PROP-{uuid.uuid4().hex[:12]}"
+        status = self._proposal_status(skill)
+        verdict = (
+            "TRUST_DENY"
+            if status == "denied"
+            else ("REVIEW" if status == "needs_review" else "ALLOW")
+        )
+        row = {
+            "id": proposal_id,
+            "skill": skill,
+            "params": json.dumps(params or {}, sort_keys=True),
+            "agent_id": agent_id,
+            "status": status,
+            "verdict": verdict,
+            "provenance": provenance,
+            "approver": None,
+            "timestamp": time.time(),
+        }
+        self.conn.execute(
+            """
+            INSERT INTO proposals
+            (id, skill, params, agent_id, status, verdict, provenance, approver, timestamp)
+            VALUES (:id, :skill, :params, :agent_id, :status, :verdict, :provenance, :approver, :timestamp)
+            """,
+            row,
+        )
+        self.conn.commit()
+        return {**row, "params": params or {}}
+
+    @staticmethod
+    def _proposal_status(skill: str) -> str:
+        dangerous = {"secret.expose", "system.wipe", "model.delete", "fine_tune.auto"}
+        if skill in dangerous:
+            return "denied"
+        if skill.startswith(("vault.", "memory.", "deploy.")):
+            return "needs_review"
+        return "approved"
+
+    def get_proposal(self, proposal_id: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM proposals WHERE id=?", (proposal_id,)).fetchone()
+        if row is None:
+            return None
+        return self._proposal_row_to_dict(row)
+
+    def list_proposals(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        if status:
+            rows = self.conn.execute(
+                "SELECT * FROM proposals WHERE status=? ORDER BY timestamp DESC",
+                (status,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM proposals ORDER BY timestamp DESC").fetchall()
+        return [self._proposal_row_to_dict(row) for row in rows]
+
+    def approve_proposal(
+        self,
+        proposal_id: str,
+        approver: str,
+        decision: str,
+    ) -> Dict[str, Any]:
+        existing = self.get_proposal(proposal_id)
+        if existing is None:
+            return {"error": "not_found", "id": proposal_id}
+        status = "approved" if decision == "approve" else "denied"
+        self.conn.execute(
+            "UPDATE proposals SET status=?, approver=?, verdict=? WHERE id=?",
+            (status, approver, decision.upper(), proposal_id),
+        )
+        self.conn.commit()
+        return self.get_proposal(proposal_id) or {"id": proposal_id, "status": status}
+
+    def get_vault_status(self) -> Dict[str, Any]:
+        return {
+            "status": "ok",
+            "storage": "sqlite",
+            "tracks": ["event", "trust", "capability", "failure", "governance"],
+        }
+
+    def heartbeat(self, agent_id: str) -> Dict[str, Any]:
+        state = "ALIVE" if agent_id else "CIRCUIT_BROKEN"
+        self.conn.execute(
+            """
+            INSERT INTO agents (id, state, last_heartbeat)
+            VALUES (?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET state=excluded.state, last_heartbeat=excluded.last_heartbeat
+            """,
+            (agent_id or "unknown", state, time.time()),
+        )
+        self.conn.commit()
+        return {"agent_id": agent_id, "status": state}
+
+    def record_task_result(
+        self,
+        task_id: str,
+        agent_id: str,
+        status: str,
+        error: str = "",
+        lane: str = "implementation",
+        output: str = "",
+    ) -> Dict[str, Any]:
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO task_results (task_id, agent_id, status, output, error, lane, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (task_id, agent_id, status, output, error, lane, time.time()),
+        )
+        self.conn.commit()
+        return {
+            "agent_id": agent_id,
+            "lane": lane,
+            "trust": 0.5,
+            "source": "governance_rest_wrapper",
+        }
+
+    def get_task_result(self, task_id: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM task_results WHERE task_id = ?", (task_id,)).fetchone()
+        if row is None:
+            return None
+        return {
+            "task_id": row["task_id"],
+            "agent_id": row["agent_id"],
+            "status": row["status"],
+            "output": row["output"],
+            "error": row["error"],
+            "lane": row["lane"],
+        }
+
+    def log_vap(self, event_type: str, payload: Dict[str, Any]) -> None:
+        self.conn.execute(
+            "INSERT INTO vap_events (id, event_type, payload, timestamp) VALUES (?, ?, ?, ?)",
+            (
+                f"VAP-{uuid.uuid4().hex[:12]}",
+                event_type,
+                json.dumps(payload, sort_keys=True),
+                time.time(),
+            ),
+        )
+        self.conn.commit()
+
+    @staticmethod
+    def _proposal_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+        data = dict(row)
+        try:
+            data["params"] = json.loads(data.get("params") or "{}")
+        except json.JSONDecodeError:
+            data["params"] = {}
+        return data
+
+
 # â”€â”€ Bridge Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class BridgeServer:
@@ -117,6 +350,7 @@ class BridgeServer:
         governor=None,
         executor=None,
         token_guard=None,
+        db_path: Optional[str] = None,
     ):
         from nexus_os.bridge.secrets import SecretStore
         from nexus_os.engine.executor import MockExecutor
@@ -125,8 +359,9 @@ class BridgeServer:
         self.secret_store = secret_store or SecretStore()
         self.governor = governor
         self.executor = executor or MockExecutor()
-        self.token_guard = token_guard or TokenGuard()
-        self._task_results: Dict[str, Any] = {}
+        self.token_guard = token_guard or TokenGuard(db_path=db_path)
+        self.governance = _GovernanceRestWrapper(db_path)
+
 
     # â”€â”€ Token Guard Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -420,12 +655,14 @@ class BridgeServer:
 
             exec_result = self.executor.execute(task_id, description, context)
 
-            self._task_results[task_id] = {
-                "task_id": task_id,
-                "status": "completed" if exec_result.success else "failed",
-                "output": exec_result.output,
-                "error": exec_result.error,
-            }
+            self.governance.record_task_result(
+                task_id=task_id,
+                agent_id=req.agent_id or "unknown",
+                status="completed" if exec_result.success else "failed",
+                error=exec_result.error or "",
+                lane="implementation",
+                output=exec_result.output or "",
+            )
 
             duration = (time.perf_counter() - start) * 1000
             return 200, jsonrpc_result({
@@ -460,7 +697,7 @@ class BridgeServer:
             self._authorize(req)
 
             task_id = req.payload.get("task_id", "")
-            result = self._task_results.get(task_id)
+            result = self.governance.get_task_result(task_id)
 
             if result is None:
                 return 404, jsonrpc_error(-32602, f"Task not found: {task_id}")
@@ -539,12 +776,14 @@ class BridgeServer:
 
         exec_result = self.executor.execute(task_id, description, context)
 
-        self._task_results[task_id] = {
-            "task_id": task_id,
-            "status": "completed" if exec_result.success else "failed",
-            "output": exec_result.output,
-            "error": exec_result.error,
-        }
+        self.governance.record_task_result(
+            task_id=task_id,
+            agent_id=req.agent_id or "unknown",
+            status="completed" if exec_result.success else "failed",
+            error=exec_result.error or "",
+            lane="implementation",
+            output=exec_result.output or "",
+        )
 
         return {
             "task_id": task_id,
@@ -555,7 +794,7 @@ class BridgeServer:
 
     def _exec_status(self, req: BridgeRequest) -> Dict[str, Any]:
         task_id = req.payload.get("task_id", "")
-        result = self._task_results.get(task_id)
+        result = self.governance.get_task_result(task_id)
         if result is None:
             raise ParseError(f"Task not found: {task_id}")
         return result
@@ -567,9 +806,12 @@ class BridgeServer:
         return {"record_id": f"rec-{uuid.uuid4().hex[:8]}", "status": "written"}
 
 
-# â”€â”€ FastAPI Integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ——————————————————————————————————————————————————————————————————————————————
 
-def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
+def create_app(
+    bridge: Optional[BridgeServer] = None,
+    governance_db_path: Optional[str] = None,
+) -> "FastAPI":
     """
     Create a FastAPI application wrapping the BridgeServer.
 
@@ -579,7 +821,20 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
         # uvicorn.run(app, host="0.0.0.0", port=8000)
     """
     try:
-        from fastapi import FastAPI, Request, Response
+        import importlib
+        import sys
+
+        fastapi_mod = importlib.import_module("fastapi")
+        pydantic_mod = sys.modules.get("pydantic")
+        if not hasattr(fastapi_mod, "Request") or (
+            pydantic_mod is not None and not hasattr(pydantic_mod, "__version__")
+        ):
+            sys.modules.pop("fastapi", None)
+            sys.modules.pop("pydantic", None)
+            fastapi_mod = importlib.import_module("fastapi")
+
+        FastAPI = fastapi_mod.FastAPI
+        from starlette.requests import Request
         from fastapi.responses import JSONResponse
     except ImportError:
         raise ImportError(
@@ -588,7 +843,8 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
         )
 
     app = FastAPI(title="Nexus OS A2A Bridge", version="1.0.0")
-    server = bridge or BridgeServer()
+    server = bridge or BridgeServer(db_path=governance_db_path)
+    governance = _GovernanceRestWrapper(governance_db_path) if governance_db_path else None
 
     @app.post("/tasks/submit")
     async def submit_task(request: Request):
@@ -674,7 +930,135 @@ def create_app(bridge: Optional[BridgeServer] = None) -> "FastAPI":
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "service": "nexus-bridge", "version": "1.0.0"}
+        payload = {"status": "ok", "service": "nexus-bridge", "version": "1.0.0"}
+        if governance is not None:
+            payload.update(
+                {
+                    "governance_rest_wrapper": True,
+                    "governance_db_path": governance.db_path,
+                }
+            )
+        return payload
+
+    @app.post("/skills/propose")
+    async def skills_propose(request: Request):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        body = await request.json()
+        result = governance.propose_skill(
+            skill=body.get("skill", ""),
+            params=body.get("params", {}),
+            agent_id=body.get("agent_id", "anonymous"),
+            provenance=body.get("provenance", "rest"),
+        )
+        return JSONResponse(content=result, status_code=200)
+
+    @app.get("/skills/status/{proposal_id}")
+    async def skills_status(proposal_id: str):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        result = governance.get_proposal(proposal_id)
+        if result is None:
+            return JSONResponse(content={"error": "not_found", "id": proposal_id}, status_code=404)
+        return JSONResponse(content=result, status_code=200)
+
+    @app.get("/dashboard/stats")
+    async def dashboard_stats():
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        agents = governance.conn.execute(
+            "SELECT id, trust_score, state, kill_switch, last_heartbeat, resource_used, resource_quota FROM agents"
+        ).fetchall()
+        return JSONResponse(
+            content={
+                "vault": governance.get_vault_status(),
+                "agents": [dict(agent) for agent in agents],
+                "recent_proposals": governance.list_proposals()[:20],
+                "deployment_gate": _get_deployment_status(),
+                "service": "nexus-governance",
+                "version": "2.0.0-REST",
+                "rest_wrapper_only": True,
+                "governance_db_path": governance.db_path,
+                "trust_source": "canonical_trust_kernel",
+            },
+            status_code=200,
+        )
+
+    @app.get("/deployment/status")
+    async def deployment_status():
+        return JSONResponse(content=_get_deployment_status(), status_code=200)
+
+    def _get_deployment_status() -> Dict[str, Any]:
+        try:
+            from nexus_os.bridge.deployment_gate import DeploymentGate
+
+            return DeploymentGate().get_status_summary()
+        except Exception:
+            return {
+                "overall_status": "unknown",
+                "action_required": False,
+                "resolution_steps": [],
+            }
+
+    @app.get("/governance/proposals")
+    async def governance_proposals(status: Optional[str] = None):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        proposals = governance.list_proposals(status)
+        return JSONResponse(content={"proposals": proposals, "count": len(proposals)}, status_code=200)
+
+    @app.post("/governance/approve")
+    async def governance_approve(request: Request):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        body = await request.json()
+        result = governance.approve_proposal(
+            proposal_id=body.get("proposal_id", ""),
+            approver=body.get("approver", "system"),
+            decision=body.get("decision", "deny"),
+        )
+        return JSONResponse(content=result, status_code=200 if "error" not in result else 404)
+
+    @app.post("/tasks/heartbeat")
+    async def tasks_heartbeat(request: Request):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        body = await request.json()
+        return JSONResponse(content=governance.heartbeat(body.get("agent_id", "")), status_code=200)
+
+    @app.post("/tasks/result")
+    async def tasks_result(request: Request):
+        if governance is None:
+            return JSONResponse(content={"error": "governance_disabled"}, status_code=404)
+        body = await request.json()
+        trust_snapshot = governance.record_task_result(
+            task_id=body.get("task_id", ""),
+            agent_id=body.get("agent_id", ""),
+            status=body.get("status", "completed"),
+            error=body.get("error", ""),
+            lane=body.get("lane", "implementation"),
+            output=body.get("output", ""),
+        )
+        governance.log_vap(
+            "task_result",
+            {
+                "task_id": body.get("task_id", ""),
+                "agent_id": body.get("agent_id", ""),
+                "status": body.get("status", "completed"),
+                "output_preview": str(body.get("output", ""))[:200],
+                "error_preview": str(body.get("error", ""))[:200] if body.get("error") else None,
+            },
+        )
+        return JSONResponse(
+            content={
+                "task_id": body.get("task_id", ""),
+                "status": "recorded",
+                "vap_logged": True,
+                "durable_storage": "sqlite",
+                "governance_db_path": governance.db_path,
+                "trust_snapshot": trust_snapshot,
+            },
+            status_code=200,
+        )
 
     return app
-

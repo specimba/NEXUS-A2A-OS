@@ -1,0 +1,13 @@
+{
+  "ProcessId": 29456,
+  "ParentProcessId": 72156,
+  "Name": "grok.exe",
+  "CommandLine": "\"C:\\Users\\speci.000\\.grok\\bin\\grok.exe\"",
+  "CreationDate": "20260527233344.465090+180",
+  "WorkingSetMB": 321.99,
+  "PageFileMB": 0.9,
+  "ThreadCount": 69,
+  "HandleCount": 509,
+  "UserModeTimeSec": 497.77,
+  "KernelModeTimeSec": 178.7
+}

@@ -8,6 +8,13 @@ from nexus_os.mcp.server import (
     create_server,
     handle_request,
 )
+from nexus_os.mcp.client import (
+    GovernedMCPClient,
+    MCPConnectionConfig,
+    MCPCallResult,
+    MCPToolInfo,
+    get_client,
+)
 
 __all__ = [
     "GovernedMCPServer",
@@ -16,4 +23,9 @@ __all__ = [
     "TrustKernelMCPAdapter",
     "create_server",
     "handle_request",
+    "GovernedMCPClient",
+    "MCPConnectionConfig",
+    "MCPCallResult",
+    "MCPToolInfo",
+    "get_client",
 ]

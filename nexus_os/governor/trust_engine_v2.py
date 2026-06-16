@@ -13,7 +13,7 @@ References (verified):
 - Rethinking Reliability of MAS (BFT) (arXiv:2511.10400)
 
 This module implements the full mathematical defenses from the HARDWALL research:
-- Logistic scaling (anti-gaming with difficulty weighting)
+- Logistic scaling (anti-grinding: inverted sigmoid penalizes high-trust agents)
 - Adaptive temporal decay (lambda increases with validator disagreement)
 - Non-compensatory CRITICAL hard block
 - Explicit 6-stage CDR state machine
@@ -199,19 +199,25 @@ class TrustEngineV2:
 
     def logistic_scale(self, trust: float, difficulty: float = 1.0) -> float:
         """
-        Logistic scaling function: f(T) = 1 / (1 + e^(-(T-50)/10)) * difficulty
+        Logistic scaling function: f(T) = 1 / (1 + e^((T-50)/10)) * difficulty
 
-        This makes trust gains progressively harder at higher levels,
-        preventing gaming through volume of easy tasks.
+        Inverted sigmoid anti-grinding defense: high-trust agents receive
+        progressively SMALLER per-success rewards, making it non-linearly
+        harder to max out trust. Low-trust agents retain normal gains to
+        bootstrap reputation. This prevents volume-based gaming.
 
         Args:
-            trust: Current trust score.
+            trust: Current trust score (0-100 display scale, internally 0-1).
             difficulty: Task difficulty multiplier (>= 1.0 for hard tasks).
 
         Returns:
             Scaled trust gain factor in (0, difficulty).
+            trust=25 -> ~0.924 (normal gain)
+            trust=50 -> ~0.500 (moderate gain)
+            trust=75 -> ~0.076 (severely reduced gain)
+            trust=90 -> ~0.018 (minimal gain, near-plateau)
         """
-        base = 1 / (1 + math.exp(-(trust - self.LOGISTIC_CENTER) / self.LOGISTIC_STEEPNESS))
+        base = 1 / (1 + math.exp((trust - self.LOGISTIC_CENTER) / self.LOGISTIC_STEEPNESS))
         return base * difficulty
 
     def adaptive_decay(self, record: TrustRecord, base_lambda: float = 0.02) -> float:
@@ -618,3 +624,26 @@ class TrustEngineV2:
                 )
 
         return result
+
+
+_engine_instance = None
+
+
+def get_trust_engine(vault_manager=None) -> "TrustEngineV2":
+    global _engine_instance
+    if _engine_instance is None:
+        if vault_manager is None:
+            _engine_instance = TrustEngineV2.__new__(TrustEngineV2)
+            _engine_instance.BASELINE_SCORE = 25.0
+            _engine_instance.MAX_SCORE = 99.5
+            _engine_instance.MIN_SCORE = 0.0
+            _engine_instance.SUCCESS_BASE_DELTA = 4.0
+            _engine_instance.FAILURE_DELTA = -10.0
+            _engine_instance.CRITICAL_DELTA = -20.0
+            _engine_instance.LOGISTIC_CENTER = 50.0
+            _engine_instance.BASE_DECAY = 0.02
+            _engine_instance._scores = {}
+            _engine_instance._cdr_stages = {}
+        else:
+            _engine_instance = TrustEngineV2(vault_manager)
+    return _engine_instance

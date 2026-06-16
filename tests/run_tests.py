@@ -25,7 +25,21 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-# Inject pytest compatibility shim before any test imports
+# Detect if real pytest is available in the environment
+has_real_pytest = False
+try:
+    import importlib.util
+    orig_path = sys.path.copy()
+    if str(ROOT / "tests") in sys.path:
+        sys.path.remove(str(ROOT / "tests"))
+    spec = importlib.util.find_spec("pytest")
+    sys.path = orig_path
+    if spec is not None:
+        has_real_pytest = True
+except Exception:
+    pass
+
+# Inject pytest compatibility shim before any test imports (if real pytest is not used)
 import pytest_compat
 sys.modules["pytest"] = pytest_compat
 
@@ -87,17 +101,46 @@ def collect_from_module(module) -> list:
                         def runTest(self):
                             # Instantiate the pytest-style class to provide fixture context
                             instance = cls() if cls.__init__ is object.__init__ else cls()
-                            # Simple fixture: if fn takes 'detector' arg, provide one
+                            # Simple fixture: if fn takes 'detector' or 'vault' arg, provide one
                             import inspect
                             sig = inspect.signature(fn)
                             kwargs = {}
+                            temp_dir = None
                             for param_name in sig.parameters:
                                 if param_name == "self":
                                     continue
                                 if param_name == "detector":
                                     from nexus_os.security.meta_attack_detector import MetaAttackDetector
                                     kwargs["detector"] = MetaAttackDetector()
-                            fn(instance, **kwargs)
+                                if param_name == "vault":
+                                    import tempfile
+                                    from pathlib import Path
+                                    from nexus_os.vault.manager import VaultManager
+                                    temp_dir = tempfile.TemporaryDirectory()
+                                    db_path = Path(temp_dir.name) / "vault.db"
+                                    manager = VaultManager(str(db_path))
+                                    manager.conn.execute("""
+                                        CREATE TABLE IF NOT EXISTS agent_memory_tracks (
+                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            agent_id TEXT NOT NULL,
+                                            lane TEXT NOT NULL,
+                                            track_type TEXT,
+                                            key TEXT NOT NULL,
+                                            value TEXT,
+                                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                            UNIQUE(agent_id, lane, track_type, key)
+                                        )
+                                    """)
+                                    manager.conn.commit()
+                                    kwargs["vault"] = manager
+                            try:
+                                fn(instance, **kwargs)
+                            finally:
+                                if temp_dir is not None:
+                                    try:
+                                        temp_dir.cleanup()
+                                    except Exception:
+                                        pass
                         return runTest
                     case_cls = type(
                         f"{obj.__name__}_{mname}",
@@ -157,6 +200,33 @@ def main():
     else:
         target = tests_dir
         print(f"[INFO] Discovering tests under: {tests_dir}")
+
+    # If real pytest is available, use it instead of our basic shim wrapper
+    if has_real_pytest:
+        print("[INFO] Real pytest detected in environment. Running tests via pytest...")
+        import sys
+        # Restore real pytest to sys.modules
+        import importlib
+        try:
+            # Force reload of pytest to get the real one
+            if "pytest" in sys.modules:
+                del sys.modules["pytest"]
+            real_pytest = importlib.import_module("pytest")
+            sys.modules["pytest"] = real_pytest
+            
+            pytest_args = []
+            if args.verbose:
+                pytest_args.append("-v")
+            if args.filter:
+                pytest_args.append(str(target))
+            else:
+                pytest_args.append(str(tests_dir))
+                
+            sys.exit(real_pytest.main(pytest_args))
+        except Exception as e:
+            print(f"[WARN] Failed to run tests via real pytest: {e}. Falling back to unittest...")
+            # Restore the shim
+            sys.modules["pytest"] = pytest_compat
 
     # Combine both unittest and pytest-style discovery
     suite = unittest.TestSuite()

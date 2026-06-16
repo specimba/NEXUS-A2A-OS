@@ -1,4 +1,4 @@
-"""vault/manager.py — 5-Track Memory & S-P-E-W Hierarchy"""
+"""vault/manager.py — Legacy 5-Track Memory & S-P-E-W Hierarchy (superseded by 8-Channel)"""
 import sqlite3
 import json
 import threading
@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 class VaultManager:
     """
-    Manages the 5-Track Memory Schema for Nexus OS Agents.
+    Manages the legacy 5-Track Memory Schema for Nexus OS Agents (superseded by 8-Channel).
     Tracks: 'event', 'trust', 'capability', 'failure_pattern', 'governance'
     """
     def __init__(self, db_path: str = ":memory:"):
@@ -62,13 +62,13 @@ class VaultManager:
         return json.loads(row['value']) if row else None
         
     def get_agent_profile(self, agent_id: str, lane: str) -> Dict[str, Dict[str, Any]]:
-        """Retrieve the full 5-track profile for an agent in a specific lane."""
+        """Retrieve the full 5-track legacy profile for an agent in a specific lane."""
         cur = self.conn.execute("""
             SELECT track_type, key, value FROM agent_memory_tracks 
             WHERE agent_id=? AND lane=?
         """, (agent_id, lane))
         
-        # Initialize the 5 tracks
+        # Initialize the 5 legacy tracks
         results = {
             'event': {}, 'trust': {}, 'capability': {}, 
             'failure_pattern': {}, 'governance': {}

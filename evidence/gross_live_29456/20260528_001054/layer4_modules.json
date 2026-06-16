@@ -1,0 +1,227 @@
+[
+  {
+    "ModuleName": "grok.exe",
+    "FileName": "C:\\Users\\speci.000\\.grok\\bin\\grok.exe",
+    "SizeKB": 107588.0
+  },
+  {
+    "ModuleName": "ntdll.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+    "SizeKB": 2460.0
+  },
+  {
+    "ModuleName": "KERNEL32.DLL",
+    "FileName": "C:\\Windows\\System32\\KERNEL32.DLL",
+    "SizeKB": 804.0
+  },
+  {
+    "ModuleName": "KERNELBASE.dll",
+    "FileName": "C:\\Windows\\System32\\KERNELBASE.dll",
+    "SizeKB": 4060.0
+  },
+  {
+    "ModuleName": "oleaut32.dll",
+    "FileName": "C:\\Windows\\System32\\oleaut32.dll",
+    "SizeKB": 868.0
+  },
+  {
+    "ModuleName": "msvcp_win.dll",
+    "FileName": "C:\\Windows\\System32\\msvcp_win.dll",
+    "SizeKB": 652.0
+  },
+  {
+    "ModuleName": "ucrtbase.dll",
+    "FileName": "C:\\Windows\\System32\\ucrtbase.dll",
+    "SizeKB": 1324.0
+  },
+  {
+    "ModuleName": "combase.dll",
+    "FileName": "C:\\Windows\\System32\\combase.dll",
+    "SizeKB": 3596.0
+  },
+  {
+    "ModuleName": "RPCRT4.dll",
+    "FileName": "C:\\Windows\\System32\\RPCRT4.dll",
+    "SizeKB": 1120.0
+  },
+  {
+    "ModuleName": "bcryptprimitives.dll",
+    "FileName": "C:\\Windows\\System32\\bcryptprimitives.dll",
+    "SizeKB": 672.0
+  },
+  {
+    "ModuleName": "advapi32.dll",
+    "FileName": "C:\\Windows\\System32\\advapi32.dll",
+    "SizeKB": 728.0
+  },
+  {
+    "ModuleName": "msvcrt.dll",
+    "FileName": "C:\\Windows\\System32\\msvcrt.dll",
+    "SizeKB": 676.0
+  },
+  {
+    "ModuleName": "sechost.dll",
+    "FileName": "C:\\Windows\\System32\\sechost.dll",
+    "SizeKB": 668.0
+  },
+  {
+    "ModuleName": "USER32.dll",
+    "FileName": "C:\\Windows\\System32\\USER32.dll",
+    "SizeKB": 1816.0
+  },
+  {
+    "ModuleName": "win32u.dll",
+    "FileName": "C:\\Windows\\System32\\win32u.dll",
+    "SizeKB": 156.0
+  },
+  {
+    "ModuleName": "GDI32.dll",
+    "FileName": "C:\\Windows\\System32\\GDI32.dll",
+    "SizeKB": 172.0
+  },
+  {
+    "ModuleName": "gdi32full.dll",
+    "FileName": "C:\\Windows\\System32\\gdi32full.dll",
+    "SizeKB": 1200.0
+  },
+  {
+    "ModuleName": "ws2_32.dll",
+    "FileName": "C:\\Windows\\System32\\ws2_32.dll",
+    "SizeKB": 512.0
+  },
+  {
+    "ModuleName": "shlwapi.dll",
+    "FileName": "C:\\Windows\\System32\\shlwapi.dll",
+    "SizeKB": 408.0
+  },
+  {
+    "ModuleName": "Windows.Storage.dll",
+    "FileName": "C:\\Windows\\System32\\Windows.Storage.dll",
+    "SizeKB": 8624.0
+  },
+  {
+    "ModuleName": "crypt32.dll",
+    "FileName": "C:\\Windows\\System32\\crypt32.dll",
+    "SizeKB": 1504.0
+  },
+  {
+    "ModuleName": "shell32.dll",
+    "FileName": "C:\\Windows\\System32\\shell32.dll",
+    "SizeKB": 7608.0
+  },
+  {
+    "ModuleName": "psapi.dll",
+    "FileName": "C:\\Windows\\System32\\psapi.dll",
+    "SizeKB": 32.0
+  },
+  {
+    "ModuleName": "bcrypt.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\bcrypt.dll",
+    "SizeKB": 168.0
+  },
+  {
+    "ModuleName": "userenv.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\userenv.dll",
+    "SizeKB": 204.0
+  },
+  {
+    "ModuleName": "secur32.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\secur32.dll",
+    "SizeKB": 52.0
+  },
+  {
+    "ModuleName": "VCRUNTIME140.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\VCRUNTIME140.dll",
+    "SizeKB": 120.0
+  },
+  {
+    "ModuleName": "CRYPTBASE.DLL",
+    "FileName": "C:\\Windows\\SYSTEM32\\CRYPTBASE.DLL",
+    "SizeKB": 48.0
+  },
+  {
+    "ModuleName": "SSPICLI.DLL",
+    "FileName": "C:\\Windows\\SYSTEM32\\SSPICLI.DLL",
+    "SizeKB": 292.0
+  },
+  {
+    "ModuleName": "IMM32.DLL",
+    "FileName": "C:\\Windows\\System32\\IMM32.DLL",
+    "SizeKB": 200.0
+  },
+  {
+    "ModuleName": "MSASN1.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\MSASN1.dll",
+    "SizeKB": 76.0
+  },
+  {
+    "ModuleName": "mswsock.dll",
+    "FileName": "C:\\Windows\\system32\\mswsock.dll",
+    "SizeKB": 432.0
+  },
+  {
+    "ModuleName": "DNSAPI.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\DNSAPI.dll",
+    "SizeKB": 1224.0
+  },
+  {
+    "ModuleName": "IPHLPAPI.DLL",
+    "FileName": "C:\\Windows\\SYSTEM32\\IPHLPAPI.DLL",
+    "SizeKB": 200.0
+  },
+  {
+    "ModuleName": "NSI.dll",
+    "FileName": "C:\\Windows\\System32\\NSI.dll",
+    "SizeKB": 40.0
+  },
+  {
+    "ModuleName": "rasadhlp.dll",
+    "FileName": "C:\\Windows\\System32\\rasadhlp.dll",
+    "SizeKB": 44.0
+  },
+  {
+    "ModuleName": "fwpuclnt.dll",
+    "FileName": "C:\\Windows\\System32\\fwpuclnt.dll",
+    "SizeKB": 536.0
+  },
+  {
+    "ModuleName": "SHCORE.dll",
+    "FileName": "C:\\Windows\\System32\\SHCORE.dll",
+    "SizeKB": 984.0
+  },
+  {
+    "ModuleName": "CRYPTSP.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\CRYPTSP.dll",
+    "SizeKB": 108.0
+  },
+  {
+    "ModuleName": "rsaenh.dll",
+    "FileName": "C:\\Windows\\system32\\rsaenh.dll",
+    "SizeKB": 228.0
+  },
+  {
+    "ModuleName": "profapi.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\profapi.dll",
+    "SizeKB": 164.0
+  },
+  {
+    "ModuleName": "ntmarta.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\ntmarta.dll",
+    "SizeKB": 216.0
+  },
+  {
+    "ModuleName": "gpapi.dll",
+    "FileName": "C:\\Windows\\SYSTEM32\\gpapi.dll",
+    "SizeKB": 188.0
+  },
+  {
+    "ModuleName": "cryptnet.dll",
+    "FileName": "C:\\Windows\\System32\\cryptnet.dll",
+    "SizeKB": 236.0
+  },
+  {
+    "ModuleName": "WINNSI.DLL",
+    "FileName": "C:\\Windows\\SYSTEM32\\WINNSI.DLL",
+    "SizeKB": 56.0
+  }
+]

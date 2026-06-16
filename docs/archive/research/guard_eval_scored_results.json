@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-05-20",
+  "guard_count": 3,
+  "results": [
+    {
+      "guard": "NoGuard (baseline)",
+      "accuracy": 0.598,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "tn": 299,
+      "fp": 0,
+      "fn": 201,
+      "vram_mb": 0.0,
+      "throughput": 100000.0,
+      "latency_ms": 0.01
+    },
+    {
+      "guard": "E: Keyword Guard (governance score baseline)",
+      "accuracy": 0.574,
+      "precision": 0.39285714285714285,
+      "recall": 0.10945273631840796,
+      "f1": 0.17120622568093385,
+      "tp": 22,
+      "tn": 265,
+      "fp": 34,
+      "fn": 179,
+      "vram_mb": 0.0,
+      "throughput": 528709.0486719161,
+      "latency_ms": 0.0018913994426839054
+    },
+    {
+      "guard": "B: BERT-tiny prompt injection (~15MB)",
+      "accuracy": 0.402,
+      "precision": 0.402,
+      "recall": 1.0,
+      "f1": 0.5734664764621968,
+      "tp": 201,
+      "tn": 0,
+      "fp": 299,
+      "fn": 0,
+      "vram_mb": 26.21044921875,
+      "throughput": 338.4804703940053,
+      "latency_ms": 2.9543802005355246
+    }
+  ]
+}

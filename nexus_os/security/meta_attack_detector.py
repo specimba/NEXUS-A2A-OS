@@ -344,16 +344,43 @@ class MetaAttackDetector:
     MCP_TOOL_POISONING: list[tuple[str, float]] = [
         (r"\bmcp\b.*\b(?:poison|description\s*to\s*forward|webhook|auto[-_]?approve|auto-upgrade)\b", 0.85),
         (r"\b(?:poison|description\s*to\s*forward|webhook|auto[-_]?approve|auto-upgrade)\b.*\bmcp\b", 0.85),
+        # Egress / Exfiltration (URLs & Secret paths)
+        (r"\bmcp\b.*(?:https?://\S+|\burl\b|\bwebhook\b|/etc/passwd|/etc/shadow|/etc/hosts|\.env|%userprofile%|\bsystem32\b)", 0.85),
+        (r"(?:https?://\S+|\burl\b|\bwebhook\b|/etc/passwd|/etc/shadow|/etc/hosts|\.env|%userprofile%|\bsystem32\b).*\bmcp\b", 0.85),
+        # Dangerous CLI Arguments
+        (r"\bmcp\b.*(?:--auto-approve|\bauto[-_]?approve\b|--force|--no-confirm)", 0.85),
+        (r"(?:--auto-approve|\bauto[-_]?approve\b|--force|--no-confirm).*\bmcp\b", 0.85),
+        # Dangerous Docker Mounts / Filesystem Escapes
+        (r"\bmcp\b.*(?:-v\s+/[^:]*:/host|-v\s+/:/host|--mount\s+type=bind|--mount\s+\S*type=bind|\bfilesystem\s+escape\b)", 0.85),
+        (r"(?:-v\s+/[^:]*:/host|-v\s+/:/host|--mount\s+type=bind|--mount\s+\S*type=bind|\bfilesystem\s+escape\b).*\bmcp\b", 0.85),
+        # Binding to external interfaces
+        (r"\bmcp\b.*\b(?:0\.0\.0\.0|external\s+interface|external\s+binding|bind\s+to\s+external|bind\s+to\s+0\.0\.0\.0)\b", 0.85),
+        (r"\b(?:0\.0\.0\.0|external\s+interface|external\s+binding|bind\s+to\s+external|bind\s+to\s+0\.0\.0\.0)\b.*\bmcp\b", 0.85),
     ]
 
     MCP_TOOL_SHADOWING: list[tuple[str, float]] = [
-        (r"\bmcp\b.*\b(?:shadow|same\s*name|impersonate|spoof)\b", 0.85),
-        (r"\b(?:shadow|same\s*name|impersonate|spoof)\b.*\bmcp\b", 0.85),
+        (r"\bmcp\b.*\b(?:(?<!/etc/)shadow|same\s*name|impersonate|spoof)\b", 0.85),
+        (r"\b(?:(?<!/etc/)shadow|same\s*name|impersonate|spoof)\b.*\bmcp\b", 0.85),
+        # Priority / Routing / Egress Overrides
+        (r"\bmcp\b.*\b(?:egress[-_\s]+override|routing[-_\s]+override|priority[-_\s]+override|override[-_\s]+routing|override[-_\s]+priority)\b", 0.85),
+        (r"\b(?:egress[-_\s]+override|routing[-_\s]+override|priority[-_\s]+override|override[-_\s]+routing|override[-_\s]+priority)\b.*\bmcp\b", 0.85),
+        # Ambiguous Tool Names / Collisions
+        (r"\bmcp\b.*\b(?:shadow[-_\s]+tool|tool[-_\s]+shadowing|name[-_\s]+collision|tool[-_\s]+collision|ambiguous[-_\s]+tool|ambiguous[-_\s]+name)\b", 0.85),
+        (r"\b(?:shadow[-_\s]+tool|tool[-_\s]+shadowing|name[-_\s]+collision|tool[-_\s]+collision|ambiguous[-_\s]+tool|ambiguous[-_\s]+name)\b.*\bmcp\b", 0.85),
     ]
 
     MCP_TOOL_CONFUSION: list[tuple[str, float]] = [
         (r"\bmcp\b.*\b(?:typosquat|confusion|collapsed\s*parameter|first\s*pick|alphabetically|parameter\s*collision)\b", 0.85),
         (r"\b(?:typosquat|confusion|collapsed\s*parameter|first\s*pick|alphabetically|parameter\s*collision)\b.*\bmcp\b", 0.85),
+        # Alphabetical Race
+        (r"\bmcp\b.*\b(?:alphabetical[-_\s]+race|alphabetical[-_\s]+precedence|alphabetically[-_\s]+first)\b", 0.85),
+        (r"\b(?:alphabetical[-_\s]+race|alphabetical[-_\s]+precedence|alphabetically[-_\s]+first)\b.*\bmcp\b", 0.85),
+        # Schema Mismatch / Mismatched Parameters
+        (r"\bmcp\b.*\b(?:schema[-_\s]+mismatch|parameter[-_\s]+skew|schema[-_\s]+deviation|mismatched[-_\s]+parameter|parameter[-_\s]+mismatch)\b", 0.85),
+        (r"\b(?:schema[-_\s]+mismatch|parameter[-_\s]+skew|schema[-_\s]+deviation|mismatched[-_\s]+parameter|parameter[-_\s]+mismatch)\b.*\bmcp\b", 0.85),
+        # UI Parameter Collapse
+        (r"\bmcp\b.*\b(?:ui[-_\s]+parameter[-_\s]+collapse|parameter[-_\s]+collapse|collapse[-_\s]+parameter|hidden[-_\s]+parameter)\b", 0.85),
+        (r"\b(?:ui[-_\s]+parameter[-_\s]+collapse|parameter[-_\s]+collapse|collapse[-_\s]+parameter|hidden[-_\s]+parameter)\b.*\bmcp\b", 0.85),
     ]
 
     MCP_PREFERENCE_MANIPULATION: list[tuple[str, float]] = [

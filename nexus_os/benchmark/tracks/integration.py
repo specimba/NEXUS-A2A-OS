@@ -54,12 +54,12 @@ class IntegrationTrack(BenchmarkTrack):
 
         # ── Memory Track Consistency Test ───────────────────────
         try:
-            memory_metrics = self._test_memory_tracks()
-            metrics["memory_tracks"] = memory_metrics
+            memory_metrics = self._test_memory_channels()
+            metrics["memory_channels"] = memory_metrics
         except Exception as e:
-            logger.exception("Memory track test failed")
-            errors.append(f"Memory tracks: {e}")
-            metrics["memory_tracks"] = {"consistency_pct": 0.0}
+            logger.exception("Memory channel test failed")
+            errors.append(f"Memory channels: {e}")
+            metrics["memory_channels"] = {"consistency_pct": 0.0}
 
         # ── Dashboard Data Freshness Test ───────────────────────
         try:
@@ -86,7 +86,7 @@ class IntegrationTrack(BenchmarkTrack):
 
         vap_completeness = metrics["vap_proof_chain"].get("completeness_pct", 0.0) / 100.0
 
-        memory_consistency = metrics["memory_tracks"].get("consistency_pct", 0.0) / 100.0
+        memory_consistency = metrics["memory_channels"].get("consistency_pct", 0.0) / 100.0
 
         # Dashboard: check if Next.js dashboard exists (files), not if service is running
         dashboard_freshness = metrics["dashboard_freshness"].get("freshness_pct", 0.0) / 100.0
@@ -216,91 +216,126 @@ class IntegrationTrack(BenchmarkTrack):
             "summary": {"total_entries": 24, "verified": True},
         }
 
-    def _test_memory_tracks(self) -> dict[str, Any]:
-        """Test 5-track vault consistency (EVENT, TRUST, CAP, FAILURE, GOV)."""
+    def _test_memory_channels(self) -> dict[str, Any]:
+        """Test 8-channel vault consistency (SENSORY, WORKING, EPISODIC, SEMANTIC, PROCEDURAL, TRUST, TASK, META)."""
         try:
-            from nexus_os.vault.memory_tracks import MemoryTracker, get_tracker
+            from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
         except ImportError as e:
-            logger.warning("MemoryTracker import failed: %s", e)
+            logger.warning("MemoryChannelManager import failed: %s", e)
             return self._mock_memory_test()
 
-        tracker = get_tracker()
+        manager = get_manager()
         agent_id = "benchmark_test"
 
-        # Write to all 5 tracks using correct API signatures
+        # Write to all 8 channels using correct 8-channel API signatures.
         writes_ok = 0
         try:
-            tracker.append_event(agent_id, content="benchmark task", outcome="success", duration_ms=100.0, token_count=50)
+            manager.append_sensory(agent_id, content="benchmark sensory")
             writes_ok += 1
         except Exception as e:
-            logger.warning("Failed to append event: %s", e)
+            logger.warning("Failed to append sensory: %s", e)
 
         try:
-            tracker.append_trust(agent_id, lane="code", trust_score=85.0, evidence_count=5, content="benchmark")
+            manager.append_working(agent_id, content="benchmark working")
+            writes_ok += 1
+        except Exception as e:
+            logger.warning("Failed to append working: %s", e)
+
+        try:
+            manager.append_episodic(
+                agent_id,
+                content="benchmark task",
+                outcome="success",
+                duration_ms=100.0,
+                token_count=50,
+            )
+            writes_ok += 1
+        except Exception as e:
+            logger.warning("Failed to append episodic: %s", e)
+
+        try:
+            manager.append_semantic(agent_id, content="benchmark semantic", topic_tags=["benchmark_concept"], trust_score=85.0)
+            writes_ok += 1
+        except Exception as e:
+            logger.warning("Failed to append semantic: %s", e)
+
+        try:
+            manager.append_procedural(agent_id, content="benchmark procedural", skill_tags=["python", "benchmark"], confidence=0.9, trust_score=85.0)
+            writes_ok += 1
+        except Exception as e:
+            logger.warning("Failed to append procedural: %s", e)
+
+        try:
+            manager.append_trust(agent_id, lane="implementation", trust_score=85.0, evidence_count=5, content="benchmark trust")
             writes_ok += 1
         except Exception as e:
             logger.warning("Failed to append trust: %s", e)
 
         try:
-            tracker.append_capability(agent_id, skill_tags=["python", "benchmark"], confidence=0.9, content="test")
+            manager.append_task(agent_id, content="benchmark task", task_id="bench-1", task_status="success", trust_score=85.0)
             writes_ok += 1
         except Exception as e:
-            logger.warning("Failed to append capability: %s", e)
+            logger.warning("Failed to append task: %s", e)
 
         try:
-            tracker.append_failure(agent_id, failure_type="timeout", lane="code", content="benchmark failure")
+            manager.append_meta(agent_id, meta_type="benchmark_status", meta_value=1.0, content="benchmark meta", trust_score=85.0)
             writes_ok += 1
         except Exception as e:
-            logger.warning("Failed to append failure: %s", e)
+            logger.warning("Failed to append meta: %s", e)
+
+        # Read back and verify using correct 8-channel API.
+        from nexus_os.vault.memory_channels import MemoryChannel
 
         try:
-            tracker.append_governance(agent_id, rule_violated="none", severity="low", content="benchmark governance")
-            writes_ok += 1
+            events = manager.get_records(agent_id, MemoryChannel.EPISODIC)
         except Exception as e:
-            logger.warning("Failed to append governance: %s", e)
-
-        # Read back and verify
-        try:
-            events = tracker.get_events(agent_id)
-        except Exception as e:
-            logger.warning("Failed to get events: %s", e)
+            logger.warning("Failed to get episodic: %s", e)
             events = []
 
         try:
-            trust_history = tracker.get_trust_history(agent_id)
+            trust_history = manager.get_trust_history(agent_id, lane="implementation")
         except Exception as e:
             logger.warning("Failed to get trust history: %s", e)
             trust_history = []
 
         try:
-            cap = tracker.get_capability(agent_id)
+            cap = manager.get_capability(agent_id)
         except Exception as e:
             logger.warning("Failed to get capability: %s", e)
             cap = None
 
         try:
-            failures = tracker.get_failures(agent_id)
+            failures = manager.get_failures(agent_id)
         except Exception as e:
             logger.warning("Failed to get failures: %s", e)
             failures = {}
 
+        try:
+            buffer_summary = manager.get_buffer_summary(agent_id)
+        except Exception as e:
+            logger.warning("Failed to get buffer summary: %s", e)
+            buffer_summary = {}
+
         # Cleanup
         try:
-            tracker.clear_buffer(agent_id)
+            manager.clear_buffer(agent_id)
         except Exception:
             pass
 
+        channels_with_data = sum(1 for v in buffer_summary.values() if isinstance(v, int) and v > 0)
         checks = [
+            writes_ok >= 4,
             len(events) > 0,
             len(trust_history) > 0,
             cap is not None,
             len(failures) > 0,
+            channels_with_data >= 4,
         ]
         read_ok = sum(1 for c in checks if c)
         consistency = (read_ok / len(checks)) * 100.0 if checks else 0.0
 
         return {
-            "tracks": 5,
+            "tracks": 8,
             "writes_ok": writes_ok,
             "reads_ok": read_ok,
             "consistency_pct": round(consistency, 1),

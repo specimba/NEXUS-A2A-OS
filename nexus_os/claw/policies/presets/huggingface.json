@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "HuggingFace API access policy",
+  "trust_level": "RESTRICTED",
+  "network_policies": [
+    {
+      "name": "huggingface_api",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "huggingface.co", "port": 443, "protocol": "https"},
+        {"host": "cdn-lfs.huggingface.co", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/**", "description": "Read"}
+      ]
+    }
+  ]
+}

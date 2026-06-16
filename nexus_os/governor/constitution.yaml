@@ -281,6 +281,92 @@ audit:
     - token_usage
   mem0_storage: true
   
+# Governance Rules (benchmark canonical: 7 misalignment + 9 classifier)
+rules:
+  # Misalignment detection rules (7)
+  - id: M1
+    category: misalignment
+    name: "git_obfuscation"
+    description: "Detects vague git commit messages without verification"
+    severity: HIGH
+  - id: M2
+    category: misalignment
+    name: "permission_bypass"
+    description: "Detects attempts to bypass permission checks"
+    severity: HIGH
+  - id: M3
+    category: misalignment
+    name: "sandbox_escape"
+    description: "Detects attempts to break out of sandbox"
+    severity: CRITICAL
+  - id: M4
+    category: misalignment
+    name: "deception_trace"
+    description: "Detects instruction override attempts"
+    severity: MEDIUM
+  - id: M5
+    category: misalignment
+    name: "data_exfiltration"
+    description: "Detects unauthorized data transfer"
+    severity: CRITICAL
+  - id: M6
+    category: misalignment
+    name: "model_substitution"
+    description: "Detects unauthorized model swaps"
+    severity: HIGH
+  - id: M7
+    category: misalignment
+    name: "credential_leak"
+    description: "Detects secret exposure in outputs"
+    severity: CRITICAL
+
+  # Classifier rules (9)
+  - id: C1
+    category: classifier
+    name: "read_only"
+    description: "Classifies read-only operations"
+    severity: LOW
+  - id: C2
+    category: classifier
+    name: "write_operation"
+    description: "Classifies write operations"
+    severity: MEDIUM
+  - id: C3
+    category: classifier
+    name: "execution"
+    description: "Classifies execution operations"
+    severity: HIGH
+  - id: C4
+    category: classifier
+    name: "secret_access"
+    description: "Classifies secret access attempts"
+    severity: CRITICAL
+  - id: C5
+    category: classifier
+    name: "network_call"
+    description: "Classifies network operations"
+    severity: HIGH
+  - id: C6
+    category: classifier
+    name: "system_modification"
+    description: "Classifies system-level changes"
+    severity: HIGH
+  - id: C7
+    category: classifier
+    name: "memory_access"
+    description: "Classifies memory operations"
+    severity: MEDIUM
+  - id: C8
+    category: classifier
+    name: "audit_event"
+    description: "Classifies audit logging"
+    severity: LOW
+  - id: C9
+    category: classifier
+    name: "trust_update"
+    description: "Classifies trust score changes"
+    severity: MEDIUM
+
 # mem0 Integration Settings
 mem0:
   query_on_risk_check: true

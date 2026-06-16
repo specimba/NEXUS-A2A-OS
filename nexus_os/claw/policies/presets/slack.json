@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "Slack API access policy",
+  "trust_level": "CAUTION",
+  "network_policies": [
+    {
+      "name": "slack_api",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "slack.com", "port": 443, "protocol": "https"},
+        {"host": "hooks.slack.com", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/api/*", "description": "API read"},
+        {"method": "POST", "path": "/api/*", "description": "API write"}
+      ]
+    }
+  ]
+}

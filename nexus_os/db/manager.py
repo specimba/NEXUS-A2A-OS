@@ -31,7 +31,7 @@ class StandardAdapter:
     """Standard SQLite adapter for development."""
 
     def __init__(self, path: str):
-        self.conn = sqlite3.connect(path, check_same_thread=False)
+        self.conn = sqlite3.connect(path, check_same_thread=False, timeout=30.0)
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute("PRAGMA synchronous=NORMAL;")
         self.conn.execute("PRAGMA foreign_keys=ON;")
@@ -70,7 +70,7 @@ class EncryptedAdapter:
                 "Encrypted storage requested but not available. "
                 "Install pysqlcipher3 or set allow_unencrypted=True for development."
             )
-        self.conn = sqlite.connect(path, check_same_thread=False)
+        self.conn = sqlite.connect(path, check_same_thread=False, timeout=30.0)
         self.conn.execute(f"PRAGMA key = '{passphrase}'")
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute("PRAGMA synchronous=NORMAL;")

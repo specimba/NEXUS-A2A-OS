@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+"""
+test_archivist_integrity.py
+NEXUS OS — Archivist Integrity Gate v1.0
+Enforces 4-layer truth model and canonical references.
+
+Usage: python test_archivist_integrity.py --graph-dir ./NEXUS_KNOWLEDGE_GRAPH
+Exit code 0 = pass, 1 = fail (for pre-commit hook)
+"""
+
+import os
+import re
+import sys
+import yaml
+import hashlib
+from pathlib import Path
+from datetime import datetime
+import json
+import argparse
+
+# NEXUS OS Constants
+TRUTH_LAYERS = ["SOURCE", "EXTRACTED", "INFERRED", "CANONICAL"]
+CANONICAL_FILES = [
+    "01_PROJECT_STATE.md",
+    "DECISION_LOG.md",
+    "DECISION_LOG_002.md",
+    "AGENT_BRIEFING_HANDBOOK.md",
+    "NEXUS_OS_PROJECT_OVERVIEW_1.md"
+]
+REQUIRED_FIELDS = ["id", "type", "truth_layer", "created", "verified"]
+OPTIONAL_BUT_RECOMMENDED = ["canonical_ref", "confidence", "provenance", "links"]
+
+class ArchivistIntegrityGate:
+    def __init__(self, graph_dir):
+        self.graph_dir = Path(graph_dir)
+        self.nodes_dir = self.graph_dir / "Nodes"
+        self.errors = []
+        self.warnings = []
+        self.stats = {"total": 0, "passed": 0, "failed": 0}
+        self.seen_ids = set()
+        
+    def parse_frontmatter(self, content):
+        """Extract YAML frontmatter from markdown"""
+        match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+        if not match:
+            return None, content
+        try:
+            frontmatter = yaml.safe_load(match.group(1))
+            body = content[match.end():]
+            return frontmatter, body
+        except yaml.YAMLError as e:
+            return None, content
+    
+    def validate_node(self, filepath):
+        """Validate single node against NEXUS rules"""
+        self.stats["total"] += 1
+        node_name = filepath.name
+        
+        try:
+            content = filepath.read_text(encoding='utf-8', errors='ignore')
+        except Exception as e:
+            self.errors.append(f"{node_name}: Cannot read file - {e}")
+            self.stats["failed"] += 1
+            return False
+        
+        frontmatter, body = self.parse_frontmatter(content)
+        
+        if not frontmatter:
+            self.errors.append(f"{node_name}: Missing or invalid YAML frontmatter")
+            self.stats["failed"] += 1
+            return False
+        
+        # Rule 1: Required fields
+        for field in REQUIRED_FIELDS:
+            if field not in frontmatter:
+                self.errors.append(f"{node_name}: Missing required field '{field}'")
+                self.stats["failed"] += 1
+                return False
+        
+        # Rule 2: Truth layer validation
+        truth_layer = frontmatter.get("truth_layer")
+        if truth_layer not in TRUTH_LAYERS:
+            self.errors.append(
+                f"{node_name}: Invalid truth_layer '{truth_layer}'. "
+                f"Must be one of {TRUTH_LAYERS}"
+            )
+            self.stats["failed"] += 1
+            return False
+        
+        # Rule 3: Unique ID
+        node_id = frontmatter.get("id")
+        if node_id in self.seen_ids:
+            self.errors.append(f"{node_name}: Duplicate ID '{node_id}'")
+            self.stats["failed"] += 1
+            return False
+        self.seen_ids.add(node_id)
+        
+        # Rule 4: Canonical reference enforcement (INV4 from Trust Scoring)
+        if truth_layer in ["INFERRED", "CANONICAL"]:
+            canonical_ref = frontmatter.get("canonical_ref")
+            if not canonical_ref:
+                self.errors.append(
+                    f"{node_name}: {truth_layer} nodes must have 'canonical_ref'"
+                )
+                self.stats["failed"] += 1
+                return False
+            
+            # Check if canonical ref exists (simplified check)
+            if not any(cf in str(canonical_ref) for cf in CANONICAL_FILES):
+                self.warnings.append(
+                    f"{node_name}: canonical_ref '{canonical_ref}' doesn't match "
+                    f"known canonical files. Verify manually."
+                )
+        
+        # Rule 5: Confidence score validation
+        confidence = frontmatter.get("confidence")
+        if confidence is not None:
+            try:
+                conf_float = float(confidence)
+                if not 0.0 <= conf_float <= 1.0:
+                    self.errors.append(
+                        f"{node_name}: confidence {confidence} out of range [0,1]"
+                    )
+                    self.stats["failed"] += 1
+                    return False
+                # Rule 5b: INFERRED nodes should have confidence < 0.9
+                if truth_layer == "INFERRED" and conf_float >= 0.9:
+                    self.warnings.append(
+                        f"{node_name}: INFERRED node with high confidence ({confidence}). "
+                        f"Consider promoting to CANONICAL or lowering confidence."
+                    )
+            except (ValueError, TypeError):
+                self.errors.append(f"{node_name}: Invalid confidence value")
+                self.stats["failed"] += 1
+                return False
+        
+        # Rule 6: Provenance for SOURCE nodes
+        if truth_layer == "SOURCE":
+            provenance = frontmatter.get("provenance")
+            if not provenance:
+                self.warnings.append(
+                    f"{node_name}: SOURCE nodes should have 'provenance' field"
+                )
+        
+        # Rule 7: Verified flag
+        verified = frontmatter.get("verified")
+        if verified is not True and verified != "TRUE":
+            self.warnings.append(f"{node_name}: verified != TRUE")
+        
+        # Rule 8: Check for broken wiki links
+        wiki_links = re.findall(r'\[\[(.*?)\]\]', body)
+        for link in wiki_links:
+            # Skip external links and anchors
+            if "://" in link or link.startswith("#"):
+                continue
+            # Check if target exists (simplified)
+            target = self.nodes_dir / f"{link}.md"
+            if not target.exists() and not any(cf in link for cf in CANONICAL_FILES):
+                self.warnings.append(
+                    f"{node_name}: Wiki link [[{link}]] target not found"
+                )
+        
+        self.stats["passed"] += 1
+        return True
+    
+    def run(self):
+        """Run integrity check on all nodes"""
+        print("=" * 70)
+        print("NEXUS ARCHIVIST INTEGRITY GATE v1.0")
+        print(f"Scanning: {self.nodes_dir}")
+        print(f"Time: {datetime.now().isoformat()}")
+        print("=" * 70)
+        
+        if not self.nodes_dir.exists():
+            print(f"ERROR: Nodes directory not found: {self.nodes_dir}")
+            return False
+        
+        md_files = list(self.nodes_dir.glob("*.md"))
+        print(f"Found {len(md_files)} nodes to validate\n")
+        
+        for filepath in sorted(md_files):
+            self.validate_node(filepath)
+        
+        # Generate report
+        print("\n" + "=" * 70)
+        print("RESULTS")
+        print("=" * 70)
+        print(f"Total nodes:   {self.stats['total']}")
+        print(f"Passed:        {self.stats['passed']}")
+        print(f"Failed:        {self.stats['failed']}")
+        print(f"Errors:        {len(self.errors)}")
+        print(f"Warnings:      {len(self.warnings)}")
+        
+        if self.errors:
+            print("\n--- ERRORS (Must fix) ---")
+            for err in self.errors[:20]:  # Show first 20
+                print(f"  ✗ {err}")
+            if len(self.errors) > 20:
+                print(f"  ... and {len(self.errors) - 20} more")
+        
+        if self.warnings:
+            print("\n--- WARNINGS (Review recommended) ---")
+            for warn in self.warnings[:15]:
+                print(f"  ⚠ {warn}")
+            if len(self.warnings) > 15:
+                print(f"  ... and {len(self.warnings) - 15} more")
+        
+        # Generate VAP-compatible audit log
+        audit = {
+            "timestamp": datetime.now().isoformat(),
+            "gate": "archivist_integrity_v1",
+            "stats": self.stats,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "sha256": self._compute_graph_hash(),
+            "status": "PASS" if not self.errors else "FAIL"
+        }
+        
+        audit_path = self.graph_dir / "audit" / f"integrity_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        audit_path.parent.mkdir(exist_ok=True)
+        audit_path.write_text(json.dumps(audit, indent=2))
+        
+        print(f"\nAudit log: {audit_path}")
+        print("=" * 70)
+        
+        return len(self.errors) == 0
+    
+    def _compute_graph_hash(self):
+        """Compute SHA-256 of all node IDs for integrity"""
+        ids_sorted = sorted(self.seen_ids)
+        return hashlib.sha256("\n".join(ids_sorted).encode()).hexdigest()[:16]
+
+def main():
+    parser = argparse.ArgumentParser(description="NEXUS Archivist Integrity Gate")
+    parser.add_argument("--graph-dir", default="./NEXUS_KNOWLEDGE_GRAPH",
+                       help="Path to knowledge graph root")
+    parser.add_argument("--strict", action="store_true",
+                       help="Treat warnings as errors")
+    args = parser.parse_args()
+    
+    gate = ArchivistIntegrityGate(args.graph_dir)
+    passed = gate.run()
+    
+    if args.strict and gate.warnings:
+        print("\nSTRICT MODE: Warnings treated as failures")
+        passed = False
+    
+    sys.exit(0 if passed else 1)
+
+if __name__ == "__main__":
+    main()

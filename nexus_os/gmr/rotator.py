@@ -12,6 +12,29 @@ from .telemetry import TelemetryIngest, ModelTelemetry
 
 logger = logging.getLogger("nexus.gmr.rotator")
 
+VATS_ERROR_SANITIZE_PATTERNS = [
+    r"(?i)ignore\s+(all\s+)?previous\s+instructions",
+    r"(?i)you\s+are\s+now\s+",
+    r"(?i)system\s*:\s*",
+    r"(?i)execute\s+(?:the\s+)?following",
+    r"(?i)pretend\s+(?:you\s+are|to\s+be)",
+    r"(?i)forget\s+(?:your|all)\s+(?:rules|instructions)",
+    r"(?i)(?:sudo|admin|root|elevated)\s+(?:mode|access|privilege)",
+    r"(?i)(?:api[_\s]?key|secret|token|password|credential)",
+    r"(?i)(?:instead|however|but).{0,30}(?:do|run|execute|try)\s+",
+]
+
+
+def sanitize_error_output(error_text: str, max_length: int = 120) -> str:
+    """VATS defense: strip error messages of injection payloads before
+    passing to fallback model. Error messages carry implicit authority
+    per STACK/VATS (2606.07992) that triples IPI success to 100%."""
+    import re
+    text = error_text[:max_length]
+    for pat in VATS_ERROR_SANITIZE_PATTERNS:
+        text = re.sub(pat, "[REDACTED]", text, flags=re.IGNORECASE)
+    return text
+
 
 class ModelPool(Enum):
     FAST = "fast"       # Local, cheap, <500ms latency
@@ -176,7 +199,7 @@ class GeniusModelRotator:
     def __init__(
         self,
         token_guard=None,
-        relay_url: str = "http://localhost:7352",
+        relay_url: str = "http://localhost:7355/api/models",
         config: Optional[Dict] = None,
     ):
         self.token_guard = token_guard
@@ -446,11 +469,11 @@ class GeniusModelRotator:
                         "trace_id": context.trace_id,
                     }
                 else:
-                    last_error = result.get("error", "Unknown error")
+                    last_error = sanitize_error_output(result.get("error", "Unknown error"))
                     if model_name in self.models:
                         self.models[model_name].record_failure()
             except Exception as e:
-                last_error = str(e)
+                last_error = sanitize_error_output(str(e))
                 if model_name in self.models:
                     self.models[model_name].record_failure()
 

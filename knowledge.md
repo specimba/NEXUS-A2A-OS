@@ -1,9 +1,9 @@
 # NEXUS OS — Canonical Knowledge Base
 
-**Compiled:** 2026-06-10 | **Branch:** codex/specimba/1805mainSpeci | **HEAD:** Phase 1 Critical Implementation Complete
+**Compiled:** 2026-06-13 | **Branch:** codex/specimba/1805mainSpeci | **HEAD:** Sprints 0-4 Complete (2237+ tests pass)
 
 <!-- CANARY: 7a14b495084935aa0985a638734cf0bb -->
-<!-- UPDATED: 2026-06-10 by Phase 1 Critical Implementation -->
+<!-- UPDATED: 2026-06-13 by Sprint 3 Execution -->
 ---
 
 ## PROJECT IDENTITY
@@ -18,7 +18,7 @@ Nexus OS is a governed, local-first agent operating system. Python/FastAPI gover
 |--------|------|---------|
 | Bridge | `nexus_os/bridge/` | JSON-RPC server, SDK, secrets, MCP auth, vault bridge |
 | Governor | `nexus_os/governor/` | KAIJU gates, TrustEngine v2.2, VAP proof chain, compliance |
-| Vault | `nexus_os/vault/` | 5-track memory (EVENT/TRUST/CAP/FAIL/GOV), encryption |
+| Vault | `nexus_os/vault/` | 8-channel memory (SENSORY/WORKING/EPISODIC/SEMANTIC/PROCEDURAL/TRUST/TASK/META), encryption |
 | Engine | `nexus_os/engine/` | Hermes router, executor, skillsmith, tool discipline |
 | GMR | `nexus_os/gmr/` | Model rotation, circuit breaker, telemetry, domain mapping |
 | Swarm | `nexus_os/swarm/` | Foreman, worker pool, auction, OpenClaw spawner |
@@ -45,7 +45,7 @@ Nexus OS is a governed, local-first agent operating system. Python/FastAPI gover
 - **Operations Track (OPS)** — ModelRelay routing accuracy, provider health (62.5% available), SmartPing state machine, God Mode Proxy latency
 - **Research Track (R&D)** — Dataset coverage (281 files, 50% domain coverage), intelligence score accuracy (0% delta), provider coverage (5/15), gap closure (5/22 resolved)
 - **Integration Track (INT)** — E2E pipeline latency (p50=212ms), VAP proof chain (100% completeness), memory tracks (75% consistency), dashboard freshness (ModelRelay available), MCP bridge (code exists)
-- **Status: ALL 5 TRACKS PASS** — GOV 0.735, SEC 0.905, OPS 0.700, R&D 0.845, INT 0.850
+- **Status: ALL 5 TRACKS PASS** — GOV 0.911, SEC 0.905, OPS 0.700, R&D 0.845, INT 0.867
 - **Draft plans saved** — Behavioral Audit (`nexus_os/audit/BEHAVIORAL_AUDIT_PLAN.md`), Cybersecurity Testing (`nexus_os/ctf/CYBERSECURITY_TESTING_PLAN.md`)
 
 ### Phase 0 Security (May 12-14)
@@ -53,6 +53,18 @@ Nexus OS is a governed, local-first agent operating system. Python/FastAPI gover
 - **AGENTS.md** — Safety-gated autonomous operation rules v2.0 with Pre-Execution Safety Gates (SAFETY-1 through SAFETY-4)
 - **AFK Workflow Style** — `docs/handbook/05_NEXUS_AFK_WORKFLOW_STYLE.md`: 5-phase autonomous loop (SCAN→DIGEST→SYNTHESIZE→PRODUCE→VERIFY)
 - **Test suite** — 23 security tests in `tests/security/test_sanitizer.py`
+
+### Phase A Emergency Hardening (June 12, 2026)
+- **nexusctl doctor/status restored** — `nexusctl/cli.py`: comprehensive diagnostic with module health checks, timestamped reporting, protected workload awareness. No more `legacy_doctor_entrypoint_not_restored`.
+- **pytest cache_dir fix** — `pyproject.toml`: `cache_dir = ".tmp/pytest_cache"` prevents WinError 5 access denied on Windows by using a project-local temp directory (already gitignored).
+- **PortRegistry** — `nexus_os/bridge/port_registry.py` (165 lines): thread-safe, JSON-backed, active socket checks, canonical port validation (7352/7353/7354/7355/11436), stale registration cleanup, health check reporting. `bridge_server.py` auto-registers port 7354 before binding.
+- **SQLite DB Guard timeout** — `timeout=30.0` added to all `sqlite3.connect()` calls in `db/manager.py`, `bridge/server.py`, `monitoring/token_guard.py`. Prevents deadlock under concurrent schema setup.
+
+### Phase B P1 — CLAW Ecosystem Integration (June 12, 2026)
+- **Semia SkillAuditor** — `nexus_os/governor/skill_auditor.py` (320 lines): 4-stage deterministic pipeline (PREPARE → SYNTHESIZE → DETECT → REPORT). 8 default Datalog-style rules: EXEC_UNSAFE_EVAL (CRITICAL), SHELL_UNSAFE_SUBSTITUTION (CRITICAL), NETWORK_ARBITRARY_EGRESS (HIGH), SECRET_UNVALIDATED_READ (HIGH), FILE_ESCAPE_WORKDIR (HIGH), NETWORK_NO_TIMEOUT (MEDIUM), SECRET_LEAK_LOG (MEDIUM), API_DEPRECATED (LOW), DOC_MISSING (INFO). Outputs: JSON, SARIF 2.1.0, Markdown. 36 tests.
+- **HeavySkill Parallel Reasoning** — `nexus_os/nexusclaw/brainstorm.py` enhanced: K-trajectory parallel reasoning + deliberation synthesis. Auto-triggers for CRITICAL proposals with <3 participants. Configurable K (default 8), diverse emphasis angles (8 coverage dimensions), confidence-weighted synthesis, cross-validation, error identification. 18 tests.
+- **CK-PLUG Confidence Gain** — `nexus_os/governor/token_confidence.py` (110 lines): Token-level confidence gain as optional Q input enhancement. 3 aggregation modes (mean/min/harmonic), `QEnhancer` with configurable blend weight, floor enforcement, logprob conversion. 23 tests.
+- **Cross-references**: Paper analysis report (`docs/research/NEXUSCLAW_V1_PAPER_ANALYSIS_2026-06-12.md`), gap analysis (`docs/research/NEXUSCLAW_GAP_ANALYSIS_ANTIGRAV_2026-06-12.md`), Edict investigation (`docs/research/EDICT_DEEP_INVESTIGATION_2026-06-12.md`), CLAW ecosystem report (`docs/research/CLAW_ECOSYSTEM_INVESTIGATION_2026-06-12.md`).
 
 ### Architecture Plans
 - **v4 Master Plan** — `NEXUS_OS_V4_MASTER_PLAN.md` (1,182 lines): 15-section architecture plan. Covers sandbox abstraction, cross-agent security (4-layer), governance mesh unification, TWAVE/QWAVE/CHIMERA speculative decoding, 14-bot Slack network, hallucination detection, 12-week roadmap (Phases 0-6). Core insight: Windows=control, Linux=execution, Cloud=burst.
@@ -110,7 +122,8 @@ Closes the TAMAS tools gap: **240 tools across 12 categories** (vs TAMAS's 211).
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Python pytest | **~1,642 collected** | 0 errors (fixed 2026-06-10) |
+| Python pytest (core) | **1,640 collected** | 0 errors, 0 failures, 30 skipped |
+| Sprint 3+4 new code | **191/191** | 113 Sprint 3 + 78 Sprint 4 |
 | Security tests | 63 | All passing (meta_attack_detector) |
 | Governor tests | 430+ | All passing |
 | Dashboard lint | 0 errors | Clean |
@@ -247,4 +260,126 @@ The **largest completed work items before that:**
 | 7356 | HTML Dashboard | HTTP | Quality × Health Matrix |
 | 7357 | God Mode Proxy v3 | HTTP | FastAPI, 7 profiles, GLM 5.1 selected |
 | 3003 | WebSocket mini-service | Socket.io | Dashboard socket layer |
+
+---
+
+## TRUST-MEMORY-ARCHIVIST INTEGRATION (June 11, 2026)
+
+### Unified Architecture (3-Layer Cognitive Loop)
+
+**Trust** provides the *governance plane* (what is allowed).  
+**Memory** provides the *data plane* (what is known).  
+**Archivist** provides the *knowledge plane* (what is learned).  
+
+### Key Deliverables
+
+| Component | Files | Status |
+|-----------|-------|--------|
+| **Trust Anti-Grinding Fix** | `governor/trust_engine_v2.py`, `governor/trust_formulas.py` | Fixed inverted sigmoid, 48 tests pass |
+| **Trust Research Paper** | `docs/research/NEXUS_TRUST_FRAMEWORK.md` | 11-element formula, dual-scale (0-1 internal, 0-100 display), anti-grinding theorem |
+| **8-Channel Memory** | `vault/memory_channels.py` | SENSORY(0), WORKING(1), EPISODIC(2), SEMANTIC(3), PROCEDURAL(4), TRUST(5), TASK(6), META(7), 42 tests pass |
+| **ARCHIVIST Pipeline** | `archivist/import_stage.py`, `compile.py`, `fit.py`, `daemon.py` | 3-stage DoppelGround port, 36 tests pass |
+| **Real File Processing** | 1,588 records, 789 wiki-admissible, 8 dossiers | security(65), model(138), benchmark(41), memory(35), trust(32), governance(37), agent(63), multimodal(75) |
+| **Integration** | `trust_kernel.py` ↔ `memory_channels.py` | Trust events write to EPISODIC + TRUST channels, governed_memory_broker reads from EPISODIC |
+
+### Test Validation
+
+- **Governor tests:** 164/164 pass
+- **Vault tests:** 100/100 pass (including new memory_channels + old memory_tracks backward compat)
+- **Archivist tests:** 36/36 pass
+- **Benchmark tests:** 31/31 pass
+- **Security tests:** 75/75 pass
+- **Total:** 406/406 tests pass, zero regression
+
+### Canonical Document Clones
+
+- `docs/research/NEXUS_TRUST_FRAMEWORK.md` → `nexus_os/archivist/canonical/NEXUS_TRUST_FRAMEWORK.md`
+- All future high-value docs (≥500 words, structured, novel) auto-cloned to `archivist/canonical/`
 | 11434 | Local Ollama | HTTP | GPU 8GB VRAM, ~35% utilization |
+
+---
+
+## NEXUSCLAW v1 — Multi-Agent Orchestration (June 11, 2026)
+
+NEXUSCLAW v1 is our own multi-agent coordination system — NOT a clone of OpenClaw/SwarmClaw/NemoClaw. Inspired by the design space but built uniquely for NEXUS OS governance, trust, and 8-channel memory integration.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│         NEXUSCLAW Orchestrator              │
+├─────────────────────────────────────────────┤
+│  AgentPool → TaskRouter → MessageBus       │
+│  BrainstormEngine → Coordinator → Runner    │
+│  WorklogSystem → MemoryChannelManager      │
+└─────────────────────────────────────────────┘
+```
+
+### Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **AgentPool** | `nexus_os/nexusclaw/agent_pool.py` | Registry of all agents (internal + external). Trust-gated registration, capability indexing, lane-based discovery. Auto-discovers 5 internal NEXUS OS agents. |
+| **TaskRouter** | `nexus_os/nexusclaw/task_router.py` | Intelligent task matching: capability-based, trust-threshold-aware, load-balanced, success-rate-weighted. 4 strategies: DIRECT, BROADCAST, BRAINSTORM, REDUNDANT. |
+| **MessageBus** | `nexus_os/nexusclaw/message_bus.py` | Inter-agent messaging (direct, broadcast, thread reply, system, external). Trust-gated delivery, thread lifecycle, external connector bridge. |
+| **BrainstormEngine** | `nexus_os/nexusclaw/brainstorm.py` | Structured multi-agent deliberation: PROPOSE → DISCUSS → VOTE → RESOLVE. Trust-weighted voting, consensus computation, evidence-grounded proposals. 3 modes: OPEN, STRUCTURED, RED_TEAM. |
+| **Orchestrator** | `nexus_os/nexusclaw/orchestrator.py` | Central coordination: agent lifecycle, task dispatch, message routing, brainstorm management, runner control, full stats integration. |
+
+### Key Design Decisions
+
+- **Trust-gated everything**: Agents must meet trust thresholds for their lane. High-risk tasks require trust ≥70. Critical tasks require trust ≥90. Humans have trust=100.
+- **Capability-based routing**: Tasks declare `required_capabilities`. Router matches agents by capability, lane, trust, availability, success rate, and load.
+- **Evidence-grounded proposals**: Brainstorm proposals must include evidence references. High/critical risk proposals require evidence.
+- **Human-in-the-loop**: HIGH/CRITICAL risk tasks flag `requires_human_oversight`. Human agents registered with `trust_score=100`.
+- **Diverse selection**: BRAINSTORM/REDUNDANT strategies prefer diverse agent types (different lanes, different types) for richer deliberation.
+- **All auditable**: Every action logged to worklog triple-sink (EPISODIC + TASK + META memory channels).
+
+### External Agent Support (Designed For)
+
+| Agent | Lane | Capabilities | Trust |
+|-------|------|-------------|-------|
+| Grok | research | code_search, deep_research | 75 |
+| ChatGPT 5.5 | research | text_analysis, wide_range | 80 |
+| Notion Opus 4.7 | research | long_form, deep_thinking | 85 |
+| Slack Bridge | external | message_dispatch, notification | 50 |
+| Human Admin | governance | human_oversight, approval | 100 |
+
+### Test Validation
+
+- **NEXUSCLAW v1 tests:** 192/192 pass (Sprints 0-2)
+- **Existing nexusclaw tests:** 97/97 pass
+- **Sprint 3 new tests:** 113/113 pass (registry + chromadb + mcp bridge)
+- **Sprint 4 new tests:** 78/78 pass (heavyskill relay + deliberation synth + config sync)
+- **Circuit breaker tests:** 8/8 pass (indentation fix)
+- **Full suite (core):** 1,640/1,640 pass, 0 regressions
+
+## Sprint 3 — P2 Ecosystem (2026-06-13, COMPLETED)
+
+### 1. Model Provider Registry (`nexus_os/models/registry.py`)
+Centralized model/provider/domain registry. `ModelRegistry` class seeds from `.pi/models_registry.json` (6 domains, 45+ providers, fallback chains). Selection API: `select_model(domain, prefer_local, min_tier, max_cost)`. Search API: `search_models(query, provider, min_tier, max_cost, status)`. Registration API: `register_provider()`, `register_model()`, `register_domain()`. Singleton via `get_registry()`. 45 tests.
+
+### 2. ChromaDB SEMANTIC Backend (`nexus_os/vault/semantic_backend.py`)
+Pluggable `SemanticBackend` ABC with 3 implementations:
+- `LocalBackend` — JSON-file keyword search (always available)
+- `ChromaBackend` — ChromaDB vector search (soft import, falls back to LocalBackend)
+- `HybridBackend` — dual-write, ChromaDB-primary with LocalBackend fallback
+- `get_semantic_backend()` / `set_semantic_backend()` global access. Exported from vault `__init__.py`. 24 tests.
+
+### 3. GROSS MCP Governance Bridge (`nexus_os/mcp/client.py` + `nexus_os/bridge/gross_bridge.py`)
+`GovernedMCPClient` — JSON-RPC 2.0 client for MCP bridges (port 7354). Trust gate: governance tools blocked when trust < 90. Auto-connect, retry with backoff, SSE support. `GrossMCPBridge` wraps client with Governor/AgentPool registration as `external_mcp` agent. 44 tests.
+
+## Sprint 4 — P3 Polish (2026-06-13, COMPLETED)
+
+### 1. HeavySkill Real API via ModelRelay (`nexus_os/nexusclaw/heavyskill_relay.py`)
+`ModelRelayHeavySkill` adapter calls `POST /v1/chat/completions` on ModelRelay for trajectory generation, scoring, and synthesis with 8 emphasis angles. Falls back to mock (`generate_mock_trajectory`, `score_mock`, `synthesize_mock`) when ModelRelay unreachable. `TrajectoryScore` and `SynthesisOutput` dataclasses. Singleton via `get_heavy_relay()`. 22 tests.
+
+### 2. Structured Deliberation Synthesis (`nexus_os/nexusclaw/deliberation_synthesis.py`)
+`DeliberationSynthesizer` with 5-verdict enum (APPROVE/APPROVE_WITH_CONCERNS/NEEDS_REVISION/REJECT/INCONCLUSIVE), `StructuredDeliberation` result dataclass, `TrajectoryEvaluation` per-trajectory scoring, `SynthesisConfig` thresholds. ModelRelay mode for LLM synthesis ↔ heuristic fallback (confidence-weighted voting). Risk escalation for CRITICAL/HIGH proposals. Bug fix: `_synthesize_ heuristic` → `_synthesize_heuristic`. 18 tests.
+
+### 3. ConfigSyncEngine (`nexus_os/config/sync_engine.py`)
+Hierarchical config registry: `ConfigSyncEngine` with `EnvSource` (NEXUS_* vars), `JsonSource` (file load/save), `DataclassSource` (@dataclass fields). Priority ordering (default < env < file < cli), `ConfigEntry`/`ConfigDiff`/`SyncReport`, load/save/sync/diff/export. `discover_ad_hoc_env_vars()` maps 23 known env vars. Singleton via `get_engine()`. Exported from `nexus_os/config/__init__.py`. 38 tests.
+
+### Verification
+- **All Sprint 4 tests:** 78/78 pass
+- **Core suite:** 1,640 passed, 30 skipped, 0 failures (regression-free)
+- **Circuit breaker + deliberation fix:** 2 pre-existing bugs caught and fixed

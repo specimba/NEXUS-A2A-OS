@@ -1,13 +1,17 @@
 'use client'
 
 import { useNexusStore } from '@/store/nexus-store'
-import { OverviewTab } from './tabs/overview-tab'
+import {
+  OverviewTab
+} from './tabs/overview-tab'
 import { StressLabTab } from './tabs/stresslab-tab'
 import { GmrTab } from './tabs/gmr-tab'
 import { GovernorTab } from './tabs/governor-tab'
 import { VaultTab } from './tabs/vault-tab'
 import { ResearchTab } from './tabs/research-tab'
 import { SwarmTab } from './tabs/swarm-tab'
+import { NexusClawTab } from './tabs/nexusclaw-tab'
+import { SwarmInterventionTab } from './tabs/swarm-intervention-tab'
 import { TokensTab } from './tabs/tokens-tab'
 import { RateLimitTab } from './tabs/rate-limit-tab'
 import { KpiTab } from './tabs/kpi-tab'
@@ -24,6 +28,8 @@ const tabComponents: Record<string, React.ComponentType> = {
   vault: VaultTab,
   research: ResearchTab,
   swarm: SwarmTab,
+  nexusclaw: NexusClawTab,
+  'swarm-intervention': SwarmInterventionTab,
   tokens: TokensTab,
   ratelimit: RateLimitTab,
   kpi: KpiTab,

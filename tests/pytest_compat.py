@@ -22,7 +22,7 @@ class Marker:
 mark = Marker()
 
 
-def fixture(scope="function"):
+def fixture(scope="function", autouse=False, **kwargs):
     """No-op fixture decorator."""
     def decorator(func):
         @functools.wraps(func)
@@ -41,10 +41,14 @@ def parametrize(argnames, argvalues):
             # For unittest, we can't easily expand parametrize.
             # Just run the first value as a fallback.
             if argvalues:
+                val = argvalues[0]
+                # If it's a pytest.param, unwrap it if needed
+                if hasattr(val, "values"):
+                    val = val.values
                 if len(names) == 1:
-                    return func(self, argvalues[0])
+                    return func(self, val)
                 else:
-                    return func(self, *argvalues[0])
+                    return func(self, *val)
             return func(self)
         return wrapper
     return decorator
@@ -85,6 +89,27 @@ def approx(expected, rel=None, abs=None):
     return Approx(expected)
 
 
+def importorskip(modname, minversion=None, reason=None):
+    """Mock importorskip: try to import or skip the test."""
+    import importlib
+    try:
+        return importlib.import_module(modname)
+    except ImportError:
+        raise unittest.SkipTest(reason or f"Skipped: {modname} not available")
+
+
+class Param:
+    """Mock pytest.param."""
+    def __init__(self, *values, marks=None, id=None):
+        self.values = values
+        self.marks = marks
+        self.id = id
+
+
+def param(*values, marks=None, id=None):
+    return Param(*values, marks=marks, id=id)
+
+
 # Assemble the fake pytest module
 _module = sys.modules[__name__]
 _module.fixture = fixture
@@ -94,3 +119,6 @@ _module.approx = approx
 _module.mark = mark
 _module.skip = lambda reason="": lambda f: f
 _module.xfail = lambda reason="": lambda f: f
+_module.importorskip = importorskip
+_module.param = param
+

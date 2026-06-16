@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS Archivist — 2026</title>
+<style>
+  /* ===== 2026 DARK AESTHETIC SYSTEM ===== */
+  :root {
+    --bg-void: #050507;
+    --bg-deep: #0a0a0f;
+    --bg-base: #111118;
+    --bg-raised: #18181f;
+    --bg-surface: #1e1e28;
+    --bg-hover: #252530;
+    --bg-active: #2a2a38;
+    
+    --text-primary: #f0f0f5;
+    --text-secondary: #a0a0b0;
+    --text-muted: #606070;
+    --text-dim: #404050;
+    
+    --accent-cyan: #00e5ff;
+    --accent-cyan-dim: #00b8d4;
+    --accent-blue: #2979ff;
+    --accent-purple: #651fff;
+    --accent-green: #00e676;
+    --accent-amber: #ffab00;
+    --accent-red: #ff5252;
+    
+    --border-subtle: rgba(255,255,255,0.04);
+    --border-soft: rgba(255,255,255,0.08);
+    --border-medium: rgba(255,255,255,0.12);
+    
+    --glow-cyan: 0 0 20px rgba(0,229,255,0.15);
+    --glow-blue: 0 0 20px rgba(41,121,255,0.15);
+    
+    --font-display: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+    
+    --sidebar-width: 300px;
+    --header-height: 56px;
+    --status-height: 32px;
+    
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+  /* ===== APP SHELL ===== */
+  .app {
+    display: flex;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--bg-void) 0%, var(--bg-deep) 50%, var(--bg-void) 100%);
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-deep);
+    border-right: 1px solid var(--border-subtle);
+    position: relative;
+    z-index: 10;
+  }
+
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--accent-cyan-dim), transparent);
+    opacity: 0.3;
+  }
+
+  .sidebar-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-icon {
+    width: 38px; height: 38px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700;
+    color: var(--bg-void);
+    box-shadow: var(--glow-cyan);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .brand-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%);
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .brand-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .brand-title {
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-primary);
+  }
+
+  .brand-subtitle {
+    font-size: 11px; font-weight: 500;
+    color: var(--accent-cyan-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .sidebar-search {
+    padding: 16px 20px;
+  }
+
+  .search-box {
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-body);
+    outline: none;
+    transition: all var(--transition-fast);
+  }
+
+  .search-box input::placeholder { color: var(--text-muted); }
+  .search-box input:focus {
+    border-color: var(--accent-cyan-dim);
+    background: var(--bg-surface);
+    box-shadow: var(--glow-cyan);
+  }
+
+  .search-box .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .search-shortcut {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    padding: 2px 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 16px;
+  }
+
+  .nav-section {
+    margin-bottom: 16px;
+  }
+
+  .nav-section-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .nav-section-title:hover { color: var(--text-secondary); }
+  .nav-section-title .arrow { transition: transform var(--transition-fast); font-size: 10px; }
+  .nav-section.collapsed .arrow { transform: rotate(-90deg); }
+  .nav-section.collapsed .nav-items { display: none; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--accent-cyan);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+
+  .nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item:hover::before { opacity: 0.5; }
+
+  .nav-item.active {
+    background: var(--bg-active);
+    color: var(--accent-cyan);
+  }
+
+  .nav-item.active::before { opacity: 1; }
+
+  .nav-item .icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    opacity: 0.8;
+  }
+
+  .nav-item.active .icon { opacity: 1; color: var(--accent-cyan); }
+
+  .nav-item .badge {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(0,229,255,0.1);
+    color: var(--accent-cyan);
+  }
+
+  .sidebar-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-footer .sync-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .main::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,255,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== HEADER / TABS ===== */
+  .header {
+    height: var(--header-height);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
+    z-index: 5;
+  }
+
+  .tabs-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    flex: 1;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+
+  .tab:hover {
+    background: var(--bg-raised);
+    color: var(--text-secondary);
+  }
+
+  .tab.active {
+    background: var(--bg-surface);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tab .tab-close {
+    width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    transition: all var(--transition-fast);
+  }
+
+  .tab:hover .tab-close { opacity: 0.6; }
+  .tab .tab-close:hover {
+    opacity: 1 !important;
+    background: var(--accent-red);
+    color: white;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btn {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-soft);
+    background: var(--bg-raised);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .action-btn:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--accent-cyan-dim), var(--accent-blue));
+    border-color: transparent;
+    color: white;
+  }
+
+  .action-btn.primary:hover {
+    box-shadow: var(--glow-cyan);
+    transform: translateY(-1px);
+  }
+
+  /* ===== CONTENT AREA ===== */
+  .content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 48px;
+  }
+
+  /* ===== MARKDOWN STYLES ===== */
+  .markdown h1 {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    position: relative;
+    display: inline-block;
+  }
+
+  .markdown h1::after {
+    content: '';
+    position: absolute;
+    bottom: -4px; left: 0;
+    width: 60px; height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+  }
+
+  .markdown h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 40px;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .markdown h2::before {
+    content: '';
+    width: 4px; height: 24px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--accent-cyan), var(--accent-blue));
+  }
+
+  .markdown h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+  }
+
+  .markdown p {
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .markdown a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast);
+  }
+
+  .markdown a:hover { border-bottom-color: var(--accent-cyan); }
+
+  .markdown code {
+    font-family: var(--font-mono);
+    background: var(--bg-surface);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--accent-amber);
+    border: 1px solid var(--border-soft);
+  }
+
+  .markdown pre {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .markdown pre::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), transparent);
+    opacity: 0.5;
+  }
+
+  .markdown pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.6;
+    border: none;
+  }
+
+  .markdown blockquote {
+    border-left: 3px solid var(--accent-cyan);
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: var(--bg-raised);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .markdown ul, .markdown ol {
+    margin-bottom: 16px;
+    padding-left: 24px;
+  }
+
+  .markdown li {
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+  }
+
+  .markdown li::marker { color: var(--accent-cyan-dim); }
+
+  .markdown table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+  }
+
+  .markdown th {
+    background: var(--bg-surface);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .markdown td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .markdown tr:last-child td { border-bottom: none; }
+  .markdown tr:hover td { background: var(--bg-hover); }
+
+  .markdown hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-medium), transparent);
+    margin: 32px 0;
+  }
+
+  /* ===== BADGES & CHIPS ===== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  .badge-green { background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2); color: var(--accent-green); }
+  .badge-red { background: rgba(255,82,82,0.1); border-color: rgba(255,82,82,0.2); color: var(--accent-red); }
+  .badge-blue { background: rgba(41,121,255,0.1); border-color: rgba(41,121,255,0.2); color: var(--accent-blue); }
+  .badge-cyan { background: rgba(0,229,255,0.1); border-color: rgba(0,229,255,0.2); color: var(--accent-cyan); }
+  .badge-amber { background: rgba(255,171,0,0.1); border-color: rgba(255,171,0,0.2); color: var(--accent-amber); }
+  .badge-purple { background: rgba(101,31,255,0.1); border-color: rgba(101,31,255,0.2); color: var(--accent-purple); }
+
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all var(--transition-fast);
+  }
+
+  .card:hover {
+    border-color: var(--border-medium);
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* ===== GRAPH VIEW ===== */
+  .graph-view {
+    display: none;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-deep);
+  }
+
+  .graph-view.active { display: flex; }
+
+  .graph-canvas {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    height: var(--status-height);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: var(--bg-deep);
+    border-top: 1px solid var(--border-subtle);
+    font-size: 11px;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 5;
+  }
+
+  .status-left, .status-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+  }
+
+  .status-dot.warning { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+  .status-dot.error { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-sep {
+    width: 1px; height: 12px;
+    background: var(--border-soft);
+  }
+
+  /* ===== COMMAND PALETTE OVERLAY ===== */
+  .command-palette {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(5,5,7,0.8);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 120px;
+  }
+
+  .command-palette.active { display: flex; }
+
+  .command-box {
+    width: 640px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .command-input-wrapper {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .command-input-wrapper input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-family: var(--font-body);
+    outline: none;
+  }
+
+  .command-input-wrapper input::placeholder { color: var(--text-muted); }
+
+  .command-results {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .command-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .command-item:hover, .command-item.selected {
+    background: var(--bg-hover);
+  }
+
+  .command-item .cmd-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-raised);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .command-item .cmd-info {
+    flex: 1;
+  }
+
+  .command-item .cmd-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .command-item .cmd-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .command-item .cmd-shortcut {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    padding: 2px 6px;
+    background: var(--bg-raised);
+    border-radius: 4px;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content { padding: 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">N</div>
+        <div class="brand-text">
+          <div class="brand-title">NEXUS</div>
+          <div class="brand-subtitle">Archivist Wiki</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-search">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search wiki, pages, sources..." id="searchInput" onfocus="openCommandPalette()">
+        <span class="search-shortcut">Ctrl+K</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- Nav items populated by JS -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sync-indicator">
+        <span class="sync-dot"></span>
+        <span>Synced</span>
+      </div>
+      <span>v1.0.0 · 15 pages</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Header -->
+    <div class="header">
+      <div class="tabs-container" id="tabsContainer">
+        <!-- Tabs populated by JS -->
+      </div>
+      <div class="header-actions">
+        <button class="action-btn" onclick="toggleGraph()">🕸️ Graph</button>
+        <button class="action-btn" onclick="refreshContent()">🔄 Sync</button>
+        <button class="action-btn primary" onclick="openCommandPalette()">⌘ Command</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-wrapper" id="contentWrapper">
+      <div class="content" id="contentArea">
+        <!-- Content rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-left">
+        <div class="status-item">
+          <span class="status-dot"></span>
+          <span>99 Models UP</span>
+        </div>
+        <span class="status-sep"></span>
+        <span>GLM 5.1 (0.91) Active</span>
+        <span class="status-sep"></span>
+        <span>Vault: Encrypted</span>
+      </div>
+      <div class="status-right">
+        <span>59,790 sources</span>
+        <span class="status-sep"></span>
+        <span id="clock">00:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Command Palette -->
+<div class="command-palette" id="commandPalette" onclick="closeCommandPalette(event)">
+  <div class="command-box" onclick="event.stopPropagation()">
+    <div class="command-input-wrapper">
+      <span style="color:var(--text-muted);font-size:18px;">🔍</span>
+      <input type="text" placeholder="Type a command or search..." id="commandInput" oninput="filterCommands()" onkeydown="handleCommandKey(event)">
+      <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);">ESC</span>
+    </div>
+    <div class="command-results" id="commandResults">
+      <!-- Commands populated by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================
+// WIKI DATA
+// ============================
+const wikiData = {
+  "index": {
+    title: "NEXUS Archivist Wiki",
+    icon: "📋",
+    content: `
+<div class="badge-row">
+  <span class="badge badge-cyan">99 Models UP</span>
+  <span class="badge badge-green">Arena Calibrated</span>
+  <span class="badge badge-blue">Vault Encrypted</span>
+  <span class="badge badge-green">Smart Ping Active</span>
+</div>
+
+# NEXUS Archivist Wiki
+
+Welcome to the **NEXUS OS Archivist** — a Karpathy-style 3-layer wiki system for accumulating knowledge across all NEXUS operations.
+
+## Architecture
+
+| Layer | Purpose | Count |
+|-------|---------|-------|
+| **Schema** | Agent rules, conventions, behavior | boot.md |
+| **Wiki** | LLM-generated markdown, cross-references | 15 pages |
+| **Raw** | Immutable filesystem pointers | 59,790 sources |
+
+## Top Models
+
+| Model | Intelligence | Provider | Status |
+|-------|-------------|----------|--------|
+| GLM 5.1 | 0.91 | Fireworks | UP |
+| Kimi K2.6 | 0.88 | NVIDIA / Cloudflare | UP |
+| DeepSeek V4 Pro | 0.86 | Fireworks | UP |
+| Gemini 3.5 Flash | 0.88 | Google | DOWN |
+| Claude Sonnet 4.6 | 0.88 | Anthropic | DOWN |
+
+## Quick Navigation
+
+<div class="card-grid">
+  <div class="card" onclick="openPage('boot')">
+    <div class="card-title">🚀 Boot Sync</div>
+    <div class="card-body">60-second agent onboarding guide for any new agent joining NEXUS OS.</div>
+  </div>
+  <div class="card" onclick="openPage('security')">
+    <div class="card-title">🔒 Security</div>
+    <div class="card-body">Vault encryption, threat intelligence, and MITRE ATT&CK mapping.</div>
+  </div>
+  <div class="card" onclick="openPage('model-arena')">
+    <div class="card-title">🏆 Model Arena</div>
+    <div class="card-body">Arena-calibrated intelligence scores with 352,929 WebDev votes.</div>
+  </div>
+  <div class="card" onclick="openPage('agents')">
+    <div class="card-title">🤖 Agents</div>
+    <div class="card-body">Cross-platform agent sync protocol and TrustEngine v2.2 configuration.</div>
+  </div>
+</div>
+
+## System Status
+
+- **ModelRelay**: 225 models, 99 UP, 126 DOWN
+- **God Mode Proxy**: Routing to GLM 5.1 (0.91 intell)
+- **Smart Ping**: ACTIVE state (15 min intervals)
+- **Vault**: 3 files encrypted (AES-256-GCM)
+- **Archivist**: 59,790 sources indexed
+
+---
+
+*Last updated: 2026-06-09*
+    `
+  },
+  "boot": {
+    title: "Agent Boot Sync",
+    icon: "🚀",
+    content: `
+# Agent Boot Sync
+
+## For any new agent joining NEXUS OS (60 seconds)
+
+### 1. Read This Page (30 sec)
+
+Key facts:
+- **225 models** in relay, **99 UP**
+- **Top model**: GLM 5.1 (0.91 intell) via Fireworks
+- **Vault**: Encrypted with AES-256-GCM
+- **Ping**: Smart (15 min active → 4 hours sleep)
+- **Archivist**: 59,790 sources, 15 wiki pages
+
+### 2. Read Schema (15 sec)
+
+Conventions:
+- Don't restart services unnecessarily
+- Only free-tier providers (no CC)
+- GROSS project is confidential (read-only)
+- Intelligence scores reflect real 2025 benchmarks
+
+### 3. Read Index (15 sec)
+
+Full catalog of all pages, entities, sources.
+
+## Ports
+
+| Port | Service |
+|------|---------|
+| 3001 | Next.js Dashboard |
+| 7352 | ModelRelay |
+| 7356 | HTML Dashboard |
+| 7357 | God Mode Proxy |
+| 11435 | Ollama |
+
+## Trust Scores
+
+| Agent | Score |
+|-------|-------|
+| SPECI | 99.5 |
+| Nexus-Governor | 95.0 |
+| Codex | 85.0 |
+| DoppelGround | 80.0 |
+    `
+  },
+  "model-arena": {
+    title: "Model Arena",
+    icon: "🏆",
+    content: `
+# Model Arena
+
+## Arena-Calibrated Scores (Jun 5, 2026)
+
+**Sources**: 352,929 WebDev votes + 6,703,075 Text votes
+
+### Top 10 Models
+
+| Rank | Model | Arena Score | Intelligence | Provider |
+|------|-------|-------------|-------------|----------|
+| 1 | GLM 5.1 | 1532 | 0.91 | Fireworks |
+| 2 | Claude Opus 4.6 | 1543 | 0.91 | Anthropic |
+| 3 | Kimi K2.6 | 1516 | 0.88 | NVIDIA / CF |
+| 4 | Gemini 3.5 Flash | 1506 | 0.88 | Google |
+| 5 | DeepSeek V4 Pro | 1461 | 0.86 | Fireworks |
+| 6 | Qwen 3.6 Plus | 1463 | 0.86 | Fireworks |
+| 7 | Mimo V2.5 Pro | 1466 | 0.86 | Fireworks |
+| 8 | GPT 5.5 | 1448 | 0.84 | OpenAI |
+| 9 | Gemini 3.1 Pro | 1447 | 0.84 | Google |
+| 10 | GLM 5 | 1435 | 0.83 | Fireworks |
+
+### Score Corrections Applied
+
+| Model | Was | Now | Change |
+|-------|-----|-----|--------|
+| Gemini 3.5 Flash | 0.74 | **0.88** | +0.14 |
+| Kimi K2.5 | 0.64 | **0.80** | +0.16 |
+| GLM 5 | 0.60 | **0.83** | +0.23 |
+| Gemini 2.5 Pro | 0.90 | **0.72** | -0.18 |
+| GPT-4o | 0.81 | **0.72** | -0.09 |
+    `
+  },
+  "security": {
+    title: "Security & Encryption",
+    icon: "🔒",
+    content: `
+# Security & Encryption
+
+## Vault Status
+
+<div class="badge-row">
+  <span class="badge badge-green">AES-256-GCM</span>
+  <span class="badge badge-cyan">HKDF-SHA256</span>
+  <span class="badge badge-blue">3 Files</span>
+  <span class="badge badge-green">FIPS 140-3</span>
+</div>
+
+| File | Status | Algorithm |
+|------|--------|-----------|
+| env.txt | 🔒 Encrypted | AES-256-GCM |
+| sshkey.pem | 🔒 Encrypted | AES-256-GCM |
+| zilliz credentials | 🔒 Encrypted | AES-256-GCM |
+
+## Key Derivation
+
+- **Algorithm**: HKDF-SHA256
+- **Key**: 32-byte hex from NEXUS_VAULT_KEY env
+- **Nonce**: 12-byte random per file
+- **Salt**: 16-byte random per file
+- **Associated Data**: Filename (binding)
+
+## Threat Intelligence Sources
+
+- **Cisco Talos**: 2,187 vulnerability reports
+- **CERT**: VU# notices (Dirty Frag, Copy Fail)
+- **MITRE ATT&CK**: TTP framework mapping
+- **Pegasus**: Most dangerous active spyware
+- **Stuxnet**: ICS malware (historical)
+
+## CVE Tracking
+
+| CVE | Description | CVSS | Status |
+|-----|-------------|------|--------|
+| CVE-2026-31431 | Copy Fail (Linux kernel) | 9.8 | Monitor |
+| CVE-2024-33699 | LevelOne auth bypass | 9.9 | Patched |
+| CVE-2021-30860 | FORCEDENTRY (Pegasus) | 9.8 | Patched |
+
+## Preferred Libraries
+
+1. **Libgcrypt** (GNU) — Best overall
+2. **Bouncy Castle** — Java/.NET, FIPS
+3. **wolfSSL/wolfCrypt** — Embedded, FIPS 140-2
+4. **Botan** — Modern C++, post-quantum
+5. **PyCryptodome** — Python wrapper
+
+## Post-Quantum Cryptography
+
+- **CRYSTALS-Kyber**: NIST standardized KEM
+- **CRYSTALS-Dilithium**: Digital signatures
+- **Evaluation**: 5-10 year horizon
+    `
+  },
+  "agents": {
+    title: "Cross-Platform Agents",
+    icon: "🤖",
+    content: `
+# Cross-Platform Agent Sync
+
+## Agent Types
+
+| Agent | Platform | Role | Trust Score |
+|-------|----------|------|-------------|
+| SPECI | Local | Owner/Operator | 99.5 |
+| Codex | Cloud | Development | 85.0 |
+| Nexus-Governor | Local | Governance | 95.0 |
+| DoppelGround | Local | Evidence Prep | 80.0 |
+
+## Sync Protocol
+
+1. **Boot** (60 sec): Read boot.md → schema.md → index.md
+2. **State**: Load from 01_PROJECT_STATE.md
+3. **Vault**: Decrypt with NEXUS_VAULT_KEY
+4. **Relay**: Connect to localhost:7352
+5. **Proxy**: Route via God Mode (localhost:7357)
+
+## TrustEngine v2.2
+
+- **Baseline**: 25.0 (new agents)
+- **Max**: 99.5 (asymptotic)
+- **Success**: +4.0 × logistic(T)
+- **Failure**: -10.0
+- **CRITICAL**: -20.0 (non-compensatory)
+- **Decay**: λ = 0.02
+- **Collapse**: < 15.0
+
+## Communication
+
+- **Git**: Canonical bus between local/cloud
+- **API**: REST via ModelRelay (port 7352)
+- **SSE**: Real-time updates (port 7354)
+- **Vault**: Encrypted secrets (AES-256-GCM)
+    `
+  },
+  "benchmarking": {
+    title: "Intelligence Benchmarking",
+    icon: "📊",
+    content: `
+# Intelligence Benchmarking Methodology
+
+## Scale
+
+| Range | Tier | Description |
+|-------|------|-------------|
+| 0.85+ | Frontier | Top 5% of models |
+| 0.70-0.85 | Strong | Capable for most tasks |
+| 0.55-0.70 | Capable | Basic tasks, limited reasoning |
+| < 0.55 | Basic | Simple queries only |
+
+## Data Sources
+
+1. **Arena WebDev**: 352,929 votes (Jun 5, 2026)
+   - HTML/CSS/JS coding tasks
+   - Multi-step reasoning required
+   - Human preference ranking
+
+2. **Arena Text**: 6,703,075 votes
+   - General text-to-text tasks
+   - Math, coding, creative writing
+
+3. **Arena Agent**: 457,807 sessions
+   - Tool orchestration
+   - Task completion rates
+
+## Calibration Formula
+
+<pre><code>score = (arena_score - 1092) / (1567 - 1092) * 0.32 + 0.60</code></pre>
+
+Where:
+- 1092 = lowest Arena score (Devstral Medium)
+- 1567 = highest Arena score (Claude Opus 4.7)
+- 0.60 = baseline for basic models
+- 0.32 = range to reach 0.92 frontier
+
+## Auto-Refresh Strategy
+
+- **Weekly**: Pull new Arena leaderboard data
+- **On-demand**: After major model releases
+- **Validation**: Cross-check with MMLU-Pro, LiveCodeBench
+- **Fallback**: Manual override for missing models
+    `
+  },
+  "encryption": {
+    title: "Vault Encryption",
+    icon: "🔐",
+    content: `
+# Vault Encryption System
+
+## Architecture
+
+<pre><code>┌─────────────────────┐
+│  Plaintext Files    │  env.txt, sshkey.pem, zilliz creds
+├─────────────────────┤
+│  AES-256-GCM        │  Encrypt with random nonce + salt
+│  + HKDF-SHA256      │  Derive key from master key
+├─────────────────────┤
+│  .enc Files         │  salt(16) + nonce(12) + ciphertext
+│  + .vault_index.json│  Metadata: original name, timestamp
+└─────────────────────┘</code></pre>
+
+## Implementation
+
+**vault_encrypt.py** — CLI tool:
+
+<pre><code># Generate master key
+$ python vault_encrypt.py --generate-key
+
+# Encrypt all files
+$ python vault_encrypt.py --encrypt
+
+# Check status
+$ python vault_encrypt.py --status
+
+# Decrypt (for authorized agents)
+$ python vault_encrypt.py --decrypt</code></pre>
+
+## Access Control
+
+| Trust Score | Access Level |
+|-------------|-------------|
+| 90+ | Full vault access |
+| 70-89 | Read-only vault |
+| 50-69 | Limited secrets |
+| < 50 | No vault access |
+
+## File: 29&(][11!34.txt
+
+**⚠️ ENCRYPTED FILE — DO NOT TOUCH**
+
+This file is encrypted by SPECI. Do not:
+- Rename, move, or delete
+- Hash or scan without decrypting
+- Share outside NEXUS OS
+
+Contact SPECI for access.
+    `
+  }
+};
+
+// ============================
+// NAVIGATION STRUCTURE
+// ============================
+const navSections = [
+  {
+    title: "Wiki",
+    icon: "📚",
+    items: [
+      { id: "index", label: "Index", icon: "📋", badge: "Home" },
+      { id: "boot", label: "Boot Sync", icon: "🚀" },
+    ]
+  },
+  {
+    title: "Entities",
+    icon: "🏛️",
+    items: [
+      { id: "model-arena", label: "Model Arena", icon: "🏆" },
+      { id: "security", label: "Security", icon: "🔒" },
+      { id: "agents", label: "Agents", icon: "🤖" },
+    ]
+  },
+  {
+    title: "Concepts",
+    icon: "💡",
+    items: [
+      { id: "benchmarking", label: "Benchmarking", icon: "📊" },
+      { id: "encryption", label: "Encryption", icon: "🔐" },
+    ]
+  },
+];
+
+// ============================
+// STATE
+// ============================
+let activePage = "index";
+let openTabs = ["index"];
+let selectedCommand = 0;
+
+// ============================
+// RENDER FUNCTIONS
+// ============================
+function renderSidebar() {
+  const nav = document.getElementById("sidebarNav");
+  nav.innerHTML = navSections.map((section, idx) => `
+    <div class="nav-section ${idx > 0 ? 'collapsed' : ''}">
+      <div class="nav-section-title" onclick="toggleSection(this)">
+        <span class="arrow">▼</span>
+        <span>${section.icon} ${section.title}</span>
+      </div>
+      <div class="nav-items">
+        ${section.items.map(item => `
+          <div class="nav-item ${item.id === activePage ? 'active' : ''}" onclick="openPage('${item.id}')">
+            <span class="icon">${item.icon}</span>
+            <span>${item.label}</span>
+            ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleSection(el) {
+  el.parentElement.classList.toggle('collapsed');
+}
+
+function renderTabs() {
+  const container = document.getElementById("tabsContainer");
+  container.innerHTML = openTabs.map(tabId => {
+    const data = wikiData[tabId];
+    if (!data) return '';
+    return `
+      <div class="tab ${tabId === activePage ? 'active' : ''}" onclick="openPage('${tabId}')">
+        <span>${data.icon}</span>
+        <span>${data.title}</span>
+        ${openTabs.length > 1 ? `<span class="tab-close" onclick="event.stopPropagation(); closeTab('${tabId}')">×</span>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderContent() {
+  const data = wikiData[activePage];
+  if (!data) return;
+  
+  const content = document.getElementById("contentArea");
+  content.innerHTML = `<div class="markdown fade-in">${data.content}</div>`;
+  
+  document.getElementById("graphView")?.classList.remove("active");
+}
+
+function openPage(pageId) {
+  if (!wikiData[pageId]) return;
+  
+  activePage = pageId;
+  if (!openTabs.includes(pageId)) {
+    openTabs.push(pageId);
+  }
+  
+  renderTabs();
+  renderContent();
+  renderSidebar();
+  
+  // Close command palette if open
+  document.getElementById("commandPalette").classList.remove("active");
+}
+
+function closeTab(tabId) {
+  openTabs = openTabs.filter(t => t !== tabId);
+  if (activePage === tabId && openTabs.length > 0) {
+    activePage = openTabs[openTabs.length - 1];
+  }
+  renderTabs();
+  renderContent();
+  renderSidebar();
+}
+
+// ============================
+// COMMAND PALETTE
+// ============================
+const commands = [
+  { id: "index", title: "Open Index", desc: "Main wiki overview page", icon: "📋", shortcut: "Ctrl+1" },
+  { id: "boot", title: "Open Boot Sync", desc: "60-second agent onboarding", icon: "🚀", shortcut: "Ctrl+2" },
+  { id: "model-arena", title: "Open Model Arena", desc: "Arena-calibrated scores", icon: "🏆", shortcut: "Ctrl+3" },
+  { id: "security", title: "Open Security", desc: "Vault encryption & threats", icon: "🔒", shortcut: "Ctrl+4" },
+  { id: "agents", title: "Open Agents", desc: "Cross-platform agent sync", icon: "🤖", shortcut: "Ctrl+5" },
+  { id: "benchmarking", title: "Open Benchmarking", desc: "Intelligence scoring methodology", icon: "📊", shortcut: "Ctrl+6" },
+  { id: "encryption", title: "Open Encryption", desc: "Vault encryption system", icon: "🔐", shortcut: "Ctrl+7" },
+  { id: "refresh", title: "Refresh Content", desc: "Sync wiki from filesystem", icon: "🔄", shortcut: "Ctrl+R" },
+  { id: "graph", title: "Toggle Graph View", desc: "Visualize page connections", icon: "🕸️", shortcut: "Ctrl+G" },
+  { id: "search", title: "Search Sources", desc: "Search 59,790 raw files", icon: "🔍", shortcut: "Ctrl+S" },
+];
+
+function openCommandPalette() {
+  document.getElementById("commandPalette").classList.add("active");
+  document.getElementById("commandInput").value = "";
+  document.getElementById("commandInput").focus();
+  selectedCommand = 0;
+  renderCommands(commands);
+}
+
+function closeCommandPalette(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById("commandPalette").classList.remove("active");
+}
+
+function renderCommands(cmds) {
+  const results = document.getElementById("commandResults");
+  results.innerHTML = cmds.map((cmd, idx) => `
+    <div class="command-item ${idx === selectedCommand ? 'selected' : ''}" onclick="executeCommand('${cmd.id}')">
+      <div class="cmd-icon">${cmd.icon}</div>
+      <div class="cmd-info">
+        <div class="cmd-title">${cmd.title}</div>
+        <div class="cmd-desc">${cmd.desc}</div>
+      </div>
+      <span class="cmd-shortcut">${cmd.shortcut}</span>
+    </div>
+  `).join('');
+}
+
+function filterCommands() {
+  const query = document.getElementById("commandInput").value.toLowerCase();
+  const filtered = commands.filter(c => 
+    c.title.toLowerCase().includes(query) || 
+    c.desc.toLowerCase().includes(query)
+  );
+  selectedCommand = 0;
+  renderCommands(filtered);
+}
+
+function handleCommandKey(e) {
+  const items = document.querySelectorAll('.command-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedCommand = Math.min(selectedCommand + 1, items.length - 1);
+    renderCommands([...document.querySelectorAll('.command-item')].map(el => {
+      const id = el.querySelector('.cmd-title').textContent;
+      return commands.find(c => c.title === id);
+    }).filter(Boolean));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedCommand = Math.max(selectedCommand - 1, 0);
+    renderCommands([...document.querySelectorAll('.command-item')].map(el => {
+      const id = el.querySelector('.cmd-title').textContent;
+      return commands.find(c => c.title === id);
+    }).filter(Boolean));
+  } else if (e.key === 'Enter') {
+    const selected = document.querySelector('.command-item.selected');
+    if (selected) selected.click();
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
+}
+
+function executeCommand(cmdId) {
+  if (cmdId === 'refresh') {
+    alert('Refreshing wiki from filesystem...');
+  } else if (cmdId === 'graph') {
+    toggleGraph();
+  } else if (cmdId === 'search') {
+    alert('Search sources: Feature coming soon');
+  } else {
+    openPage(cmdId);
+  }
+  closeCommandPalette();
+}
+
+// ============================
+// ACTIONS
+// ============================
+function toggleGraph() {
+  alert('Graph view: Visualizing connections between wiki pages...\n(Feature: D3.js force-directed graph)');
+}
+
+function refreshContent() {
+  alert('Syncing wiki from filesystem...\n(Feature: Trigger archivist.py ingest)');
+}
+
+// ============================
+// KEYBOARD SHORTCUTS
+// ============================
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "k") {
+    e.preventDefault();
+    openCommandPalette();
+  }
+  if (e.key === "Escape") {
+    closeCommandPalette();
+  }
+  // Tab shortcuts
+  if (e.ctrlKey && e.key >= '1' && e.key <= '7') {
+    e.preventDefault();
+    const pages = ['index', 'boot', 'model-arena', 'security', 'agents', 'benchmarking', 'encryption'];
+    openPage(pages[parseInt(e.key) - 1]);
+  }
+});
+
+// ============================
+// CLOCK
+// ============================
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toLocaleTimeString('en-US', { hour12: false });
+}
+
+// ============================
+// INIT
+// ============================
+renderSidebar();
+renderTabs();
+renderContent();
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>

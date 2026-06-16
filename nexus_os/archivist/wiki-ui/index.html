@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS Archivist Wiki</title>
+<style>
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-tertiary: #1a1a24;
+    --bg-hover: #222230;
+    --text-primary: #e0e0e0;
+    --text-secondary: #9090a0;
+    --text-muted: #606070;
+    --accent-cyan: #00d4ff;
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --border-color: #2a2a3a;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --sidebar-width: 280px;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-color); }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    letter-spacing: 0.5px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: bold; color: var(--bg-primary);
+  }
+
+  .search-box {
+    padding: 12px 16px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-box input:focus {
+    border-color: var(--accent-cyan);
+  }
+
+  .search-box input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .tree-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+  }
+
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .tree-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .tree-item.active {
+    background: var(--bg-hover);
+    color: var(--accent-cyan);
+  }
+
+  .tree-item .icon {
+    width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+
+  .tree-folder .icon { color: var(--accent-orange); }
+  .tree-file .icon { color: var(--text-muted); }
+  .tree-file.active .icon { color: var(--accent-cyan); }
+
+  .tree-children {
+    margin-left: 20px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 4px;
+  }
+
+  .tree-item.collapsed + .tree-children {
+    display: none;
+  }
+
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Main Content */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .tabs-bar {
+    display: flex;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 4px;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .tab:hover { background: var(--bg-hover); }
+  .tab.active {
+    border-bottom-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  .tab .close-btn {
+    width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0.6;
+  }
+
+  .tab .close-btn:hover {
+    background: var(--accent-red);
+    color: white;
+    opacity: 1;
+  }
+
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px;
+  }
+
+  /* Markdown rendering */
+  .markdown-body {
+    max-width: 900px;
+    line-height: 1.7;
+  }
+
+  .markdown-body h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent-cyan);
+    display: inline-block;
+  }
+
+  .markdown-body h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    color: var(--accent-blue);
+  }
+
+  .markdown-body h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+  }
+
+  .markdown-body p {
+    margin-bottom: 14px;
+    color: var(--text-secondary);
+  }
+
+  .markdown-body a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+  }
+
+  .markdown-body a:hover {
+    text-decoration: underline;
+  }
+
+  .markdown-body code {
+    font-family: var(--font-mono);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--accent-orange);
+  }
+
+  .markdown-body pre {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 16px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+
+  .markdown-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+  }
+
+  .markdown-body blockquote {
+    border-left: 3px solid var(--accent-cyan);
+    padding-left: 16px;
+    margin-left: 0;
+    color: var(--text-muted);
+  }
+
+  .markdown-body ul, .markdown-body ol {
+    margin-bottom: 14px;
+    padding-left: 24px;
+  }
+
+  .markdown-body li {
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+  }
+
+  .markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+
+  .markdown-body th {
+    background: var(--bg-tertiary);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  .markdown-body td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13px;
+  }
+
+  .markdown-body tr:hover td {
+    background: var(--bg-hover);
+  }
+
+  .markdown-body hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 24px 0;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+  .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+  .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+  .badge-cyan { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+
+  /* Graph view placeholder */
+  .graph-view {
+    display: none;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+  }
+
+  .graph-view.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .graph-placeholder {
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .graph-placeholder svg {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  /* Quick actions bar */
+  .actions-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent-cyan);
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .status-bar .left, .status-bar .right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-indicator {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-green);
+  }
+
+  .status-indicator.warning { background: var(--accent-orange); }
+  .status-indicator.error { background: var(--accent-red); }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">N</div>
+      <span>NEXUS ARCHIVIST</span>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" placeholder="Search wiki... (Ctrl+K)" id="searchInput">
+  </div>
+
+  <div class="tree-view" id="treeView">
+    <!-- Tree populated by JS -->
+  </div>
+
+  <div class="sidebar-footer">
+    <div>v1.0.0 · 15 pages · 59,790 sources</div>
+    <div style="margin-top: 4px;">Karpathy 3-Layer Architecture</div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main">
+  <div class="tabs-bar" id="tabsBar">
+    <div class="tab active" data-path="index">
+      <span class="icon">📋</span>
+      <span>Index</span>
+    </div>
+  </div>
+
+  <div class="actions-bar">
+    <button class="action-btn" onclick="toggleGraph()">🕸️ Graph</button>
+    <button class="action-btn" onclick="refreshAll()">🔄 Refresh</button>
+    <button class="action-btn" onclick="showSource()">📁 Sources</button>
+    <button class="action-btn" onclick="toggleTheme()">🌙 Dark</button>
+  </div>
+
+  <div class="content-area" id="contentArea">
+    <div class="markdown-body" id="markdownBody">
+      <!-- Content rendered by JS -->
+    </div>
+    <div class="graph-view" id="graphView">
+      <div class="graph-placeholder">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="50" cy="50" r="40"/>
+          <circle cx="30" cy="35" r="8" fill="currentColor"/>
+          <circle cx="70" cy="35" r="8" fill="currentColor"/>
+          <circle cx="50" cy="70" r="8" fill="currentColor"/>
+          <line x1="30" y1="35" x2="70" y2="35"/>
+          <line x1="30" y1="35" x2="50" y2="70"/>
+          <line x1="70" y1="35" x2="50" y2="70"/>
+        </svg>
+        <p>Graph view coming soon</p>
+        <p style="font-size: 12px; margin-top: 8px;">Visualize connections between wiki pages</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="left">
+      <div class="status-indicator" id="statusDot"></div>
+      <span id="statusText">Connected · 99 models UP</span>
+    </div>
+    <div class="right">
+      <span id="pageInfo">15 pages</span>
+      <span id="timeDisplay"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================
+// ARCHIVIST WIKI DATA
+// ============================
+const wikiData = {
+  "index": {
+    title: "NEXUS Archivist Wiki",
+    content: `
+# NEXUS Archivist Wiki
+
+## Quick Navigation
+
+| Page | Type | Description |
+|------|------|-------------|
+| boot | Schema | 60-second agent onboarding guide |
+| log | Log | Session history and decisions |
+| model-arena | Entity | Model arena and benchmarking |
+| god-mode-proxy | Entity | God Mode routing proxy |
+| model-relay | Entity | Model health checking relay |
+| security | Entity | Security and encryption |
+| agents | Concept | Cross-platform agent sync |
+| benchmarking | Concept | Intelligence scoring methodology |
+| encryption | Concept | Vault encryption and keys |
+| security-intel | Concept | Threat intelligence and CVE |
+| sources-nexus | Source | NEXUS OS filesystem |
+| sources-archivist | Source | ARCHIVIST directory |
+| sources-papers | Source | Research papers |
+| sources-gross | Source | GROSS confidential project |
+| nexus-os | Entity | Core NEXUS operating system |
+
+## Architecture
+
+**Karpathy 3-Layer Wiki Architecture:**
+
+\`\`\`
+┌─────────────────┐
+│   SCHEMA LAYER  │  ← Agent behavior, rules, conventions
+│   (boot.md)     │
+├─────────────────┤
+│   WIKI LAYER    │  ← LLM-generated markdown, cross-references
+│  (15 pages)     │
+├─────────────────┤
+│   RAW LAYER     │  ← Immutable file pointers (59,790 sources)
+│  (filesystem)   │
+└─────────────────┘
+\`\`\`
+
+## Current Status
+
+<span class="badge badge-green">99 Models UP</span>
+<span class="badge badge-cyan">Arena Calibrated</span>
+<span class="badge badge-blue">Vault Encrypted</span>
+<span class="badge badge-green">Smart Ping Active</span>
+
+## Top Models
+
+| Model | Intelligence | Provider | Status |
+|-------|-------------|----------|--------|
+| GLM 5.1 | 0.91 | Fireworks | UP |
+| Kimi K2.6 | 0.88 | NVIDIA / Cloudflare | UP |
+| DeepSeek V4 Pro | 0.86 | Fireworks | UP |
+| Gemini 3.5 Flash | 0.88 | Google | DOWN (429) |
+| Claude Sonnet 4.6 | 0.88 | Anthropic | DOWN |
+
+---
+
+*Last updated: 2026-06-09*
+    `
+  },
+  "boot": {
+    title: "Agent Boot Sync",
+    content: `
+# Agent Boot Sync (60 seconds)
+
+## For any new agent joining NEXUS OS:
+
+1. **Read boot.md** (30 sec) — This file
+2. **Read schema.md** (15 sec) — Behavior rules
+3. **Read index.md** (15 sec) — Full catalog
+
+## Key Facts
+
+- **225 models** in relay, **99 UP**
+- **Top model**: GLM 5.1 (0.91 intell) via Fireworks
+- **Vault**: Encrypted with AES-256-GCM
+- **Ping**: Smart (15 min active → 4 hours sleep)
+- **Archivist**: 59,790 sources, 15 wiki pages
+- **Security**: ClamAV scanning, Libgcrypt preferred
+
+## Conventions
+
+- Don't restart services unnecessarily
+- Only free-tier providers (no CC)
+- GROSS project is confidential (read-only)
+- Intelligence scores reflect real 2025 benchmarks
+- Auto-refresh: 15 min active, 1-4 hours idle
+
+## Ports
+
+| Port | Service |
+|------|---------|
+| 3001 | Next.js Dashboard |
+| 7352 | ModelRelay |
+| 7356 | HTML Dashboard |
+| 7357 | God Mode Proxy |
+| 11435 | Ollama |
+    `
+  },
+  "model-arena": {
+    title: "Model Arena",
+    content: `
+# Model Arena
+
+## Arena-Calibrated Scores (Jun 5, 2026)
+
+**Sources**: 352,929 WebDev votes + 6,703,075 Text votes
+
+### Top 10 Models
+
+| Rank | Model | Arena Score | Intelligence | Provider |
+|------|-------|-------------|-------------|----------|
+| 1 | GLM 5.1 | 1532 | 0.91 | Fireworks |
+| 2 | Claude Opus 4.6 | 1543 | 0.91 | Anthropic |
+| 3 | Kimi K2.6 | 1516 | 0.88 | NVIDIA / CF |
+| 4 | Gemini 3.5 Flash | 1506 | 0.88 | Google |
+| 5 | DeepSeek V4 Pro | 1461 | 0.86 | Fireworks |
+| 6 | Qwen 3.6 Plus | 1463 | 0.86 | Fireworks |
+| 7 | Mimo V2.5 Pro | 1466 | 0.86 | Fireworks |
+| 8 | GPT 5.5 | 1448 | 0.84 | OpenAI |
+| 9 | Gemini 3.1 Pro | 1447 | 0.84 | Google |
+| 10 | GLM 5 | 1435 | 0.83 | Fireworks |
+
+### Score Corrections Applied
+
+- **Gemini 3.5 Flash**: 0.74 → 0.88 (+0.14)
+- **Kimi K2.5**: 0.64 → 0.80 (+0.16)
+- **GLM 5**: 0.60 → 0.83 (+0.23)
+- **Gemini 2.5 Pro**: 0.90 → 0.72 (-0.18)
+- **GPT-4o**: 0.81 → 0.72 (-0.09)
+    `
+  },
+  "security": {
+    title: "Security & Encryption",
+    content: `
+# Security & Encryption
+
+## Vault Status
+
+| File | Status | Algorithm |
+|------|--------|-----------|
+| env.txt | 🔒 Encrypted | AES-256-GCM |
+| sshkey.pem | 🔒 Encrypted | AES-256-GCM |
+| zilliz credentials | 🔒 Encrypted | AES-256-GCM |
+
+## Key Derivation
+
+- **Algorithm**: HKDF-SHA256
+- **Key**: 32-byte hex from NEXUS_VAULT_KEY env
+- **Nonce**: 12-byte random per file
+- **Salt**: 16-byte random per file
+- **Associated Data**: Filename (binding)
+
+## Threat Intelligence Sources
+
+- **Cisco Talos**: 2,187 vulnerability reports
+- **CERT**: VU# notices (Dirty Frag, Copy Fail)
+- **MITRE ATT&CK**: TTP framework mapping
+- **Pegasus**: Most dangerous active spyware
+- **Stuxnet**: ICS malware (historical)
+- **Mirai**: IoT botnet (active)
+
+## CVE Tracking
+
+| CVE | Description | CVSS | Status |
+|-----|-------------|------|--------|
+| CVE-2026-31431 | Copy Fail (Linux kernel) | 9.8 | Monitor |
+| CVE-2024-33699 | LevelOne WBR auth bypass | 9.9 | Patched |
+| CVE-2021-30860 | FORCEDENTRY (Pegasus) | 9.8 | Patched |
+
+## Preferred Libraries (User Ranking)
+
+1. **Libgcrypt** (GNU) — Best overall
+2. **Bouncy Castle** — Java/.NET, FIPS
+3. **wolfSSL/wolfCrypt** — Embedded, FIPS 140-2
+4. **Botan** — Modern C++, post-quantum
+5. **PyCryptodome** — Python wrapper
+
+## Post-Quantum Cryptography
+
+- **CRYSTALS-Kyber**: NIST standardized KEM
+- **CRYSTALS-Dilithium**: Digital signatures
+- **Evaluation**: 5-10 year horizon
+    `
+  },
+  "agents": {
+    title: "Cross-Platform Agents",
+    content: `
+# Cross-Platform Agent Sync
+
+## Agent Types
+
+| Agent | Platform | Role | Trust Score |
+|-------|----------|------|-------------|
+| SPECI | Local | Owner/Operator | 99.5 |
+| Codex | Cloud | Development | 85.0 |
+| Nexus-Governor | Local | Governance | 95.0 |
+| DoppelGround | Local | Evidence Prep | 80.0 |
+
+## Sync Protocol
+
+1. **Boot** (60 sec): Read boot.md → schema.md → index.md
+2. **State**: Load from 01_PROJECT_STATE.md
+3. **Vault**: Decrypt with NEXUS_VAULT_KEY
+4. **Relay**: Connect to localhost:7352
+5. **Proxy**: Route via God Mode (localhost:7357)
+
+## TrustEngine v2.2
+
+- **Baseline**: 25.0 (new agents)
+- **Max**: 99.5 (asymptotic)
+- **Success**: +4.0 × logistic(T)
+- **Failure**: -10.0
+- **CRITICAL**: -20.0 (non-compensatory)
+- **Decay**: λ = 0.02
+- **Collapse**: < 15.0
+
+## Communication
+
+- **Git**: Canonical bus between local/cloud
+- **API**: REST via ModelRelay (port 7352)
+- **SSE**: Real-time updates (port 7354)
+- **Vault**: Encrypted secrets (AES-256-GCM)
+    `
+  },
+  "benchmarking": {
+    title: "Intelligence Benchmarking",
+    content: `
+# Intelligence Benchmarking Methodology
+
+## Scale
+
+| Range | Tier | Description |
+|-------|------|-------------|
+| 0.85+ | Frontier | Top 5% of models |
+| 0.70-0.85 | Strong | Capable for most tasks |
+| 0.55-0.70 | Capable | Basic tasks, limited reasoning |
+| < 0.55 | Basic | Simple queries only |
+
+## Data Sources
+
+1. **Arena WebDev**: 352,929 votes (Jun 5, 2026)
+   - HTML/CSS/JS coding tasks
+   - Multi-step reasoning required
+   - Human preference ranking
+
+2. **Arena Text**: 6,703,075 votes
+   - General text-to-text tasks
+   - Math, coding, creative writing
+   - Open-ended domains
+
+3. **Arena Agent**: 457,807 sessions
+   - Tool orchestration
+   - Task completion rates
+   - Bash recovery, steerability
+
+## Calibration Formula
+
+\`\`\`
+score = (arena_score - 1092) / (1567 - 1092) * 0.32 + 0.60
+\`\`\`
+
+Where:
+- 1092 = lowest Arena score (Devstral Medium)
+- 1567 = highest Arena score (Claude Opus 4.7)
+- 0.60 = baseline for basic models
+- 0.32 = range to reach 0.92 frontier
+
+## Auto-Refresh Strategy
+
+- **Weekly**: Pull new Arena leaderboard data
+- **On-demand**: After major model releases
+- **Validation**: Cross-check with MMLU-Pro, LiveCodeBench
+- **Fallback**: Manual override for missing models
+    `
+  },
+  "encryption": {
+    title: "Vault Encryption",
+    content: `
+# Vault Encryption System
+
+## Architecture
+
+\`\`\`
+┌─────────────────────┐
+│  Plaintext Files    │  env.txt, sshkey.pem, zilliz creds
+├─────────────────────┤
+│  AES-256-GCM        │  Encrypt with random nonce + salt
+│  + HKDF-SHA256      │  Derive key from master key
+├─────────────────────┤
+│  .enc Files         │  salt(16) + nonce(12) + ciphertext
+│  + .vault_index.json│  Metadata: original name, timestamp
+└─────────────────────┘
+\`\`\`
+
+## Implementation
+
+**vault_encrypt.py** — CLI tool:
+
+\`\`\`bash
+# Generate master key
+$ python vault_encrypt.py --generate-key
+Key: 063290b9470810daab25fbeeb62b54f5a058176fb752bafb8f48357c14b67ab2
+
+# Encrypt all files
+$ $env:NEXUS_VAULT_KEY = "<key>"
+$ python vault_encrypt.py --encrypt
+
+# Check status
+$ python vault_encrypt.py --status
+
+# Decrypt (for authorized agents)
+$ python vault_encrypt.py --decrypt
+\`\`\`
+
+## Access Control
+
+| Trust Score | Access Level |
+|-------------|-------------|
+| 90+ | Full vault access |
+| 70-89 | Read-only vault |
+| 50-69 | Limited secrets |
+| < 50 | No vault access |
+
+## File: 29&(][11!34.txt
+
+**⚠️ ENCRYPTED FILE — DO NOT TOUCH**
+
+This file is encrypted by SPECI. Do not:
+- Rename, move, or delete
+- Hash or scan without decrypting
+- Share outside NEXUS OS
+
+Contact SPECI for access.
+    `
+  }
+};
+
+// ============================
+// TREE STRUCTURE
+// ============================
+const treeStructure = [
+  { type: "folder", name: "wiki", icon: "📁", children: [
+    { type: "file", name: "index", label: "Index", icon: "📋" },
+    { type: "file", name: "boot", label: "Boot Sync", icon: "🚀" },
+    { type: "file", name: "log", label: "Session Log", icon: "📝" },
+  ]},
+  { type: "folder", name: "entities", icon: "📁", children: [
+    { type: "file", name: "model-arena", label: "Model Arena", icon: "🏆" },
+    { type: "file", name: "god-mode-proxy", label: "God Mode Proxy", icon: "👑" },
+    { type: "file", name: "model-relay", label: "Model Relay", icon: "⚡" },
+    { type: "file", name: "nexus-os", label: "NEXUS OS", icon: "🌐" },
+    { type: "file", name: "security", label: "Security", icon: "🔒" },
+  ]},
+  { type: "folder", name: "concepts", icon: "📁", children: [
+    { type: "file", name: "agents", label: "Agents", icon: "🤖" },
+    { type: "file", name: "benchmarking", label: "Benchmarking", icon: "📊" },
+    { type: "file", name: "encryption", label: "Encryption", icon: "🔐" },
+    { type: "file", name: "security-intel", label: "Threat Intel", icon: "🛡️" },
+  ]},
+];
+
+// ============================
+// RENDER FUNCTIONS
+// ============================
+let activeTab = "index";
+let openTabs = ["index"];
+
+function renderTree() {
+  const container = document.getElementById("treeView");
+  container.innerHTML = "";
+
+  function renderNode(node, depth = 0) {
+    const div = document.createElement("div");
+    if (node.type === "folder") {
+      div.className = "tree-item tree-folder";
+      div.innerHTML = `<span class="icon">${node.icon}</span><span>${node.name}</span>`;
+      div.onclick = () => {
+        div.classList.toggle("collapsed");
+        const children = div.nextElementSibling;
+        if (children) children.style.display = children.style.display === "none" ? "block" : "none";
+      };
+      container.appendChild(div);
+
+      const childrenDiv = document.createElement("div");
+      childrenDiv.className = "tree-children";
+      childrenDiv.style.display = depth === 0 ? "block" : "none";
+      node.children.forEach(child => {
+        const childDiv = document.createElement("div");
+        childDiv.className = "tree-item tree-file" + (child.name === activeTab ? " active" : "");
+        childDiv.innerHTML = `<span class="icon">${child.icon}</span><span>${child.label}</span>`;
+        childDiv.onclick = () => openPage(child.name);
+        childrenDiv.appendChild(childDiv);
+      });
+      container.appendChild(childrenDiv);
+    }
+  }
+
+  treeStructure.forEach(node => renderNode(node));
+}
+
+function renderMarkdown(markdown) {
+  // Simple markdown parser
+  let html = markdown
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\`([^`]+)\`/gim, '<code>$1</code>')
+    .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
+    .replace(/^\- (.*$)/gim, '<li>$1</li>')
+    .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+    .replace(/\n\n/gim, '</p><p>')
+    .replace(/\n/gim, '<br>');
+
+  // Tables (simple)
+  html = html.replace(/\|(.+)\|/g, (match, p1) => {
+    const cells = p1.split('|').map(c => c.trim()).filter(c => c);
+    if (cells.length === 0) return match;
+    return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+  });
+
+  // Wrap tables
+  if (html.includes('<tr>')) {
+    html = html.replace(/(<tr>.*<\/tr>)/s, '<table>$1</table>');
+  }
+
+  // Wrap lists
+  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+  return html;
+}
+
+function openPage(pageId) {
+  if (!wikiData[pageId]) return;
+
+  activeTab = pageId;
+  if (!openTabs.includes(pageId)) {
+    openTabs.push(pageId);
+  }
+
+  renderTabs();
+  renderContent();
+  renderTree();
+}
+
+function renderTabs() {
+  const container = document.getElementById("tabsBar");
+  container.innerHTML = "";
+
+  openTabs.forEach(tabId => {
+    const data = wikiData[tabId];
+    if (!data) return;
+
+    const tab = document.createElement("div");
+    tab.className = "tab" + (tabId === activeTab ? " active" : "");
+    tab.innerHTML = `<span>${data.title}</span>`;
+    if (openTabs.length > 1) {
+      tab.innerHTML += `<span class="close-btn" onclick="event.stopPropagation(); closeTab('${tabId}')">×</span>`;
+    }
+    tab.onclick = () => openPage(tabId);
+    container.appendChild(tab);
+  });
+}
+
+function closeTab(tabId) {
+  openTabs = openTabs.filter(t => t !== tabId);
+  if (activeTab === tabId && openTabs.length > 0) {
+    activeTab = openTabs[openTabs.length - 1];
+  }
+  renderTabs();
+  renderContent();
+  renderTree();
+}
+
+function renderContent() {
+  const data = wikiData[activeTab];
+  if (!data) return;
+
+  document.getElementById("markdownBody").innerHTML = renderMarkdown(data.content);
+  document.getElementById("graphView").classList.remove("active");
+}
+
+// ============================
+// ACTIONS
+// ============================
+function toggleGraph() {
+  const graph = document.getElementById("graphView");
+  const body = document.getElementById("markdownBody");
+  if (graph.classList.contains("active")) {
+    graph.classList.remove("active");
+    body.style.display = "block";
+  } else {
+    graph.classList.add("active");
+    body.style.display = "none";
+  }
+}
+
+function refreshAll() {
+  alert("Refreshing wiki from filesystem...\n(Feature: trigger archivist.py ingest)");
+}
+
+function showSource() {
+  alert("Opening source directory...\n(Feature: show file tree overlay)");
+}
+
+function toggleTheme() {
+  // Already dark mode, could add light mode toggle
+  alert("Dark mode is the only mode.\n(Light mode? We don't do that here.)");
+}
+
+// ============================
+// SEARCH
+// ============================
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  const query = e.target.value.toLowerCase();
+  if (!query) {
+    renderTree();
+    return;
+  }
+
+  // Simple search: highlight matching tree items
+  const items = document.querySelectorAll(".tree-item");
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(query) ? "flex" : "none";
+  });
+});
+
+// ============================
+// KEYBOARD SHORTCUTS
+// ============================
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "k") {
+    e.preventDefault();
+    document.getElementById("searchInput").focus();
+  }
+  if (e.key === "Escape") {
+    document.getElementById("searchInput").blur();
+  }
+});
+
+// ============================
+// STATUS BAR
+// ============================
+function updateStatus() {
+  const now = new Date();
+  document.getElementById("timeDisplay").textContent = now.toLocaleTimeString();
+}
+
+// ============================
+// INIT
+// ============================
+renderTree();
+renderTabs();
+renderContent();
+setInterval(updateStatus, 1000);
+updateStatus();
+</script>
+</body>
+</html>

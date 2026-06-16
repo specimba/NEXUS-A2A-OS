@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "generated_at": "2026-05-26T09:03:21.522642+00:00",
+  "job_id": "MLAB-2026-05-26-001",
+  "operation": "eval_only",
+  "passed": true,
+  "schema_version": "nexus-model-lab-job-card-check-v1",
+  "source": "docs\\handoff\\model_lab_job_card.example.json",
+  "status": "proposal",
+  "warnings": []
+}

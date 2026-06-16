@@ -15,7 +15,8 @@ import sys
 
 # Add parent to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from nexus_os.vault.mem0_adapter import Mem0Adapter, get_adapter
+from nexus_os.vault.memory_adapter import Mem0Adapter, get_adapter
+
 
 
 class RiskLevel(Enum):

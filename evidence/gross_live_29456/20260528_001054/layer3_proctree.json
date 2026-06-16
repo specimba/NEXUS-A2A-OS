@@ -1,0 +1,24 @@
+{
+  "TargetName": "grok.exe",
+  "TargetCommandLine": "\"C:\\Users\\speci.000\\.grok\\bin\\grok.exe\"",
+  "TargetPID": 29456,
+  "Parent": {
+    "ProcessId": 72156,
+    "Name": "powershell.exe",
+    "CommandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+  },
+  "Children": [
+    {
+      "ProcessId": 86124,
+      "Name": "node.exe",
+      "CommandLine": "\"node\" c:\\Users\\speci.000\\.cursor\\extensions\\dawoodahmad.brainsync-3.0.12-universal\\dist\\mcp-server.js",
+      "CreationDate": "20260527233411.132788+180"
+    },
+    {
+      "ProcessId": 95480,
+      "Name": "node.exe",
+      "CommandLine": "\"node\" c:\\Users\\speci.000\\.cursor\\extensions\\dawoodahmad.brainsync-3.0.12-universal\\dist\\mcp-server.js",
+      "CreationDate": "20260527234058.428766+180"
+    }
+  ]
+}

@@ -9,6 +9,9 @@ import time
 import hashlib
 import json
 import threading
+import sqlite3
+import os
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -23,6 +26,8 @@ from .token_policy import (
     TokenReservation,
     TokenUsageActual,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OperationType(Enum):
@@ -104,6 +109,7 @@ class TokenGuard:
         hard_stop_threshold: float = 95.0,
         agent_id: Optional[str] = None,
         token_ledger_path: Optional[Path] = None,
+        db_path: Optional[str] = None,
     ):
         """
         Initialize TokenGuard.
@@ -150,6 +156,33 @@ class TokenGuard:
         self._reservations: Dict[str, TokenReservation] = {}
         self._reservation_lock = threading.Lock()
         self._token_ledger = TokenLedger(Path(token_ledger_path) if token_ledger_path else None)
+
+        # Database initialization for persistent audits
+        resolved_db = db_path or os.environ.get("NEXUS_MCP_DB") or str(
+            Path.cwd() / ".nexus" / "governance-rest.db"
+        )
+        self.db_path = str(Path(resolved_db).resolve())
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
+        self.conn.row_factory = sqlite3.Row
+        self._setup_db()
+
+    def _setup_db(self) -> None:
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_audits (
+                timestamp TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                action TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                context TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                signature TEXT NOT NULL
+            )
+            """
+        )
+        self.conn.commit()
     
     def track(
         self,
@@ -528,19 +561,57 @@ class TokenGuard:
         Returns:
             List of audit entries
         """
-        with self._audit_lock:
-            entries = self._audit.copy()
-        
-        # Filter
+        query = "SELECT * FROM token_audits"
+        params = []
+        conditions = []
         if agent_id:
-            entries = [e for e in entries if e.actor == agent_id]
-        
+            conditions.append("actor = ?")
+            params.append(agent_id)
         if since:
-            since_dt = datetime.fromisoformat(since)
-            entries = [e for e in entries if datetime.fromisoformat(e.timestamp) >= since_dt]
+            conditions.append("timestamp >= ?")
+            params.append(since)
         
-        # Limit and convert
-        return [e.to_dict() for e in entries[-limit:]]
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        try:
+            rows = self.conn.execute(query, params).fetchall()
+            results = []
+            for r in rows:
+                try:
+                    ctx = json.loads(r["context"])
+                except Exception:
+                    ctx = {}
+                results.append({
+                    "timestamp": r["timestamp"],
+                    "actor": r["actor"],
+                    "action": r["action"],
+                    "input_tokens": r["input_tokens"],
+                    "output_tokens": r["output_tokens"],
+                    "context": ctx,
+                    "outcome": r["outcome"],
+                    "signature": r["signature"],
+                })
+            # Reverse to match ascending timestamp order in memory
+            results.reverse()
+            return results
+        except Exception as e:
+            logger.warning(f"Failed to query token audits from DB: {e}")
+            with self._audit_lock:
+                entries = self._audit.copy()
+            
+            # Filter
+            if agent_id:
+                entries = [e for e in entries if e.actor == agent_id]
+            
+            if since:
+                since_dt = datetime.fromisoformat(since)
+                entries = [e for e in entries if datetime.fromisoformat(e.timestamp) >= since_dt]
+            
+            # Limit and convert
+            return [e.to_dict() for e in entries[-limit:]]
     
     def semantic_cache_get(
         self,
@@ -749,15 +820,30 @@ class TokenGuard:
         context: Dict[str, Any],
     ) -> None:
         """Log VAP-compliant audit entry."""
+        timestamp = datetime.now().isoformat()
+        signature = self._sign_entry(actor, action, input_tokens, output_tokens)
+        
+        try:
+            self.conn.execute(
+                """
+                INSERT INTO token_audits (timestamp, actor, action, input_tokens, output_tokens, context, outcome, signature)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (timestamp, actor, action, input_tokens, output_tokens, json.dumps(context or {}), 'success', signature)
+            )
+            self.conn.commit()
+        except Exception as e:
+            logger.warning(f"Failed to log token audit to DB: {e}")
+
         entry = AuditEntry(
-            timestamp=datetime.now().isoformat(),
+            timestamp=timestamp,
             actor=actor,
             action=action,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             context=context,
             outcome='success',
-            signature=self._sign_entry(actor, action, input_tokens, output_tokens),
+            signature=signature,
         )
         
         with self._audit_lock:

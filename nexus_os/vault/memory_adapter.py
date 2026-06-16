@@ -302,6 +302,7 @@ class Mem0Adapter:
         cfg = config or {}
         self._force_local = cfg.get("force_local", False)
         self._storage_path = cfg.get("storage_path", LOCAL_BACKEND_PATH)
+        self._trust_kernel = cfg.get("trust_kernel")
 
         self._mem0_client = None
         self._local: Optional[_LocalMemoryBackend] = None
@@ -375,13 +376,19 @@ class Mem0Adapter:
             enriched_meta.update(metadata)
 
         try:
+            trust_decision = self._evaluate_write_trust(agent_id, content, layer)
+            if trust_decision:
+                enriched_meta["trust_decision"] = trust_decision
+
             if self._using_local:
-                return self._local.add(
+                memory_id = self._local.add(
                     content=content,
                     agent_id=agent_id,
                     metadata=enriched_meta,
                     layer=layer,
                 )
+                self._record_write_trust_event(agent_id, memory_id, layer, content)
+                return memory_id
             else:
                 result = self._mem0_client.add(
                     messages=content,
@@ -397,14 +404,81 @@ class Mem0Adapter:
                             "Stored mem0 memory: id=%s layer=%s agent=%s",
                             mid, layer, agent_id,
                         )
+                        self._record_write_trust_event(agent_id, str(mid), layer, content)
                         return str(mid)
                 # Fallback ID
                 fallback_id = uuid.uuid4().hex[:16]
                 logger.info("Stored mem0 memory (fallback id=%s): layer=%s agent=%s", fallback_id, layer, agent_id)
+                self._record_write_trust_event(agent_id, fallback_id, layer, content)
                 return fallback_id
         except Exception as e:
+            if isinstance(e, PermissionError):
+                raise
             logger.error("Failed to store memory (layer=%s, agent=%s): %s", layer, agent_id, e)
             raise RuntimeError(f"Memory store failed: {e}") from e
+
+    def _evaluate_write_trust(
+        self,
+        agent_id: str,
+        content: str,
+        layer: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Gate memory writes through an injected TrustKernel when available."""
+        if self._trust_kernel is None:
+            return None
+
+        decision = self._trust_kernel.evaluate(
+            agent_id=agent_id,
+            action="write",
+            lane="vault_write",
+            context={
+                "layer": layer,
+                "memory_chars": len(content),
+                "side_effect": True,
+            },
+        )
+        payload = decision.to_dict() if hasattr(decision, "to_dict") else dict(decision)
+        decision_value = payload.get("decision")
+        if hasattr(decision_value, "value"):
+            decision_value = decision_value.value
+        decision_value = str(decision_value).lower()
+        if decision_value != "allow":
+            reason = payload.get("reason") or "TrustKernel denied memory write"
+            raise PermissionError(f"Memory write blocked by TrustKernel: {reason}")
+        return payload
+
+    def _record_write_trust_event(
+        self,
+        agent_id: str,
+        memory_id: str,
+        layer: str,
+        content: str,
+    ) -> None:
+        if self._trust_kernel is None or not hasattr(self._trust_kernel, "record_event"):
+            return
+        try:
+            from nexus_os.governor.trust_kernel import TrustEvent
+
+            self._trust_kernel.record_event(
+                TrustEvent(
+                    agent_id=agent_id,
+                    lane="vault_write",
+                    event_type="memory_write",
+                    action="write",
+                    outcome="stored",
+                    Q=0.75,
+                    U=0.65,
+                    R=0.0,
+                    D_plus=0.1,
+                    metadata={
+                        "memory_id": memory_id,
+                        "layer": layer,
+                        "content_chars": len(content),
+                    },
+                )
+            )
+        except Exception as exc:
+            logger.warning("TrustKernel memory-write event recording failed: %s", exc)
 
     # ── Search ────────────────────────────────────────────────────
 
@@ -835,3 +909,15 @@ class Mem0Adapter:
                 "backend": "unknown",
                 "error": str(e),
             }
+
+
+_adapter_instance: Optional[Mem0Adapter] = None
+
+
+def get_adapter(config: Optional[Dict[str, Any]] = None) -> Mem0Adapter:
+    """Get the singleton Mem0Adapter instance, creating it if needed."""
+    global _adapter_instance
+    if _adapter_instance is None:
+        _adapter_instance = Mem0Adapter(config)
+    return _adapter_instance
+

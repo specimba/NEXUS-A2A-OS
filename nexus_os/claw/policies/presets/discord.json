@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "description": "Discord API access policy",
+  "trust_level": "CAUTION",
+  "filesystem_policy": {
+    "read_allowed": ["/tmp"],
+    "write_allowed": ["/tmp"],
+    "exec_allowed": []
+  },
+  "network_policies": [
+    {
+      "name": "discord_api",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "discord.com", "port": 443, "protocol": "https"},
+        {"host": "discordapp.com", "port": 443, "protocol": "https"},
+        {"host": "cdn.discordapp.com", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/api/*", "description": "API read"},
+        {"method": "POST", "path": "/api/*", "description": "API write"}
+      ]
+    }
+  ]
+}

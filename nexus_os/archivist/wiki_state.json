@@ -1,0 +1,238 @@
+{
+  "page_count": 15,
+  "source_count": 59790,
+  "last_ingest": "2026-06-09T16:51:40.575054",
+  "entities": [
+    {
+      "name": "Models",
+      "summary": "225 models tracked"
+    },
+    {
+      "name": "Providers",
+      "summary": "Provider configurations"
+    },
+    {
+      "name": "Agents",
+      "summary": "Agent definitions"
+    },
+    {
+      "name": "Projects",
+      "summary": "Project states"
+    }
+  ],
+  "concepts": [
+    {
+      "name": "Benchmarking",
+      "summary": "benchmarking concept page"
+    },
+    {
+      "name": "Security",
+      "summary": "security concept page"
+    },
+    {
+      "name": "Architecture",
+      "summary": "architecture concept page"
+    },
+    {
+      "name": "Governance",
+      "summary": "governance concept page"
+    }
+  ],
+  "sources": [
+    {
+      "name": "archivist",
+      "summary": "766 files scanned"
+    },
+    {
+      "name": "papers",
+      "summary": "344 files scanned"
+    },
+    {
+      "name": "nexuslogs",
+      "summary": "127 files scanned"
+    },
+    {
+      "name": "nexus",
+      "summary": "58190 files scanned"
+    },
+    {
+      "name": "gross",
+      "summary": "363 files scanned"
+    }
+  ],
+  "recent_logs": [
+    {
+      "time": "2026-06-09T16:52:26.031822",
+      "action": "ingest",
+      "summary": "Scanned 59790 files, 225 models"
+    }
+  ],
+  "top_models": [
+    {
+      "name": "accounts/fireworks/models/deepseek-v4-pro",
+      "intell": 0.89,
+      "provider": "openai-compatible:fireworks",
+      "status": "up"
+    },
+    {
+      "name": "moonshotai/kimi-k2.6",
+      "intell": 0.87,
+      "provider": "nvidia",
+      "status": "up"
+    },
+    {
+      "name": "@cf/moonshotai/kimi-k2.6",
+      "intell": 0.87,
+      "provider": "cloudflare",
+      "status": "up"
+    },
+    {
+      "name": "accounts/fireworks/models/kimi-k2p6",
+      "intell": 0.87,
+      "provider": "openai-compatible:fireworks",
+      "status": "up"
+    },
+    {
+      "name": "stepfun-ai/step-3.7-flash",
+      "intell": 0.78,
+      "provider": "nvidia",
+      "status": "up"
+    },
+    {
+      "name": "mistral-large-2512",
+      "intell": 0.77,
+      "provider": "openai-compatible:mistral",
+      "status": "up"
+    },
+    {
+      "name": "mistral-large-latest",
+      "intell": 0.77,
+      "provider": "openai-compatible:mistral",
+      "status": "up"
+    },
+    {
+      "name": "qwen/qwen3.5-397b-a17b",
+      "intell": 0.76,
+      "provider": "nvidia",
+      "status": "up"
+    },
+    {
+      "name": "@cf/google/gemma-4-26b-a4b-it",
+      "intell": 0.71,
+      "provider": "cloudflare",
+      "status": "up"
+    },
+    {
+      "name": "poolside/laguna-m.1:free",
+      "intell": 0.71,
+      "provider": "kilocode",
+      "status": "up"
+    }
+  ],
+  "providers": [
+    {
+      "name": "openai-compatible:mistral",
+      "up": 43,
+      "down": 16,
+      "issue": "16 down"
+    },
+    {
+      "name": "cloudflare",
+      "up": 18,
+      "down": 0,
+      "issue": "None"
+    },
+    {
+      "name": "nvidia",
+      "up": 14,
+      "down": 31,
+      "issue": "31 down"
+    },
+    {
+      "name": "kilocode",
+      "up": 8,
+      "down": 0,
+      "issue": "None"
+    },
+    {
+      "name": "groq",
+      "up": 5,
+      "down": 5,
+      "issue": "5 down"
+    },
+    {
+      "name": "openai-compatible:fireworks",
+      "up": 5,
+      "down": 4,
+      "issue": "4 down"
+    },
+    {
+      "name": "openrouter",
+      "up": 2,
+      "down": 22,
+      "issue": "22 down"
+    },
+    {
+      "name": "openai-compatible:github",
+      "up": 2,
+      "down": 6,
+      "issue": "6 down"
+    },
+    {
+      "name": "codestral",
+      "up": 1,
+      "down": 0,
+      "issue": "None"
+    },
+    {
+      "name": "opencode",
+      "up": 1,
+      "down": 5,
+      "issue": "5 down"
+    },
+    {
+      "name": "cerebras",
+      "up": 0,
+      "down": 7,
+      "issue": "7 down"
+    },
+    {
+      "name": "scaleway",
+      "up": 0,
+      "down": 14,
+      "issue": "14 down"
+    },
+    {
+      "name": "kiro",
+      "up": 0,
+      "down": 2,
+      "issue": "2 down"
+    },
+    {
+      "name": "googleai",
+      "up": 0,
+      "down": 11,
+      "issue": "11 down"
+    },
+    {
+      "name": "ollama",
+      "up": 0,
+      "down": 3,
+      "issue": "3 down"
+    }
+  ],
+  "recent_changes": [
+    "NVIDIA models fixed: 14 models now UP (was 0)",
+    "Intelligence scores updated with Arena benchmark data",
+    "ModelRelay ping intervals increased: 1min \u2192 5-60min",
+    "Sensitive files moved to vault: sshkey.pem, env.txt, zilliz credentials",
+    "ARCHIVIST index created: 1,590 files catalogued"
+  ],
+  "open_issues": [
+    "NVIDIA: 19 models still DOWN (404/500 on non-existent endpoints)",
+    "Google AI: 11 models DOWN (credits depleted, need new key)",
+    "GitHub Models: 0 UP (1500/day limit exceeded, ~5.6h cooldown)",
+    "Cerebras: 0 UP (paywalled, payment_required)",
+    "Next.js Dashboard: Port 3000 occupied by WSL relay (needs reconfiguration)"
+  ]
+}

@@ -29,11 +29,6 @@ class _StubField:
     @staticmethod
     def default(*a, **k): return None
 
-# Replace pydantic.Field with callable stub
-sys.modules["pydantic"] = types.ModuleType("pydantic")
-sys.modules["pydantic"].BaseModel = _StubBaseModel
-sys.modules["pydantic"].Field = _StubField()
-
 class _StubFastAPI:
     def __init__(self, title="", version=""):
         self.title = title
@@ -52,11 +47,22 @@ class _StubHTTPException(Exception):
         self.status_code = status_code
         self.detail = detail
 
-sys.modules["fastapi"] = types.ModuleType("fastapi")
-sys.modules["fastapi"].FastAPI = _StubFastAPI
-sys.modules["fastapi"].HTTPException = _StubHTTPException
+try:
+    import pydantic  # noqa: F401
+    import fastapi  # noqa: F401
+except Exception:
+    # Replace pydantic.Field with callable stub only when the real web stack is absent.
+    sys.modules["pydantic"] = types.ModuleType("pydantic")
+    sys.modules["pydantic"].BaseModel = _StubBaseModel
+    sys.modules["pydantic"].Field = _StubField()
+    sys.modules["fastapi"] = types.ModuleType("fastapi")
+    sys.modules["fastapi"].FastAPI = _StubFastAPI
+    sys.modules["fastapi"].HTTPException = _StubHTTPException
 
-sys.modules["uvicorn"] = types.ModuleType("uvicorn")
+try:
+    import uvicorn  # noqa: F401
+except Exception:
+    sys.modules["uvicorn"] = types.ModuleType("uvicorn")
 
 # Stub sklearn so pickle.load() of query_classifier.pkl can succeed
 class _StubPipeline:

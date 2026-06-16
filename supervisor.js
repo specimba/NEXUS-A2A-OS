@@ -10,7 +10,7 @@ function killExisting() {
     execSync('pkill -f "server.js" 2>/dev/null || true', { timeout: 2000 });
   } catch {}
   try {
-    execSync('fuser -k 3000/tcp 2>/dev/null || true', { timeout: 2000 });
+    execSync('fuser -k 3001/tcp 2>/dev/null || true', { timeout: 2000 });
   } catch {}
 }
 
@@ -30,7 +30,7 @@ function startServer() {
     env: { 
       ...process.env, 
       HOSTNAME: '0.0.0.0',
-      PORT: '3000'
+      PORT: '3001'  // Changed from 3000 to avoid WSL relay conflict
     },
     stdio: 'inherit'
   });

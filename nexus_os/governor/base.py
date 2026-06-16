@@ -61,6 +61,7 @@ class NexusGovernor:
         compliance_engine=None,
         enable_cva: bool = True,
         token_guard=None,
+        trust_kernel=None,
     ):
         """
         Initialize the governor.
@@ -71,6 +72,7 @@ class NexusGovernor:
             compliance_engine: Optional ComplianceEngine for post-auth rule checks.
             enable_cva: Whether to run CVA trait verification (default True).
             token_guard: Optional TokenGuard instance for budget enforcement.
+            trust_kernel: Optional canonical TrustKernel for pre-KAIJU trust gating.
         """
         from nexus_os.monitoring.token_guard import TokenGuard
         self.db = db
@@ -78,6 +80,7 @@ class NexusGovernor:
         self.compliance_engine = compliance_engine
         self._cva_verifier = _CVAVerifier() if enable_cva else None
         self.token_guard = token_guard or TokenGuard()
+        self.trust_kernel = trust_kernel
         self._budget_warning_threshold = 0.75   # 75% → warn via VAP context
         self._budget_hardstop_threshold = 0.95  # 95% → DENY
 
@@ -139,6 +142,38 @@ class NexusGovernor:
                 agent_id, action, budget_reason,
             )
             return result
+
+        # ── Step 0.5: Canonical TrustKernel preflight ──────────
+        if self.trust_kernel is not None:
+            trust_result = self.trust_kernel.evaluate(
+                agent_id=agent_id,
+                action=action,
+                lane=ctx.get("lane") or action,
+                context={
+                    **ctx,
+                    "requested_clearance": clearance,
+                    "requested_impact": impact,
+                    "side_effect": action.lower() in {"write", "delete", "execute", "override", "deploy", "run"},
+                },
+            )
+            trust_payload = trust_result.to_dict() if hasattr(trust_result, "to_dict") else dict(trust_result)
+            trust_decision = str(trust_payload.get("decision", "hold")).lower()
+            if trust_decision in {"deny", "quarantine"}:
+                result = AuthResult(
+                    Decision.DENY,
+                    f"TrustKernel {trust_decision.upper()}: {trust_payload.get('reason')} (source={trust_payload.get('source', 'canonical_trust_kernel')})",
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
+            if trust_decision in {"hold", "escalate"}:
+                result = AuthResult(
+                    Decision.HOLD,
+                    f"TrustKernel {trust_decision.upper()}: {trust_payload.get('reason')} (source={trust_payload.get('source', 'canonical_trust_kernel')})",
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
 
         # ── Step 1: KAIJU 4-variable authorization ──────────────
         try:

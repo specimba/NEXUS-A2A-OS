@@ -1,0 +1,2221 @@
+
+--- Page 1 ---
+
+Quantifying the Effect of Test Set Contamination on Generative Evaluations
+RylanSchaeffer*1 JoshuaKazdan*2 BaberAbbasi3 KenZiyuLiu1 BrandoMiranda1 AhmedAhmed1
+FazlBarez45 AbhayPuri6 StellaBiderman3 NiloofarMireshghallah7 SanmiKoyejo1
+Abstract Schaeffer,2023;Xuetal.,2024a;Dengetal.,2024a;Reuel
+Testsetcontamination–theinclusionofbench- etal.,2025). Evaluationaimstomeasuregeneralizationon
+marksinpretrainingdata–isacriticalthreatto tasksthemodelhasneverseen,yetthesheerscaleofmodern
+thetrustworthyevaluationoffrontierAIsystems. pretrainingmakessuchcontaminationlikely(Brownetal.,
+Whileitsimpactondiscriminativeevaluationsis 2020;Duetal.,2022;Weietal.,2022a;Chowdheryetal.,
+well-studied,contaminationongenerativeevalu- 2022;Touvronetal.,2023;Penedoetal.,2024).
+ationsremainsunderexplored. Wequantitatively
+Priorresearchhassoughttoquantifytheimpactoftestset
+assess these effects across the language model
+contamination,alsoknownasleakage,throughtwoprimary
+lifecyclebypretrainingmodels(upto344Mpa- lenses. Statisticalapproachesattempttodetectcontamina-
+rameters)onwebdatacontaminatedwithvarying
+tionorestimateitsinfluencebymodifyingthetestset,for
+numbersMATHtestsetreplicas. Whileperfor-
+example, by reordering, rephrasing, or replicating bench-
+manceexpectedlyimproveswithcontamination
+mark problems, e.g., (Oren et al., 2023; Ni et al., 2025;
+andmodelsize,ourscalinglawanalysisrevealsa
+Shietal.,2024;Golchin&Surdeanu,2023;2024;Roberts
+fundamentalbreach: includingevenasingletest
+et al., 2024; Wang et al., 2025; Zhang et al., 2024a). In
+setreplicaenablesmodelstoachievelowerloss comparison,controlledapproaches–whichofferthemost
+thantheirreducibleerroroftrainingontheuncon-
+rigorousmeasurement–intentionallycontaminatepretrain-
+taminatedcorpus. Wethenstudyadditionaltrain-
+ingcorporatoquantifyhowspecificdosesofleakageinflate
+ing: overtrainingwithfreshdatadilutescontami-
+performance,e.g.,(Magar&Schwartz,2022;Jiangetal.,
+nationeffects,whereassupervisedfinetuningon
+2024;Orenetal.,2023;Yaoetal.,2024;Duanetal.,2024;
+thetrainingsetimprovesperformanceforlowcon-
+Wangetal.,2025;Kocyigitetal.,2025;Bordtetal.,2025;
+taminationbutdegradesitforhighcontamination.
+Weietal.,2025). Foramorein-depthdiscussion,pleasesee
+At inference, we identify three distinct regimes
+AppendixARelatedWork.
+ofmemorization—rangingfromexponentialde-
+coherencetodeterministiclock-in—governedby Whilefoundational,theseinvestigationshavepredominantly
+solution length and sampling temperature. Fi-
+focusedondiscriminativebenchmarkslikeclassificationor
+nally, weidentifyandfixacriticalimplementa- multiple-choicequestion-answering(MCQA).Forexample,
+tionerrorinawidelyusedevaluationlibrarythat Magar&Schwartz(2022)usedSST-2(Socheretal.,2013)
+previouslyunderreportedmathematicalreasoning (classification). Jiangetal.(2024)usedSST-2(classifica-
+performance. Bycharacterizinghowgeneration tion),MMLU(Hendrycksetal.,2021a)(MCQA),SQuAD
+andmemorizationinteract,wehighlightnewcon- (Rajpurkaretal.,2016)(MCQA),andCNN/DailyMail(fill-
+siderationsfortrustworthyAIevaluation. in-the-middle)(Nallapatietal.,2016). Orenetal.(2023)
+used 7 MCQA benchmarks and 1 mathematical problem
+solvingbenchmark(GSM8K)(Cobbeetal.,2021),Yaoetal.
+1.Introduction (2024)used3MCQAbenchmarkswhileBordtetal.(2025)
+used7MCQAbenchmarks.
+As frontier AI systems are pretrained on web-scale data,
+test set contamination has become a critical concern for However,withtherapidadvancementofmodelcapabilities
+accurately assessing their capabilities (Sainz et al., 2023; andtheadventofreasoningmodels(OpenAIetal.,2024a;
+GoogleGeminiTeametal.,2025;Xuetal.,2025),thefield
+1StanfordComputerScience2StanfordStatistics3EleutherAI isshiftingtowardsbenchmarksforwhichthemodelmust
+4UniversityofOxford5Martian6ServiceNowResearch7Carnegie
+generate an answer rather than choose between provided
+Mellon University. Correspondence to: Rylan Scha-
+answers. Whethertestsetcontaminationhasthesameeffect
+effer <rschaef@cs.stanford.edu>, Joshua Kazdan <jkaz-
+dan@stanford.edu>,SanmiKoyejo<sanmi@cs.stanford.edu>. ongenerativeevaluationasondiscriminativeevaluations
+isunclear. Discriminativeevaluationstypicallyrequirethe
+1
+6202
+beF
+6
+]GL.sc[
+2v10340.1062:viXra
+
+--- Page 2 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+1.0
+TEST SET MODEL N 0.8 TEST SET
+TEST SET 0.6 TEST SET
+TEST SET T T E E S S T T S S E E T T MODEL 03 0.4
+Pretraining
+ TEST SET T T E E S S T T S S E E T T 0.2
+Documents
+TEST SETTEST SET N REPLICAS 0.0
+MODEL 02 0 100 101 102 103
+TEST SET Num.MATHTestSetReplicas
+TEST SETTEST SETTEST SET
+5 REPLICAS MODEL 01
+TEST SET
+3 REPLICAS
+1 REPLICA
+erocSyfireVhtaM
+Num.Parameters 1.0
+34M 62M 0.8 Num.Replicas
+9 1 3 5 M 3M 0.6 0 10
+344M 0.4 100 1000
+0.2 3162
+0.0
+108
+Num.Parameters
+100
+10−1
+10−2
+0 100 101 102 103
+Num.MATHTestSetReplicas
+)sacilpeR0/sacilpeRR(oitaRssoL 100
+Num.Parameters Num.Replicas
+34M 10−1 0
+62M 10
+93M 100
+153M 1000
+344M 10−2 3162
+108
+Num.Parameters
+Figure1.PerformanceonGenerativeBenchmarksIncreaseswithTestSetContaminationandModelSize.Schematic:Wepretrained
+compute-optimallanguagemodels(34M–344Mparameters)oncorporacontainingdifferentreplicasoftheMATHtestset(0–3162).
+Evaluationusedgreedydecoding(temperature= 0). Left: Ascontamination(quantifiedbythenumberoftestsetreplicasinthe
+pretrainingcorpus)increases,MathVerifyscores(top)riseandcrossentropiesonthetestset(bottom)fall,consistentwithdiscriminative
+evaluations,withasharpimprovementaround100testsetreplicas.Right:TheratiointhelossontheMATHtestsetbetweenRreplicas
+and0replicasgrowswithmodelsize,meaninglargermodelsbenefitmorefromcontaminationforthesamenumberofreplicas.
+modeltoplacehigherprobabilitymassonthecorrectchoice thepretrainingcontaminationlevel: itimprovesper-
+than on a small number of alternative incorrect choices formanceforlowcontaminationbutactivelyworsens
+(Gao et al., 2024; Schaeffer et al., 2025e), and candidate performanceforhighcontaminationmodels.
+choicesareoftenonlyacoupleoftokenslong. Incontrast,
+• Inference (Temperature & Solution Length): We
+generativeevaluationsrequirethemodeltoproducesolu-
+identifythatsamplingtemperatureandsolutionlength
+tionsspanningtens-to-thousandsoftokenswithoutstraying
+modulatememorization. Wemathematicallydescribe
+fromthememorizedpath,andintroducenewconsiderations
+three distinct regimes: Exponentially Fast Decoher-
+suchasthesamplingtemperature(Ackleyetal.,1985),the
+ence,BrittleMemorization,andDeterministicLock-
+sampling algorithm (e.g., top-k (Fan et al., 2018), top-p
+In. Weshowthathigh-temperaturesamplingactsas
+(Holtzmanetal.,2020))andthesolutionlength.
+a”truthserum,”decouplingcontaminationgainsfrom
+Inthiswork,wequantitativelystudytheeffectsoftestset robustgeneralization.
+contaminationongenerativeevaluations, focusingonthe
+• CorrectiontoEvaluationLibrary: Weidentifyand
+widelyusedMATHbenchmark(Hendrycksetal.,2021b).
+fixacriticalimplementationerrorinthewidelyused
+Wepretraindozensoflanguagemodelsoncorporacontami-
+EleutherAILMEvaluationHarness(Gaoetal.,2024)
+natedwithvaryingnumbersoftestsetreplicas,sweeping
+forMathVerifyScores(AppendixC).Ourcorrection
+acrossmodelsizes,samplingtemperatures,andtokenbud-
+ensures that valid reference solutions are accurately
+gets. Wemakethefollowingcontributions:
+scored as correct (raising gold reference solutions’
+scoresfrom 70%to100%),anecessarystepfortrust-
+• Pretraining(Scaling&IrreducibleError):Wequan- worthyrepor ∼ tingonmathematicalbenchmarks.
+tifyhowcontaminationimpactspretrainedmodels. We
+find that performance increases with contamination Ourinvestigationfollowsthestandardlanguagemodellife-
+andmodelsize,similartodiscriminativesettings. Un- cycle: wefirstexaminecontaminationduringpretraining
+derstandardscalinglawassumptions,wediscovera (Sec. 3), then study how subsequent training—both over-
+fundamentalbreach: includingevenasinglereplicaof trainingandsupervisedfinetuning—interactswithcontam-
+thetestsetenablesachievingalowerlossthantheesti- ination (Sec. 4), and finally analyze how inference-time
+matedirreducibleerroroftheuncontaminatedcorpus. parameters like sampling temperature and output length
+modulateperformanceduringdeployment(Sec.5).
+• More Training (Overtraining & Supervised Fine-
+tuning): We find that training beyond compute- 2.Methods
+optimalwithfreshdatadilutestheperformancegains
+fromcontamination. WefurtherrevealthatSupervised PretrainingTostudytheeffectsofcontaminationingen-
+Finetuning(SFT)hasopposingeffectsdependingon erativeevaluations,wepretrainedtransformer-basedcausal
+2
+
+--- Page 3 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+100
+10 1
+−
+1017 1018 1019
+FLOP (6ND)
+teS
+tseT
+HTAM
+no
+ssoL
+Num. Replicas
+0 Uncontaminated Irreducible Error
+1
+3
+10
+32
+100
+316
+4
+2
+0
+0 100 101 102
+Num.MATHTestSetReplicas
+ErorrEelbicuderrI
+1023
+1019
+1015
+1011
+0 100 101 102
+Num.MATHTestSetReplicas
+0CrotcaferPetupmoC
+1.5
+1.0
+0.5
+0.0
+0 100 101 102
+Num.MATHTestSetReplicas
+αtnenopxEetupmoC
+10−3
+10−4
+0 100 101 102
+Num.MATHTestSetReplicas
+)gvA(ssoLtiF
+Figure2. ScalingLawsSuggestIncludingASingleTestSetReplicaAchievesLowerLossThantheIrreducibleErrorofthe
+UncontaminatedCorpus.Top:ForeachscalingseriespretrainedoncorporacontaminatedwithRreplicasoftheMATHtestset,we
+fitscalinglawsL(C,R)=E(R)+C (R)·C−α(R),whereC =6NDisthepretrainingcompute.Almostallcontaminatedmodels
+0
+achievelowercrossentropyontheMATHtestsetthantheirreducibleerroroftrainingonuncontaminateddata(horizontalpurpleline).
+Bottom:IncreasingtestsetcontaminationreducestheirreducibleerrorE(R)from3.594atR=0to0.0347atR=316.Largervalues
+ofRalsoincreasethecomputeprefactorandcomputeexponent.Thefunctionalformachievesaveragefittingerror<10−2forallR.
+languagemodels(Vaswanietal.,2017;Brownetal.,2020) testproblems),answersexist,andthebenchmarkincludes
+usingtheQwen3architecture(Yangetal.,2025a),sweeping solutionsaswellasanswers. TheMATHtestsetcontains
+modelsizes: 34M,62M,93M,153M,344M.Eachmodel 1.4MtokensundertheQwen3tokenizer.
+∼
+was pretrained with 20 tokens-per-parameter (Hoffmann
+Evaluation We evaluated our models using two metrics.
+etal.,2022). Foreachmodelsize,wecreatedmultiplepre-
+ThefirstmetricwereportisMathVerify(Kydliceketal.,
+trainingcorporabycontaminatingahighqualitywebcrawl
+2025), defined as the fraction of problems for which the
+corpus (Penedo et al., 2024) with a different number of
+modelgeneratessolutionsthatareverifiedtobemathemat-
+replicasofthebenchmarktestset: from0(uncontaminated)
+ically equivalent to the benchmark’s boxed answers. We
+through 1,3,10,32,100,316,1000,3162 (logarithmically
+initiallyevaluatedourmodelsusingEleutherAI’sLanguage
+uniform). Pretrainingcompute(floatingpointoperations;
+ModelEvaluationHarness(Gaoetal.,2024), butdiscov-
+FLOP), was approximated as C 6ND (Kaplan et al.,
+≈ eredabuginhowMathVerifyscoresarecomputedbythe
+2020;Sardanaetal.,2024;Porianetal.,2024;Gadreetal.,
+Harness;forexample,thebenchmark’sgoldreferenceso-
+2024),whereN ismodelparametersandDispretrainingto-
+lutions obtained a Math Verify score of only 70%. We
+kens. Wetrainedonemodelforeachpairofmodelsizeand ∼
+workedwiththedeveloperstocorrecttheimplementation
+numberoftestsetreplicas. Formoredetails,seeApp.B.
+(seeAppendixCfordetails). Thissuggeststhatresearchre-
+BenchmarkWechosetheubiquitousMATH(Hendrycks portingmath minervascoreswiththeEvalHarnessprior
+et al., 2021b) benchmark of competition math problems totaskversion3.0mayhavereportedincorrectscores. The
+duetoseveralproperties: itiscomparativelylarge(5,000 secondmetricwereportistheCrossEntropyofthegoldref-
+3
+
+--- Page 4 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+erencesolutionsgiventheproblems,whichwerepreviously Model Replicas Rephrased Perturbed
+demonstratedtobeusefulforstudyingscalingpropertiesof
+0 0.04% 0.00%
+generativeevaluationsduringpretraining(Schaefferetal.,
+1 0.00% 0.00%
+2025b). We used temperature-only sampling (Schaeffer
+3 0.00% 0.00%
+etal.,2025a),beginningwithtemperature0(“greedy”),and
+10 0.00% 0.00%
+expandingtomoretemperaturesinSec.5.
+344M 32 0.00% 0.00%
+100 0.02% 0.00%
+3.Pretraining: Scaling&IrreducibleError
+316 0.00% 0.00%
+1000 0.00% 0.00%
+Webeginatthefirststageofthemodellifecycle:pretraining.
+3162 0.04% 0.00%
+Weestablishfoundationalresultsonhowtestsetcontamina-
+tioninteractswithmodelscaleandcompute,andusescaling Table1.Contamination-DrivenPerformanceIsNotGeneral-
+ization.WhenMATHtestproblemsarerephrased(samenumbers,
+lawstoquantifywhatcontaminationbuysamodel.
+differentwording)orperturbed(samewording,differentnumbers),
+model performance collapses to baseline regardless of contam-
+Finding#1: PerformanceIncreaseswithContamination ination level or model size, confirming that performance gains
+fromcontaminationarenotgeneralizedmathematicalreasoning.
+and Model Size Consistent with discriminative evalua-
+Resultswereconsistentacrossallmodelsizes.
+tions,increasingthenumberofbenchmarkreplicasinthe
+pretraining corpus increases Math Verify scores and de-
+creases cross entropies (Fig. 1 Left), as does increasing
+model size (Fig. 1 Right). We observe a non-linear rela- Toanswerthisquestion,weturnedtoneuralscalinglaws.
+tionshipbetweenthenumberoftestsetreplicasandmodel Based on previous work (Kaplan et al., 2020; Hoffmann
+performance: Forlowlevelsofcontamination( 10repli- etal.,2022;OpenAIetal.,2024b;Huetal.,2024;Schaeffer
+cas), the impact on performance is minimal, w ≤ ith Math etal.,2025b),foreachscalingseriespretrainedoncorpora
+Verifyscoresandcrossentropiesremainingclosetouncon- contaminatedwithR 0,1,3,10,32,100,316 replicas
+∈ { }
+taminatedperformance;ataround100replicas,performance oftheMATHtestset,wefitneuralscalinglawsforthecross
+sharplyincreases(Fig.5). Atthehighestlevelsofcontami- entropyloss onthebenchmarktestsetasafunctionof
+L
+nation,themodelachievesceilingperformance. pretrainingcomputeC,measuredin6NDFLOP:
+(C,R)=E (R)+C (R) C−α(R). (1)
+0 0
+Finding#2: Contamination-DrivenPerformanceIsNot L ·
+Generalization To determine if the performance gains
+Fig.2showseachscalinglaw,aswellaseachscalinglaw’s
+stemmed from robust generalization or superficial mem-
+estimated parameters as a function of the number of test
+orization, we evaluated our contaminated models on two
+setreplicasR. Ourmodels’pretrainingcomputebudgets
+modifiedversionsoftheMATHtestset. First,werephrased
+andlossesonthetestsetarereasonablywellfitbyEqn.1,
+theproblems,retainingtheoriginalnumericalvaluesand
+andthepretrainingprefactorsandpretrainingexponentsare
+logicbutalteringthelinguisticsurfaceform. Second,we
+roughlyconstantforthevariousvaluesofR. Thebiggest
+perturbedtheproblems,modifyingthenumericalvaluesand
+effect of increasing contamination is that the irreducible
+correctanswerswhilemaintainingtheproblemstructure.
+errorshrinksfromE =3.594 0.0347asR=0 316.
+→ →
+Inbothconditions,performanceregressestomatchtheun- Onthemodelswetrained,includingevenasinglereplica
+contaminated model across all model sizes and contami- enablesalmostallmodelstoachievelowercrossentropy
+nation levels in both conditions (Tab. 1). This strongly losses than the estimated irreducible error of the uncon-
+suggeststhatthecapabilitiesgainedfromtestsetcontam- taminatedpretrainingcorpus. Understandardscalinglaw
+inationrelyalmostexclusivelyonverbatimmemorization assumptions–specifically,thatthescalinglawextrapolates
+ofthespecifictestsequences,ratherthantheacquisitionof infinitely–acontaminatedpretrainingcorpuscanbuymore
+underlyingmathematicalreasoning. thanan“infinite”amountofpretrainingcomputerelativeto
+pretrainingonanuncontaminatedpretrainingcorpus.
+Finding #3: Scaling Laws Suggest Including A Single ThisconclusionpotentiallycontradictsHuangetal.(2024)’s
+Test Set Replica Achieves Lower Loss Than the Irre- claimthatsingle-shotverbatimmemorizationisan“illusion”
+ducible Error of the Uncontaminated Corpus How andHayesetal.(2025)’sclaimthatmembershipinference
+muchdoestestsetcontamination“buy”themodelinterms attacksarelimitedonpre-trainedLLMs,withAUCasymp-
+ofperformance? Morespecifically,howmuchpretraining totingto 0.689.Futureworkshouldaimtounderstandthis
+∼
+computemustbespentonanuncontaminatedpretraining difference;onepossibleexplanationisthatMATHisdistri-
+corpustomatchtheperformanceofamodeltrainedona butionallydifferentfromFineWeb-Edu-Dedupinawaythat
+corpuscontainingRreplicasofthebenchmarktestset? makesidentifyingtestsetcontaminationeasier.
+4
+
+--- Page 5 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+100
+0 100 101 102 103
+Num. MATHTestSetReplicas
+teStseTHTAMnossoL
+Parameters=34M Parameters=63M Parameters=93M OvertrainMultiplier
+1
+2
+100 100 4
+8
+16
+10− 1 10− 1
+0 100 101 102 103 0 100 101 102 103
+Num. MATHTestSetReplicas Num. MATHTestSetReplicas
+100
+100 101
+OvertrainMultiplier
+teStseTHTAMnossoL
+Parameters=34M Parameters=63M Parameters=93M Num. TestReplicas
+0
+1
+100 100 3
+10
+32
+100
+10− 1 10− 1 316
+1000
+100 101 100 101
+OvertrainMultiplier OvertrainMultiplier 3162
+Figure3.OvertrainingwithFreshDataMitigatesContamination.Consistentwithdiscriminativeevaluations(Bordtetal.,2025),
+wefindaninteractionbetweencontaminationandovertraining(i.e.,traininglongerthanChinchillacompute-optimal;Eqn.2)onnew
+freshdata. Formodelswithlowcontamination,crossentropyontheMATHtestsetdecreaseswithincreasingovertraining;however,
+formodelswithhighcontamination,crossentropyincreaseswithovertraining.Thissuggeststhatwhilefreshdatagenerallyimproves
+performance,itdilutesthe“dose,”orproportionofcontaminatedpretrainingtokens,therebylesseningtheeffectofthecontamination.
+Thecrossoverpointshiftswithmodelsize,fallingfrom32testsetreplicasfor34Mto1replicafor93Mmodels,indicatinglargermodels
+losetheircontaminationadvantagemorereadilywhenovertrained.
+4.FurtherTraining: Overtraining& see select documents repeated tens-to-hundreds of times
+SupervisedFinetuning (Hernandezetal.,2022)ortheentirecorpusrepeatedfor4+
+epochs(Muennighoffetal.,2023;Fangetal.,2025).
+Afterpretraining,modelstypicallyundergoadditionaltrain-
+Wefindaninterestinginteractionbetweencontamination
+ing. Wenowexaminehowtwocommonadditionaltraining
+andovertraining(Fig.3): formodelswithlowcontamina-
+interventions—overtraining on fresh data and supervised
+tion, cross entropy on the MATH test set decreases with
+finetuning—interactwithpretrainingcontamination.
+increasingovertraining,butformodelswithhighcontami-
+nation,crossentropyontheMATHsetincreaseswithover-
+Finding #4: Overtraining with Fresh Data Mitigates
+training. Thecross-overpointbetweentestsetreplicasand
+Contamination Bordtetal.(2025)recentlyreportedthat
+overtrainingmultipliershiftswithmodelsize: thecrossover
+fordiscriminativeevaluations,theeffectofcontamination
+pointfallsfrom32testsetreplicasfor34Mparametermod-
+diminisheswhenmodelsaretrainedbeyond“computeopti-
+els to 10 replicas for 63M parameter models to 1 replica
+mal”onfreshdata. Wetestedwhetherthisso-calledover-
+for93Mparametermodels. Thus,asmodelsbecomelarger,
+training(Touvronetal.,2023;Sardanaetal.,2024;Gadre
+theperformanceboostfromcontaminationdiminisheswhen
+etal.,2024;Schaefferetal.,2025b)hassimilareffectsfor
+overtrainingwithfreshdata. Ourinterpretationisthatwhile
+generativebenchmarks. WeextendedourSec.2pretraining
+morefreshdataisgenerallyusefulforimprovingmodelper-
+sweepintotheovertrainedregime,pretrainingon
+formancegenerally,itdilutesthe“dose”ofthecontaminated
+def data,weakeninghowthemodel“responds”(asmeasured
+D(m,N) = m 20 N, (2)
+× × bytaskperformance)(Schaefferetal.,2025c).
+tokenspermodel,wheremistheovertrainingmultiplier
+and N is the number of model parameters. We swept Finding #5: Supervised Fine-Tuning on Training Set
+m 1,2,4,8,16 .FollowingSardanaetal.(2024);Gadre HasOpposingEffects,DependingonPretrainingCon-
+∈{ }
+etal.(2024),wetermm = 1“compute-optimaltraining” tamination Afterpretraining,thefirstpost-trainingstepis
+andtermm > 1“overtraining”. Crucially, inBordtetal. oftentimessupervisedfinetuning(SFT)(Weietal.,2022b;
+(2025)andhere,astheovertrainingmultiplierincreases,the Ouyangetal.,2022). Weturnedtoassessingwhateffect,if
+additionaltokensarenew,fresh,non-repeatedtokens;this any,SFThasoncontaminatedpretrainedmodels. Kocyigit
+differs from more practical settings where models might (2025)recentlystudiedthisquestionandfoundthatSFTon
+5
+
+--- Page 6 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+6
+4
+2
+0
+0 2 4 6
+Loss on MATH Test Before SFT
+TFS
+retfA
+tseT
+HTAM
+no
+ssoL
+Effect
+No
+Has
+Train
+On 101
+T
+SF
+SFTonTrain
+HurtsonTest
+SFTonTrain 100
+HelpsonTest
+10 1 100 −
+Loss on MATH Test Before SFT
+ssoL
+tseT
+TFS-tsoP
+/
+ssoL
+tseT
+TFS-erP
+Num. Replicas
+0
+10
+100
+1000
+3162
+Parameters
+34M
+SFTonTrainHurtsonTest
+62M
+SFTonTrainHelpsonTest
+93M
+153M
+344M
+Figure4.SupervisedFinetuningontheTrainSetHasOpposingEffects,DependingonPretrainingContamination.Formodels
+pretrainedwithlittle-to-nocontamination(<10testsetreplicas),supervisedfinetuning(SFT)ontheMATHtrainsetdecreaseslosson
+thetestset.Formodelspretrainedwithmorecontamination(>10testsetreplicas),SFTonthetrainsetincreaseslossonthetestset.We
+conjecturethatduringSFT,contaminatedmodelslearntogeneralizebutalsoforgettheircontaminatedpretrainingdata,andtheeffectsof
+contaminatedtestsetdataaremoreimpactfulthangeneralizationforsmallmodels,leadingtoanetincreaseintestloss.
+the train set improves performance on the test set. How- inference-timeparameters—particularlysamplingtempera-
+ever,asakeymethodologicaldifference,Kocyigit(2025) tureandthelengthofgeneratedsolutions—introducenew
+inducedtestsetcontaminationviacontinuedpretraining(Jin considerationsforhowcontaminationmanifests.
+etal.,2022;Jangetal.,2022;Ibrahimetal.,2024;Parmar
+etal.,2024;Yildizetal.,2025),whereasweintroducedtest
+Finding #6: High Temperature Sampling Mitigates
+setcontaminationuniformlythroughoutpretraining. The
+GainsfromContamination Weevaluatedthepretrained
+MATHformatwaspreservedbetweenpretrainingandSFT.
+modelsusingtemperature-onlysampling,sweepingfrom0
+OnemightexpectthatSFTonthetrainsetshouldincrease (“greedy”)to1.5. WeobservedthatMathVerifyscoresre-
+test set performance across the board. We discover that, mainstablebetweengreedydecodingandlow-temperature
+surprisingly, the opposite is sometimes true: SFT on the sampling(τ 0.56)(Fig.5,leftandcenter). However,as
+≤
+trainsetcanbothhelpandhurtmodelperformanceonthe temperatureincreasesbeyondthispoint, performancede-
+testset,dependingontheamountofcontaminationinpre- gradesquickly. Forexample,increasingtemperaturefrom0
+training(Fig.4). Formodelswithnoorlow(<10)testset to1causesperformanceathighcontaminationlevels(1000
+contamination, SFT on the train set significantly reduces replicas)tocollapsebyafactorof40,downtothebaseline
+lossonthetestset(purple). At10testsetreplicas,SFThas performanceofuncontaminatedmodels. Thissuggeststhat
+no effect (aqua), but as contamination increases, SFT on contamination-drivenperformanceisbrittle;smalladjust-
+thetrainsetsignificantlyincreaseslossonthetestset(yel- ments in inference settings can eliminate the benefits of
+low,green). WeconjecturethatduringSFT,contaminated contaminationalmostentirely.
+modelslearntogeneralizebutalsoforgettheircontaminated
+pretrainingdata,andtheeffectsofcontaminatedtestsetdata
+Finding #7: Longer Solution Length Mitigates Gains
+are more impactful than generalization for small models,
+fromContamination Tounderstandhowsolutionlength
+leadingtoanetincreaseintestloss. AsstudiedinSection
+constrainsperformance, webinnedproblemsinto10log-
+3,thebenefitsofcontaminationontestlossdwarfthoseof
+spacedintervalsrangingfromtheshortest(15tokens)tothe
+generalization (which would be improved by SFT on the
+longest(1949tokens). WefoundthatMathVerifyscores
+train set). Therefore, the net impact of SFT on the train
+decreasesignificantlyassolutionlengthincreases(Fig.6).
+setforhighlycontaminatedmodelsiscounterintuitivelyto
+Weidentifiedastrikingshiftinthefunctionalformofthis
+increasecrossentropyloss.
+decaybasedoncontaminationlevel: Athighercontamina-
+tion levels, the decay follows an approximate power law,
+5.Inference: Temperature&SolutionLength butatlowerlevelsofcontamination,performancedecays
+exponentiallyquicklytothenoisefloor. Thissuggeststhat
+Finally, we arrive at the last stage of the model lifecy-
+maintainingacoherentmemorizedchainbecomesincreas-
+cle: inference. Whenmodelsaredeployedforgeneration,
+inglydifficultasthesequencegrows,andalsoalignswith
+6
+
+--- Page 7 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Figure5.SamplingTemperatureDegradesPerformance,ParticularlyforContaminatedModels.WereportMathVerifyscoresasa
+functionoftestsetreplicasandmodelsizeacrosssixsamplingtemperatures.Assamplingtemperatureincreases,MathVerifyscoresdrop
+precipitously,fallingfromnear100%tounder1%inmanyconfigurations.Thepenaltyforhightemperatureisdisproportionatelylarger
+forhighlycontaminatedmodels:increasingtemperaturefrom0to1reducesperformancebyafactorof∼2atlowcontaminationlevels
+(≤10replicas),whereasitreducesperformancebyafactorofupto40athighcontaminationlevels(1000replicas).
+Figure6.PerformanceDeclineswithIncreasingSolutionTokenLength.MathVerifyScoresdecreasewithsolutionlength,withthe
+effectsmodulatedbytemperature.Athighratesofcontaminationandhighertemperatures,mathverifyscoresfallexponentiallywiththe
+solutionlength.Atlowertemperatures,andhighratesofcontamination,solutionlengthhasalmostnoeffect.Modelsexposedtoless
+contaminationalsoexhibitdecliningscoreswithlongersolutionlengths,butthedropoffisconcaveupandoccursmuchmoreslowly.
+findingsthatlongersequencesrequiremorerepetitionsto Finding#8: TemperatureandSolutionLengthTogether
+bememorized(Jiangetal.,2025;Luetal.,2024),though GoverntheSurvivalProcess Generativeevaluationsdif-
+wedemonstratethisherethroughcontrolledpretraining. ferfundamentallyfromdiscriminativetasksbecausethey
+requirethemodeltomaintainacoherenttrajectoryovera
+Furthermore,solutionlengthinteractswithsamplingtem-
+sequence of length T. For models that solve the task via
+perature:Forshortsolutions( 100tokens)athighcontam-
+≤ memorizingsolutions,wecancharacterizehowthemodel
+ination(316replicas),raisingthetemperaturefrom0to1.0
+must“survive”theriskofdecoherenceateverytokenstept
+dropsaccuracyby 45%onthelargestmodel. However,
+∼ viastudyingtheprobabilitiesunderteacherforcing.
+forsolutionsof400tokens,thesametemperatureincrease
+causesaccuracytodropbynearly100%. To begin, motivated by prior work on in-context scaling
+7
+
+--- Page 8 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+100
+101 103
+TokenIndex
+doohilekiLgoLevitageN
+34M
+100
+10 1
+−
+101 103
+TokenIndex
+doohilekiLgoLevitageN
+93M
+100
+10 1
+−
+10 2
+−
+101 103
+TokenIndex
+doohilekiLgoLevitageN
+344M
+100
+10 1
+−
+10 2
+−
+10 3
+−
+10 4
+−100 101 102
+TokenIndex
+ytilibaborPevitalumuC
+34M
+100
+10 1
+−
+10 2
+−
+10 3
+−
+10 4
+−100 101 102
+TokenIndex
+ytilibaborPevitalumuC
+93M
+100
+10 1
+−
+10 2
+−
+10 3
+−
+10 4
+−100 101 102
+TokenIndex
+ytilibaborPevitalumuC
+Num. Replicas
+0
+1
+3
+10
+32
+100
+316
+1000
+3162
+344M
+Figure7. SolutionLengthandTemperatureTogetherGovernHowQuicklyMemorizationDecoheres. Top: Mostmodelsand
+contaminationpairsexhibitscalinglaws(Eqn.3)asafunctionofthesequencelength.Forexceptions,seeAppendixD.Bottom:The
+cumulativeprobabilityofgeneratingamemorizedsolutioncanexistinoneofthreeregimes:(1)ExponentiallyFastDecoherence,(2)
+BrittleMemorization,and(3)DeterministicLock-In.Samplingtemperaturecanshiftamodelbetweenregimes.
+laws(Anthropic,2023;Teametal.,2024;Xiongetal.,2024; RegimeII:BrittleMemorization(E 0,α 1). Atin-
+≈ ≤
+Anil et al., 2024), we find that for most model sizes and termediatecontamination,theprobabilityfollowsaWeibull-
+numberoftestsetreplicas,thenegativeloglikelihoodscales likestretchedexponential(P(T) e−kT1−α). Whilethe
+∼
+withthetokenindexasapowerlawplusanirreducibleerror: modelcanaccuratelygeneratesequences,itsgrasponthe
+(N,R) E(N,R)+A(N,R) t−α(N,R). (3) solutionisfragile,andthecumulativeprobabilityofsuccess
+t
+L ≈ · eventuallyvanishes.
+However,wedofindasmallnumberofnotableexceptions
+(Appendix.D).Theprobabilityofsuccessfullygeneratinga
+RegimeIII:DeterministicLock-In(E 0,α>1). At
+solutionoflengthT canthenbeapproximatedas: ≈
+highcontamination,weobserveacriticalphasetransition:
+(cid:18) (cid:19)
+A α > 1 flips the sign of the exponent in Eq. 4, causing
+P(T) exp E(T 1) (T1−α 1) . (4)
+≈ − − − 1 α − the penalty term T1−α to decay to zero. Consequently,
+−
+P(T) converges to a non-zero constant even as T .
+Toexplainintuitively,therearetwoopposingforcesatthe
+→ ∞
+Inthisregime,themodel’scertaintyincreasesfasterthan
+intersectionofmemorizationandgeneration: Theprobabil-
+thesequenceaccumulatesrisk,enablingthedeterministic
+ity of generating a sequence decays geometrically (expo-
+lock-inoflongsolutions.
+nentially)withsequencelength,makinglongersequences
+hardertogenerate,butthetheprobabilityofknowingthecor-
+rectnexttokengrowsgeometricallywithsequencelength, TheEffectofSamplingTemperature. Whilethenative
+making predicting the next token easier. These two rates scalingαisapropertyofthetrainedmodel,inferencebe-
+revealthreedistinctregimesofmemorization(Fig.8): haviorisheavilymodulatedbythesamplingtemperatureτ.
+Thedependencearisesfromthemechanicsofthesoftmax
+RegimeI:ExponentiallyFastDecoherence(E >0). In distribution: intheregimeofmemorization,themodel’sun-
+theabsenceofmeaningfulcontamination, theirreducible normalizedconfidence(thelogitgap)growslogarithmically
+error term E dominates. The survival probability decays withcontextlength(∆z αlnt). Sincetemperatureacts
+t
+∝
+exponentially(P(T) e−E·T),renderingthegenerationof asascalardivisoronlogits(z z/τ),itmodifiestherate
+∼ →
+longsolutionsstatisticallyimprobable. atwhichprobabilitymassconcentratesonthememorized
+8
+
+--- Page 9 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+101
+100
+10−1
+10−2
+10−1 3 0−10 10−7 10−4 10−1
+IrreducibleError(E)
+)A(tneicffieoCgnilacS
+αeff=0.5 101
+10 100
+50 100
+500 10−1 500010000
+50000 1000 10−2
+10−1 3 0−10 10−7 10−4 10−1
+IrreducibleError(E)
+)A(tneicffieoCgnilacS
+αeff=1.5
+106
+50 10 100 5000 105
+L
+(T
+oc
+=
+k-
+∞
+In
+)
+50000
+1000
+1
+1
+1
+0
+0
+0
+2
+3
+4
+10000
+500 101
+100
+10.0=)T(PerehwThtgneLnoituloS andsolutionlength–thatdifferentiatememorizationfrom
+generalization. Unlike robust reasoning, which survives
+stochasticsampling,contamination-drivenperformancecol-
+lapses under high temperatures. Similarly, the shift from powerlawtoexponentialdecayinperformanceassolution
+lengthincreasessignalsthelimitsofthemodel’sabilityto
+holdamemorizedchainwithoutdecoherence.
+Perhapsmostcriticallyforpractitioners,standardtraining
+Figure8.RegimesofMemorization:Brittlevs.Lock-In.Phase pipelinescanmaskorexposethisissueincounter-intuitive
+diagramsillustratingthemaximumsustainablesolutionlengthT
+ways. Theinteractionbetweencontaminationandfurther
+(hue)forafixedsurvivalprobabilityP(T)=0.01,plottedagainst
+trainingisgovernedbya“dose-response”effect(Schaeffer
+theirreducibleerrorEandscalingcoefficientA.
+etal.,2025c):overtrainingonfreshdatadilutesthecontami-
+nation,andSupervisedFine-Tuning(SFT)onvalidtraining
+path. Thisyieldsaneffectivescalingexponent: datacanactuallydegradetestperformancebyoverwriting
+memorized test samples. This implies that a drop in test
+α (τ) α/τ. (5)
+eff accuracyafterSFT,usuallyasignofalignmenttaxorforget-
+≈
+ting,mayactuallybeapositivesignalofdecontamination.
+This relationship reveals that temperature can artificially
+shiftamodelbetweenregimes. Low-temperaturesampling
+Limitations We focused on a single generative bench-
+(τ <1)inflatestheexponent(α >α),potentiallypush-
+eff
+mark, MATH, to enable automatic verification and con-
+ingamodelfromBrittleMemorizationintopseudo-stable
+trolledcontamination. Consequently,ourfindingsmaynot
+DeterministicLock-In. Thisexposesthefragilityofmem-
+fully capture how contamination behaves for other tasks
+orization: a model operating in Deterministic Lock-In
+such as coding or creative writing. Additionally, our ex-
+(α >1)atgreedysettings(τ 0)canbeinstantaneously
+eff
+→ perimentsutilizeddecoder-onlydensetransformermodels
+reverted to Brittle Memorization (α < 1) simply by
+eff
+(Qwen3)upto344Mparameters;resultsatthisscalemay
+increasing τ. For example, if a model has a natural scal-
+notextrapolatetolargermodelsorotherarchitectures. Fi-
+ingα=0.8,greedydecodingeffectivelyamplifiesthisto
+nally,ourpretrainingcorpusrepresentsaspecificmixtureof
+α 1,feigningrobustknowledge. However,sampling
+eff
+≫ web-crawldata;specializedorheavilyfilteredcorporacould
+atτ =1.0exposesthetrueexponentα<1,causingfailure
+alter the base difficulty of memorization and the specific
+for long sequences. This mechanism explains why high-
+thresholdsatwhichcontaminationeffectsbecomevisible.
+temperaturesamplingactsasa“truthserum,”decoupling
+thegainsofcontaminationfromrobustgeneralization.
+FutureDirections Severalavenuesforfutureresearch:
+6.Discussion • ReconcilingMemorizationThresholds: Ourdiscov-
+ery that a single test set replica drives loss below
+BenchmarksserveasourprimaryproxiesforAIcapabilities
+the irreducible error contrasts with recent assertions
+inthewild;testsetcontaminationbreaksthisproxy,creating
+thatsingle-shotverbatimmemorizationisan“illusion”
+adangerous“illusionofcompetence.” Whilepriorworkhas
+(Huangetal.,2024)orthatmembershipinferenceis
+extensivelydocumentedthisphenomenonindiscriminative
+fundamentally capped (Hayes et al., 2025). Future
+tasks,thisworkprovidesthefirstcomprehensivequantifica-
+work should investigate what the explanatory differ-
+tionofcontaminationmechanicsinthegenerativeregime.
+encesare;onepossibilityisthatmemorizationdepends
+Weconcludethatwhilegenerativecontaminationsharesthe
+ontheamountrelativetocorpussize(Schaefferetal.,
+superficialcharacteristicofinflatingscores,theunderlying
+2025c;Weietal.,2025).
+mechanismisdistinct: itreliesonfragile,verbatimmem-
+orizationoflongtokenchainsthatbehavesfundamentally • ArchitecturalSusceptibility: Westudieddensemod-
+differentlyfromrobustreasoning. els,butitremainsanopenquestionwhetherMixture-
+of-Experts(MoEs)orStateSpaceModels(SSMs)ex-
+Ourapplicationofneuralscalinglawsrevealstheeconomic
+hibitdifferentmemorizationpatterns.
+magnitude of this threat. Under standard scaling law as-
+sumptions,wedemonstratethatasinglereplicaofthetest • HarderBenchmarks: Wehypothesizethatcontam-
+setallowsamodeltobypasstheestimated“irreducibleer- ination efficacy is inversely correlated withproblem
+ror”barrier,effectivelysimulatingperformancethatwould compressibility. Investigatingwhetherharderbench-
+otherwiserequireaninfiniteamountofcomputeonuncon- marks(e.g.,AIME)requirehigher“doses”ofleakage
+taminateddata. However,thisperformanceisbrittle. We to achieve the same performance boost would be a
+identifycritical“levers”–specificallysamplingtemperature valuablecontributiontobenchmarkdesign.
+9
+
+--- Page 10 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Note An earlier version of this manuscript was peer re-
+viewed and presented at the NeurIPS 2025 Workshop on
+Evaluating the Evolving LLM Lifecycle: Benchmarks,
+EmergentAbilities,andScaling(Schaefferetal.,2025d).
+7.Acknowledgments
+RSacknowledgessupportfromStanfordDataScienceand
+fromtheOpenAISuperalignmentFastGrant. JKacknowl-
+edgessupportfromNSFgrantnumberDGE1656518. SK
+acknowledgessupportbyNSF2046795and2205329,the
+MacArthurFoundation,StanfordHAI,OpenAIandGoogle
+Inc. KZL is generously supported by the Amazon AI
+PhDFellowship. AAisgenerouslysupportedbyaKnight-
+HennessyFellowship,anNSFGraduateResearchFellow-
+ship,andaGeorgetownFoundationResearchGrant.Table1
+experimentswererunusingacomputinggrantprovidedby
+TensorPool.
+10
+
+--- Page 11 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+References Carlini,N.,Tramer,F.,Wallace,E.,Jagielski,M.,Herbert-
+Voss, A., Lee, K., Roberts, A., Brown, T., Song, D.,
+Ackley,D.H.,Hinton,G.E.,andSejnowski,T.J.Alearning
+Erlingsson,U.,etal. Extractingtrainingdatafromlarge
+algorithmforboltzmannmachines. Cognitivescience,9
+languagemodels. In30thUSENIXsecuritysymposium
+(1):147–169,1985.
+(USENIXSecurity21),pp.2633–2650,2021.
+Adlam, B. and Pennington, J. Understanding double de-
+Carlini,N.,Ippolito,D.,Jagielski,M.,Lee,K.,Tramer,F.,
+scentrequiresafine-grainedbias-variancedecomposition.
+andZhang,C. Quantifyingmemorizationacrossneural
+Advancesinneuralinformationprocessingsystems,33:
+languagemodels. InTheEleventhInternationalConfer-
+11022–11032,2020.
+enceonLearningRepresentations,2023. URLhttps:
+//openreview.net/forum?id=TatRHT_1cK.
+Advani, M. S., Saxe, A. M., and Sompolinsky, H. High-
+dimensionaldynamicsofgeneralizationerrorinneural
+Chowdhery,A.,Narang,S.,Devlin,J.,Bosma,M.,Mishra,
+networks. NeuralNetworks,132:428–446,2020.
+G., Roberts, A., Barham, P., Chung, H. W., Sutton,
+C., Gehrmann, S., Schuh, P., Shi, K., Tsvyashchenko,
+Anil,C.,Durmus,E.,Panickssery,N.,Sharma,M.,Benton,
+S., Maynez, J., Rao, A., Barnes, P., Tay, Y., Shazeer,
+J.,Kundu,S.,Batson,J.,Tong,M.,Mu,J.,Ford,D.,etal.
+N., Prabhakaran, V., Reif, E., Du, N., Hutchinson, B.,
+Many-shotjailbreaking. AdvancesinNeuralInformation
+Pope, R., Bradbury, J., Austin, J., Isard, M., Gur-Ari,
+ProcessingSystems,37:129696–129742,2024.
+G.,Yin,P.,Duke,T.,Levskaya,A.,Ghemawat,S.,Dev,
+S., Michalewski, H., Garcia, X., Misra, V., Robinson,
+Anthropic. Model card and evaluations for Claude
+K., Fedus, L., Zhou, D., Ippolito, D., Luan, D., Lim,
+models. Model card, Anthropic, July 2023. URL
+H., Zoph, B., Spiridonov, A., Sepassi, R., Dohan, D.,
+https://www.anthropic.com/index/
+Agrawal, S., Omernick, M., Dai, A. M., Pillai, T. S.,
+claude-2-model-card.
+Pellat,M.,Lewkowycz,A.,Moreira,E.,Child,R.,Polo-
+zov, O., Lee, K., Zhou, Z., Wang, X., Saeta, B., Diaz,
+Belkin,M.,Hsu,D.,Ma,S.,andMandal,S. Reconciling
+M.,Firat,O.,Catasta,M.,Wei,J.,Meier-Hellstern,K.,
+modernmachine-learningpracticeandtheclassicalbias–
+Eck, D., Dean, J., Petrov, S., and Fiedel, N. Palm:
+variancetrade-off. ProceedingsoftheNationalAcademy
+Scalinglanguagemodelingwithpathways,2022. URL
+ofSciences,116(32):15849–15854,2019.
+https://arxiv.org/abs/2204.02311.
+Biderman,S.,Prashanth,U.,Sutawika,L.,Schoelkopf,H.,
+Cobbe,K.,Kosaraju,V.,Bavarian,M.,Chen,M.,Jun,H.,
+Anthony, Q., Purohit, S., and Raff, E. Emergent and
+Kaiser,L.,Plappert,M.,Tworek,J.,Hilton,J.,Nakano,
+predictablememorizationinlargelanguagemodels. Ad-
+R.,Hesse,C.,andSchulman,J.Trainingverifierstosolve
+vances in Neural Information Processing Systems, 36:
+math word problems, 2021. URL https://arxiv.
+28072–28090,2023.
+org/abs/2110.14168.
+Bordelon, B., Canatar, A., and Pehlevan, C. Spectrum
+Dao,T. Flashattention-2: Fasterattentionwithbetterpar-
+dependentlearningcurvesinkernelregressionandwide
+allelism and work partitioning, 2023. URL https:
+neuralnetworks.InInternationalConferenceonMachine
+//arxiv.org/abs/2307.08691.
+Learning,pp.1024–1034.PMLR,2020.
+Das,D.,Zhang,J.,andTrame`r,F.Blindbaselinesbeatmem-
+Bordt, S., Srinivas, S., Boreiko, V., and von Luxburg, U. bershipinferenceattacksforfoundationmodels. arXiv
+How much can we forget about data contamination? preprintarXiv:2406.16201,2024.
+In Forty-second International Conference on Machine
+Learning,2025. Deng, C., Zhao, Y., Heng, Y., Li, Y., Cao, J., Tang, X.,
+andCohan,A. Unveilingthespectrumofdatacontami-
+Bowen,D.,Murphy,B.,Cai,W.,Khachaturov,D.,Gleave, nationinlanguagemodels: Asurveyfromdetectionto
+A., and Pelrine, K. Scaling trends for data poisoning remediation. arXivpreprintarXiv:2406.14644,2024a.
+in llms, 2025. URL https://arxiv.org/abs/
+2408.02946. Deng, C., Zhao, Y., Tang, X., Gerstein, M., and Cohan,
+A. Investigating data contamination in modern bench-
+Brown,T.,Mann,B.,Ryder,N.,Subbiah,M.,Kaplan,J.D., marks for large language models. In Duh, K., Gomez,
+Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G., H.,andBethard,S.(eds.),Proceedingsofthe2024Con-
+Askell,A.,etal. Languagemodelsarefew-shotlearners. ferenceoftheNorthAmericanChapteroftheAssocia-
+Advancesinneuralinformationprocessingsystems,33: tion for Computational Linguistics: Human Language
+1877–1901,2020. Technologies(Volume1: LongPapers),pp.8706–8719,
+11
+
+--- Page 12 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+MexicoCity,Mexico,June2024b.AssociationforCom- S.,Xin,R.,Nezhurina,M.,Vasiljevic,I.,Jitsev,J.,Sol-
+putationalLinguistics.doi:10.18653/v1/2024.naacl-long. daini,L.,Dimakis,A.G.,Ilharco,G.,Koh,P.W.,Song,
+482. URL https://aclanthology.org/2024. S.,Kollar,T.,Carmon,Y.,Dave,A.,Heckel,R.,Muen-
+naacl-long.482/. nighoff,N.,andSchmidt,L. Languagemodelsscalereli-
+ablywithover-trainingandondownstreamtasks,2024.
+Dodge, J., Sap, M., Marasovic´, A., Agnew, W., Ilharco, URLhttps://arxiv.org/abs/2403.08540.
+G., Groeneveld, D., Mitchell, M., and Gardner, M.
+Documenting large webtext corpora: A case study on Gao,L.,Tow,J.,Abbasi,B.,Biderman,S.,Black,S.,DiPofi,
+the colossal clean crawled corpus. In Moens, M.-F., A., Foster, C., Golding, L., Hsu, J., Le Noac’h, A., Li,
+Huang, X., Specia, L., and Yih, S. W.-t. (eds.), Pro- H.,McDonell,K.,Muennighoff,N.,Ociepa,C.,Phang,
+ceedingsofthe2021ConferenceonEmpiricalMethods J.,Reynolds,L.,Schoelkopf,H.,Skowron,A.,Sutawika,
+in Natural Language Processing, pp. 1286–1305, On- L.,Tang,E.,Thite,A.,Wang,B.,Wang,K.,andZou,A.
+line and Punta Cana, Dominican Republic, November Thelanguagemodelevaluationharness,072024. URL
+2021. Association for Computational Linguistics. doi: https://zenodo.org/records/12608602.
+10.18653/v1/2021.emnlp-main.98. URL https://
+Glazer, E., Erdil, E., Besiroglu, T., Chicharro, D., Chen,
+aclanthology.org/2021.emnlp-main.98/.
+E., Gunning, A., Olsson, C. F., Denain, J.-S., Ho, A.,
+Dong, Y., Jiang, X., Liu, H., Jin, Z., Gu, B., Yang, deOliveiraSantos,E.,Ja¨rviniemi,O.,Barnett,M.,San-
+M., and Li, G. Generalization or memorization: dler,R.,Vrzala,M.,Sevilla,J.,Ren,Q.,Pratt,E.,Levine,
+Datacontaminationandtrustworthyevaluationforlarge L., Barkley, G., Stewart, N., Grechuk, B., Grechuk, T.,
+language models. In Ku, L.-W., Martins, A., and Enugandla,S.V.,andWildon,M.Frontiermath:Abench-
+Srikumar, V. (eds.), Findings of the Association for markforevaluatingadvancedmathematicalreasoningin
+Computational Linguistics: ACL 2024, pp. 12039– ai, 2025. URL https://arxiv.org/abs/2411.
+12050, Bangkok, Thailand, August 2024. Association
+04872.
+forComputationalLinguistics. doi: 10.18653/v1/2024.
+Golchin, S. and Surdeanu, M. Data contamination quiz:
+findings-acl.716. URL https://aclanthology.
+Atooltodetectandestimatecontaminationinlargelan-
+org/2024.findings-acl.716/.
+guagemodels. arXivpreprintarXiv:2311.06233,2023.
+Du,N.,Huang,Y.,Dai,A.M.,Tong,S.,Lepikhin,D.,Xu,
+Golchin,S.andSurdeanu,M. TimetravelinLLMs: Trac-
+Y.,Krikun,M.,Zhou,Y.,Yu,A.W.,Firat,O.,etal. Glam:
+ingdatacontaminationinlargelanguagemodels. InThe
+Efficient scaling of language models with mixture-of-
+TwelfthInternationalConferenceonLearningRepresen-
+experts. InInternationalconferenceonmachinelearning, tations, 2024. URL https://openreview.net/
+pp.5547–5569.PMLR,2022. forum?id=2Rwq6c3tvr.
+Duan, M., Suri, A., Mireshghallah, N., Min, S., Shi, W., GoogleGeminiTeam,Comanici,G.,Bieber,E.,Schaeker-
+Zettlemoyer,L.,Tsvetkov,Y.,Choi,Y.,Evans,D.,and mann,M.,Pasupat,I.,Sachdeva,N.,Dhillon,I.,Blistein,
+Hajishirzi,H. Domembershipinferenceattacksworkon M.,Ram,O.,Zhang,D.,Rosen,E.,Marris,L.,Petulla,
+largelanguagemodels? arXivpreprintarXiv:2402.07841, S., Gaffney, C., Aharoni, A., Lintz, N., Pais, T. C., Ja-
+2024. cobsson, H., Szpektor, I., Jiang, N.-J., Haridasan, K.,
+Omran,A.,Saunshi,N.,Bahri,D.,Mishra,G.,Chu,E.,
+Duan,S.,Khona,M.,Iyer,A.,Schaeffer,R.,andFiete,I.R.
+Boyd, T., Hekman, B., Parisi, A., Zhang, C., Kawinti-
+Uncovering latent memories in large language models.
+ranon,K.,Bedrax-Weiss,T.,Wang,O.,Xu,Y.,Purkiss,
+InTheThirteenthInternationalConferenceonLearning
+O.,Mendlovic,U.,Deutel,I.,Nguyen,N.,Langley,A.,
+Representations,2025. URLhttps://openreview.
+Korn,F.,Rossazza,L.,Rame´,A.,Waghmare,S.,Miller,
+net/forum?id=KSBx6FBZpE.
+H., Byrd, N., Sheshan, A., Bhardwaj, R. H. S., Janus,
+P., Rissa, T., Horgan, D., Silver, S., Wahid, A., Brin,
+Fan, A., Lewis, M., andDauphin, Y. Hierarchicalneural
+S.,Raimond,Y.,Kloboves,K.,Wang,C.,Gundavarapu,
+storygeneration. arXivpreprintarXiv:1805.04833,2018.
+N.B.,Shumailov,I.,Wang,B.,Pajarskas,M.,Heyward,
+Fang,A.,Pouransari,H.,Jordan,M.,Toshev,A.,Shankar, J.,Nikoltchev,M.,Kula,M.,Zhou,H.,Garrett,Z.,Kafle,
+V., Schmidt, L., and Gunter, T. Datasets, documents, S., Arik, S., Goel, A., Yang, M., Park, J., Kojima, K.,
+andrepetitions: Thepracticalitiesofunequaldataquality. Mahmoudieh,P.,Kavukcuoglu,K.,Chen,G.,Fritz,D.,
+arXivpreprintarXiv:2503.07879,2025. Bulyenov,A.,Roy,S.,Paparas,D.,Shemtov,H.,Chen,
+B.-J.,Strudel,R.,Reitter,D.,Roy,A.,Vlasov,A.,Ryu,
+Gadre, S. Y., Smyrnis, G., Shankar, V., Gururangan, S., C.,Leichner,C.,Yang,H.,Mariet,Z.,Vnukov,D.,Sohn,
+Wortsman,M.,Shao,R.,Mercat,J.,Fang,A.,Li,J.,Keh, T., Stuart, A., Liang, W., Chen, M., Rawlani, P., Koh,
+12
+
+--- Page 13 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+C.,Co-Reyes,J.,Lai,G.,Banzal,P.,Vytiniotis,D.,Mei, Liu,F.,Jue,E.,Sharma,M.,Marzoca,A.,Busa-Fekete,
+J., Cai, M., Badawi, M., Fry, C., Hartman, A., Zheng, R., Korsun, A., Elisseeff, A., Shen, Z., Carthy, S. M.,
+D.,Jia,E.,Keeling,J.,Louis,A.,Chen,Y.,Robles,E., Lamerigts, K., Hosseini, A., Lin, H., Chen, C., Yang,
+Hung,W.-C.,Zhou,H.,Saxena,N.,Goenka,S.,Ma,O., F.,Chauhan,K.,Omernick,M.,Jia,D.,Zainullina,K.,
+Fisher,Z.,Taege,M.H.,Graves,E.,Steiner,D.,Li,Y., Hassabis, D., Vainstein, D., Amid, E., Zhou, X., Votel,
+Nguyen,S.,Sukthankar,R.,Stanton,J.,Eslami,A.,Shen, R.,Ve´rtes,E.,Li,X.,Zhou,Z.,Lazaridou,A.,McMahan,
+G., Akin, B., Guseynov, A., Zhou, Y., Alayrac, J.-B., B.,Narayanan,A.,Soyer,H.,Basu,S.,Lee,K.,Perozzi,
+Joulin,A.,Farkash,E.,Thapliyal,A.,Roller,S.,Shazeer, B., Cao, Q., Berrada, L., Arya, R., Chen, K., Katrina,
+N.,Davchev,T.,Koo,T.,Forbes-Pollard,H.,Audhkhasi, Xu, Lochbrunner, M., Hofer, A., Sharifzadeh, S., Wu,
+K.,Farquhar,G.,Gilady,A.M.,Song,M.,Aslanides,J., R., Goldman, S., Awasthi, P., Wang, X., Wu, Y., Sha,
+Mendolicchio, P., Parrish, A., Blitzer, J., Gupta, P., Ju, C.,Zhang,B.,Mikuła,M.,Graziano,F.,Mcloughlin,S.,
+X.,Yang,X.,Datta,P.,Tacchetti,A.,Mehta,S.V.,Dibb, Giannoumis, I., Namiki, Y., Malik, C., Radebaugh, C.,
+G.,Gupta,S.,Piccinini,F.,Hadsell,R.,Rajayogam,S., Hall,J.,Leal-Cavazos,R.,Chen,J.,Sindhwani,V.,Kao,
+Jiang,J.,Griffin,P.,Sundberg,P.,Hayes,J.,Frolov,A., D.,Greene,D.,Griffith,J.,Welty,C.,Montgomery,C.,
+Xie, T., Zhang, A., Dasgupta, K., Kalra, U., Shani, L., Yoshino, T., Yuan, L., Goodman, N., Michaely, A. H.,
+Macherey,K.,Huang,T.-K.,MacDermed,L.,Duddu,K., Lee,K.,Sawhney,K.,Chen,W.,Zheng,Z.,Shum,M.,
+Zacchello,P.,Yang,Z.,Lo,J.,Hui,K.,Kastelic,M.,Gas- Savinov,N.,Pot,E.,Pak,A.,Zadimoghaddam,M.,Bhat-
+away,D.,Tan,Q.,Yue,S.,Barrio,P.,Wieting,J.,Yang, nagar,S.,Lewenberg,Y.,Kutzman,B.,Liu,J.,Katzen,
+W.,Nystrom,A.,Demmessie,S.,Levskaya,A.,Viola,F., L.,Selier,J.,Djolonga,J.,Lepikhin,D.,Xu,K.,Liang,J.,
+Tekur,C.,Billock,G.,Necula,G.,Joshi,M.,Schaeffer, Tan,J.,Schillings,B.,Ersoy,M.,Blois,P.,Bandemer,B.,
+R.,Lokhande,S.,Sorokin,C.,Shenoy,P.,Chen,M.,Col- Singh,A.,Lebedev,S.,Joshi,P.,Brown,A.R.,Palmer,
+lier,M.,Li,H.,Bos,T.,Wichers,N.,Lee,S.J.,Pouget, E.,Pathak,S.,Jalan,K.,Zubach,F.,Lall,S.,Parker,R.,
+A., Thangaraj, S., Axiotis, K., Crone, P., Sterneck, R., Gunjan,A.,Rogulenko,S.,Sanghai,S.,Leng,Z.,Egyed,
+Chinaev,N.,Krakovna,V.,Ferludin,O.,Gemp,I.,Win- Z.,Li,S.,Ivanova,M.,Andriopoulos,K.,Xie,J.,Rosen-
+kler,S.,Goldberg,D.,Korotkov,I.,Xiao,K.,Mehrotra, feld, E., Wright, A., Sharma, A., Geng, X., Wang, Y.,
+M.,Mariserla,S.,Piratla,V.,Thurk,T.,Pham,K.,Ma, Kwei,S.,Pan,R.,Zhang,Y.,Wang,G.,Liu,X.,Yeung,
+H.,Senges,A.,Kumar,R.,Meyer,C.,Talius,E.,Pierse, C.,Cole,E.,Rosenberg,A.,Yang,Z.,Chen,P.,Polovets,
+N.W.,Sandhu,B.,Toma,H.,Lin,K.,Nath,S.,Stone,T., G.,Nair,P.,Saxena,R.,Smith,J.,yiinChang,S.,Mahen-
+Sadigh,D.,Gupta,N.,Guez,A.,Singh,A.,Thomas,M., dru,A.,Grant,S.,Iyer,A.,Cai,I.,McGiffin,J.,Shen,J.,
+Duerig,T.,Gong,Y.,Tanburn,R.,Zhang,L.L.,Dao,P., Walton,A.,Girgis,A.,Woodman,O.,Ke,R.,Kwong,M.,
+Hammad,M.,Xie,S.,Rijhwani,S.,Murdoch,B.,Kim, Rouillard,L.,Rao,J.,Li,Z.,Xu,Y.,Prost,F.,Zou,C.,Ji,
+D.,Thompson,W.,Cheng,H.-T.,Sohn,D.,Sprechmann, Z.,Magni,A.,Liechty,T.,Calian,D.A.,Ramachandran,
+P.,Xu,Q.,Tadepalli,S.,Young,P.,Zhang,Y.,Srinivasan, D.,Krivokon,I.,Huang,H.,Chen,T.,Hauth,A.,Ilic´,A.,
+H., Aperghis, M., Ayyar, A., Fitoussi, H., Burnell, R., Xi,W.,Lim,H.,Ion,V.-D.,Moradi,P.,Toksoz-Exley,M.,
+Madras, D., Dusenberry, M., Xiong, X., Oguntebi, T., Bullard,K.,Allamanis,M.,Yang,X.,Wang,S.,Hong,Z.,
+Albrecht,B.,Bornschein,J.,Mitrovic´,J.,Dimarco,M., Gergely,A.,Li,C.,Mittal,B.,Kovalev,V.,Ungureanu,
+Shamanna, B. K., Shah, P., Sezener, E., Upadhyay, S., V.,Labanowski,J.,Wassenberg,J.,Lacasse,N.,Cideron,
+Lacey,D.,Schiff,C.,Baur,S.,Ganapathy,S.,Schnider, G.,Devic´,P.,Marsden,A.,Nguyen,L.,Fink,M.,Zhong,
+E.,Wirth,M.,Schenck,C.,Simanovsky,A.,Tan,Y.-X., Y.,Kiyono,T.,Ivanov,D.,Ma,S.,Bain,M.,Yalasangi,
+Fra¨nken,P.,Duan,D.,Mankalale,B.,Dhawan,N.,Se- K.,She,J.,Petrushkina,A.,Lunayach,M.,Bromberg,C.,
+queira,K.,Wei,Z.,Goel,S.,Unlu,C.,Zhu,Y.,Sun,H., Hodkinson,S.,Meshram,V.,Vlasic,D.,Kyker,A.,Xu,
+Balashankar, A., Shuster, K., Umekar, M., Alnahlawi, S.,Stanway,J.,Yang,Z.,Zhao,K.,Tung,M.,Odoom,S.,
+M.,vandenOord,A.,Chen,K.,Zhai,Y.,Dai,Z.,Lee, Fujii,Y.,Gilmer,J.,Kim,E.,Halim,F.,Le,Q.,Bohnet,
+K.-H.,Doi,E.,Zilka,L.,Vallu,R.,Shrivastava,D.,Lee, B.,El-Sayed,S.,Neyshabur,B.,Reynolds,M.,Reich,D.,
+J.,Husain,H.,Zhuang,H.,Cohen-Addad,V.,Barber,J., Xu,Y.,Moreira,E.,Sharma,A.,Liu,Z.,Hosseini,M.J.,
+Atwood,J.,Sadovsky,A.,Wellens,Q.,Hand,S.,Rajen- Raisinghani, N., Su, Y., Lao, N., Formoso, D., Gelmi,
+dran, A., Turker, A., Carey, C., Xu, Y., Soltau, H., Li, M.,Gueta,A.,Dey,T.,Gribovskaya,E.,C´evid,D.,Mud-
+Z., Song, X., Li, C., Kemaev, I., Brown, S., Burns, A., gal,S.,Bingham,G.,Wang,J.,Kumar,A.,Cullum,A.,
+Patraucean,V.,Stanczyk,P.,Aravamudhan,R.,Blondel, Han,F.,Bousmalis,K.,Cedillo,D.,Chu,G.,Magay,V.,
+M.,Noga,H.,Blanco,L.,Song,W.,Isard,M.,Sharma, Michel, P., Hlavnova, E., Calandriello, D., Ariafar, S.,
+M.,Hayes,R.,Badawy,D.E.,Lamp,A.,Laish,I.,Ko- Yao, K., Sehwag, V., Vezer, A., Lago, A. D., Zhu, Z.,
+zlova,O.,Chan,K.,Singla,S.,Sunkara,S.,Upadhyay, Rubenstein, P. K., Porter, A., Baddepudi, A., Riva, O.,
+M., Liu, C., Bai, A., Wilkiewicz, J., Zlocha, M., Liu, Istin, M. D., Yeh, C.-K., Li, Z., Howard, A., Jha, N.,
+J., Li, Z., Li, H., Barak, O., Raboshchuk, G., Choi, J., Chen,J.,deLiedekerke,R.,Ahmed,Z.,Rodriguez,M.,
+13
+
+--- Page 14 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Bhatia,T.,Wang,B.,Elqursh,A.,Klinghoffer,D.,Chen, Caveness,E.,Odell,J.,Watson,M.,deCesare,D.,Lippe,
+P.,Kohli,P.,I,T.,Zhang,W.,Nado,Z.,Chen,J.,Chen, P.,Lockhart,D.,Verma,S.,Chen,H.,Sun,S.,Zhuo,L.,
+M.,Zhang,G.,Singh,A.,Hillier,A.,Lebron,F.,Tao,Y., Shah,A.,Gupta,P.,Muzio,A.,Niu,N.,Zait,A.,Singh,
+Liu, T., Dulac-Arnold, G., Zhang, J., Narayan, S., Liu, A.,Gaba,M.,Ye,F.,Ramachandran,P.,Saleh,M.,Popa,
+B.,Firat,O.,Bhowmick,A.,Liu,B.,Zhang,H.,Zhang, R. A., Dubey, A., Liu, F., Javanmardi, S., Epstein, M.,
+Z.,Rotival,G.,Howard,N.,Sinha,A.,Grushetsky,A., Hemsley,R.,Green,R.,Ranka,N.,Cohen,E.,Fu,C.K.,
+Beyret,B.,Gopalakrishnan,K.,Zhao,J.,He,K.,Payrits, Ghemawat,S.,Borovik,J.,Martens,J.,Chen,A.,Shyam,
+S.,Nabulsi,Z.,Zhang,Z.,Chen,W.,Lee,E.,Fallen,N., P.,Pinto,A.S.,Yang,M.-H.,T¸ifrea,A.,Du,D.,Gong,
+Gollapudi,S.,Zhou,A.,Pavetic´,F.,Ko¨ppe,T.,Huang,S., B.,Agarwal,A.,Kim,S.,Frank,C.,Shah,S.,Song,X.,
+Pasumarthi,R.,Fernando,N.,Fischer,F.,C´urko,D.,Gao, Deng, Z., Mikhalap, A., Chatziprimou, K., Chung, T.,
+Y.,Svensson,J.,Stone,A.,Qureshi,H.,Sinha,A.,Kul- Creswell,T.,Zhang,S.,Jun,Y.,Lebsack,C.,Truong,W.,
+shreshtha,A.,Matysiak,M.,Mao,J.,Saroufim,C.,Faust, Andacˇic´, S., Yona, I., Fornoni, M., Rong, R., Toropov,
+A.,Duan,Q.,Fidel,G.,Katircioglu,K.,Kaufman,R.L., S.,Soudagar,A.S.,Audibert,A.,Zaiem,S.,Abbas,Z.,
+Shah, D., Kong, W., Bapna, A., Weisz, G., Dunleavy, Rusu,A.,Potluri,S.,Weng,S.,Kementsietsidis,A.,Tsit-
+E.,Dutta,P.,Liu,T.,Chaabouni,R.,Parada,C.,Wu,M., sulin,A.,Peng,D.,Ha,N.,Jain,S.,Latkar,T.,Ivanov,S.,
+Belias,A.,Bissacco,A.,Fort,S.,Xiao,L.,Huot,F.,Knut- McLean,C.,GP,A.,Venkataraman,R.,Liu,C.,Krish-
+sen,C.,Blau,Y.,Li,G.,Prendki,J.,Love,J.,Chow,Y., nan,D.,D’sa,J.,Yogev,R.,Collins,P.,Lee,B.,Ho,L.,
+Charoenpanit,P.,Shimokawa,H.,Coriou,V.,Gregor,K., Doersch,C.,Yona,G.,Gao,S.,Ferreira,F.T.,Ozturel,
+Izo,T.,Akula,A.,Pinto,M.,Hahn,C.,Paulus,D.,Guo, A., Muckenhirn, H., Zheng, C., Balasubramaniam, G.,
+J.,Sharma,N.,Hsieh,C.-J.,Chukwuka,A.,Hashimoto, Bansal,M.,vandenDriessche,G.,Eiger,S.,Haykal,S.,
+K.,Rauschmayr,N.,Wu,L.,Angermueller,C.,Wang,Y., Misra,V.,Goyal,A.,Martins,D.,Leung,G.,Valfridsson,
+Gerlach,S.,Pliskin,M.,Mirylenka,D.,Ma,M.,Baugher, J.,Flynn,F.,Bishop,W.,Pang,C.,Halpern,Y.,Yu,H.,
+L.,Gale,B.,Bijwadia,S.,Rakic´evic´,N.,Wood,D.,Park, Moore,L.,Yuvein,Zhu,Thiagarajan,S.,Drori,Y.,Xiao,
+J.,Chang,C.-C.,Seal,B.,Tar,C.,Krasowiak,K.,Song, Z.,Dery,L.,Jagerman,R.,Lu,J.,Ge,E.,Aggarwal,V.,
+Y.,Stephanov,G.,Wang,G.,Maggioni,M.,Lin,S.X., Khare,A.,Tran,V.,Elyada,O.,Alet,F.,Rubin,J.,Chou,
+Wu, F., Paul, S., Jiang, Z., Agrawal, S., Piot, B., Feng, I., Tian, D., Bai, L., Chan, L., Lew, L., Misiunas, K.,
+A., Kim, C., Doshi, T., Lai, J., Chuqiao, Xu, Vikram, Bilal, T., Ray, A., Raghuram, S., Castro-Ros, A., Car-
+S., Chelba, C., Krause, S., Zhuang, V., Rae, J., Denk, penter, V., Zheng, C., Kilgore, M., Broder, J., Xue, E.,
+T.,Collister,A.,Weerts,L.,Luo,X.,Lu,Y.,Garnes,H., Kallakuri, P., Dua, D., Yuen, N., Chien, S., Schultz, J.,
+Gupta,N.,Spitz,T.,Hassidim,A.,Liang,L.,Shafran,I., Agrawal, S., Tsarfaty, R., Hu, J., Kannan, A., Marcus,
+Humphreys, P., Vassigh, K., Wallis, P., Shejwalkar, V., D.,Kothari,N.,Sun,B.,Horn,B.,Bosˇnjak,M.,Naeem,
+Perez-Nieves, N., Hornung, R., Tan, M., Westberg, B., F.,Hirsch,D.,Chiang,L.,Fang,B.,Han,J.,Wang,Q.,
+Ly,A.,Zhang,R.,Farris,B.,Park,J.,Kosik,A.,Cankara, Hora,B.,He,A.,Lucˇic´,M.,Changpinyo,B.,Tripathi,A.,
+Z.,Maksai,A.,Xu,Y.,Cassirer,A.,Caelles,S.,Abdol- Youssef,J.,Kwak,C.,Schlattner,P.,Graves,C.,Leblond,
+maleki,A.,Chiang,M.,Fabrikant,A.,Shetty,S.,He,L., R.,Zeng,W.,Andreassen,A.,Rasskin,G.,Song,Y.,Cao,
+Gime´nez, M., Hashemi, H., Panthaplackel, S., Kulizh- E.,Oh,J.,Hoffman,M.,Skut,W.,Zhang,Y.,Stritar,J.,
+skaya,Y.,Deshmukh,S.,Pighin,D.,Alazard,R.,Jindal, Cai,X.,Khanna,S.,Wang,K.,Sharma,S.,Reisswig,C.,
+D.,Noury,S.,S,P.K.,Qin,S.,Dotiwalla,X.,Spencer, Jun,Y.,Prasad,A.,Sholokhova,T.,Singh,P.,Rosenthal,
+S., Babaeizadeh, M., Chen, B. J., Mehta, V., Lees, J., A. G., Ruoss, A., Beaufays, F., Kirmani, S., Chen, D.,
+Leach, A., Koanantakool, P., Akolzin, I., Comanescu, Schalkwyk,J.,Herzig,J.,Kim,B.,Jacob,J.,Vincent,D.,
+R.,Ahn,J.,Svyatkovskiy,A.,Mustafa,B.,D’Ambrosio, Reyes,A.N.,Balazevic,I.,Hussenot,L.,Schneider,J.,
+D.,Garlapati,S.M.R.,Lamblin,P.,Agarwal,A.,Song, Barnes, P., Castro, L., Babbula, S. R., Green, S., Cabi,
+S., Sessa, P. G., Coquinot, P., Maggs, J., Masoom, H., S., Duduta, N., Driess, D., Galt, R., Velan, N., Wang,
+Pitta,D.,Wang,Y.,Morris-Suzuki,P.,Porter,B.,Jia,J., J.,Jiao,H.,Mauger,M.,Phan,D.,Patel,M.,Galic´,V.,
+Dudek,J.,R,R.,Paduraru,C.,Ansell,A.,Bolukbasi,T., Chang, J., Marcus, E., Harvey, M., Salazar, J., Dabir,
+Lu,T.,Ganeshan,R.,Wang,Z.,Griffiths,H.,Benenson, E., Sheth, S. S., Mandhane, A., Sedghi, H., Willcock,
+R., He, Y., Swirhun, J., Papamakarios, G., Chawla, A., J., Zandieh, A., Prabhakara, S., Amini, A., Miech, A.,
+Sengupta,K.,Wang,Y.,Milutinovic,V.,Mordatch,I.,Jia, Stone, V., Nicosia, M., Niemczyk, P., Xiao, Y., Kim,
+Z.,Smith,J.,Ng,W.,Nigam,S.,Young,M.,Vusˇak,E., L., Kwasiborski, S., Verma, V., Oflazer, A. M., Hirn-
+Hechtman,B.,Goenka,S.,Zipori,A.,Ayoub,K.,Popat, schall, C., Sung, P., Liu, L., Everett, R., Bakker, M.,
+A.,Acharya,T.,Yu,L.,Bloxwich,D.,Song,H.,Roit,P., A´gostonWeisz,Wang,Y.,Sampathkumar,V.,Shaham,
+Li,H.,Boag,A.,Nayakanti,N.,Chandra,B.,Ding,T., U., Xu, B., Altun, Y., Wang, M., Saeki, T., Chen, G.,
+Mehta,A.,Hope,C.,Zhang,J.,Shtacher,I.H.,Badola, Taropa,E.,Vasanth,S.,Austin,S.,Huang,L.,Petrovic,
+K.,Nakashima,R.,Sozanschi,A.,Coms¸a,I.,Zˇuzˇul,A., G.,Dou,Q.,Golovin,D.,Rozhdestvenskiy,G.,Culp,A.,
+14
+
+--- Page 15 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Wu, W., Sano, M., Jain, D., Proskurnia, J., Cevey, S., Bieber,D.,Zhang,C.,Wang,J.,Hudson,T.,Zhang,Z.,
+Ruiz,A.C.,Patil,P.,Mirzazadeh,M.,Ni,E.,Snaider,J., Fu,H.,Mauerer,J.,Bateni,M.H.,Maschinot,A.,Wang,
+Fan,L.,Fre´chette,A.,Pierigiovanni,A.,Iqbal,S.,Lee, B., Zhu, M., Pillai, A., Weyand, T., Liu, S., Akerlund,
+K.,Fantacci,C.,Xing,J.,Wang,L.,Irpan,A.,Raposo, O., Bertsch, F., Premachandran, V., Jin, A., Roulet, V.,
+D.,Luan,Y.,Chen,Z.,Ganapathy,H.,Hui,K.,Nie,J., deBoursac, P., Mittal, S., Ndebele, N., Karadzhov, G.,
+Guyon,I.,Ge,H.,Vij,R.,Zheng,H.,Lee,D.,Castan˜o,A., Ghalebikesabi,S.,Liang,R.,Wu,A.,Cong,Y.,Ghelani,
+Baatarsukh,K.,Ibagon,G.,Chronopoulou,A.,FitzGer- N.,Singh,S.,Fatemi,B.,Warren,Chen,Kwong,C.,Kol-
+ald,N.,Viswanadha,S.,Huda,S.,Moroshko,R.,Stoy- ganov, A., Li, S., Song, R., Kuang, C., Miryoosefi, S.,
+anov,G.,Kolhar,P.,Vaucher,A.,Watts,I.,Kuncoro,A., Webster,D.,Wendt,J.,Socala,A.,Su,G.,Mendonc¸a,A.,
+Michalewski, H., Kambala, S., Batsaikhan, B.-O., An- Gupta,A.,Li,X.,Tsai,T.,Qiong,Hu,Kang,K.,Chen,
+dreev, A., Jurenka, I., Le, M., Chen, Q., Jishi, W. A., A., Girgin, S., Xian, Y., Lee, A., Ramsden, N., Baker,
+Chakera,S.,Chen,Z.,Kini,A.,Yadav,V.,Siddhant,A., L., Elish, M. C., Krayvanova, V., Joshi, R., Simsa, J.,
+Labzovsky, I., Lakshminarayanan, B., Bostock, C. G., Yang,Y.-Y.,Ambroszczyk,P.,Ghosh,D.,Kar,A.,Shang-
+Botadra, P., Anand, A., Bishop, C., Conway-Rahman, guan,Y.,Yamamori,Y.,Akulov,Y.,Brock,A.,Tang,H.,
+S., Agarwal, M., Donchev, Y., Singhal, A., de Chau- Vashishtha, S., Munoz, R., Steiner, A., Andra, K., Ep-
+mont Quitry, F., Ponomareva, N., Agrawal, N., Ni, B., pens,D.,Feng,Q.,Kobayashi,H.,Goldshtein,S.,Mahdy,
+Krishna,K.,Samsikova,M.,Karro,J.,Du,Y.,vonGlehn, M.E.,Wang,X.,Jilei,Wang,Killam,R.,Kwiatkowski,
+T., Lu, C., Choquette-Choo, C. A., Qin, Z., Zhang, T., T.,Kopparapu,K.,Zhan,S.,Jia,C.,Bendebury,A.,Luo,
+Li,S.,Tyam,D.,Mishra,S.,Lowe,W.,Ji,C.,Wang,W., S.,Recasens,A.,Knight,T.,Chen,J.,Patel,M.,Li,Y.,
+Faruqui, M., Slone, A., Dalibard, V., Narayanaswamy, Withbroe,B.,Weesner,D.,Bhatia,K.,Ren,J.,Eisenbud,
+A.,Lambert,J.,Manzagol,P.-A.,Karliner,D.,Bolt,A., D., Songhori, E., Sun, Y., Choma, T., Kementsietsidis,
+Lobov,I.,Kusupati,A.,Ye,C.,Yang,X.,Zen,H.,George, T., Manning, L., Roark, B., Farhan, W., Feng, J., Tati-
+N., Bhutani, M., Lacombe, O., Riachi, R., Bansal, G., neni,S.,Cobon-Kerr,J.,Li,Y.,Hendricks,L.A.,Noble,
+Soh, R., Gao, Y., Yu, Y., Yu, A., Nottage, E., Rojas- I., Breaux, C., Kushman, N., Peng, L., Xue, F., Tobin,
+Esponda, T., Noraky, J., Gupta, M., Kotikalapudi, R., T., Rogers, J., Lipschultz, J., Alberti, C., Vlaskin, A.,
+Chang,J.,Deur,S.,Graur,D.,Mossin,A.,Farnese,E., Dehghani, M., Sharma, R., Warkentin, T., Lee, C.-Y.,
+Figueira, R., Moufarek, A., Huang, A., Zochbauer, P., Uria,B.,Juan,D.-C.,Chandorkar,A.,Sheftel,H.,Liu,
+Ingram,B.,Chen,T.,Wu,Z.,Puigdome`nech,A.,Rechis, R.,Davoodi,E.,Pigem,B.D.B.,Dhamdhere,K.,Ross,
+L.,Yu,D.,Padmanabhan,S.G.S.,Zhu,R.,lingKo,C., D.,Hoech,J.,Mahdieh,M.,Liu,L.,Li,Q.,McCafferty,
+Banino, A., Daruki, S., Selvan, A., Bhaswar, D., Diaz, L.,Liu,C.,Mircea,M.,Song,Y.,Savant,O.,Saade,A.,
+D.H.,Su,C.,Scellato,S.,Brennan,J.,Han,W.,Chung, Cherry, C., Hellendoorn, V., Goyal, S., Pucciarelli, P.,
+G.,Agrawal,P.,Khandelwal,U.,Sim,K.C.,Lustman, Torres,D.V.,Yahav,Z.,Lee,H.,Sjoesund,L.L.,Kirov,
+M.,Ritter,S.,Guu,K.,Xia,J.,Jain,P.,Wang,E.,Hill,T., C.,Chang,B.,Ghoshal,D.,Li,L.,Baechler,G.,Pereira,
+Rossini,M.,Kostelac,M.,Misiunas,T.,Sabne,A.,Kim, S., Sainath, T., Boral, A., Grewe, D., Halumi, A., Phu,
+K.,Iscen,A.,Wang,C.,Leal,J.,Sreevatsa,A.,Evci,U., N. M., Shen, T., Ribeiro, M. T., Varma, D., Kaskasoli,
+Warmuth, M., Joshi, S., Suo, D., Lottes, J., Honke, G., A.,Feinberg,V.,Potti,N.,Kahn,J.,Wisniewski,M.,Mo-
+Jou,B.,Karp,S.,Hu,J.,Sahni,H.,Ta¨ıga,A.A.,Kong, hamed,S.,Hrafnkelsson,A.M.,Shahriari,B.,Lespiau,
+W., Ghosh, S., Wang, R., Pavagadhi, J., Axelsson, N., J.-B., Patel, L., Yeung, L., Paine, T., Mei, L., Ramirez,
+Grigorev,N.,Siegler,P.,Lin,R.,Wang,G.,Parisotto,E., A.,Shivanna,R.,Zhong,L.,Woodward,J.,Tubone,G.,
+Maddineni,S.,Subudhi,K.,Ben-David,E.,Pochernina, Khan,S.,Chen,H.,Nielsen,E.,Ionescu,C.,Prabhu,U.,
+E., Keller, O., Avrahami, T., Yuan, Z., Mehta, P., Liu, Gao, M., Wang, Q., Augenstein, S., Subramaniam, N.,
+J., Yang, S., Kan, W., Lee, K., Funkhouser, T., Cheng, Chang, J., Iliopoulos, F., Luo, J., Khan, M., Kuo, W.,
+D., Shi, H., Sharma, A., Kelley, J., Eyal, M., Malkov, Teplyashin,D.,Perot,F.,Kilpatrick,L.,Globerson,A.,
+Y.,Tallec,C.,Bahat,Y.,Yan,S.,Xintian,Wu,Lindner, Yu,H.,Siddiqui,A.,Sukhanov,N.,Kandoor,A.,Gupta,
+D.,Wu,C.,Caciularu,A.,Luo,X.,Jenatton,R.,Zaman, U.,Andreetto,M.,Ambar,M.,Kim,D.,Wesołowski,P.,
+T.,Bi,Y.,Kornakov,I.,Mallya,G.,Ikeda,D.,Karo,I., Perrin,S.,Limonchik,B.,Fan,W.,Stephan,J.,Stewart-
+Singh,A.,Evans,C.,Netrapalli,P.,Nallatamby,V.,Tian, Binks, I., Kappedal, R., He, T., Cogan, S., Datta, R.,
+I., Assael, Y., Raunak, V., Carbune, V., Bica, I., Mad- Zhou,T.,Ye,J.,Kieliger,L.,Ramalho,A.,Kastner,K.,
+moni,L.,Cattle,D.,Grover,S.,Somandepalli,K.,Lall, Mentzer, F., Ko, W.-J., Suggala, A., Zhou, T., Butt, S.,
+S., Va´zquez-Reina, A., Patana, R., Mu, J., Talluri, P., Strejcˇek,H.,Belenki,L.,Venugopalan,S.,Ling,M.,El-
+Tran, M., Aggarwal, R., Skerry-Ryan, R., Xu, J., Bur- tyshev,E.,Deng,Y.,Kovacs,G.,Raghavachari,M.,Dai,
+rows,M.,Pan,X.,Yvinec,E.,Lu,D.,Zhang,Z.,Nguyen, H.,Schuster,T.,Schwarcz,S.,Nguyen,R.,Nguyen,A.,
+D.D.,Mu,H.,Barcik,G.,Ran,H.,Beltrone,L.,Choro- Buttimore, G., Mallick, S. B., Gandhe, S., Benjamin,
+manski,K.,Kharrat,D.,Albanie,S.,Purser-haskell,S., S.,Jastrzebski,M.,Yan,L.,Basu,S.,Apps,C.,Edkins,
+15
+
+--- Page 16 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+I.,Allingham,J.,Odisho,I.,Kocisky,T.,Zhao,J.,Xue, R., Yakar, T., Ranzato, M., Momchev, N., Rawles, C.,
+L., Reddy, A., Anastasiou, C., Atias, A., Redmond, S., Charles,Z.,Maeng,Y.,Zhang,Y.,Bansal,R.,Zhao,X.,
+Milan,K.,Heess,N.,Schmit,H.,Dafoe,A.,Andor,D., Albert,B.,Yuan,Y.,Vijayanarasimhan,S.,Hirsch,R.,Ra-
+Gangwani, T., Dragan, A., Zhang, S., Kachra, A., Wu, masesh,V.,Vodrahalli,K.,Wang,X.,Gupta,A.,Strouse,
+G., Xue, S., Aydin, K., Liu, S., Zhou, Y., Malihi, M., D.,Ni,J.,Patel,R.,Taubman,G.,Huo,Z.,Gharibian,D.,
+Wu, A., Gopal, S., Schumann, C., Stys, P., Wang, A., Monteiro, M., Lam, H., Vasudevan, S., Chaudhary, A.,
+Olsˇa´k, M., Liu, D., Schallhart, C., Mao, Y., Brady, D., Albuquerque,I.,Gupta,K.,Riedel,S.,Hegde,C.,Rud-
+Xu,H.,Mery,T.,Sitawarin,C.,Velusamy,S.,Cobley,T., erman, A., Gyo¨rgy, A., Wainwright, M., Chaugule, A.,
+Zhai,A.,Walder,C.,Katz,N.,Jawahar,G.,Kulkarni,C., Ayan,B.K.,Levinboim,T.,Shleifer,S.,Kalley,Y.,Mir-
+Yang,A.,Paszke,A.,Wang,Y.,Damoc,B.,Borsos,Z., rokni,V.,Rao,A.,Radhakrishnan,P.,Hartford,J.,Wu,J.,
+Smith,R.,Li,J.,Gupta,M.,Kapishnikov,A.,Prakash,S., Zhu,Z.,Bertolini,F.,Xiong,H.,Serrano,N.,Tomlinson,
+Luisier,F.,Agarwal,R.,Grathwohl,W.,Chen,K.,Han, H., Ott, M., Chang, Y., Graham, M., Li, J., Liang, M.,
+K.,Mehta,N.,Over,A.,Azizi,S.,Meng,L.,Santo,N.D., Long, X., Borgeaud, S., Ahmad, Y., Grills, A., Mincu,
+Zheng,K.,Shapiro,J.,Petrovski,I.,Hui,J.,Ghafouri,A., D.,Izzard,M.,Liu,Y.,Xie,J.,O’Bryan,L.,Ponda,S.,
+Snoek,J.,Qin,J.,Jordan,M.,Sikora,C.,Malmaud,J., Tong,S.,Liu,M.,Malkin,D.,Salama,K.,Chen,Y.,Anil,
+Kuang,Y.,S´wietlik,A.,Sang,R.,Shi,C.,Li,L.,Rosen- R., Rao, A., Swavely, R., Bilenko, M., Anderson, N.,
+berg, A., Zhao, S., Crawford, A., Peter, J.-T., Lei, Y., Tan, T., Xie, J., Wu, X., Yu, L., Vinyals, O., Ryabtsev,
+Garcia,X.,Le,L.,Wang,T.,Amelot,J.,Orr,D.,Kacham, A.,Dangovski,R.,Baumli,K.,Keysers,D.,Wright,C.,
+P.,Alon,D.,Tyen,G.,Arora,A.,Lyon,J.,Kurakin,A., Ashwood,Z.,Chan,B.,Shtefan,A.,Guo,Y.,Bapna,A.,
+Ly,M.,Guidroz,T.,Yan,Z.,Panigrahy,R.,Xu,P.,Kago- Soricut,R.,Pecht,S.,Ramos,S.,Wang,R.,Cai,J.,Trinh,
+hara,T.,Cheng,Y.,Noland,E.,Lee,J.,Lee,J.,Yip,C., T.,Barham,P.,Friso,L.,Stickgold,E.,Ding,X.,Shakeri,
+Wang, M., Nehoran, E., Bykovsky, A., Shan, Z., Bha- S.,Ardila,D.,Briakou,E.,Culliton,P.,Raveret,A.,Cui,
+gatwala, A., Yan, C., Tan, J., Garrido, G., Ethier, D., J.,Saxton,D.,Roy,S.,Azizi,J.,Yin,P.,Loher,L.,Bun-
+Hurley,N.,Vesom,G.,Chen,X.,Qiao,S.,Nayyar,A., ner,A.,Choi,M.,Ahmed,F.,Li,E.,Li,Y.,Dai,S.,Elabd,
+Walker,J.,Sandhu,P.,Rosca,M.,Swisher,D.,Dektiarev, M.,Ganapathy,S.,Agrawal,S.,Hua,Y.,Kunkle,P.,Ra-
+M.,Dillon,J.,Muraru,G.-C.,Tragut,M.,Myaskovsky, jayogam,S.,Ahuja,A.,Conmy,A.,Vasiloff,A.,Beak,
+A.,Reid,D.,Velic,M.,Xiao,O.,George,J.,Brand,M., P.,Yew,C.,Mudigonda,J.,Wydrowski,B.,Blanton,J.,
+Li,J.,Yu,W.,Gu,S.,Deng,X.,Aubet,F.-X.,Yeganeh, Wang, Z., Dauphin, Y., Xu, Z., Polacek, M., Chen, X.,
+S. H., Alcober, F., Smith, C., Cohn, T., McKinney, K., Hu,H.,Sho,P.,Kunesch,M.,Manshadi,M.H.,Ruther-
+Tschannen,M.,Sampath,R.,Cheon,G.,Luo,L.,Liu,L., ford, E., Li, B., Hsiao, S., Barr, I., Tudor, A., Kecman,
+Orbay,J.,Peng,H.,Botea,G.,Zhang,X.,Yoon,C.,Ma- M.,Nagrani,A.,Pchelin,V.,Sundermeyer,M.,S,A.P.,
+galhaes,C.,Stradomski,P.,Mackinnon,I.,Hemingray, Karmarkar, A., Gao, Y., Chole, G., Bachem, O., Gao,
+S.,Venkatesan,K.,May,R.,Kim,J.,Druinsky,A.,Ye, I.,BC,A.,Dibb,M.,Verzetti,M.,Hernandez-Campos,
+J., Xu, Z., Huang, T., Abdallah, J. A., Dostmohamed, F., Lunts, Y., Johnson, M., Trapani, J. D., Koster, R.,
+A.,Fellinger,R.,Munkhdalai,T.,Maurya,A.,Garst,P., Brusilovsky,I.,Xiong,B.,Mohabey,M.,Ke,H.,Zou,J.,
+Zhang, Y., Krikun, M., Bucher, S., Veerubhotla, A. S., Sabolic´,T.,Campos,V.,Palowitch,J.,Morris,A.,Qiu,L.,
+Liu,Y.,Li,S.,Gupta,N.,Adamek,J.,Chen,H.,Orlando, Ponnuramu,P.,Li,F.,Sharma,V.,Sodhia,K.,Tekelioglu,
+B.,Zaks,A.,vanAmersfoort,J.,Camp,J.,Wan,H.,Choe, K.,Chuklin,A.,Yenugula,M.,Gemzer,E.,Strinopoulos,
+H., Wu, Z., Olszewska, K., Yu, W., Vadali, A., Scholz, T., El-Husseini, S., Wang, H., Zhong, Y., Leurent, E.,
+M., Freitas, D. D., Lin, J., Hua, A., Liu, X., Ding, F., Natsev,P.,Wang,W.,Mahaarachchi,D.,Zhu,T.,Peng,
+Zhou,Y.,Severson,B.,Tsihlas,K.,Yang,S.,Spalink,T., S.,Alabed,S.,Lee,C.-C.,Brohan,A.,Szlam,A.,Oh,G.,
+Yerram,V.,Pankov,H.,Blevins,R.,Vargas,B.,Jauhari, Kovsharov,A.,Lee,J.,Wong,R.,Barnes,M.,Thornton,
+S.,Miecnikowski,M.,Zhang,M.,Kumar,S.,Farabet,C., G., Gimeno, F., Levy, O., Sevenich, M., Johnson, M.,
+Lan,C.L.,Flennerhag,S.,Bitton,Y.,Ma,A.,Brazˇinskas, Mallinson, J., Dadashi, R., Wang, Z., Ren, Q., Lahoti,
+A.,Collins,E.,Ahuja,N.,Kudugunta,S.,Bortsova,A., P.,Dhar,A.,Feldman,J.,Zheng,D.,Ulrich,T.,Panait,
+Giang, M., Zhu, W., Chi, E., Lundberg, S., Stern, A., L.,Blokzijl,M.,Baetu,C.,Matak,J.,Harlalka,J.,Shah,
+Puttagunta,S.,Xiong,J.,Wu,X.,Pande,Y.,Jhindal,A., M.,Marian,T.,vonDincklage,D.,Du,C.,Ley-Wild,R.,
+Murphy, D., Clark, J., Brockschmidt, M., Deines, M., Brownfield,B.,Schumacher,M.,Stuken,Y.,Noghabi,S.,
+McKee,K.R.,Bahir,D.,Shen,J.,Truong,M.,McDuff, Gupta,S.,Ren,X.,Malmi,E.,Weissenberger,F.,Huergo,
+D., Gesmundo, A., Rosseel, E., Liang, B., Caluwaerts, B.,Bauza,M.,Lampe,T.,Douillard,A.,Seyedhosseini,
+K.,Hamrick,J.,Kready,J.,Cassin,M.,Ingale,R.,Lao, M.,Frostig,R.,Ghahramani,Z.,Nguyen,K.,Krishnaku-
+L.,Pollom,S.,Ding,Y.,He,W.,Bellot,L.,Iljazi,J.,Bop- mar,K.,Ye,C.,Gupta,R.,Nazari,A.,Geirhos,R.,Shaw,
+pana,R.S.,Han,S.,Thompson,T.,Khalifa,A.,Bulanova, P.,Eleryan,A.,Damen,D.,Palomaki,J.,Xiao,T.,Wu,Q.,
+A.,Mitrevski,B.,Pang,B.,Cooney,E.,Shi,T.,Coaguila, Yuan,Q.,Meadowlark,P.,Bilotti,M.,Lin,R.,Sridhar,
+16
+
+--- Page 17 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+M.,Schroecker,Y.,Chung,D.-W.,Luo,J.,Strohman,T., F.,Stjerngren,A.,Ghiasi,G.,Polozov,A.,Howland,J.,
+Liu,T.,Zheng,A.,Emond,J.,Wang,W.,Lampinen,A., Weber,T.,Chiu,J.,Girirajan,G.P.,Terzis,A.,Wang,P.,
+Fukuzawa,T.,Campbell-Ajala,F.,Roy,M.,Lee-Thorp, Li,F.,Shalom,Y.B.,Tewari,D.,Denton,M.,Aharoni,R.,
+J.,Wang,L.,Naim,I.,Tony,eˆn,N.,Bensky,G.,Gupta, Kalb,N.,Zhao,H.,Zhang,J.,Filos,A.,Rahtz,M.,Jain,
+A., Rogozin´ska, D., Fu, J., Pillai, T. S., Velicˇkovic´, P., L., Fan, C., Rodrigues, V., Wang, R., Shin, R., Austin,
+Drath,S.,Neubeck,P.,Tulsyan,V.,Klimovskiy,A.,Met- J., Ring, R., Sanchez-Vargas, M., Hassen, M., Kessler,
+zler, D., Stevens, S., Yeh, A., Yuan, J., Yu, T., Zhang, I.,Alon,U.,Zhang,G.,Chen,W.,Ma,Y.,Si,X.,Hou,
+K.,Go,A.,Tsang,V.,Xu,Y.,Wan,A.,Galatzer-Levy,I., L.,Mirhoseini,A.,Wilson,M.,Bacon,G.,Roelofs,B.,
+Sobell,S.,Toki,A.,Salesky,E.,Zhou,W.,Antognini,D., Shu,L.,Vasudevan,G.,Adler,J.,Dwornik,A.,Terzi,T.,
+Douglas,S.,Wu,S.,Lelkes,A.,Kim,F.,Cavallaro,P., Lawlor,M.,Askham,H.,Bernico,M.,Dong,X.,Hidey,
+Salazar,A.,Liu,Y.,Besley,J.,Refice,T.,Jia,Y.,Li,Z., C., Kilgour, K., Liu, G., Bhupatiraju, S., Leonhard, L.,
+Sokolik,M.,Kannan,A.,Simon,J.,Chick,J.,Aharon, Zuo, S., Talukdar, P., Wei, Q., Severyn, A., List´ık, V.,
+A., Gandhi, M., Daswani, M., Amiri, K., Birodkar, V., Lee,J.,Tripathi,A.,Park,S.,Matias,Y.,Liu,H.,Ruiz,
+Ittycheriah, A., Grabowski, P., Chang, O., Sutton, C., A.,Jayaram,R.,Tolins,J.,Marcenac,P.,Wang,Y.,Sey-
+Zhixin,Lai,Telang,U.,Sargsyan,S.,Jiang,T.,Hoffmann, bold, B., Prior, H., Sharma, D., Weber, J., Sirotenko,
+R., Brichtova, N., Hessel, M., Halcrow, J., Jerome, S., M.,Sung,Y.,Du,D.,Pavlick,E.,Zinke,S.,Freitag,M.,
+Brown,G.,Tomala,A.,Buchatskaya,E.,Yu,D.,Menon, Dylla,M.,Arenas,M.G.,Potikha,N.,Goldman,O.,Tao,
+S., Moreno, P., Liao, Y., Zayats, V., Tang, L., Mah, S., C.,Chhaparia,R.,Voitovich,M.,Dogra,P.,Razˇnatovic´,
+Shenoy,A.,Siegman,A.,Hadian,M.,Kwon,O.,Tu,T., A., Tsai, Z., You, C., Johnson, O., Tucker, G., Gu, C.,
+Khajehnouri,N.,Foley,R.,Haghani,P.,Wu,Z.,Keshava, Yoo, J., Majzoubi, M., Gabeur, V., Raad, B., Rhodes,
+V., Gupta, K., Bruguier, T., Yao, R., Karmon, D., Zint- R., Kolipaka, K., Howard, H., Sampemane, G., Li, B.,
+graf, L., Wang, Z., Piqueras, E., Jung, J., Brennan, J., Asawaroengchai,C.,Nguyen,D.,Zhang,C.,Cour,T.,Yu,
+Machado,D.,Giustina,M.,Tessler,M.,Lee,K.,Zhang, X.,Fu,Z.,Jiang,J.,Huang,P.-S.,Surita,G.,Iturrate,I.,
+Q.,Moore,J.,Daugaard,K.,Fro¨mmgen,A.,Beattie,J., Karov,Y.,Collins,M.,Baeuml,M.,Fuchs,F.,Shetty,S.,
+Zhang,F.,Kasenberg,D.,Geri,T.,Qin,D.,Tomar,G.S., Ramaswamy,S.,Ebrahimi,S.,Guo,Q.,Shar,J.,Barth-
+Ouyang,T.,Yu,T.,Zhou,L.,Mathews,R.,Davis,A.,Li, Maron,G.,Addepalli,S.,Richter,B.,Cheng,C.-Y.,Rives,
+Y.,Gupta,J.,Yates,D.,Deng,L.,Kemp,E.,Joung,G.-Y., E.,Zheng,F.,Griesser,J.,Dikkala,N.,Zeldes,Y.,Safarli,
+Vassilvitskii,S.,Guo,M.,LV,P.,Dopson,D.,Lachgar, I.,Das,D.,Srivastava,H.,Khan,S.M.,Li,X.,Pandey,
+S.,McConnaughey,L.,Choudhury,H.,Dena,D.,Cohen, A.,Markeeva,L.,Belov,D.,Yan,Q.,Rybin´ski,M.,Chen,
+A.,Ainslie,J.,Levi,S.,Gopavarapu,P.,Zablotskaia,P., T., Nawhal, M., Quinn, M., Govindaraj, V., York, S.,
+Vallet, H., Bahargam, S., Tang, X., Tomasev, N., Dyer, Roberts,R.,Garg,R.,Godbole,N.,Abernethy,J.,Das,
+E.,Balle,D.,Lee,H.,Bono,W.,Mendez,J.G.,Zubov, A.,Thiet,L.N.,Tompson,J.,Nham,J.,Vats,N.,Caine,
+V., Yang, S., Rendulic, I., Zheng, Y., Hogue, A., Pun- B.,Helmholz,W.,Pongetti,F.,Ko,Y.,An,J.,Hu,C.H.,
+dak,G.,Leith,R.,Bhoopchand,A.,Han,M.,Zˇanic´,M., Ling,Y.-C.,Pawar,J.,Leland,R.,Kinoshita,K.,Khawaja,
+Schaul, T., Delakis, M., Iyer, T., Wang, G., Singh, H., W.,Selvi,M.,Ie,E.,Sinopalnikov,D.,Proleev,L.,Tripu-
+Abdelhamed,A.,Thomas,T.,Brahma,S.,Dib,H.,Ku- raneni, N., Bevilacqua, M., Lee, S., Sanford, C., Suh,
+mar, N., Zhou, W., Bai, L., Mishra, P., Sun, J., Anklin, D.,Tran,D.,Dean,J.,Baumgartner,S.,Heitkaemper,J.,
+V.,Sukkerd,R.,Agubuzu,L.,Briukhov,A.,Gulati,A., Gubbi,S.,Toutanova,K.,Xu,Y.,Thekkath,C.,Rong,K.,
+Sieb,M.,Pardo,F.,Nasso,S.,Chen,J.,Zhu,K.,Sosea, Jain,P.,Xie,A.,Virin,Y.,Li,Y.,Litchev,L.,Powell,R.,
+T.,Goldin,A.,Rush,K.,Hombaiah,S.A.,Noever,A., Bharti,T.,Kraft,A.,Hua,N.,Ikonomidis,M.,Hitron,A.,
+Zhou, A., Haves, S., Phuong, M., Ades, J., ting Chen, Kumar,S.,Matthey,L.,Bridgers,S.,Lax,L.,Malhi,I.,
+Y.,Yang,L.,Pagadora,J.,Bileschi,S.,Cotruta,V.,Sapu- Skopek,O.,Gupta,A.,Cao,J.,Rasquinha,M.,Po˜der,S.,
+tro,R.,Pramanik,A.,Ammirati,S.,Garrette,D.,Villela, Stokowiec,W.,Roth,N.,Li,G.,Sander,M.,Kessinger,
+K.,Blyth,T.,Akbulut,C.,Jha,N.,Rrustemi,A.,Wong- J.,Jain,V.,Loper,E.,Park,W.,Yarom,M.,Cheng,L.,
+panich,A.,Nagpal,C.,Wu,Y.,Rivie`re,M.,Kishchenko, Guruganesh, G., Rao, K., Li, Y., Barros, C., Sushkov,
+S.,Srinivasan,P.,Chen,A.,Sinha,A.,Pham,T.,Jia,B., M.,Ferng,C.-S.,Shah,R.,Aharoni,O.,Kumar,R.,Mc-
+Hennigan,T.,Bakalov,A.,Attaluri,N.,Garmon,D.,Ro- Connell, T., Li, P., Wang, C., Pereira, F., Swanson, C.,
+driguez,D.,Wegner,D.,Jia,W.,Senter,E.,Fiedel,N., Jamil,F.,Xiong,Y.,Vijayakumar,A.,Shroff,P.,Soparkar,
+Petek,D.,Liu,Y.,Hardin,C.,Lehri,H.T.,Carreira,J., K.,Gu,J.,Soares,L.B.,Wang,E.,Majmundar,K.,Wei,
+Smoot,S.,Prasetya,M.,Akazawa,N.,Stefanoiu,A.,Ho, A., Bailey, K., Kassner, N., Kawamoto, C., Zˇuzˇic´, G.,
+C.-H.,Angelova,A.,Lin,K.,Kim,M.,Chen,C.,Sieniek, Gomes, V., Gupta, A., Guzman, M., Dasgupta, I., Bai,
+M.,Li,A.,Guo,T.,Baltateanu,S.,Tafti,P.,Wunder,M., X.,Pan,Z.,Piccinno,F.,Vogel,H.N.,Ponce,O.,Hutter,
+Olmert,N.,Shukla,D.,Shen,J.,Kovelamudi,N.,Venka- A.,Chang,P.,Jiang,P.-P.,Gog,I.,Ionescu,V.,Manyika,
+traman,B.,Neel,S.,Thoppilan,R.,Connor,J.,Benzing, J., Pedregosa, F., Ragan, H., Behrman, Z., Mullins, R.,
+17
+
+--- Page 18 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Devin,C.,Pyne,A.,Gawde,S.,Chadwick,M.,Gu,Y., Millican,K.,Zhao,R.,Snyder,J.,Bolelli,L.,O’Brien,
+Tavakkol,S.,Twigg,A.,Goyal,N.,Elue,N.,Goldie,A., M.,Xu,S.,Xia,F.,Yuan,W.,Neelakantan,A.,Barker,D.,
+Venkatachary, S., Fei, H., Feng, Z., Ritter, M., Leal, I., Yadav,S.,Kirkwood,H.,Ahmad,F.,Wee,J.,Grimstad,
+Dasari,S.,Sun,P.,Rochman,A.R.,O’Donoghue,B.,Liu, J.,Wang,B.,Wiethoff,M.,Settle,S.,Wang,M.,Blundell,
+Y.,Sproch,J.,Chen,K.,Clay,N.,Petrov,S.,Sidhwani,S., C.,Chen,J.,Duvarney,C.,Hu,G.,Ronneberger,O.,Lee,
+Mihailescu,I.,Panagopoulos,A.,Piergiovanni,A.,Bai, A.,Li,Y.,Chakladar,A.,Butryna,A.,Evangelopoulos,
+Y.,Powell,G.,Karkhanis,D.,Yacovone,T.,Mitrichev, G., Desjardins, G., Kanerva, J., Wang, H., Nowak, A.,
+P., Kovac, J., Uthus, D., Yazdanbakhsh, A., Amos, D., Li, N., Loo, A., Khurshudov, A., Shafey, L. E., Baddi,
+Zheng,S.,Zhang,B.,Miao,J.,Ramabhadran,B.,Rad- N., Lenc, K., Razeghi, Y., Lieber, T., Sinha, A., Ma,
+pour,S.,Thakoor,S.,Newlan,J.,Lang,O.,Jankowski,O., X., Su, Y., Huang, J., Ushio, A., Klimczak-Plucin´ska,
+Bharadwaj,S.,Sarr,J.-M.,Ashraf,S.,Mondal,S.,Yan,J., H.,Mohamed,K.,Chen,J.,Osindero,S.,Ginzburg,S.,
+Rawat,A.S.,Velury,S.,Kochanski,G.,Eccles,T.,Och, Lamprou,L.,Bashlovkina,V.,Tran,D.-H.,Khodaei,A.,
+F., Sharma, A., Mahintorabi, E., Gurney, A., Muir, C., Anand, A., Di, Y., Eskander, R., Vuyyuru, M. R., Liu,
+Cohen,V.,Thakur,S.,Bloniarz,A.,Mujika,A.,Pritzel, J.,Kamath,A.,Goldenberg,R.,Bellaiche,M.,Pluto,J.,
+A.,Caron,P.,Rahman,A.,Lang,F.,Onoe,Y.,Sirkovic, Rosgen, B., Mansoor, H., Wong, W., Ganesh, S., Bai-
+P.,Hoover,J.,Jian,Y.,Duque,P.,Narayanan,A.,Soergel, ley,E.,Baird,S.,Deutsch,D.,Baek,J.,Jia,X.,Lee,C.,
+D.,Haig,A.,Maggiore,L.,Buch,S.,Dean,J.,Figotin,I., Friesen, A., Braun, N., Lee, K., Panda, A., Hernandez,
+Karpov,I.,Gupta,S.,Zhou,D.,Huang,M.,Vaswani,A., S.M.,Williams,D.,Liu,J.,Liang,E.,Autef,A.,Pitler,E.,
+Semturs,C.,Shivakumar,K.,Watanabe,Y.,Rajendran, Jain,D.,Kirk,P.,Bunyan,O.,Elias,J.S.,Yin,T.,Reid,
+V. K., Lu, E., Hou, Y., Ye, W., Vashishth, S., Nti, N., M., Pope, A., Putikhin, N., Samanta, B., Guadarrama,
+Sakenas,V.,Ni,D.,DeCarlo,D.,Bendersky,M.,Bagri, S.,Kim,D.,Rowe,S.,Valentine,M.,Yan,G.,Salcianu,
+S.,Cano,N.,Peake,E.,Tokumine,S.,Godbole,V.,Gu´ıa, A.,Silver,D.,Song,G.,Singh,R.,Ye,S.,DeBalsi,H.,
+C.,Lando,T.,Selo,V.,Ellis,S.,Tarlow,D.,Gillick,D., Merey,M.A.,Ofek,E.,Webson,A.,Mourad,S.,Kakarla,
+Epasto,A.,Jonnalagadda,S.R.,Wei,M.,Xie,M.,Taly, A.,Lattanzi,S.,Roy,N.,Sluzhaev,E.,Butterfield,C.,To-
+A.,Paganini,M.,Sundararajan,M.,Toyama,D.,Yu,T., nioni,A.,Waters,N.,Kopalle,S.,Chase,J.,Cohan,J.,
+Petrova,D.,Pappu,A.,Agrawal,R.,Buthpitiya,S.,Frye, Rao,G.R.,Berry,R.,Voznesensky,M.,Hu,S.,Chiafullo,
+J.,Buschmann,T.,Crocker,R.,Tagliasacchi,M.,Wang, K., Chikkerur, S., Scrivener, G., Zheng, I., Wiesner, J.,
+M.,Huang,D.,Perel,S.,Wieder,B.,Kazawa,H.,Wang, Macherey,W.,Lillicrap,T.,Liu,F.,Walker,B.,Welling,
+W., Cole, J., Gupta, H., Golan, B., Bang, S., Kulkarni, D.,Davies,E.,Huang,Y.,Ren,L.,Shabat,N.,Agostini,
+N.,Franko,K.,Liu,C.,Reid,D.,Dalmia,S.,Whang,J., A.,Iinuma,M.,Zelle,D.,Sathyanarayana,R.,D’olimpio,
+Cen,K.,Sundaram,P.,Ferret,J.,Isik,B.,Ionita,L.,Sun, A.,Redshaw,M.,Ginsberg,M.,Murthy,A.,Geller,M.,
+G., Shekhawat, A., Mohammad, M., Pham, P., Huang, Matejovicova,T.,Chakrabarti,A.,Julian,R.,Chan,C.,
+R.,Raman,K.,Zhou,X.,Mcilroy,R.,Myers,A.,Peng, Hu, Q., Jarrett, D., Agarwal, M., Challagundla, J., Li,
+S.,Scott,J.,Covington,P.,Erell,S.,Joshi,P.,Oliveira, T., Tata, S., Ding, W., Meng, M., Dai, Z., Vezzani, G.,
+J.G.,Noy,N.,Nasir,T.,Walker,J.,Axelrod,V.,Dozat, Garg,S.,Bulian,J.,Jasarevic,M.,Cai,H.,Rajamani,H.,
+T.,Han,P.,Chu,C.-T.,Weinstein,E.,Shukla,A.,Chan- Santoro,A.,Hartmann,F.,Liang,C.,Perz,B.,Jindal,A.,
+drakaladharan,S.,Poklukar,P.,Li,B.,Jin,Y.,Eruvbetine, Bu, F., Seo, S., Poplin, R., Goedeckemeyer, A., Ghazi,
+P.,Hansen,S.,Dabush,A.,Jacovi,A.,Phatale,S.,Zhu, B.,Khadke,N.,Liu,L.,Mather,K.,Zhang,M.,Shah,A.,
+C.,Baker,S.,Shomrat,M.,Xiao,Y.,Pouget-Abadie,J., Chen,A.,Wei,J.,Shivam,K.,Cao,Y.,Cho,D.,Scarpati,
+Zhang,M.,Wei,F.,Song,Y.,King,H.,Huang,Y.,Zhu, A. S., Moffitt, M., Barbu, C., Jurin, I., Chang, M.-W.,
+Y.,Sun,R.,Franco,J.V.,Lin,C.-C.,Arora,S.,Hui,Li, Liu, H., Zheng, H., Dave, S., Kaeser-Chen, C., Yu, X.,
+Xia,V.,Vilnis,L.,Schain,M.,Alarakyia,K.,Prince,L., Abdagic,A.,Gonzalez,L.,Huang,Y.,Zhong,P.,Schmid,
+Phillips,A.,Habtegebriel,C.,Xu,L.,Gui,H.,Ontanon, C.,Petrini,B.,Wertheim,A.,Zhu,J.,Nguyen,H.,Ji,K.,
+S.,Aroyo,L.,Gill,K.,Lu,P.,Katariya,Y.,Madeka,D., Zhou,Y.,Zhou,T.,Feng,F.,Cohen,R.,Rim,D.,Phal,
+Krishnan, S., Raghvendra, S.S., Freedman, J., Tay, Y., S. M., Georgiev, P., Brand, A., Ma, Y., Li, W., Gupta,
+Menghani, G., Choy, P., Shetty, N., Abolafia, D., Kuk- S.,Wang,C.,Dubov,P.,Tarbouriech,J.,Majumder,K.,
+liansky,D.,Chou,E.,Lichtarge,J.,Burke,K.,Coleman, Li,H.,Rink,N.,Suman,A.,Guo,Y.,Sun,Y.,Nair,A.,
+B.,Guo,D.,Jin,L.,Bhattacharya,I.,Langston,V.,Li,Y., Xu, X., Elhawaty, M., Cabrera, R., Han, G., Eisensch-
+Kotecha,S.,Yakubovich,A.,Chen,X.,Petrov,P.,Pow- los,J.,Bai,J.,Li,Y.,Bansal,Y.,Sellam,T.,Khan,M.,
+ell,T.,He,Y.,Quick,C., Garg,K., Hwang,D., Lu,Y., Nguyen, H., Mao-Jones, J., Parotsidis, N., Marcus, J.,
+Bhojanapalli,S.,Kjems,K.,Mehran,R.,Archer,A.,van Fan, C., Zimmermann, R., Kochinski, Y., Graesser, L.,
+Hasselt,H.,Balakrishna,A.,Kearns,J.,Guo,M.,Riesa, Behbahani,F.,Caceres,A.,Riley,M.,Kane,P.,Lefdal,S.,
+J.,Sazanovich,M.,Gao,X.,Sauer,C.,Yang,C.,Sheng, Willoughby,R.,Vicol,P.,Wang,L.,Zhang,S.,Gill,A.,
+X.,Jimma,T.,Gansbeke,W.V.,Nikolaev,V.,Wei,W., Liang,Y.,Prasad,G.,Mariooryad,S.,Kazemi,M.,Wang,
+18
+
+--- Page 19 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Z., Muralidharan, K., Voigtlaender, P., Zhao, J., Zhou, Drain, D., El-Showk, S., Elhage, N., Hatfield-Dodds,
+H.,D’Souza,N.,Mavalankar,A.,Arnold,S.,Young,N., Z., Henighan, T., Hume, T., Johnston, S., Mann, B.,
+Sarvana,O.,Lee,C.,Nasr,M.,Zou,T.,Kim,S.,Haas,L., Olah, C., Olsson, C., Amodei, D., Joseph, N., Ka-
+Patel,K.,Bulut,N.,Parkinson,D.,Biles,C.,Kalashnikov, plan, J., and McCandlish, S. Scaling laws and inter-
+D.,To,C.M.,Kumar,A.,Austin,J.,Greve,A.,Zhang, pretability of learning from repeated data, 2022. URL
+L.,Goel,M.,Li,Y.,Yaroshenko,S.,Chang,M.,Jindal, https://arxiv.org/abs/2205.10487.
+A.,Clark,G.,Taitelbaum,H.,Johnson,D.,Roval,O.,Ko,
+J.,Mohananey,A.,Schuler,C.,Dodhia,S.,Li,R.,Osawa, Hoffmann,J.,Borgeaud,S.,Mensch,A.,Buchatskaya,E.,
+K.,Cui,C.,Xu,P.,Shah,R.,Huang,T.,Gruzewska,E., Cai, T., Rutherford, E., de Las Casas, D., Hendricks,
+Clement,N.,Verma,M.,Sercinoglu,O.,Qian,H.,Shah, L. A., Welbl, J., Clark, A., Hennigan, T., Noland, E.,
+V., Yamaguchi, M., Modi, A., Kosakai, T., Strohmann, Millican,K.,vandenDriessche,G.,Damoc,B.,Guy,A.,
+T., Zeng, J., Gunel, B., Qian, J., Tarango, A., Jastrzeb- Osindero,S.,Simonyan,K.,Elsen,E.,Vinyals,O.,Rae,
+ski,K.,David,R.,Shan,J.,Schuh,P.,Lad,K.,Gierke, J.,andSifre,L.Anempiricalanalysisofcompute-optimal
+W.,Madhavan,M.,Chen,X.,Kurzeja,M.,Santamaria- largelanguagemodeltraining. InKoyejo,S.,Mohamed,
+Fernandez,R.,Chen,D.,Cordell,A.,Chervonyi,Y.,Gar- S.,Agarwal,A.,Belgrave,D.,Cho,K.,andOh,A.(eds.),
+cia, F., Kannen, N., Perot, V., Ding, N., Cohen-Ganor, Advances in Neural Information Processing Systems,
+S., Lavrenko, V., Wu, J., Evans, G., dos Santos, C. N., volume 35, pp. 30016–30030. Curran Associates, Inc.,
+Sewak,M.,Brown,A.,Hard,A.,Puigcerver,J.,Zheng, 2022. URL https://proceedings.neurips.
+Z., Liang, Y., Gladchenko, E., Ingle, R., First, U., Ser- cc/paper_files/paper/2022/file/
+manet,P.,Magister,C.,Velimirovic´,M.,Reddi,S.,Ricco, c1e2faff6f588870935f114ebe04a3e5-Paper-Conference.
+S., Agustsson, E., Adam, H., Levine, N., Gaddy, D., pdf.
+Holtmann-Rice, D., Wang, X., Sathe, A., Roy, A. G.,
+Bratanicˇ, B., Carin, A., Mehta, H., Bonacina, S., Cao, Holtzman,A.,Buys,J.,Du,L.,Forbes,M.,andChoi,Y.The
+N. D., Finkelstein, M., Rieser, V., Wu, X., Altche´, F., curiouscaseofneuraltextdegeneration. InInternational
+Scandinaro, D., Li, L., Vieillard, N., Sethi, N., Tanzer, ConferenceonLearningRepresentations,2020.
+G.,Xing,Z.,Wang,S.,Bhatia,P.,Citovsky,G.,Anthony,
+Hu, S., Liu, X., Han, X., Zhang, X., He, C., Zhao, W.,
+T.,Lin,S.,Shi,T.,Jakobovits,S.,Gibson,G.,Apte,R.,
+Lin, Y., Ding, N., Ou, Z., Zeng, G., Liu, Z., and Sun,
+Lee,L.,Chen,M.,Byravan,A.,Maniatis,P.,Webster,K.,
+M. Predictingemergentabilitieswithinfiniteresolution
+Dai,A.,Chen,P.-C.,Pan,J.,Fadeeva,A.,Gleicher,Z.,
+evaluation,2024. URLhttps://arxiv.org/abs/
+Luong, T., and Bhumihar, N. K. Gemini 2.5: Pushing
+2310.03262.
+thefrontierwithadvancedreasoning,multimodality,long
+context,andnextgenerationagenticcapabilities,2025.
+Huang,J.,Yang,D.,andPotts,C. Demystifyingverbatim
+URLhttps://arxiv.org/abs/2507.06261.
+memorizationinlargelanguagemodels. arXivpreprint
+Han,Z.,Mankikar,M.,Michael,J.,andWang,Z. Search- arXiv:2407.17817,2024.
+timedatacontamination,2025.URLhttps://arxiv.
+org/abs/2508.13180. Ibrahim, A., The´rien, B., Gupta, K., Richter, M. L., An-
+thony, Q. G., Belilovsky, E., Lesort, T., and Rish, I.
+Hayes, J., Shumailov, I., Choquette-Choo, C. A., Jagiel- Simple and scalable strategies to continually pre-train
+ski,M.,Kaissis,G.,Nasr,M.,Annamalai,M.S.M.S., largelanguagemodels. TransactionsonMachineLearn-
+Mireshghallah,N.,Shilov,I.,Meeus,M.,etal. Exploring ing Research, 2024. ISSN 2835-8856. URL https:
+thelimitsofstrongmembershipinferenceattacksonlarge //openreview.net/forum?id=DimPeeCxKO.
+languagemodels. InTheThirty-ninthAnnualConference
+onNeuralInformationProcessingSystems,2025. Jagielski, M., Nasr, M., Lee, K., Choquette-Choo, C. A.,
+Carlini,N.,andTramer,F. Studentsparrottheirteachers:
+Hendrycks,D.,Burns,C.,Basart,S.,Zou,A.,Mazeika,M.,
+Membershipinferenceonmodeldistillation. Advances
+Song,D.,andSteinhardt,J. Measuringmassivemultitask
+inNeuralInformationProcessingSystems,36,2024.
+languageunderstanding. InInternationalConferenceon
+LearningRepresentations,2021a.
+Jain, N., Han, K., Gu, A., Li, W.-D., Yan, F., Zhang, T.,
+Wang,S.,Solar-Lezama,A.,Sen,K.,andStoica,I. Live-
+Hendrycks,D.,Burns,C.,Kadavath,S.,Arora,A.,Basart,
+codebench: Holisticandcontaminationfreeevaluation
+S.,Tang,E.,Song,D.,andSteinhardt,J.Measuringmath-
+of large language models for code. In The Thirteenth
+ematicalproblemsolvingwiththemathdataset,2021b.
+InternationalConferenceonLearningRepresentations,
+URLhttps://arxiv.org/abs/2103.03874.
+2025. URLhttps://openreview.net/forum?
+Hernandez, D., Brown, T., Conerly, T., DasSarma, N., id=chfJJYC3iL.
+19
+
+--- Page 20 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Jang,J.,Ye,S.,Yang,S.,Shin,J.,Han,J.,Kim,G.,Choi, Li, M., Wang, J., Wang, J., and Neel, S. Mope: Model
+S.J.,andSeo,M. Towardscontinualknowledgelearning perturbation-basedprivacyattacksonlanguagemodels.
+of language models, 2022. URL https://arxiv. arXivpreprintarXiv:2310.14369,2023.
+org/abs/2110.03215.
+Li, Y., Guo, Y., Guerin, F., and Lin, C. An open-
+Jiang,M.,Liu,K.Z.,Zhong,M.,Schaeffer,R.,Ouyang,S., sourcedatacontaminationreportforlargelanguagemod-
+Han,J.,andKoyejo,S. Investigatingdatacontamination els. In Al-Onaizan, Y., Bansal, M., and Chen, Y.-N.
+forpre-traininglanguagemodels, 2024. URLhttps: (eds.),FindingsoftheAssociationforComputationalLin-
+//arxiv.org/abs/2401.06059. guistics: EMNLP 2024, pp. 528–541, Miami, Florida,
+USA, November 2024. Association for Computational
+Jiang, M., Liu, K. Z., and Koyejo, S. A missing testbed Linguistics. doi: 10.18653/v1/2024.findings-emnlp.
+forLLMpre-trainingmembershipinferenceattacks. In 30. URL https://aclanthology.org/2024.
+ICLR2025WorkshoponNavigatingandAddressingData findings-emnlp.30/.
+ProblemsforFoundationModels,2025. URLhttps:
+Liu,K.Z.,Choquette-Choo,C.A.,Jagielski,M.,Kairouz,
+//openreview.net/forum?id=HzHUxo6KzE.
+P.,Koyejo,S.,Liang,P.,andPapernot,N. Languagemod-
+Jin,X.,Zhang,D.,Zhu,H.,Xiao,W.,Li,S.-W.,Wei,X., elsmayverbatimcompletetexttheywerenotexplicitly
+Arnold,A.,andRen,X.Lifelongpretraining:Continually trainedon. arXivpreprintarXiv:2503.17514,2025.
+adaptinglanguagemodelstoemergingcorpora. InPro-
+Loshchilov,I.andHutter,F. Decoupledweightdecayreg-
+ceedingsofthe2022ConferenceoftheNorthAmerican
+ularization. In International Conference on Learning
+ChapteroftheAssociationforComputationalLinguistics:
+Representations,2019.
+HumanLanguageTechnologies,pp.4764–4780,2022.
+Lu,X.,Li,X.,Cheng,Q.,Ding,K.,Huang,X.-J.,andQiu,
+Kandpal,N.,Pillutla,K.,Oprea,A.,Kairouz,P.,Choquette- X. Scalinglawsforfactmemorizationoflargelanguage
+Choo, C. A., and Xu, Z. User inference attacks on models.InFindingsoftheAssociationforComputational
+largelanguagemodels. arXivpreprintarXiv:2310.09266, Linguistics: EMNLP2024,pp.11263–11282,2024.
+2023.
+Magar, I. and Schwartz, R. Data contamination:
+Kaplan, J., McCandlish, S., Henighan, T., Brown, T. B., From memorization to exploitation. arXiv preprint
+Chess,B.,Child,R.,Gray,S.,Radford,A.,Wu,J.,and arXiv:2203.08242,2022.
+Amodei, D. Scaling laws for neural language models.
+Maini,P.,Yaghini,M.,andPapernot,N. Datasetinference:
+arXivpreprintarXiv:2001.08361,2020.
+Ownershipresolutioninmachinelearning.arXivpreprint
+Kocyigit,M.Y. Theimpactofpost-trainingondatacontam- arXiv:2104.10706,2021.
+ination. InNeurIPS2025WorkshoponEvaluatingthe
+Maini, P., Jia, H., Papernot, N., and Dziedzic, A. Llm
+EvolvingLLMLifecycle: Benchmarks,EmergentAbili-
+datasetinference: Didyoutrainonmydataset? arXiv
+ties,andScaling,2025.URLhttps://openreview.
+preprintarXiv:2406.06443,2024.
+net/forum?id=SnPmnvMQ3k.
+Mangaokar, N., Hooda, A., Li, Z., Malin, B. A., Fawaz,
+Kocyigit,M.Y.,Briakou,E.,Deutsch,D.,Luo,J.,Cherry, K., Jha, S., Prakash, A., and Chowdhury, A. R. What
+C., and Freitag, M. Overestimation in llm evaluation: reallyisamember? discreditingmembershipinference
+Acontrolledlarge-scalestudyondatacontamination’s viapoisoning. arXivpreprintarXiv:2506.06003,2025.
+impactonmachinetranslation. InForty-secondInterna-
+tionalConferenceonMachineLearning,2025. Mattern, J., Mireshghallah, F., Jin, Z., Scho¨lkopf, B.,
+Sachan,M.,andBerg-Kirkpatrick,T. Membershipinfer-
+Kong, Z., Chowdhury, A. R., and Chaudhuri, K. Can enceattacksagainstlanguagemodelsvianeighbourhood
+membership inferencing be refuted? arXiv preprint comparison. arXivpreprintarXiv:2305.18462,2023.
+arXiv:2303.03648,2023.
+Matton, A., Sherborne, T., Aumiller, D., Tommasone,
+Kydlicek,H.,Lozovskaya,A.,Habib,N.,andFourrier,C. E., Alizadeh, M., He, J., Ma, R., Voisin, M.,
+Fixingopenllmleaderboardwithmath-verify,2025. Gilsenan-McMahon, E., and Galle´, M. On leak-
+age of code generation evaluation datasets. In Al-
+Li, H., Chen, Y., Wang, S., He, Y., Mehrabi, N., Gupta, Onaizan, Y., Bansal, M., and Chen, Y.-N. (eds.), Find-
+R.,andRen,X. Diagnosingmemorizationinchain-of- ings of the Association for Computational Linguis-
+thoughtreasoning, onetokenatatime. arXivpreprint tics: EMNLP2024, pp.13215–13223, Miami, Florida,
+arXiv:2508.02037,2025. USA, November 2024. Association for Computational
+20
+
+--- Page 21 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Linguistics. doi: 10.18653/v1/2024.findings-emnlp. J.,Harb,J.,Twore,J.,Feng,J.,Yu,J.,Weng,J.,Tang,J.,
+772. URL https://aclanthology.org/2024. Yu,J.,Candela,J.Q.,Palermo,J.,Parish,J.,Heidecke,
+findings-emnlp.772/. J., Hallman, J., Rizzo, J., Gordon, J., Uesato, J., Ward,
+J., Huizinga, J., Wang, J., Chen, K., Xiao, K., Singhal,
+Meeus,M.,Jain,S.,Rei,M.,anddeMontjoye,Y.-A. In-
+K.,Nguyen,K.,Cobbe,K.,Shi,K.,Wood,K.,Rimbach,
+herentchallengesofpost-hocmembershipinferencefor
+K.,Gu-Lemberg,K.,Liu,K.,Lu,K.,Stone,K.,Yu,K.,
+largelanguagemodels. arXivpreprintarXiv:2406.17975,
+Ahmad,L.,Yang,L.,Liu,L.,Maksin,L.,Ho,L.,Fedus,
+2024.
+L.,Weng,L.,Li,L.,McCallum,L.,Held,L.,Kuhn,L.,
+Kondraciuk,L.,Kaiser,L.,Metz,L.,Boyd,M.,Trebacz,
+Muennighoff,N.,Rush,A.,Barak,B.,LeScao,T.,Tazi,N.,
+M.,Joglekar,M.,Chen,M.,Tintor,M.,Meyer,M.,Jones,
+Piktus,A.,Pyysalo,S.,Wolf,T.,andRaffel,C.A.Scaling
+M., Kaufer, M., Schwarzer, M., Shah, M., Yatbaz, M.,
+data-constrainedlanguagemodels. AdvancesinNeural
+Guan, M. Y., Xu, M., Yan, M., Glaese, M., Chen, M.,
+InformationProcessingSystems,36:50358–50376,2023.
+Lampe,M.,Malek,M.,Wang,M.,Fradin,M.,McClay,
+Nallapati,R.,Zhou,B.,dosSantos,C.,Gu˙lc¸ehre,C¸.,andXi- M.,Pavlov,M.,Wang,M.,Wang,M.,Murati,M.,Bavar-
+ang,B.Abstractivetextsummarizationusingsequence-to- ian, M., Rohaninejad, M., McAleese, N., Chowdhury,
+sequenceRNNsandbeyond. InRiezler,S.andGoldberg, N., Chowdhury, N., Ryder, N., Tezak, N., Brown, N.,
+Y.(eds.),Proceedingsofthe20thSIGNLLConferenceon Nachum,O.,Boiko,O.,Murk,O.,Watkins,O.,Chao,P.,
+ComputationalNaturalLanguageLearning,pp.280–290, Ashbourne,P.,Izmailov,P.,Zhokhov,P.,Dias,R.,Arora,
+Berlin,Germany,August2016.AssociationforCompu- R.,Lin,R.,Lopes,R.G.,Gaon,R.,Miyara,R.,Leike,R.,
+tationalLinguistics. doi: 10.18653/v1/K16-1028. URL Hwang,R.,Garg,R.,Brown,R.,James,R.,Shu,R.,Cheu,
+https://aclanthology.org/K16-1028/. R.,Greene,R.,Jain,S.,Altman,S.,Toizer,S.,Toyer,S.,
+Miserendino,S.,Agarwal,S.,Hernandez,S.,Baker,S.,
+Ni,S.,Kong,X.,Li,C.,Hu,X.,Xu,R.,Zhu,J.,andYang, McKinney, S., Yan, S., Zhao, S., Hu, S., Santurkar, S.,
+M. Trainingonthebenchmarkisnotallyouneed,2025. Chaudhuri,S.R.,Zhang,S.,Fu,S.,Papay,S.,Lin,S.,Bal-
+URLhttps://arxiv.org/abs/2409.01790. aji,S.,Sanjeev,S.,Sidor,S.,Broda,T.,Clark,A.,Wang,
+T.,Gordon,T.,Sanders,T.,Patwardhan,T.,Sottiaux,T.,
+Nie,F.,Liu,K.Z.,Wang,Z.,Sun,R.,Liu,W.,Shi,W.,Yao,
+Degry,T.,Dimson,T.,Zheng,T.,Garipov,T.,Stasi,T.,
+H., Zhang, L., Ng, A.Y., Zou, J., Koyejo, S., Choi, Y.,
+Bansal,T.,Creech,T.,Peterson,T.,Eloundou,T.,Qi,V.,
+Liang,P.,andMuennighoff,N. Uq: Assessinglanguage
+Kosaraju,V.,Monaco,V.,Pong,V.,Fomenko,V.,Zheng,
+modelsonunsolvedquestions,2025. URLhttps://
+W.,Zhou,W.,McCabe,W.,Zaremba,W.,Dubois,Y.,Lu,
+arxiv.org/abs/2508.17580.
+Y.,Chen,Y.,Cha,Y.,Bai,Y.,He,Y.,Zhang,Y.,Wang,
+Y.,Shao,Z.,andLi,Z. Openaio1systemcard,2024a.
+OpenAI,:,Jaech,A.,Kalai,A.,Lerer,A.,Richardson,A.,
+URLhttps://arxiv.org/abs/2412.16720.
+El-Kishky, A., Low, A., Helyar, A., Madry, A., Beu-
+tel, A., Carney, A., Iftimie, A., Karpenko, A., Passos,
+A.T.,Neitz,A.,Prokofiev,A.,Wei,A.,Tam,A.,Bennett, OpenAI, Achiam, J., Adler, S., Agarwal, S., Ahmad, L.,
+A.,Kumar,A.,Saraiva,A.,Vallone,A.,Duberstein,A., Akkaya,I.,Aleman,F.L.,Almeida,D.,Altenschmidt,J.,
+Kondrich,A.,Mishchenko,A.,Applebaum,A.,Jiang,A., Altman,S.,Anadkat,S.,Avila,R.,Babuschkin,I.,Bal-
+Nair,A.,Zoph,B.,Ghorbani,B.,Rossen,B.,Sokolowsky, aji,S.,Balcom,V.,Baltescu,P.,Bao,H.,Bavarian,M.,
+B.,Barak,B.,McGrew,B.,Minaiev,B.,Hao,B.,Baker, Belgum,J.,Bello,I.,Berdine,J.,Bernadett-Shapiro,G.,
+B.,Houghton,B.,McKinzie,B.,Eastman,B.,Lugaresi, Berner,C.,Bogdonoff,L.,Boiko,O.,Boyd,M.,Brakman,
+C.,Bassin,C.,Hudson,C.,Li,C.M.,deBourcy,C.,Voss, A.-L.,Brockman,G.,Brooks,T.,Brundage,M.,Button,
+C.,Shen,C.,Zhang,C.,Koch,C.,Orsinger,C.,Hesse, K.,Cai,T.,Campbell,R.,Cann,A.,Carey,B.,Carlson,
+C.,Fischer,C.,Chan,C.,Roberts,D.,Kappler,D.,Levy, C., Carmichael, R., Chan, B., Chang, C., Chantzis, F.,
+D.,Selsam,D.,Dohan,D.,Farhi,D.,Mely,D.,Robinson, Chen,D.,Chen,S.,Chen,R.,Chen,J.,Chen,M.,Chess,
+D.,Tsipras,D.,Li,D.,Oprica,D.,Freeman,E.,Zhang, B.,Cho,C.,Chu,C.,Chung,H.W.,Cummings,D.,Cur-
+E.,Wong,E.,Proehl,E.,Cheung,E.,Mitchell,E.,Wal- rier, J., Dai, Y., Decareaux, C., Degry, T., Deutsch, N.,
+lace,E.,Ritter,E.,Mays,E.,Wang,F.,Such,F.P.,Raso, Deville,D.,Dhar,A.,Dohan,D.,Dowling,S.,Dunning,
+F., Leoni, F., Tsimpourlas, F., Song, F., von Lohmann, S.,Ecoffet,A.,Eleti,A.,Eloundou,T.,Farhi,D.,Fedus,
+F., Sulit, F., Salmon, G., Parascandolo, G., Chabot, G., L.,Felix,N.,Fishman,S.P.,Forte,J.,Fulford,I.,Gao,L.,
+Zhao,G.,Brockman,G.,Leclerc,G.,Salman,H.,Bao, Georges,E.,Gibson,C.,Goel,V.,Gogineni,T.,Goh,G.,
+H.,Sheng,H.,Andrin,H.,Bagherinezhad,H.,Ren,H., Gontijo-Lopes, R., Gordon, J., Grafstein, M., Gray, S.,
+Lightman, H., Chung, H.W., Kivlichan, I., O’Connell, Greene,R.,Gross,J.,Gu,S.S.,Guo,Y.,Hallacy,C.,Han,
+I.,Osband,I.,Gilaberte,I.C.,Akkaya,I.,Kostrikov,I., J., Harris, J., He, Y., Heaton, M., Heidecke, J., Hesse,
+Sutskever,I.,Kofman,I.,Pachocki,J.,Lennon,J.,Wei, C.,Hickey,A.,Hickey,W.,Hoeschele,P.,Houghton,B.,
+21
+
+--- Page 22 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Hsu,K.,Hu,S.,Hu,X.,Huizinga,J.,Jain,S.,Jain,S., pretraining of language models, 2024. URL https:
+Jang,J.,Jiang,A.,Jiang,R.,Jin,H.,Jin,D.,Jomoto,S., //arxiv.org/abs/2407.07263.
+Jonn,B.,Jun,H.,Kaftan,T.,ŁukaszKaiser,Kamali,A.,
+Kanitscheider,I.,Keskar,N.S.,Khan,T.,Kilpatrick,L., Penedo,G.,Kydl´ıcˇek,H.,allal,L.B.,Lozhkov,A.,Mitchell,
+Kim,J.W.,Kim,C.,Kim,Y.,Kirchner,J.H.,Kiros,J., M.,Raffel,C.,Werra,L.V.,andWolf,T. Thefineweb
+Knight,M.,Kokotajlo,D.,ŁukaszKondraciuk,Kondrich, datasets: Decanting the web for the finest text data
+A.,Konstantinidis,A.,Kosic,K.,Krueger,G.,Kuo,V., at scale, 2024. URL https://arxiv.org/abs/
+Lampe,M.,Lan,I.,Lee,T.,Leike,J.,Leung,J.,Levy,D.,
+2406.17557.
+Li,C.M.,Lim,R.,Lin,M.,Lin,S.,Litwin,M.,Lopez,T.,
+Porian,T.,Wortsman,M.,Jitsev,J.,Schmidt,L.,andCar-
+Lowe,R.,Lue,P.,Makanju,A.,Malfacini,K.,Manning,
+mon, Y. Resolving discrepancies in compute-optimal
+S., Markov, T., Markovski, Y., Martin, B., Mayer, K.,
+scalingoflanguagemodels. AdvancesinNeuralInfor-
+Mayne,A.,McGrew,B.,McKinney,S.M.,McLeavey,C.,
+mationProcessingSystems,37:100535–100570,2024.
+McMillan,P.,McNeil,J.,Medina,D.,Mehta,A.,Menick,
+J.,Metz,L.,Mishchenko,A.,Mishkin,P.,Monaco,V.,
+Qian,K.,Wan,S.,Tang,C.,Wang,Y.,Zhang,X.,Chen,M.,
+Morikawa,E.,Mossing,D.,Mu,T.,Murati,M.,Murk,O.,
+andYu,Z.Varbench:Robustlanguagemodelbenchmark-
+Me´ly,D.,Nair,A.,Nakano,R.,Nayak,R.,Neelakantan,
+ingthroughdynamicvariableperturbation,2024. URL
+A.,Ngo,R.,Noh,H.,Ouyang,L.,O’Keefe,C.,Pachocki, https://arxiv.org/abs/2406.17681.
+J.,Paino,A.,Palermo,J.,Pantuliano,A.,Parascandolo,
+G.,Parish,J.,Parparita,E.,Passos,A.,Pavlov,M.,Peng, Rajpurkar,P.,Zhang,J.,Lopyrev,K.,andLiang,P. SQuAD:
+A.,Perelman,A.,deAvilaBelbutePeres,F.,Petrov,M., 100,000+questionsformachinecomprehensionoftext.
+deOliveiraPinto,H.P.,Michael,Pokorny,Pokrass,M., In Su, J., Duh, K., and Carreras, X. (eds.), Proceed-
+Pong,V.H.,Powell,T.,Power,A.,Power,B.,Proehl,E., ings of the 2016 Conference on Empirical Methods in
+Puri,R.,Radford,A.,Rae,J.,Ramesh,A.,Raymond,C., Natural Language Processing, pp. 2383–2392, Austin,
+Real,F.,Rimbach,K.,Ross,C.,Rotsted,B.,Roussez,H., Texas,November2016.AssociationforComputational
+Ryder,N.,Saltarelli,M.,Sanders,T.,Santurkar,S.,Sastry, Linguistics. doi: 10.18653/v1/D16-1264. URLhttps:
+G.,Schmidt,H.,Schnurr,D.,Schulman,J.,Selsam,D., //aclanthology.org/D16-1264/.
+Sheppard,K.,Sherbakov,T.,Shieh,J.,Shoker,S.,Shyam,
+P.,Sidor,S.,Sigler,E.,Simens,M.,Sitkin,J.,Slama,K., Reuel,A.,Bucknall,B.,Casper,S.,Fist,T.,Soder,L.,Aarne,
+Sohl,I.,Sokolowsky,B.,Song,Y.,Staudacher,N.,Such, O.,Hammond,L.,Ibrahim,L.,Chan,A.,Wills,P.,An-
+F. P., Summers, N., Sutskever, I., Tang, J., Tezak, N., derljung,M.,Garfinkel,B.,Heim,L.,Trask,A.,Mukobi,
+Thompson,M.B.,Tillet,P.,Tootoonchian,A.,Tseng,E., G., Schaeffer, R., Baker, M., Hooker, S., Solaiman, I.,
+Tuggle,P.,Turley,N.,Tworek,J.,Uribe,J.F.C.,Vallone, Luccioni,S.,Rajkumar,N.,Moe¨s,N.,Ladish,J.,Bau,D.,
+A., Vijayvergiya, A., Voss, C., Wainwright, C., Wang, Bricman,P.,Guha,N.,Newman,J.,Bengio,Y.,South,T.,
+J.J.,Wang,A.,Wang,B.,Ward,J.,Wei,J.,Weinmann, Pentland,A.,Koyejo,S.,Kochenderfer,M.,andTrager,
+C.,Welihinda,A.,Welinder,P.,Weng,J.,Weng,L.,Wi- R. OpenproblemsintechnicalAIgovernance. Transac-
+ethoff, M., Willner, D., Winter, C., Wolrich, S., Wong, tionsonMachineLearningResearch,2025. ISSN2835-
+H.,Workman,L.,Wu,S.,Wu,J.,Wu,M.,Xiao,K.,Xu, 8856. URLhttps://openreview.net/forum?
+T.,Yoo,S.,Yu,K.,Yuan,Q.,Zaremba,W.,Zellers,R., id=1nO4qFMiS0. SurveyCertification.
+Zhang,C.,Zhang,M.,Zhao,S.,Zheng,T.,Zhuang,J.,
+Riddell,M.,Ni,A.,andCohan,A. Quantifyingcontami-
+Zhuk,W.,andZoph,B. Gpt-4technicalreport,2024b.
+nationinevaluatingcodegenerationcapabilitiesoflan-
+URLhttps://arxiv.org/abs/2303.08774.
+guagemodels. InKu,L.-W.,Martins,A.,andSrikumar,
+Oren, Y., Meister, N., Chatterji, N. S., Ladhak, F., and V. (eds.), Proceedings of the 62nd Annual Meeting of
+Hashimoto,T. Provingtestsetcontaminationinblack- theAssociationforComputationalLinguistics(Volume
+boxlanguagemodels. InTheTwelfthInternationalCon- 1: LongPapers),pp.14116–14137,Bangkok,Thailand,
+ferenceonLearningRepresentations,2023. August 2024. Association for Computational Linguis-
+tics. doi: 10.18653/v1/2024.acl-long.761. URLhttps:
+Ouyang,L.,Wu,J.,Jiang,X.,Almeida,D.,Wainwright,C., //aclanthology.org/2024.acl-long.761/.
+Mishkin,P.,Zhang,C.,Agarwal,S.,Slama,K.,Ray,A.,
+et al. Training language models to follow instructions Roberts,M.,Thakur,H.,Herlihy,C.,White,C.,andDoo-
+withhumanfeedback. Advancesinneuralinformation ley, S. Tothecutoff...andbeyond? alongitudinalper-
+processingsystems,35:27730–27744,2022. spective on LLM data contamination. In The Twelfth
+InternationalConferenceonLearningRepresentations,
+Parmar, J., Satheesh, S., Patwary, M., Shoeybi, M., and 2024. URLhttps://openreview.net/forum?
+Catanzaro,B.Reuse,don’tretrain:Arecipeforcontinued id=m2NVG4Htxs.
+22
+
+--- Page 23 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Sablayrolles,A.,Douze,M.,Schmid,C.,Ollivier,Y.,and Schaeffer, R., Liu, K., Miranda, B., Ahmed, A. M.,
+Je´gou,H. White-boxvsblack-box: Bayesoptimalstrate- Mireshghallah, N., and Koyejo, S. The contamina-
+gies for membership inference. In International Con- tion paradox: Why test set leakage can be both po-
+ference on Machine Learning, pp. 5558–5567. PMLR, tent and negligible. In NeurIPS 2025 Workshop on
+2019. Evaluating the Evolving LLM Lifecycle: Benchmarks,
+EmergentAbilities, andScaling, 2025c. URLhttps:
+Sainz, O., Campos, J. A., Garc´ıa-Ferrero, I., Etxaniz, J.,
+//openreview.net/forum?id=Ajr8YtfhVO.
+de Lacalle, O. L., and Agirre, E. NLP evaluation in
+trouble: On the need to measure LLM data contami- Schaeffer, R., Miranda, B., Kazdan, J., Liu, K., Ahmed,
+nation for each benchmark. In The 2023 Conference A. M., Mireshghallah, N., and Koyejo, S. Causally
+onEmpiricalMethodsinNaturalLanguageProcessing, quantifyingtheeffectoftestsetcontaminationongen-
+2023. URLhttps://openreview.net/forum? erative benchmarks. In NeurIPS 2025 Workshop on
+id=KivNpBsfAS. Evaluating the Evolving LLM Lifecycle: Benchmarks,
+EmergentAbilities,andScaling,2025d. URLhttps:
+Sainz,O.,Garc´ıa-Ferrero,I.,Jacovi,A.,AnderCampos,J., //openreview.net/forum?id=RsmjshBEDP.
+Elazar,Y.,Agirre,E.,Goldberg,Y.,Chen,W.-L.,Chim,
+J.,Choshen,L.,D’Amico-Wong,L.,Dell,M.,Fan,R.-Z., Schaeffer, R., Schoelkopf, H., Miranda, B., Mukobi, G.,
+Golchin,S.,Li,Y.,Liu,P.,Pahwa,B.,Prabhu,A.,Sharma, Madan,V.,Ibrahim,A.,Bradley,H.,Biderman,S.,and
+S., Silcock, E., Solonko, K., Stap, D., Surdeanu, M., Koyejo,S.Whyhaspredictingdownstreamcapabilitiesof
+Tseng,Y.-M.,Udandarao,V.,Wang,Z.,Xu,R.,andYang, frontierAImodelswithscaleremainedelusive? InForty-
+J. Data contamination report from the 2024 CONDA secondInternationalConferenceonMachineLearning,
+sharedtask. InSainz,O.,Garc´ıaFerrero,I.,Agirre,E., 2025e. URLhttps://openreview.net/forum?
+AnderCampos,J.,Jacovi,A.,Elazar,Y.,andGoldberg, id=I1NtlLvJal.
+Y.(eds.),Proceedingsofthe1stWorkshoponDataCon-
+Shi, W., Ajith, A., Xia, M., Huang, Y., Liu, D., Blevins,
+tamination (CONDA), pp. 41–56, Bangkok, Thailand,
+T., Chen, D., and Zettlemoyer, L. Detecting pretrain-
+August 2024. Association for Computational Linguis-
+ing data from large language models. In The Twelfth
+tics. doi: 10.18653/v1/2024.conda-1.4. URL https:
+InternationalConferenceonLearningRepresentations,
+//aclanthology.org/2024.conda-1.4/.
+2024. URLhttps://openreview.net/forum?
+Salem,A.,Zhang,Y.,Humbert,M.,Berrang,P.,Fritz,M., id=zWqr3MQuNs.
+andBackes,M. Ml-leaks: Modelanddataindependent
+Shokri,R.,Stronati,M.,Song,C.,andShmatikov,V. Mem-
+membershipinferenceattacksanddefensesonmachine
+bershipinferenceattacksagainstmachinelearningmod-
+learningmodels. arXivpreprintarXiv:1806.01246,2018.
+els. In2017IEEEsymposiumonsecurityandprivacy
+Sardana,N.,Portes,J.,Doubov,S.,andFrankle,J. Beyond (SP),pp.3–18.IEEE,2017.
+chinchilla-optimal: Accountingforinferenceinlanguage
+Shuai,X.,Wang,Y.,Wu,Y.,Jiang,X.,andRen,X. Scal-
+modelscalinglaws. InInternationalConferenceonMa-
+inglawforlanguagemodelstrainingconsideringbatch
+chineLearning,pp.43445–43460.PMLR,2024.
+size,2024. URLhttps://arxiv.org/abs/2412.
+Schaeffer,R.Pretrainingonthetestsetisallyouneed,2023.
+01505.
+URLhttps://arxiv.org/abs/2309.08632.
+Socher, R., Perelygin, A., Wu, J., Chuang, J., Manning,
+C.D.,Ng,A.,andPotts,C. Recursivedeepmodelsfor
+Schaeffer, R., Robertson, Z., Boopathy, A., Khona, M.,
+semanticcompositionalityoverasentimenttreebank. In
+Pistunova, K., Rocks, J. W., Fiete, I. R., Gromov, A.,
+Yarowsky, D., Baldwin, T., Korhonen, A., Livescu, K.,
+andKoyejo,S. Doubledescentdemystified: Identifying,
+andBethard,S.(eds.),Proceedingsofthe2013Confer-
+interpreting & ablating the sources of a deep learning
+enceonEmpiricalMethodsinNaturalLanguageProcess-
+puzzle. InTheThirdBlogpostTrackatICLR2024.
+ing,pp.1631–1642,Seattle,Washington,USA,October
+Schaeffer,R.,Kazdan,J.,andDenisov-Blanch,Y. Min-p, 2013.AssociationforComputationalLinguistics. URL
+maxexaggeration: Acriticalanalysisofmin-psampling https://aclanthology.org/D13-1170/.
+in language models, 2025a. URL https://arxiv.
+Team, G., Georgiev, P., Lei, V. I., Burnell, R., Bai, L.,
+org/abs/2506.13681.
+Gulati, A., Tanzer, G., Vincent, D., Pan, Z., Wang, S.,
+Schaeffer,R.,Levi,N.,Miranda,B.,andKoyejo,S.Pretrain- Mariooryad,S.,Ding,Y.,Geng,X.,Alcober,F.,Frostig,
+ingscalinglawsforgenerativeevaluationsoflanguage R.,Omernick,M.,Walker,L.,Paduraru,C.,Sorokin,C.,
+models, 2025b. URL https://arxiv.org/abs/ Tacchetti, A., Gaffney, C., Daruki, S., Sercinoglu, O.,
+2509.24012. Gleicher,Z.,Love,J.,Voigtlaender,P.,Jain,R.,Surita,
+23
+
+--- Page 24 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+G., Mohamed, K., Blevins, R., Ahn, J., Zhu, T., Kaw- D.,Kumar,A.,Winkler,S.,Caton,J.,Brock,A.,Dalmia,
+intiranon, K., Firat, O., Gu, Y., Zhang, Y., Rahtz, M., S.,Sheahan,H.,Barr,I.,Miao,Y.,Natsev,P.,Devlin,J.,
+Faruqui,M.,Clay,N.,Gilmer,J.,Co-Reyes,J.,Penchev, Behbahani, F., Prost, F., Sun, Y., Myaskovsky, A., Pil-
+I., Zhu, R., Morioka, N., Hui, K., Haridasan, K., Cam- lai,T.S.,Hurt,D.,Lazaridou,A.,Xiong,X.,Zheng,C.,
+pos, V., Mahdieh, M., Guo, M., Hassan, S., Kilgour, Pardo,F.,Li,X.,Horgan,D.,Stanton,J.,Ambar,M.,Xia,
+K., Vezer, A., Cheng, H.-T., de Liedekerke, R., Goyal, F.,Lince,A.,Wang,M.,Mustafa,B.,Webson,A.,Lee,
+S., Barham, P., Strouse, D., Noury, S., Adler, J., Sun- H.,Anil,R.,Wicke,M.,Dozat,T.,Sinha,A.,Piqueras,
+dararajan, M., Vikram, S., Lepikhin, D., Paganini, M., E.,Dabir,E.,Upadhyay,S.,Boral,A.,Hendricks,L.A.,
+Garcia,X.,Yang,F.,Valter,D.,Trebacz,M.,Vodrahalli, Fry,C.,Djolonga,J.,Su,Y.,Walker,J.,Labanowski,J.,
+K.,Asawaroengchai,C.,Ring,R.,Kalb,N.,Soares,L.B., Huang,R.,Misra,V.,Chen,J.,Skerry-Ryan,R.,Singh,
+Brahma,S.,Steiner,D.,Yu,T.,Mentzer,F.,He,A.,Gon- A., Rijhwani, S., Yu, D., Castro-Ros, A., Changpinyo,
+zalez,L.,Xu,B.,Kaufman,R.L.,Shafey,L.E.,Oh,J., B.,Datta,R.,Bagri,S.,Hrafnkelsson,A.M.,Maggioni,
+Hennigan,T.,vandenDriessche,G.,Odoom,S.,Lucic, M., Zheng, D., Sulsky, Y., Hou, S., Paine, T.L., Yang,
+M.,Roelofs,B.,Lall,S.,Marathe,A.,Chan,B.,Ontanon, A.,Riesa,J.,Rogozinska,D.,Marcus,D.,Badawy,D.E.,
+S.,He,L.,Teplyashin,D.,Lai,J.,Crone,P.,Damoc,B., Zhang, Q., Wang, L., Miller, H., Greer, J., Sjos, L. L.,
+Ho,L.,Riedel,S.,Lenc,K.,Yeh,C.-K.,Chowdhery,A., Nova,A.,Zen,H.,Chaabouni,R.,Rosca,M.,Jiang,J.,
+Xu,Y.,Kazemi,M.,Amid,E.,Petrushkina,A.,Swersky, Chen,C.,Liu,R.,Sainath,T.,Krikun,M.,Polozov,A.,
+K., Khodaei, A., Chen, G., Larkin, C., Pinto, M., Yan, Lespiau, J.-B., Newlan, J., Cankara, Z., Kwak, S., Xu,
+G., Badia, A. P., Patil, P., Hansen, S., Orr, D., Arnold, Y., Chen, P., Coenen, A., Meyer, C., Tsihlas, K., Ma,
+S.M.R., Grimstad, J., Dai, A., Douglas, S., Sinha, R., A., Gottweis, J., Xing, J., Gu, C., Miao, J., Frank, C.,
+Yadav,V.,Chen,X.,Gribovskaya,E.,Austin,J.,Zhao, Cankara,Z.,Ganapathy,S.,Dasgupta,I.,Hughes-Fitt,S.,
+J.,Patel,K.,Komarek,P.,Austin,S.,Borgeaud,S.,Friso, Chen,H.,Reid,D.,Rong,K.,Fan,H.,vanAmersfoort,
+L.,Goyal,A.,Caine,B.,Cao,K.,Chung,D.-W.,Lamm, J., Zhuang, V., Cohen, A., Gu, S. S., Mohananey, A.,
+M.,Barth-Maron,G.,Kagohara,T.,Olszewska,K.,Chen, Ilic,A.,Tobin,T.,Wieting,J.,Bortsova,A.,Thacker,P.,
+M., Shivakumar, K., Agarwal, R., Godhia, H., Rajwar, Wang,E.,Caveness,E.,Chiu,J.,Sezener,E.,Kaskasoli,
+R.,Snaider,J.,Dotiwalla,X.,Liu,Y.,Barua,A.,Ungure- A., Baker, S., Millican, K., Elhawaty, M., Aisopos, K.,
+anu,V.,Zhang,Y.,Batsaikhan,B.-O.,Wirth,M.,Qin,J., Lebsack, C., Byrd, N., Dai, H., Jia, W., Wiethoff, M.,
+Danihelka, I., Doshi, T., Chadwick, M., Chen, J., Jain, Davoodi,E.,Weston,A.,Yagati,L.,Ahuja,A.,Gao,I.,
+S., Le, Q., Kar, A., Gurumurthy, M., Li, C., Sang, R., Pundak,G.,Zhang,S.,Azzam,M.,Sim,K.C.,Caelles,
+Liu, F., Lamprou, L., Munoz, R., Lintz, N., Mehta, H., S., Keeling, J., Sharma, A., Swing, A., Li, Y., Liu, C.,
+Howard,H.,Reynolds,M.,Aroyo,L.,Wang,Q.,Blanco, Bostock, C. G., Bansal, Y., Nado, Z., Anand, A., Lip-
+L.,Cassirer,A.,Griffith,J.,Das,D.,Lee,S.,Sygnowski, schultz, J., Karmarkar, A., Proleev, L., Ittycheriah, A.,
+J.,Fisher,Z.,Besley,J.,Powell,R.,Ahmed,Z.,Paulus, Yeganeh,S.H.,Polovets,G.,Faust,A.,Sun,J.,Rrustemi,
+D.,Reitter,D.,Borsos,Z.,Joshi,R.,Pope,A.,Hand,S., A.,Li,P.,Shivanna,R.,Liu,J.,Welty,C.,Lebron,F.,Bad-
+Selo,V.,Jain,V.,Sethi,N.,Goel,M.,Makino,T.,May, depudi,A.,Krause,S.,Parisotto,E.,Soricut,R.,Xu,Z.,
+R., Yang, Z., Schalkwyk, J., Butterfield, C., Hauth, A., Bloxwich,D.,Johnson,M.,Neyshabur,B.,Mao-Jones,J.,
+Goldin,A.,Hawkins,W.,Senter,E.,Brin,S.,Woodman, Wang,R.,Ramasesh,V.,Abbas,Z.,Guez,A.,Segal,C.,
+O.,Ritter,M.,Noland,E.,Giang,M.,Bolina,V.,Lee,L., Nguyen,D.D.,Svensson,J.,Hou,L.,York,S.,Milan,K.,
+Blyth,T.,Mackinnon,I.,Reid,M.,Sarvana,O.,Silver, Bridgers,S.,Gworek,W.,Tagliasacchi,M.,Lee-Thorp,
+D., Chen, A., Wang, L., Maggiore, L., Chang, O., At- J., Chang, M., Guseynov, A., Hartman, A. J., Kwong,
+taluri,N.,Thornton,G.,Chiu,C.-C.,Bunyan,O.,Levine, M.,Zhao,R.,Kashem,S.,Cole,E.,Miech,A.,Tanburn,
+N.,Chung,T.,Eltyshev,E.,Si,X.,Lillicrap,T.,Brady, R.,Phuong,M.,Pavetic,F.,Cevey,S.,Comanescu,R.,
+D.,Aggarwal,V.,Wu,B.,Xu,Y.,McIlroy,R.,Badola,K., Ives,R.,Yang,S.,Du,C.,Li,B.,Zhang,Z.,Iinuma,M.,
+Sandhu,P.,Moreira,E.,Stokowiec,W.,Hemsley,R.,Li, Hu, C.H., Roy, A., Bijwadia, S., Zhu, Z., Martins, D.,
+D.,Tudor,A.,Shyam,P.,Rahimtoroghi,E.,Haykal,S., Saputro,R.,Gergely,A.,Zheng,S.,Jia,D.,Antonoglou,
+Sprechmann,P.,Zhou,X.,Mincu,D.,Li,Y.,Addanki,R., I.,Sadovsky,A.,Gu,S.,Bi,Y.,Andreev,A.,Samangooei,
+Krishna,K.,Wu,X.,Frechette,A.,Eyal,M.,Dafoe,A., S.,Khan,M.,Kocisky,T.,Filos,A.,Kumar,C.,Bishop,
+Lacey,D.,Whang,J.,Avrahami,T.,Zhang,Y.,Taropa,E., C.,Yu,A.,Hodkinson,S.,Mittal,S.,Shah,P.,Moufarek,
+Lin,H.,Toyama,D.,Rutherford,E.,Sano,M.,Choe,H., A.,Cheng,Y.,Bloniarz,A.,Lee,J.,Pejman,P.,Michel,P.,
+Tomala,A.,Safranek-Shrader,C.,Kassner,N.,Pajarskas, Spencer,S.,Feinberg,V.,Xiong,X.,Savinov,N.,Smith,
+M.,Harvey,M.,Sechrist,S.,Fortunato,M.,Lyu,C.,El- C.,Shakeri,S.,Tran,D.,Chesus,M.,Bohnet,B.,Tucker,
+sayed,G.,Kuang,C.,Lottes,J.,Chu,E.,Jia,C.,Chen, G.,vonGlehn,T.,Muir,C.,Mao,Y.,Kazawa,H.,Slone,
+C.-W.,Humphreys,P.,Baumli,K.,Tao,C.,Samuel,R., A.,Soparkar,K.,Shrivastava,D.,Cobon-Kerr,J.,Shar-
+dosSantos,C.N.,Andreassen,A.,Rakic´evic´,N.,Grewe, man,M.,Pavagadhi,J.,Araya,C.,Misiunas,K.,Ghelani,
+24
+
+--- Page 25 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+N.,Laskin,M.,Barker,D.,Li,Q.,Briukhov,A.,Houlsby, Agarwal, S., Li, J., Dvijotham, D., Pal, S., Kang, K.,
+N., Glaese, M., Lakshminarayanan, B., Schucher, N., Konzelmann,J.,Beattie,J.,Dousse,O.,Wu,D.,Crocker,
+Tang, Y., Collins, E., Lim, H., Feng, F., Recasens, A., R.,Elkind,C.,Jonnalagadda,S.R.,Lee,J.,Holtmann-
+Lai,G.,Magni,A.,Cao,N.D.,Siddhant,A.,Ashwood, Rice,D.,Kallarackal,K.,Liu,R.,Vnukov,D.,Vats,N.,
+Z., Orbay, J., Dehghani, M., Brennan, J., He, Y., Xu, Invernizzi,L.,Jafari,M.,Zhou,H.,Taylor,L.,Prendki,J.,
+K.,Gao,Y.,Saroufim,C.,Molloy,J.,Wu,X.,Arnold,S., Wu,M.,Eccles,T.,Liu,T.,Kopparapu,K.,Beaufays,F.,
+Chang,S.,Schrittwieser,J.,Buchatskaya,E.,Radpour,S., Angermueller,C.,Marzoca,A.,Sarcar,S.,Dib,H.,Stan-
+Polacek,M.,Giordano,S.,Bapna,A.,Tokumine,S.,Hel- way,J.,Perbet,F.,Trdin,N.,Sterneck,R.,Khorlin,A.,
+lendoorn,V.,Sottiaux,T.,Cogan,S.,Severyn,A.,Saleh, Li,D.,Wu,X.,Goenka,S.,Madras,D.,Goldshtein,S.,
+M., Thakoor, S., Shefey, L., Qiao, S., Gaba, M., yiin Gierke,W.,Zhou,T.,Liu,Y.,Liang,Y.,White,A.,Li,Y.,
+Chang,S.,Swanson,C.,Zhang,B.,Lee,B.,Rubenstein, Singh,S.,Bahargam,S.,Epstein,M.,Basu,S.,Lao,L.,
+P.K.,Song,G.,Kwiatkowski,T.,Koop,A.,Kannan,A., Ozturel,A.,Crous,C.,Zhai,A.,Lu,H.,Tung,Z.,Gaur,
+Kao, D., Schuh, P., Stjerngren, A., Ghiasi, G., Gibson, N.,Walton,A.,Dixon,L.,Zhang,M.,Globerson,A.,Uy,
+G.,Vilnis,L.,Yuan,Y.,Ferreira,F.T.,Kamath,A.,Kli- G., Bolt, A., Wiles, O., Nasr, M., Shumailov, I., Selvi,
+menko,T.,Franko,K.,Xiao,K.,Bhattacharya,I.,Patel, M.,Piccinno,F.,Aguilar,R.,McCarthy,S.,Khalman,M.,
+M.,Wang,R.,Morris,A.,Strudel,R.,Sharma,V.,Choy, Shukla,M.,Galic,V.,Carpenter,J.,Villela,K.,Zhang,
+P.,Hashemi,S.H.,Landon,J.,Finkelstein,M.,Jhakra,P., H.,Richardson,H.,Martens,J.,Bosnjak,M.,Belle,S.R.,
+Frye,J.,Barnes,M.,Mauger,M.,Daun,D.,Baatarsukh, Seibert, J., Alnahlawi, M., McWilliams, B., Singh, S.,
+K., Tung, M., Farhan, W., Michalewski, H., Viola, F., Louis,A.,Ding,W.,Popovici,D.,Simicich,L.,Knight,
+deChaumontQuitry,F.,Lan,C.L.,Hudson,T.,Wang, L., Mehta, P., Gupta, N., Shi, C., Fatehi, S., Mitrovic,
+Q.,Fischer,F.,Zheng,I.,White,E.,Dragan,A.,baptiste J.,Grills,A.,Pagadora,J.,Munkhdalai,T.,Petrova,D.,
+Alayrac, J., Ni, E., Pritzel, A., Iwanicki, A., Isard, M., Eisenbud,D.,Zhang,Z.,Yates,D.,Mittal,B.,Tripura-
+Bulanova,A.,Zilka,L.,Dyer,E.,Sachan,D.,Srinivasan, neni, N., Assael, Y., Brovelli, T., Jain, P., Velimirovic,
+S., Muckenhirn, H., Cai, H., Mandhane, A., Tariq, M., M.,Akbulut,C.,Mu,J.,Macherey,W.,Kumar,R.,Xu,
+Rae,J.W.,Wang,G.,Ayoub,K.,FitzGerald,N.,Zhao, J.,Qureshi,H.,Comanici,G.,Wiesner,J.,Gong,Z.,Rud-
+Y.,Han,W.,Alberti,C.,Garrette,D.,Krishnakumar,K., dock,A.,Bauer,M.,Felt,N.,GP,A.,Arnab,A.,Zelle,
+Gimenez, M., Levskaya, A., Sohn, D., Matak, J., Itur- D.,Rothfuss,J.,Rosgen,B.,Shenoy,A.,Seybold,B.,Li,
+rate, I., Chang, M. B., Xiang, J., Cao, Y., Ranka, N., X.,Mudigonda,J.,Erdogan,G.,Xia,J.,Simsa,J.,Michi,
+Brown,G.,Hutter,A.,Mirrokni,V.,Chen,N.,Yao,K., A.,Yao,Y.,Yew,C.,Kan,S.,Caswell,I.,Radebaugh,C.,
+Egyed,Z.,Galilee,F.,Liechty,T.,Kallakuri,P.,Palmer, Elisseeff,A.,Valenzuela,P.,McKinney,K.,Paterson,K.,
+E.,Ghemawat,S.,Liu,J.,Tao,D.,Thornton,C.,Green, Cui, A., Latorre-Chimoto, E., Kim, S., Zeng, W., Dur-
+T.,Jasarevic,M.,Lin,S.,Cotruta,V.,Tan,Y.-X.,Fiedel, den,K.,Ponnapalli,P.,Sosea,T.,Choquette-Choo,C.A.,
+N., Yu, H., Chi, E., Neitz, A., Heitkaemper, J., Sinha, Manyika,J.,Robenek,B.,Vashisht,H.,Pereira,S.,Lam,
+A., Zhou, D., Sun, Y., Kaed, C., Hulse, B., Mishra, S., H., Velic, M., Owusu-Afriyie, D., Lee, K., Bolukbasi,
+Georgaki, M., Kudugunta, S., Farabet, C., Shafran, I., T., Parrish, A., Lu, S., Park, J., Venkatraman, B., Tal-
+Vlasic, D., Tsitsulin, A., Ananthanarayanan, R., Carin, bert,A.,Rosique,L.,Cheng,Y.,Sozanschi,A.,Paszke,
+A.,Su,G.,Sun,P.,V,S.,Carvajal,G.,Broder,J.,Comsa, A., Kumar, P., Austin, J., Li, L., Salama, K., Perz, B.,
+I., Repina, A., Wong, W., Chen, W. W., Hawkins, P., Kim,W.,Dukkipati,N.,Baryshnikov,A.,Kaplanis,C.,
+Filonov,E.,Loher,L.,Hirnschall,C.,Wang,W.,Ye,J., Sheng, X., Chervonyi, Y., Unlu, C., de Las Casas, D.,
+Burns,A.,Cate,H.,Wright,D.G.,Piccinini,F.,Zhang, Askham,H.,Tunyasuvunakool,K.,Gimeno,F.,Poder,S.,
+L., Lin, C.-C., Gog, I., Kulizhskaya, Y., Sreevatsa, A., Kwak,C.,Miecnikowski,M.,Mirrokni,V.,Dimitriev,A.,
+Song, S., Cobo, L.C., Iyer, A., Tekur, C., Garrido, G., Parisi,A.,Liu,D.,Tsai,T.,Shevlane,T.,Kouridi,C.,Gar-
+Xiao, Z., Kemp, R., Zheng, H.S., Li, H., Agarwal, A., mon,D.,Goedeckemeyer,A.,Brown,A.R.,Vijayakumar,
+Ngani,C.,Goshvadi,K.,Santamaria-Fernandez,R.,Fica, A., Elqursh, A., Jazayeri, S., Huang, J., Carthy, S. M.,
+W., Chen, X., Gorgolewski, C., Sun, S., Garg, R., Ye, Hoover, J., Kim, L., Kumar, S., Chen, W., Biles, C.,
+X.,Eslami,S.M.A.,Hua,N.,Simon,J.,Joshi,P.,Kim, Bingham, G., Rosen, E., Wang, L., Tan, Q., Engel, D.,
+Y.,Tenney,I.,Potluri,S.,Thiet,L.N.,Yuan,Q.,Luisier, Pongetti,F.,deCesare,D.,Hwang,D.,Yu,L.,Pullman,J.,
+F.,Chronopoulou,A.,Scellato,S.,Srinivasan,P.,Chen, Narayanan,S.,Levin,K.,Gopal,S.,Li,M.,Aharoni,A.,
+M.,Koverkathu,V.,Dalibard,V.,Xu,Y.,Saeta,B.,An- Trinh,T.,Lo,J.,Casagrande,N.,Vij,R.,Matthey,L.,Ra-
+derson,K.,Sellam,T.,Fernando,N.,Huot,F.,Jung,J., madhana,B.,Matthews,A.,Carey,C.,Johnson,M.,Gora-
+Varadarajan,M.,Quinn,M.,Raul,A.,Le,M.,Habalov, nova,K.,Shah,R.,Ashraf,S.,Dasgupta,K.,Larsen,R.,
+R., Clark, J., Jalan, K., Bullard, K., Singhal, A., Lu- Wang,Y.,Vuyyuru,M.R.,Jiang,C.,Ijazi,J.,Osawa,K.,
+ong, T., Wang, B., Rajayogam, S., Eisenschlos, J., Jia, Smith,C.,Boppana,R.S.,Bilal,T.,Koizumi,Y.,Xu,Y.,
+J.,Finchelstein,D.,Yakubovich,A.,Balle,D.,Fink,M., Altun,Y.,Shabat,N.,Bariach,B.,Korchemniy,A.,Choo,
+25
+
+--- Page 26 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+K.,Ronneberger,O.,Iwuanyanwu,C.,Zhao,S.,Soergel, tion v.s. memorization: Tracing language models’ ca-
+D.,Hsieh,C.-J.,Cai,I.,Iqbal,S.,Sundermeyer,M.,Chen, pabilities back to pretraining data. In The Thirteenth
+Z., Bursztein, E., Malaviya, C., Biadsy, F., Shroff, P., InternationalConferenceonLearningRepresentations,
+Dhillon,I.,Latkar,T.,Dyer,C.,Forbes,H.,Nicosia,M., 2025. URLhttps://openreview.net/forum?
+Nikolaev,V.,Greene,S.,Georgiev,M.,Wang,P.,Martin, id=IQxBDLmVpT.
+N.,Sedghi,H.,Zhang,J.,Banzal,P.,Fritz,D.,Rao,V.,
+Wang,X.,Zhang,J.,Patraucean,V.,Du,D.,Mordatch, Wei,J.,Bosma,M.,Zhao,V.,Guu,K.,Yu,A.W.,Lester,
+I.,Jurin,I.,Liu,L.,Dubey,A.,Mohan,A.,Nowakowski, B., Du, N., Dai, A. M., and Le, Q. V. Finetuned lan-
+J., Ion, V.-D., Wei, N., Tojo, R., Raad, M.A., Hudson, guage models are zero-shot learners. In International
+D. A., Keshava, V., Agrawal, S., Ramirez, K., Wu, Z., ConferenceonLearningRepresentations,2022a.
+Nguyen, H., Liu, J., Sewak, M., Petrini, B., Choi, D.,
+Philips,I.,Wang,Z.,Bica,I.,Garg,A.,Wilkiewicz,J., Wei,J.,Bosma,M.,Zhao,V.Y.,Guu,K.,Yu,A.W.,Lester,
+Agrawal,P.,Li,X.,Guo,D.,Xue,E.,Shaik,N.,Leach, B.,Du,N.,Dai,A.M.,andLe,Q.V. Finetunedlanguage
+A., Khan, S. M., Wiesinger, J., Jerome, S., Chakladar, models are zero-shot learners, 2022b. URL https:
+A.,Wang,A.W.,Ornduff,T.,Abu,F.,Ghaffarkhah,A., //arxiv.org/abs/2109.01652.
+Wainwright,M.,Cortes,M.,Liu,F.,Maynez,J.,Terzis,
+A.,Samangouei,P.,Mansour,R.,Kopa,T.,Aubet,F.-X., Wei,J.T.-Z.,Godbole,A.,Khan,M.A.,Wang,R.,Zhu,X.,
+Algymr, A., Banica, D., Weisz, A., Orban, A., Senges, Flemings,J.,Kashyap,N.,Gummadi,K.P.,Neiswanger,
+A.,Andrejczuk,E.,Geller,M.,Santo,N.D.,Anklin,V., W.,andJia,R.Hubble:amodelsuitetoadvancethestudy
+Merey,M.A.,Baeuml,M.,Strohman,T.,Bai,J.,Petrov, of llm memorization, 2025. URL https://arxiv.
+S.,Wu,Y.,Hassabis,D.,Kavukcuoglu,K.,Dean,J.,and
+org/abs/2510.19811.
+Vinyals, O. Gemini1.5: Unlockingmultimodalunder-
+Xia, C. S., Deng, Y., and Zhang, L. Top leaderboard
+standingacrossmillionsoftokensofcontext,2024. URL
+https://arxiv.org/abs/2403.05530. ranking= top coding proficiency, always? evoeval:
+Evolving coding benchmarks via llm. arXiv preprint
+Tirumala,K.,Markosyan,A.,Zettlemoyer,L.,andAgha- arXiv:2403.19114,2024.
+janyan,A. Memorizationwithoutoverfitting: Analyzing
+the training dynamics of large language models. Ad- Xie,C.,Huang,Y.,Zhang,C.,Yu,D.,Chen,X.,Lin,B.Y.,
+vances in Neural Information Processing Systems, 35: Li, B., Ghazi, B., and Kumar, R. On memorization of
+38274–38290,2022. largelanguagemodelsinlogicalreasoning,2025. URL
+https://arxiv.org/abs/2410.23123.
+Touvron, H., Martin, L., Stone, K., Albert, P., Almahairi,
+A., Babaei, Y., Bashlykov, N., Batra, S., Bhargava, P.,
+Xiong, W., Liu, J., Molybog, I., Zhang, H., Bhargava, P.,
+Bhosale,S.,Bikel,D.,Blecher,L.,Ferrer,C.C.,Chen,
+Hou, R., Martin, L., Rungta, R., Sankararaman, K. A.,
+M.,Cucurull,G.,Esiobu,D.,Fernandes,J.,Fu,J.,Fu,W.,
+Oguz,B.,etal. Effectivelong-contextscalingoffounda-
+Fuller,B.,Gao,C.,Goswami,V.,Goyal,N.,Hartshorn,
+tionmodels. InProceedingsofthe2024Conferenceof
+A.,Hosseini,S.,Hou,R.,Inan,H.,Kardas,M.,Kerkez,
+theNorthAmericanChapteroftheAssociationforCom-
+V.,Khabsa,M.,Kloumann,I.,Korenev,A.,Koura,P.S.,
+putationalLinguistics: HumanLanguageTechnologies
+Lachaux,M.-A.,Lavril,T.,Lee,J.,Liskovich,D.,Lu,Y.,
+(Volume1: LongPapers),pp.4643–4663,2024.
+Mao, Y., Martinet, X., Mihaylov, T., Mishra, P., Moly-
+bog,I.,Nie,Y.,Poulton,A.,Reizenstein,J.,Rungta,R.,
+Xu,C.,Guan,S.,Greene,D.,andKechadi,M.-T. Bench-
+Saladi,K.,Schelten,A.,Silva,R.,Smith,E.M.,Subra-
+mark data contamination of large language models: A
+manian, R., Tan, X. E., Tang, B., Taylor, R., Williams,
+survey, 2024a. URL https://arxiv.org/abs/
+A., Kuan, J. X., Xu, P., Yan, Z., Zarov, I., Zhang, Y.,
+2406.04244.
+Fan,A.,Kambadur,M.,Narang,S.,Rodriguez,A.,Sto-
+jnic, R., Edunov, S., and Scialom, T. Llama 2: Open
+Xu, F., Hao, Q., Zong, Z., Wang, J., Zhang, Y., Wang, J.,
+foundation and fine-tuned chat models, 2023. URL
+Lan,X.,Gong,J.,Ouyang,T.,Meng,F.,Shao,C.,Yan,Y.,
+https://arxiv.org/abs/2307.09288.
+Yang,Q.,Song,Y.,Ren,S.,Hu,X.,Li,Y.,Feng,J.,Gao,
+C.,andLi,Y. Towardslargereasoningmodels: Asurvey
+Vaswani,A.,Shazeer,N.,Parmar,N.,Uszkoreit,J.,Jones,
+ofreinforcedreasoningwithlargelanguagemodels,2025.
+L., Gomez, A. N., Kaiser, Ł., and Polosukhin, I. At-
+URLhttps://arxiv.org/abs/2501.09686.
+tentionisallyouneed. Advancesinneuralinformation
+processingsystems,30,2017.
+Xu, R., Wang, Z., Fan, R.-Z., and Liu, P. Benchmark-
+Wang,X.,Antoniades,A.,Elazar,Y.,Amayuelas,A.,Al- ingbenchmarkleakageinlargelanguagemodels,2024b.
+balak, A., Zhang, K., and Wang, W. Y. Generaliza- URLhttps://arxiv.org/abs/2404.18824.
+26
+
+--- Page 27 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Yang, A., Li, A., Yang, B., Zhang, B., Hui, B., Zheng, Zhou,K.,Zhu,Y.,Chen,Z.,Chen,W.,Zhao,W.X.,Chen,
+B.,Yu,B.,Gao,C.,Huang,C.,Lv,C.,Zheng,C.,Liu, X.,Lin,Y.,Wen,J.-R.,andHan,J. Don’tmakeyourllm
+D., Zhou, F., Huang, F., Hu, F., Ge, H., Wei, H., Lin, anevaluationbenchmarkcheater, 2023. URLhttps:
+H.,Tang,J.,Yang,J.,Tu,J.,Zhang,J.,Yang,J.,Yang, //arxiv.org/abs/2311.01964.
+J.,Zhou,J.,Zhou,J.,Lin,J.,Dang,K.,Bao,K.,Yang,
+K., Yu, L., Deng, L., Li, M., Xue, M., Li, M., Zhang,
+P., Wang, P., Zhu, Q., Men, R., Gao, R., Liu, S., Luo,
+S.,Li,T.,Tang,T.,Yin,W.,Ren,X.,Wang,X.,Zhang,
+X.,Ren,X.,Fan,Y.,Su,Y.,Zhang,Y.,Zhang,Y.,Wan,
+Y.,Liu,Y.,Wang,Z.,Cui,Z.,Zhang,Z.,Zhou,Z.,and
+Qiu,Z. Qwen3technicalreport,2025a. URLhttps:
+//arxiv.org/abs/2505.09388.
+Yang, S., Chiang, W.-L., Zheng, L., Gonzalez, J. E., and
+Stoica,I. Rethinkingbenchmarkandcontaminationfor
+languagemodelswithrephrasedsamples. arXivpreprint
+arXiv:2311.04850,2023.
+Yang, Z., Lin, H., He, Y., Xu, J., Sun, Z., Liu, S., Wang,
+P.,Yu,Z.,andLiang,Q. Rethinkingtheeffectsofdata
+contaminationincodeintelligence,2025b. URLhttps:
+//arxiv.org/abs/2506.02791.
+Yao,F.,Zhuang,Y.,Sun,Z.,Xu,S.,Kumar,A.,andShang,
+J. Data contamination can cross language barriers. In
+Proceedingsofthe2024ConferenceonEmpiricalMeth-
+odsinNaturalLanguageProcessing,pp.17864–17875,
+2024.
+Yeom,S.,Giacomelli,I.,Fredrikson,M.,andJha,S.Privacy
+risk in machine learning: Analyzing the connection to
+overfitting. In2018IEEE31stcomputersecurityfounda-
+tionssymposium(CSF),pp.268–282.IEEE,2018.
+Yildiz,C.,Ravichandran,N.K.,Sharma,N.,Bethge,M.,
+andErmis,B. Investigatingcontinualpretraininginlarge
+languagemodels: Insightsandimplications,2025. URL
+https://arxiv.org/abs/2402.17400.
+Zarifzadeh,S.,Liu,P.,andShokri,R. Low-costhigh-power
+membershipinferenceattacks,2023.
+Zhang, H., Da, J., Lee, D., Robinson, V., Wu, C., Song,
+W., Zhao, T., Raja, P., Zhuang, C., Slack, D., Lyu, Q.,
+Hendryx, S., Kaplan, R., Lunati, M., and Yue, S. A
+carefulexaminationoflargelanguagemodelperformance
+on grade school arithmetic, 2024a. URL https://
+arxiv.org/abs/2405.00332.
+Zhang,J.,Das,D.,Kamath,G.,andTrame`r,F. Membership
+inferenceattackscannotprovethatamodelwastrained
+onyourdata. arXivpreprintarXiv:2409.19798,2024b.
+Zhang, Z., Liu, R., Liu, A., Liu, X., Gao, X., and Sun,
+H. Dynamic benchmark construction for evaluating
+largelanguagemodelsonreal-worldcodes,2025. URL
+https://arxiv.org/abs/2508.07180.
+27
+
+--- Page 28 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+A.RelatedWork
+DataContaminationanditsConsequences Testsetcontamination,wherebenchmarkdataisincludedinpretraining
+corpora,iswidelyrecognizedasathreattovalidmodelevaluation,asitcanleadtoinflatedperformancemetrics. Numerous
+surveyandpositionpapershavedocumentedthevariouswayscontaminationcanoccurandhavecalledforroutineaudits
+andtransparentreportingforallbenchmarks(Sainzetal.,2023;2024;Dengetal.,2024a;Xuetal.,2024a;Reueletal.,
+2025). Empiricalstudiesoflargeweb-scaledatasetshaveconfirmedsignificantoverlapandduplicationbetweentrainingand
+testsets(Dodgeetal.,2021). Researchfocusedonensuringbenchmarkintegrityhasidentifiedmultiplewaysthatlanguage
+modelsmight”cheat”onevaluationsifcontaminationisnotproperlymanaged(Zhouetal.,2023;Dongetal.,2024). For
+instance,analysesofpopularmathematicsbenchmarkshaverevealedsignalsofdataleakageandpotentialoverfitting(Zhang
+etal.,2024a). Ongoingcommunityeffortsandopen-sourceauditscontinuetomeasuretheextentofcontaminationacross
+differentmodelsanddatasets(Lietal.,2024). Therisksextendbeyondevaluationintegrity;scalingstudiesindicatethat
+poisoningrisksincreasewithmodelsize,aslargermodelslearnharmfulbehaviorsfromminusculeamountsofpoisoned
+datafarmorerapidlythansmallermodels,underscoringthenecessityofrobustdatacuration(Bowenetal.,2025). Asa
+cautionaryillustration,Schaeffer(2023)demonstratedthatpretrainingonthetestsetisatrivialpathtostrongbenchmark
+performance,reinforcingtheimportanceofrigorousdecontaminationandauditing.
+ControlledContaminationDuringPretraining Alineofresearchdirectlyinvestigatesthecausaleffectsofcontamination
+by intentionally adding benchmark data to pretraining corpora and observing the results. Magar & Schwartz (2022)
+interleavedtask-specificdatasetsintoageneraltextcorpusduringpretraining,varyingtheduplicationrateoftheleaked
+examples. Theydifferentiatedbetween”memorization”(storingexamples)and”exploitation”(usingstoredexamplesto
+boosttestscores),findingthatbothmodelsizeandthenumberofrepetitionsincreasedexploitation. Jiangetal.(2024)
+pretrainedmodelsfromscratchoncorporacontainingeitheronlytheinputs(”text-only”)orthefullinput-outputpairs
+(”ground-truth”)ofbenchmarkexamples,sweepingthecontaminationfrequency. Theyobservedsignificantperformance
+gains when ground-truth pairs were used and showed that simple n-gram-based detection methods could be bypassed
+byparaphrasingorpartialdataleaks. Theproblemalsotranscendslanguagebarriers; Yaoetal.(2024)demonstrateda
+cross-lingualcontaminationchannelwherecontinuingtopretrainamodelonnon-EnglishtranslationsofEnglishbenchmarks
+ledtomaterialimprovementsontheoriginalEnglishtests,aformofcontaminationthatstring-matchingwouldnotdetect.
+Atalargerscale,Bordtetal.(2025)variedtherepetitioncountofleakedexamples,modelsize(upto 1.6Bparameters),and
+thetotaltrainingtokenbudget,findingthatperformancescalespredictablywithsizeandrepetition. Theyalsoshowedthat
+sufficientlylongtrainingonabundantuniquedatacouldmitigateorevenreversetheeffectsofearliercontamination. Inthe
+contextofmachinetranslation,Kocyigitetal.(2025)injectedsource-targetpairsintothepretrainingdataof1Band8B
+parametermodels,quantifyingsignificantoverestimationinBLEUscores,withlargermodelsandlow-resourcelanguages
+showingmorepronouncedeffects. Together,thesecausalinterventionstudiesprovideclearevidencethatlanguagemodels
+memorizeandleveragebenchmarkdatawhenitispresentduringpretraining.
+RepeatedDataandMemorizationDynamics Closelyrelatedisthestudyofmemorizationdynamics,particularlyhow
+repeateddataaffectsmodelbehavior. Hernandezetal.(2022)trainedmodelswhereasmallportionofthedatawasrepeated
+manytimes,observingstrongdoubledescentphenomena(Advanietal.,2020;Belkinetal.,2019;Adlam&Pennington,
+2020;Bordelonetal.,2020;Schaefferetal.) andshowingthatrepeatingjust0.1%oftokens100timescouldsignificantly
+degradegeneralization. Studiestrackingexact-sequencememorizationhaveshownthatlargermodelsnotonlymemorize
+morecontentandatafasterratebutalsoforgetlessoverthecourseoftraining(Tirumalaetal.,2022). Carlinietal.(2023)
+quantifiedlog-linearrelationshipsbetweenverbatimgenerationandmodelsize,dataduplicationcount,andpromptlength.
+Other work has explored the feasibility of *forecasting* whether a model will memorize a specific string, finding that
+accuratepredictionispossiblebutmayrequireasubstantialportionofthetargetmodel’spretrainingcompute(Biderman
+etal.,2023). Beyondexplicitrepetition,Duanetal.(2025)discovered*latentmemorization*,wherememorizedsequences
+thatarenotobviousatafinalcheckpointcanpersistandberevealedlater, posingprivacyrisks. Finally, memorization
+appearstobetask-dependent: Wangetal.(2025)observedstrongermemorizationforknowledge-intensiveQA,whereas
+machinetranslationandmathematicalreasoningdemonstratedgreaternovelty. Memorizationalsointeractswithlogical
+reasoning; usingdynamicallygeneratedpuzzles, Xieetal.(2025)showedthatmodelscouldbefine-tunedtoperfectly
+memorizetrainingexamplesyetfailedonslightvariations,evenastheirgenuinereasoningabilitiesalsoimproved,revealing
+acomplexbalancebetweenthetwo.
+28
+
+--- Page 29 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+DetectingandProvingContamination Anothersignificantareaofresearchfocusesondetectingorprovingtestset
+contaminationinexistingmodels. Orenetal.(2023)andNietal.(2025)proposedstatisticaltestswithprovablecontrol
+overfalsepositivesbytestingifabenchmark’scanonicalorderingisstatisticallyprivilegedoverrandomshuffles. Shietal.
+(2024)introducedMin-k%-Probtodetermineifasequencelikelyappearedinpretrainingusingonlyblack-boxprobabilities.
+TworelatedworksfromGolchin&Surdeanu(2023;2024)framedetectionasamultiple-choice”quiz”andusetemporal
+informationaboutmodeltrainingwindowsversusbenchmarkreleasedates,astrategyalsousedbyRobertsetal.(2024).
+Broaderauditshaveaimedtoquantifyleakageanddecontaminationacrossawiderangeoftasksandmodels(Xuetal.,
+2024b;Dengetal.,2024b;Lietal.,2024),whileYangetal.(2023)showedthatrephrasingbenchmarkquestionscanoften
+bypassn-gramfilters. Inthedomainofcodegeneration,Riddelletal.(2024)quantifiedcontaminationinpopularcoding
+benchmarksandconnectedthedegreeofoverlaptoperformancedifferences. Mattonetal.(2024)catalogedvariouschannels
+forleakageandreleasedadataset(LBPP)tohelpmitigatetheseissues. Complementingtheseaudits,Yangetal.(2025b)
+systematicallytestedfine-grainedcontaminationscenariosincodeintelligenceacrossdifferentmodeltypes,findingthat
+pairedcontaminationsubstantiallyaffectsLLMsunderapretraining-plus-inferenceparadigmbuthaslimitedeffectundera
+pretrain–finetune–inferencepipeline. Otherworkhasalsoprovidedinstrumentsfordetectingtheoriginsofchain-of-thought
+sequences(Lietal.,2025).
+Preventing Test Set Contamination The growing concern over contamination has spurred the development of new
+methods for creating benchmarks. These include dynamically updated benchmarks (Jain et al., 2025; Xia et al., 2024;
+Zhangetal.,2025;Qianetal.,2024)andprivateorrestricted-accessbenchmarks(Zhangetal.,2024a;Glazeretal.,2025).
+Recently,Nieetal.(2025)releasedabenchmarkconsistingofunsolvedscientificquestions,which,byitsnature,prevents
+modelsfrombeingtrainedonthecorrectsolutions.
+Retrieval-andAgent-TimeContamination Asmodelevaluationevolvesfromstaticpromptingtousingtool-augmented
+agents,theriskofcontaminationexpands. Hanetal.(2025)introducedsearch-timecontamination,whereanagentretrieves
+benchmarkquestionsandanswersfromthewebduringitsevaluationprocess,whichcanartificiallyinflateitsperformance.
+MembershipInferenceAttacks ThefieldofMembershipInferenceAttacks(MIA)aimstodetermineifaspecificdata
+point was used to train a model, given only access to the model itself (Shokri et al., 2017). This is highly relevant to
+contamination,asdetectioncanbeviewedasanMIAproblem. WhiletheMIAliteratureisextensiveincomputervision
+(Yeometal.,2018;Salemetal.,2018;Sablayrollesetal.,2019;Jagielskietal.,2024),ithasmorerecentlybeenappliedto
+languagemodels(Carlinietal.,2021;Zarifzadehetal.,2023;Shietal.,2024;Matternetal.,2023;Lietal.,2023). However,
+progressinsequence-levelMIAforlanguagemodelshasbeencomplicatedbyissuessuchasflawedevaluations(Meeus
+etal.,2024;Zhangetal.,2024b;Jiangetal.,2025). Duanetal.(2024)arguethatmembershipcanbeinherently”blurry”for
+naturallanguage. Dasetal.(2024)and(Meeusetal.,2024)reportthatexistingMIAtestbedssufferfromdistributionshifts.
+Kongetal.(2023)refuteMIAswithatheoreticalattack,andLiuetal.(2025)andMangaokaretal.(2025)demonstrate
+fundamentallimitationsandexploitsofn-grambasedmethods. Duetothesechallenges,recentworkexploresstrengthening
+themembershipsignalbyusingmultiplecorrelatedsequencesasinput(Mainietal.,2021;Kandpaletal.,2023;Mainietal.,
+2024),whichalignsmorecloselywithdetectingcontaminationofanentiretestsetratherthanasingleexample(Golchin&
+Surdeanu,2023;Orenetal.,2023).
+29
+
+--- Page 30 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+B.PretrainingImplementationDetails
+Model Architecture We pretrained Qwen 3 (Yang et al., 2025a) architecture causal language models from random
+initialization. Table2showsthedepth(numberoflayers)andwidth(hiddensize)configurationsforeachmodelsize. The
+intermediate sizefor thefeed-forward layers follows Qwen3’s formula: 256 (255+ 8 hidden size/3 )/256 . All
+·⌊ ⌊ · ⌋ ⌋
+modelsusedFlashAttention2(Dao,2023)andbfloat16precision.
+Table2.ModelarchitectureconfigurationsfollowingQwen3scalingpatterns.
+Parameters Num. Layers HiddenSize
+34M 3 96
+62M 5 160
+93M 6 224
+153M 9 320
+344M 14 576
+OptimizerandLearningRate WeusedtheAdamWoptimizer(Loshchilov&Hutter,2019)withHuggingFacedefaults
+(i.e., β = 0.9, β = 0.999, ϵ = 10−8, weight decay = 0). We used linear warmup for 250 steps followed by cosine
+1 2
+annealingtozero. FollowingShuaietal.(2024),wescaledthebatchsizewiththetotalnumberoftrainingtokensDas:
+tokensperoptimizerstep=3.24 103 D0.264. (6)
+× ×
+Thelearningratewasscaledwiththesquarerootofthebatchsize: η =10−6 √tokensperoptimizerstep. Gradientswere
+×
+clippedtoamaximumnormof1.0.
+DataMixingandContamination Foreachconfiguration,wecreatedapretrainingcorpusbymixingdocumentsfrom
+FineWeb-Edu-Dedup(Penedoetal.,2024)withreplicatedcopiesoftheMATHtestset. TheMATHtestsetwasformatted
+usingthetemplatefromEleutherAI’sLMEvaluationHarness: “Problem: problem n nSolution: solution ”. Foragiven
+{ }\ \ { }
+numberoftestsetreplicasR,we: (1)replicatedthetokenizedMATHtestsetRtimes,(2)computedtheremainingtoken
+budgetasD =D R MATHtestset,(3)sampleddocumentsfromFineWeb-Edu-DeduptofillD tokens,
+corpus total corpus
+− ×| |
+and(4)shuffledthecombineddataset. Thisensuresthattotaltrainingtokensremainconstantacrosscontaminationlevels,
+isolatingtheeffectofcontaminationfromtheeffectofadditionaldata. Eachsequencewastruncatedtoamaximumlength
+of2048tokensandterminatedwithanEOStoken.
+DistributedTraining TrainingusedPyTorch’sDistributedDataParallel(DDP)withtheNCCLbackend. Allexperiments
+wereloggedtoWeights&Biases,andtrainedmodelswereuploadedtoHuggingFaceHub.
+Formoreinformation,pleaseseeourpublicGitHubrepository.
+30
+
+--- Page 31 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+C.MathVerifyScoringBug
+Duringourexperiments,wediscoveredthatEleutherAI’sLanguageModelEvaluationHarness(Gaoetal.,2024)contained
+a bug in its Math Verify scoring implementation that caused systematically incorrect results. This bug affected the
+minerva mathtaskandrelatedmathematicsevaluationtasks.
+TheProblem Theminerva mathtask’sutilitycodecalledremove boxed()onextractedanswersbeforepassing
+themtomath verify.parse(). Theoriginalimplementationwas:
+res = verify(parse(doc["answer"]), parse(candidates))
+wheredoc["answer"]hadalreadybeenprocessedtoremovetheLATEX\boxed{}wrapper.
+Themath verify.parse()functionreliesonthe\boxed{}notationtoproperlyidentifyandextractmathematical
+expressions. Whentheboxednotationisstrippedbeforehand:
+• parse(" dfrac 9 7 ")returnsemptyresults(parsingfails)
+\ { }{ }
+• parse(" boxed dfrac 9 7 ")correctlyreturnstheparsedexpression
+\ {\ { }{ }}
+ThiscausedMathVerifyscorestoreturn0evenwhenthemodel’sanswerwasmathematicallycorrect. Asadiagnostic,we
+evaluatedthebenchmark’sowngoldreferencesolutionsandobservedMathVerifyscoresofapproximately70%—aclear
+indicationthatthescoringmechanismitselfwasflawedratherthanthesolutions.
+TheFix Wereportedthisissueandafixwasmergedthatpassesthefullsolutiontextto math verify.parse(),
+allowingittouseitsbuilt-inextractionheuristics:
+res = verify(gold=parse(doc["solution"]), target=parse(candidates))
+By using doc["solution"] (the complete solution with \boxed{} intact) instead of the pre-processed
+doc["answer"],theparsercancorrectlyidentifyandextractthemathematicalexpressions.
+Implications Thisbugwaspresentinversionsoftheevaluationharnesspriortov0.4.8(August2025). Anyresearch
+reportingMATHbenchmarkscoresusingMathVerifyfromaffectedversionsmayhavesystematicallyunderestimated
+modelperformance. Werecommendthatresearchersusingthesebenchmarksverifytheyareusingacorrectedversionofthe
+evaluationcode.
+31
+
+--- Page 32 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+D.ExceptionstoIn-Context/SequenceScalingLaws
+InSec.5,wereportedthatmostmodelsizesandnumberoftestsetreplicasexhibitin-contextscalinglaws(Eq.3). While
+thepowerlawplusirreducibleerrormodelprovidesanexcellentfitforthemajorityofexperimentalconditions,weobserve
+asystematicdeviationinspecificedgecases. Intheseinstances,thenegativelog-likelihood(NLL)increaseswithtoken
+indextratherthandecaying. WeidentifiedsignificantpositiveslopesintheNLL-vs-tokentrajectoryfortwodistinctgroups
+ofmodels.
+GroupI:CapacityLimitations(UncontaminatedRegime) Forthesmallestuncontaminatedmodel(34M,R=0),the
+NLLincreasesmonotonicallyfromtoken1totoken645. Thisbehaviorisconsistentwithlimitedeffectivecontextwindows
+insmallarchitectures. Withouttheaidofmemorization(R=0),the34Mparametermodelstrugglestomodellong-range
+dependencies,causingpredictionqualitytodegradeasthenecessarycontextgrowsbeyonditseffectivecapacity. Larger
+uncontaminatedmodels(62M+)donotexhibitthisbehavior,showingstandardNLLdecay.
+Group II: Selection Bias (High Contamination Regime) The most pronounced uptick occurs in the largest, most
+contaminatedmodels(e.g.,344M,R=3162),whereNLLisextremelylow( 10−3)butrisessharplyatlatetokenindices.
+∼
+Ouranalysissuggeststhisisdrivenbyselectionbiasinherenttothedatasetstructure.
+BecausetheMATHdatasetcontainssolutionsofvaryinglengths,thesetofproblemscontributingtotheNLLatt=800is
+asmall,non-randomsubsetoftheproblemsatt=100.
+• SurvivorBias: Onlythe100longestsolutionsinthetestsetreachtoken800.
+• Differential Memorizability: We observe a strong correlation between solution length and residual NLL in the
+high-contaminationregime. Theuptickindicatesthattheselongsurvivingsequencesaresystematically“harder”to
+memorizethantheshortersequencesthatdropoutearlier.
+Weverifiedthatthesedeviationsarenotartifactsofdatacorruption. Thetoken-levelsamplecountsareconsistentacrossall
+runs,with100%ofsequences(N=5,000)presentattoken0,droppingto2%(N=100)attoken800. Thisattritionisstrictly
+deterministic,governedbythelengthdistributionoftheMATHdataset.
+101
+100
+doohilekiLgoLevitageN 34M
+100
+10 1
+−
+doohilekiLgoLevitageN 62M
+100
+10 1
+−
+10 2
+− 100 101 102
+TokenIndex
+doohilekiLgoLevitageN 93M
+100
+10 1
+−
+10 2
+−
+100 101 102
+TokenIndex
+doohilekiLgoLevitageN 153M
+100
+10 1
+−
+10 2
+−
+10 3
+−
+100 101 102
+TokenIndex
+doohilekiLgoLevitageN 344M
+Num. Replicas
+0
+1
+10
+100
+1000
+Figure9.DeviationsfromIn-Context/SequenceScalingLaws.Twogroupsofmodelsexhibitincreasingnegativeloglikelihoodswith
+increasingtokenindex:smalleruncontaminatedmodelsandlargermassivelycontaminatedmodels.
+32
+
+--- Page 33 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+100
+10 1 −
+10 2 −
+108
+Model Size N
+LLN
+∞
+100
+10 1 −
+10 2 −
+108
+Model Size N
+A
+1.25
+1.00
+0.75
+0.50
+0.25
+108
+Model Size N
+α
+Replicas R
+1
+3
+10
+32
+100
+316
+Figure10.FitParametersforIn-Context/SequentialScalingLawsbyModelSizeandNumberofTestSetReplicas.
+33
+
+--- Page 34 ---
+
+QuantifyingtheEffectofTestSetContaminationonGenerativeEvaluations
+Figure11.MathVerifyScoreIsCorrelatedwithPretrainingLoss.MathVerifyscorescorrelatestronglywiththecrossentropyloss
+achievedontheMATHTestSetduringtraining,wheredifferencesinthesegraphsareattributabletoincreasedrepetitiononthebenchmark
+testset.Thecorrelationissignificantlyweakerforhightemperaturesandfallstonearly0fortemperaturesabove1.0.
+34

@@ -179,6 +179,8 @@ def test_brainstorm_quorum_enforcement(clean_brainstorm):
 
     # Transition from PROPOSE -> DISCUSS
     clean_brainstorm.advance_phase(session.session_id)
+    # Add a discussion comment to meet quorum for DISCUSS -> VOTE
+    clean_brainstorm.discuss(session.session_id, "nexus-vault", proposal.proposal_id, "Makes sense")
     # Transition from DISCUSS -> VOTE
     clean_brainstorm.advance_phase(session.session_id)
 

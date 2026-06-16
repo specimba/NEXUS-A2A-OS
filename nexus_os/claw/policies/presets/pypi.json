@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "PyPI package registry access policy",
+  "trust_level": "CAUTION",
+  "network_policies": [
+    {
+      "name": "pypi",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "pypi.org", "port": 443, "protocol": "https"},
+        {"host": "files.pythonhosted.org", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/simple/*", "description": "Package listing"},
+        {"method": "GET", "path": "/pypi/*/json", "description": "Package metadata"}
+      ]
+    }
+  ]
+}

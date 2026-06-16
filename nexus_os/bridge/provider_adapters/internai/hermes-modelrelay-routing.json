@@ -1,0 +1,43 @@
+{
+  "schema": "nexus.hermes-modelrelay-routing.v1",
+  "provider": "internai",
+  "base_url_env": "INTERN_BASE_URL",
+  "domain_routes": {
+    "code": {
+      "primary": "internai/intern-s2-preview",
+      "lane": "hermes",
+      "fallbacks": ["internai/intern-latest", "ollama/osman-coder"]
+    },
+    "reasoning": {
+      "primary": "internai/intern-s2-preview",
+      "lane": "hermes",
+      "fallbacks": ["internai/intern-latest", "ollama/osman-reasoning"]
+    },
+    "research": {
+      "primary": "internai/intern-s2-preview",
+      "lane": "hermes",
+      "fallbacks": ["internai/intern-latest", "internai/internvl2.5-latest"]
+    },
+    "security": {
+      "primary": "internai/intern-s2-preview",
+      "lane": "hermes",
+      "fallbacks": ["internai/intern-latest", "ollama/osman-reasoning"]
+    },
+    "general": {
+      "primary": "internai/intern-latest",
+      "lane": "modelrelay",
+      "fallbacks": ["internai/intern-s2-preview", "ollama/osman-agent"]
+    },
+    "vision": {
+      "primary": "internai/internvl2.5-latest",
+      "lane": "claw",
+      "fallbacks": ["internai/intern-s2-preview"]
+    }
+  },
+  "request_rules": {
+    "strip_fields": ["stop"],
+    "thinking_mode_models": ["intern-s2-preview", "intern-s1-pro", "intern-s1", "intern-s1-mini"],
+    "rate_limit_rpm": 30
+  }
+}
+

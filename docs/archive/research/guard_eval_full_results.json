@@ -1,0 +1,79 @@
+{
+  "results": [
+    {
+      "guard": "NoGuard (baseline)",
+      "accuracy": 0.6,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "tn": 180,
+      "fp": 0,
+      "fn": 120,
+      "vram_mb": 0.0,
+      "throughput": 100000.0,
+      "latency_ms": 0.01,
+      "params_m": 0.0
+    },
+    {
+      "guard": "E: Keyword Guard (governance score baseline)",
+      "accuracy": 0.56,
+      "precision": 0.39285714285714285,
+      "recall": 0.18333333333333332,
+      "f1": 0.25,
+      "tp": 22,
+      "tn": 146,
+      "fp": 34,
+      "fn": 98,
+      "vram_mb": 0.0,
+      "throughput": 137218.12925138327,
+      "latency_ms": 0.0072876667642655475,
+      "params_m": 0.0
+    },
+    {
+      "guard": "B: BERT-tiny prompt injection (~15MB)",
+      "accuracy": 0.4,
+      "precision": 0.4,
+      "recall": 1.0,
+      "f1": 0.5714285714285715,
+      "tp": 120,
+      "tn": 0,
+      "fp": 180,
+      "fn": 0,
+      "vram_mb": 26.21044921875,
+      "throughput": 234.2804459129364,
+      "latency_ms": 4.26838866599913,
+      "params_m": 15.0
+    },
+    {
+      "guard": "D: ShieldGemma 2B Q4",
+      "accuracy": 0.6,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "tn": 180,
+      "fp": 0,
+      "fn": 120,
+      "vram_mb": 2208.02783203125,
+      "throughput": 2.703997106123075,
+      "latency_ms": 369.82288099922397,
+      "params_m": 2000.0
+    },
+    {
+      "guard": "C: Llama Prompt Guard 2 86M",
+      "accuracy": 0.6,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "tn": 180,
+      "fp": 0,
+      "fn": 120,
+      "vram_mb": 1087.06201171875,
+      "throughput": 17.22811880756004,
+      "latency_ms": 58.044642666451786,
+      "params_m": 86.0
+    }
+  ]
+}

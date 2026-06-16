@@ -28,7 +28,7 @@ class ModelTelemetry:
         return self.provider in {"ollama", "local"}
 
 class TelemetryIngest:
-    def __init__(self, url: str = "http://localhost:7352/api/models"):
+    def __init__(self, url: str = "http://localhost:7355/api/models"):
         self.url = url
         self.last_fetch: Optional[datetime] = None
         self.cache: Dict[str, ModelTelemetry] = {}

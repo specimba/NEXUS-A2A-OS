@@ -1,0 +1,53 @@
+## codex/specimba/1805mainSpeci
+ M 01_PROJECT_STATE.md
+ D NEXUS_OS_Strategic_Pack.zip
+ M docs/operations/worklog.md
+ M knowledge.md
+ D nexus-glm5-fusion-pack.zip
+ D nexus-glm5.1-fusion-pack.zip
+ ? nexus-os-v2
+ D nexus-os-v2.zip
+ M nexus_os/relay/__pycache__/model_relay.cpython-313.pyc
+ M nexusctl/__pycache__/__init__.cpython-313.pyc
+ M nexusctl/__pycache__/__main__.cpython-313.pyc
+ M nexusctl/__pycache__/cli.cpython-313.pyc
+ D research/nexus_agentic_gateway_v31_deep_dive_2026-04-18.md
+ M src/nexus_os/governor/trust_scoring.py
+?? .session/
+?? 2026-05-18-010-docker-wsl-resource-optimization.task.md
+?? 2026-05-18-011-docker-secret-hardening.task.md
+?? 2026-05-20-alpha-branch-comparison.md
+?? 2026-05-20-pi-broken.md
+?? NEO_NEXUS_GROUNDING.md
+?? NEXUS.lnk
+?? NEXUS_DOCKER_SECRET_HARDENING_2026-05-19.md
+?? _tmp_run_guard_eval2.py
+?? benchmarks/code_reasoning/
+?? benchmarks/custom_evaluators.py
+?? benchmarks/digitalocean/
+?? benchmarks/do_kb/
+?? benchmarks/eggroll/
+?? benchmarks/merge_manifest.json
+?? "benchmarks/mixed content/"
+?? benchmarks/opusman_eval/
+?? benchmarks/orchestrator_eval/
+?? benchmarks/register_foundry_datasets.py
+?? benchmarks/state/
+?? benchmarks/stress_lab/
+?? cline_agent_review.md
+?? datasets/
+?? docs/INVESTIGATION_REPORT_2026-05-20.md
+?? docs/NEXUS_CONNECTIVITY_REPORT.md
+?? docs/NEXUS_OS_VISION_MANIFEST_2026.md
+?? docs/handoff/2026-05-20-nexusalpha-pr32-safe-push.md
+?? docs/handoff/cline-agent-analysis.md
+?? docs/handoff/codex-agent-patterns.md
+?? docs/handoff/multi-agent-grounding-report.md
+?? docs/handoff/multi-agent-sync-failure.md
+?? docs/handoff/nexus-tidiness/
+?? docs/operations/nexus_agentic_gateway_v31_deep_dive_2026-04-18.md
+?? docs/research/
+?? nexus_grounding_report.md
+?? nexus_os/mcp/guard_eval.py
+?? research/mcp_security_synthesis.md
+?? tests/mcp/__pycache__/

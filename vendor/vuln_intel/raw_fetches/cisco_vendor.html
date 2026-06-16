@@ -1,0 +1,837 @@
+
+
+
+
+
+
+
+
+
+<link rel="shortcut icon" href="https://www.cisco.com/favicon.ico" type="image/x-icon" />
+<title> </title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+<meta name="HandheldFriendly" content="true" />
+<link href="https://sec.cloudapps.cisco.com/security/center/Resources/css/stylesheet.css" type="text/css" rel="stylesheet">
+<script src="https://sec.cloudapps.cisco.com/security/center/Resources/js/jquery-1.12.1.min.js" type="application/javascript"></script>
+<style>
+@media print {
+    .printclass {
+        margin-left: 10% !important;
+        }
+    .table-formatted-vborders {
+        width:70% !important;
+    }
+    }
+.wrapper {
+    width: 115%;
+    clear: both;
+    margin-bottom: 20px;
+    margin-left: 5%;
+    margin-right: 20%;
+}
+.paginationSection{
+	margin-left: 105px;
+}
+strong, b{
+	font-weight: 700 !important;
+}
+.mainHeadSection {
+    margin: 0 0px 30px 0;
+    width: 57%;
+    margin-left: 180px;
+}
+
+.main-section-bottom {
+    overflow: hidden;
+    width: 58%;
+    margin-left: 180px;
+}
+
+.sitecopy p{
+    color:rgb(82, 82, 82);
+    font-family:arial, helvetica, "Helvetica Neue", HelveticaNeue, "Lucida Grande", sans-serif;
+    font-size:14px;
+    font-stretch:100%;
+    font-style:normal;
+    font-weight:400;
+}
+/*media query changes start: varsingh*/
+/*Tablet and iPads; */
+@media (min-width: 768px) and (max-width: 1024px) {
+.wrapper {
+    width: 175%;
+    clear: both;
+    margin-bottom: 20px;
+    margin-left: -176px;
+    margin-right: inherit;
+}
+
+.paginationSection {
+    margin-left: 105px;
+}
+
+.mainHeadSection {
+    margin: 0 0px 30px 0;
+    width: 57%;
+    margin-left: 177px;
+    line-height: 1.8rem;
+}
+}
+
+@media (min-width: 320px) and (max-width: 320px){
+.paginationSection {
+    margin-left: 90px !important;
+}
+.mainHeadSection {
+    margin: 0 0px 5px 0;
+    width: 57% !important;
+    margin-left: 165px !important;
+    line-height: 1.9rem;
+}
+.wrapper {
+    width: 160% !important;
+    clear: both;
+    margin-bottom: 20px;
+    margin-left: -173px !important;
+    overflow-wrap: anywhere;
+}
+}
+
+
+/*smart phones: iPhone X*/
+@media (min-width: 320px) and (max-width: 480px) {
+.cdc-fw, .loc-en-us{
+overflow-x: hidden;
+}
+.paginationSection {
+    margin-left: -75px;
+}
+.mainHeadSection {
+    margin: 0 0px 5px 0;
+    width: 57%;
+    margin-left: -5px;
+    line-height: 1.9rem;
+}
+
+.wrapper {
+    width: 170%;
+    clear: both;
+    margin-bottom: 20px;
+    margin-left: -173px;
+	overflow-wrap: anywhere;
+}
+}
+
+/*iPad Pro*/
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (-webkit-min-device-pixel-ratio: 2) 
+  and (orientation: portrait){
+.paginationSection {
+    margin-left: 110px;
+}
+.mainHeadSection {
+    margin: 0 0px 30px 0;
+    width: 57%;
+    margin-left: 180px;
+    line-height: 1.8rem;
+}
+.wrapper {
+    width: 173%;
+    clear: both;
+    margin-bottom: 20px;
+    margin-left: -176px;
+    margin-right: inherit;
+}
+}
+
+/*media query changes end: varsingh*/
+@media (device-width: 768px){
+   .mainHeadSection {
+    margin-left: 0px;
+   }
+   .paginationSection {
+    margin-left: -70px !important;
+}
+}
+</style>
+<style>
+/* Hide TAC AI / Shepherd UI on narrow viewports (host + proactive popup nodes left by bundle) */
+@media (max-width: 767px) {
+  shepherd-native-embed,
+  #proactivePopupLogin,
+  #proactivePopup,
+  #signInTAC,
+  #closeProactivePopup,
+  #shepherdNativeEmbedProactivePopupStyle,
+  .shepherd-native-embed-element,
+  .csa-proactive-popup {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+html.tac-ai-narrow-viewport shepherd-native-embed,
+html.tac-ai-narrow-viewport #proactivePopupLogin,
+html.tac-ai-narrow-viewport #proactivePopup,
+html.tac-ai-narrow-viewport #signInTAC,
+html.tac-ai-narrow-viewport #closeProactivePopup,
+html.tac-ai-narrow-viewport #shepherdNativeEmbedProactivePopupStyle,
+html.tac-ai-narrow-viewport .shepherd-native-embed-element,
+html.tac-ai-narrow-viewport .csa-proactive-popup {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+</style>
+<script type="module">
+const MOBILE_MQ = "(max-width: 767px)";
+const mqMobile = window.matchMedia(MOBILE_MQ);
+
+/** Bumped whenever we tear down for mobile; in-flight setup() must abort if stale. */
+let tacAiSetupToken = 0;
+
+/**
+ * Narrow viewport: CSS media and layout width (avoid visualViewport alone â€” it can
+ * disagree with layout width during resize on some browsers).
+ */
+function isMobileViewport() {
+  const mqNarrow = window.matchMedia(MOBILE_MQ).matches;
+  const inner = window.innerWidth;
+  const client = document.documentElement
+    ? document.documentElement.clientWidth
+    : inner;
+  const layoutW = Math.min(inner, client);
+  return mqNarrow || layoutW <= 767;
+}
+
+function syncNarrowViewportClass() {
+  document.documentElement.classList.toggle(
+    "tac-ai-narrow-viewport",
+    isMobileViewport()
+  );
+}
+
+const TAC_AI_SHEPHERD_REMOVE_SELECTORS = [
+  "shepherd-native-embed",
+  "#proactivePopupLogin",
+  "#proactivePopup",
+  "#signInTAC",
+  "#closeProactivePopup",
+  "#shepherdNativeEmbedProactivePopupStyle",
+  ".shepherd-native-embed-element",
+  ".csa-proactive-popup",
+];
+
+/**
+ * Removes the custom element and known Cisco Shepherd / proactive popup DOM
+ * (the bundle often leaves #proactivePopupLogin etc. after the host is gone).
+ */
+function removeShepherdEmbed() {
+  tacAiSetupToken++;
+  TAC_AI_SHEPHERD_REMOVE_SELECTORS.forEach((sel) => {
+    try {
+      document.querySelectorAll(sel).forEach((el) => {
+        el.remove();
+      });
+    } catch (_) {
+      /* ignore invalid selector in very old engines */
+    }
+  });
+}
+
+let tacAiMobileDomObserver = null;
+
+function stopMobileEmbedObserver() {
+  if (tacAiMobileDomObserver) {
+    tacAiMobileDomObserver.disconnect();
+    tacAiMobileDomObserver = null;
+  }
+}
+
+function nodeMayBeTacAiShepherdUi(el) {
+  if (!el || el.nodeType !== 1) {
+    return false;
+  }
+  const id = el.id || "";
+  if (
+    /^(proactivePopupLogin|proactivePopup|signInTAC|closeProactivePopup|shepherdNativeEmbedProactivePopupStyle)$/.test(
+      id
+    )
+  ) {
+    return true;
+  }
+  if (typeof el.matches !== "function") {
+    return false;
+  }
+  return el.matches(
+    "shepherd-native-embed, .shepherd-native-embed-element, .csa-proactive-popup"
+  );
+}
+
+function nodeTreeMayContainTacAiShepherdUi(root) {
+  if (!root || root.nodeType !== 1) {
+    return false;
+  }
+  if (nodeMayBeTacAiShepherdUi(root)) {
+    return true;
+  }
+  if (typeof root.querySelector !== "function") {
+    return false;
+  }
+  return !!root.querySelector(
+    "shepherd-native-embed, #proactivePopupLogin, #proactivePopup, .shepherd-native-embed-element, .csa-proactive-popup"
+  );
+}
+
+/** While narrow, strip any embed the bundle re-attaches to the document. */
+function startMobileEmbedObserver() {
+  stopMobileEmbedObserver();
+  tacAiMobileDomObserver = new MutationObserver((mutations) => {
+    if (!isMobileViewport()) {
+      stopMobileEmbedObserver();
+      return;
+    }
+    let shouldStrip = false;
+    for (let i = 0; i < mutations.length; i++) {
+      const added = mutations[i].addedNodes;
+      for (let j = 0; j < added.length; j++) {
+        if (nodeTreeMayContainTacAiShepherdUi(added[j])) {
+          shouldStrip = true;
+          break;
+        }
+      }
+      if (shouldStrip) {
+        break;
+      }
+    }
+    if (shouldStrip) {
+      removeShepherdEmbed();
+    }
+  });
+  tacAiMobileDomObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function shouldAbortTacAiSetup(tokenAtStart) {
+  return tokenAtStart !== tacAiSetupToken || isMobileViewport();
+}
+
+/**
+ * Keeps class/CSS in sync, tears down embed on mobile, starts embed when wide.
+ */
+function onTacAiViewportChange() {
+  syncNarrowViewportClass();
+  if (isMobileViewport()) {
+    removeShepherdEmbed();
+    startMobileEmbedObserver();
+    return;
+  }
+  stopMobileEmbedObserver();
+  startTacAiEmbed();
+}
+
+let tacAiBundleInjected = false;
+
+const productConfigurations = {
+  name: "Security Advisory Pages",
+  environment: "production", // Change this environment to 'production' for using production environment.
+  overlay: {
+    enabled: true,
+  },
+  guidedWorkflow: {
+    enabled: true,
+  },
+  hideIcon: true,
+};
+const deployedBundleUrl =
+  "https://inproductexperience.cisco.com/shepherd-native-embed/latest/package/dist/bundle.js";
+const pluginParams = {};
+
+async function setupShepherdEmbed() {
+  const tokenAtStart = tacAiSetupToken;
+  if (shouldAbortTacAiSetup(tokenAtStart)) {
+    return;
+  }
+
+  await customElements.whenDefined("shepherd-native-embed");
+  if (shouldAbortTacAiSetup(tokenAtStart)) {
+    return;
+  }
+
+  if (document.querySelector("shepherd-native-embed")) {
+    console.log("Plugin is already present.");
+    return;
+  }
+
+  if (shouldAbortTacAiSetup(tokenAtStart)) {
+    return;
+  }
+
+  const shepherdElement = document.createElement("shepherd-native-embed");
+  shepherdElement.setAttribute("data-options", JSON.stringify(pluginParams));
+  document.body.appendChild(shepherdElement);
+
+  if (shouldAbortTacAiSetup(tokenAtStart)) {
+    shepherdElement.remove();
+    return;
+  }
+
+  /**
+   * Checks if the document's published date from the DOM is after a given date.
+   *
+   * This function extracts the published date from the page's DOM element
+   * (#ud-published .divLabelContent), compares it with the provided date,
+   * and returns true if the published date is more recent.
+   *
+   * @param {string} givenDate - The date to compare against (in a format parseable by Date constructor, e.g., 'YYYY-MM-DD')
+   * @returns {boolean} - Returns true if published date is after the given date, false otherwise
+   */
+  function checkPublishedDate(givenDate) {
+    try {
+      const publishedElement = document.querySelector(
+        "#ud-published .divLabelContent"
+      );
+      if (!publishedElement) {
+        console.warn("Published date element not found");
+        return false;
+      }
+
+      const publishedDateString = publishedElement.textContent.trim();
+      if (!publishedDateString) {
+        console.warn("Published date string is empty");
+        return false;
+      }
+
+      const publishedDate = new Date(publishedDateString);
+      const comparisonDate = new Date(givenDate);
+
+      if (isNaN(publishedDate.getTime()) || isNaN(comparisonDate.getTime())) {
+        console.error("Invalid date format detected");
+        return false;
+      }
+
+      return publishedDate > comparisonDate;
+    } catch (error) {
+      console.error("Error comparing dates:", error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Inserts proactivepopup for unauthenticated user
+   */
+  const handleUnauthenticatedCallback = async () => {
+    const pageTitleElement = document.querySelector(".pageHeadTitle");
+    const pageTitle = pageTitleElement
+      ? pageTitleElement.textContent.trim()
+      : "";
+
+    if (pageTitle === "Cisco IOS XE Software Hardening Guide") {
+      await shepherdElement.initiateProactivePopup();
+    } else if (checkPublishedDate("2025-06-30")) {
+      await shepherdElement.initiateProactivePopup();
+    }
+  };
+
+  if (typeof shepherdElement.setup === "function") {
+    await shepherdElement.setup(
+      productConfigurations,
+      null,
+      handleUnauthenticatedCallback
+    );
+  }
+
+  if (shouldAbortTacAiSetup(tokenAtStart)) {
+    shepherdElement.remove();
+  }
+}
+
+function startTacAiEmbed() {
+  if (isMobileViewport()) {
+    return;
+  }
+  if (!tacAiBundleInjected) {
+    tacAiBundleInjected = true;
+    const script = document.createElement("script");
+    script.src = deployedBundleUrl;
+    script.charset = "utf-8";
+    script.onload = () => {
+      console.log("Bundle loaded successfully.");
+      setupShepherdEmbed().catch((error) => {
+        console.error("Error setting up shepherd embed:", error);
+      });
+    };
+    document.head.appendChild(script);
+    return;
+  }
+
+  setupShepherdEmbed().catch((error) => {
+    console.error("Error setting up shepherd embed:", error);
+  });
+}
+
+let tacAiResizeTimer;
+
+/** Instant teardown on shrink so the widget does not linger behind debounce. */
+function applyTacAiViewportImmediate() {
+  syncNarrowViewportClass();
+  if (isMobileViewport()) {
+    removeShepherdEmbed();
+    startMobileEmbedObserver();
+    requestAnimationFrame(() => {
+      if (isMobileViewport()) {
+        removeShepherdEmbed();
+      }
+    });
+  } else {
+    stopMobileEmbedObserver();
+  }
+}
+
+function scheduleTacAiViewportDebounce() {
+  clearTimeout(tacAiResizeTimer);
+  tacAiResizeTimer = setTimeout(onTacAiViewportChange, 100);
+}
+
+window.addEventListener("resize", () => {
+  applyTacAiViewportImmediate();
+  scheduleTacAiViewportDebounce();
+});
+
+if (typeof ResizeObserver !== "undefined" && document.documentElement) {
+  try {
+    const tacAiLayoutRo = new ResizeObserver(() => {
+      applyTacAiViewportImmediate();
+      scheduleTacAiViewportDebounce();
+    });
+    tacAiLayoutRo.observe(document.documentElement);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+if (typeof mqMobile.addEventListener === "function") {
+  mqMobile.addEventListener("change", onTacAiViewportChange);
+} else if (typeof mqMobile.addListener === "function") {
+  mqMobile.addListener(onTacAiViewportChange);
+}
+
+onTacAiViewportChange();
+</script>
+
+
+<!-- <script src="//www.cisco.com/etc/designs/cdc/clientlibs/responsive/js/web-component-foundation.min.js"></script>
+        <script>
+            cdc.wcAncillaryAssetAllocator.init(['cdc-template'], 'en/us', false, true, false, 'prod', true);
+        </script> -->
+      <script type="module" src="https://www.cisco.com/site/web-components/us/en/cdc-template.js"></script>
+       <script>    
+		   if (window.cdcext === undefined) { window.cdcext = {}; }
+		    cdcext.customEnvironment = 'prod';
+		    cdcext.host = 'Cisco Security Center';
+		    cdcext.locale = 'en-US';
+		
+		    if (window.cdclocale === undefined) { window.cdclocale = {}; }
+		    cdclocale.locale = 'en_us';
+		    
+	   </script>
+    </head>
+    <body style="overflow-x: hidden; margin: 0%;">
+        <cdc-template>
+
+
+
+
+
+
+<div class="wrapper topHeadSection">
+    <div class="paginationSection clearfix printclass">
+        <ul>
+                <a href="https://www.cisco.com">Home</a> / <a href="https://sec.cloudapps.cisco.com/security/center/home.x">Cisco Security</a>
+        </ul>
+    </div>
+    <div class="mainHeadSection clearfix printclass">
+        <!-- <h4>Cisco Security</h4> -->
+        
+        <h1 class="pageHeadTitle">
+            <!--Page heading goes here-->
+             
+        </h1>
+    </div>
+</div>
+<div class="wrapper">
+    
+
+<link href="https://sec.cloudapps.cisco.com/security/center/Resources/css/FeedBack_Style.css" type="text/css" rel="stylesheet"/>
+
+			<!-- <div id='siofeedback_tab' class='siofeedback_tab_right' tabindex='0'><a href='javascript:openNewWindow();'><div><span></span></div></a></div> -->
+			<div id='ZN_0OjF4gJD0uzMamG'><!--DO NOT REMOVE-CONTENTS PLACED HERE--></div>
+		
+		<script>
+			function openNewWindow(){
+		//alert('deep');
+		var a='https://ciscocx.qualtrics.com/jfe/form/SV_0q7r6A02bSNGuk6?Ref='+window.location.href+'';
+		var height='325';
+		var width='550';
+		var left='420';
+		var top='400';
+		//alert('URL IS '+a)
+		//window.open(a,'_blank','width='+width+',height='+height+',left='+left+',top='+top',scrollbars=yes');
+		window.open(a,'_blank','width='+width+',height='+height+',left='+left+',top='+top+',scrollbars=yes');
+		}
+		</script>
+		
+		<script type='text/javascript'>
+(function(){var g=function(e,h,f,g){
+this.get=function(a){for(var a=a+"=",c=document.cookie.split(";"),b=0,e=c.length;b<e;b++){for(var d=c[b];" "==d.charAt(0);)d=d.substring(1,d.length);if(0==d.indexOf(a))return d.substring(a.length,d.length)}return null};
+this.set=function(a,c){var b="",b=new Date;b.setTime(b.getTime()+6048E5);b="; expires="+b.toGMTString();document.cookie=a+"="+c+b+"; path=/; "};
+this.check=function(){var a=this.get(f);if(a)a=a.split(":");else if(100!=e)"v"==h&&(e=Math.random()>=e/100?0:100),a=[h,e,0],this.set(f,a.join(":"));else return!0;var c=a[1];if(100==c)return!0;switch(a[0]){case "v":return!1;case "r":return c=a[2]%Math.floor(100/c),a[2]++,this.set(f,a.join(":")),!c}return!0};
+this.go=function(){if(this.check()){var a=document.createElement("script");a.type="text/javascript";a.src=g;document.body&&document.body.appendChild(a)}};
+this.start=function(){var t=this;"complete"!==document.readyState?window.addEventListener?window.addEventListener("load",function(){t.go()},!1):window.attachEvent&&window.attachEvent("onload",function(){t.go()}):t.go()};};
+try{(new g(100,"r","QSI_S_ZN_0OjF4gJD0uzMamG","https://zn0ojf4gjd0uzmamg-ciscocx.siteintercept.qualtrics.com/SIE/?Q_ZID=ZN_0OjF4gJD0uzMamG")).start()}catch(i){}})();
+</script>
+
+<style>
+	#QSIFeedbackButton-btn{
+			bottom: 39% !important;
+		}
+			#QSIFeedbackButton-btn:active, #QSIFeedbackButton-btn:focus {
+    outline: none !important;
+}
+	@media only screen and (max-width: 768px){
+	#QSIFeedbackButton-btn{
+			display: none !important;
+		}
+	}
+	
+	/* .QSIFeedbackButton div{
+		color:white !important;
+		background-color: #1a8ce9 !important;	
+	} */
+</style>
+		
+        <div class="main-section-bottom printclass">
+            <!--HTML Contents goes here-->
+            <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+<link rel="stylesheet" type="text/css" href="//www.cisco.com/etc/designs/cdc/fw/snapshots/css/responsive-1.17v.css">
+
+<title>Vendor Vulnerability Reporting and Disclosure Policy</title>
+
+<style>
+h3{
+  margin-top: 1em;
+  margin-bottom: 1em;
+  font-size:16px;
+}
+p{
+  margin-top: 1em;
+  margin-bottom: 1em;
+  line-height: 130%;
+}
+p.botspace{
+  margin-top: 0em;
+  margin-bottom: 1em;
+  line-height: 100%;
+}
+p.nospace{
+  margin-top: 0em;
+  margin-bottom: 0em;
+  line-height: 100%;
+}
+p.topspace{
+  margin-top: 1em;
+  margin-bottom: 0em;
+  line-height: 100%;
+}
+ol{
+  list-style-type: decimal;
+  margin: 16px;
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: 130%;
+}
+ul{
+  list-style-type: disc;
+  margin: 16px;
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: 130%;
+font-size: 14px;
+}
+<!--table{font-size: 95%;}-->
+th{
+   border: 1px solid gray;
+   border-collapse: collapse;
+   font-size: 95%;
+   padding: 10px;
+   background-color: #e8ebf1;
+   color: #58585b;
+}
+td{
+   border: 1px solid gray;
+   border-collapse: collapse;
+   font-size: 95%;
+   padding: 10px;
+   vertical-align: top;
+}
+</style>
+
+</head>
+
+<body class="cdc-fw loc-en-us">
+
+<div class="sitecopy"> 
+ <!-- End Template Setup -->
+<!-- Begin Content Area -->
+	<img src="https://www.cisco.com/web/fw/i/logo-open-graph.gif" height="57" alt="logo"/>
+<p class="nospace">&nbsp;</p>
+<h1><span style="font-size: 150%">Vendor Vulnerability Reporting and Disclosure Policy</span></h1>    
+	<p>&nbsp;</p>
+<a name="purpose"></a>
+<h1>Purpose</h1>
+<p>This policy sets forth the reporting and disclosure process that Cisco Systems, Inc. and its subsidiaries (collectively, “Cisco”) follow when we discover security vulnerabilities in non-Cisco products and services.</p>
+	
+<a name="policy"></a>
+<h1>Policy</h1>
+<p>This policy must clearly state the timeline, actions, and responsibilities equally available to all non-Cisco vendors.</p>
+	
+<a name="vvrd"></a>
+<h1>Vendor Vulnerability Reporting and Disclosure</h1>
+<p>If a vulnerability is found in a vendor’s product or service, Cisco will attempt to contact the vendor by email to notify the vendor of such discovery. Cisco will initially attempt to create a secure communication channel with the vendor by exchanging PGP keys for encrypted email. If a secure communication channel is successfully created, then an encrypted copy of the vulnerability report will be sent to the vendor through that channel. If no response to the attempt to create a secure communication channel is received by Cisco within seven (7) days, then a description of the vulnerability will be sent by email to the vendor in plain text.</p>
+
+<p>Our approach to vulnerability disclosure is based on industry standards and the Carnegie Mellon University Computer Emergency Response Team (CERT) vulnerability policy. For additional information, see the <a href="https://vuls.cert.org/confluence/display/Wiki/Vulnerability+Disclosure+Policy" target="_blank">CERT disclosure guidelines</a>.</p>
+
+<p>If Cisco discovers a vulnerability in a vendor’s product or service, it will take the following steps:</p>
+
+<table>
+<tbody>
+<tr>
+<th>&nbsp;</th>
+<th align="center"><strong>Actions to be Taken by Cisco</strong></th>
+</tr>
+
+<tr>
+<th style="background: #E8EBF1;" align="left"><strong>&nbsp;Day&nbsp;0&nbsp;</strong></th>
+<td>
+<ul>
+<li>Initial vendor contact</li>
+<li>Protections released to Cisco customers for Cisco security products</li>
+<li>Cisco may also use this vulnerability information prior to publication to enhance certain Cisco security products</li>
+<li>Assignment of CVE (Common Vulnerabilities and Exposures) if vendor is not a CNA (CVE Numbering Authority)</li>
+<li>Vendor name and report date listed on Cisco Talos vulnerability tracker website</li>
+</ul>
+</td>
+</tr>
+
+<tr>
+<th style="background: #E8EBF1;" align="left"><strong>&nbsp;Day&nbsp;7&nbsp;</strong></th>
+<td>
+<ul>
+<li>Second vendor contact if there is no response to Cisco’s initial communication</li>
+</ul>
+</td>
+</tr>
+
+<tr><th style="background: #E8EBF1;" align="left"><strong>&nbsp;Day&nbsp;45&nbsp;</strong></th>
+<td>
+<ul>
+<li>Reminder email sent to the vendor with the release date of the vulnerability report</li>
+</ul>
+</td>
+</tr>
+
+<tr><th style="background: #E8EBF1;" align="left"><strong>&nbsp;Day&nbsp;60&nbsp;</strong></th>
+<td>
+<ul>
+<li>If the vendor has not responded or has stopped responding, a final reminder email will be sent</li>
+</ul>
+</td>
+</tr>
+
+<tr><th style="background: #E8EBF1;" align="left"><strong>&nbsp;Day&nbsp;90&nbsp;</strong></th>
+<td>
+<ul>
+<li>Disclosure of the full vulnerability report on the Cisco Talos vulnerability tracker website; however, if the vendor releases a patch or mitigation for the vulnerability before the 90th day, then Cisco will disclose the full vulnerability report immediately following vendor’s release of such patch or mitigation</li>
+<li>CVE publication request submitted to MITRE</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+
+<p class="nospace">&nbsp;</p>
+<p>In the interest of fostering coordinated vulnerability disclosure, Cisco will attempt to work with any vendor on reasonable adjustments to the above timeline if progress is being made and the 90-day default timeline is not adequate for creating a patch or other type of mitigation that addresses the vulnerability. Extenuating circumstances may result in adjustments to the disclosures and timelines when reasonably necessary.</p>
+
+<h2>Contact Information</h2>
+<p class="nospace">&nbsp;</p>
+<div style="margin-left: 2em">
+<ul>
+<li>Email address:&nbsp;<a href="mailto:vulndiscovery@external.cisco.com">vulndiscovery@external.cisco.com</a>
+<br>Please use <a href="mailto:psirt@cisco.com">psirt@cisco.com</a> to report vulnerabilities discovered in Cisco products or <a href="mailto:vulnerability-report@cisco.com">vulnerability-report@cisco.com</a> to report issues affecting Cisco enterprise.</li>
+<li>PGP key: The Cisco vendor vulnerability public key (key ID 0x0E16F693) is available at the following link: <a href="https://cscrdr.cloudapps.cisco.com/cscrdr/security/center/files/Cisco_PSIRT_0E16F693.asc">https://cscrdr.cloudapps.cisco.com/cscrdr/security/center/files/Cisco_PSIRT_0E16F693.asc</a></li>
+</ul></div>
+<p class="nospace">&nbsp;</p>
+	<a name="definitions"></a>
+<h1>Definitions</h1>
+<p>For purposes of this policy, the following definitions apply:</p>
+<table> 
+<thead>
+<tr>
+    <th width="208" valign="top"><strong>Term</strong></th>
+    <th valign="top"><strong>Definition</strong></th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td valign="top"><strong>CERT</strong></td>
+    <td valign="top"><a href="https://www.sei.cmu.edu/about/divisions/cert/index.cfm" target="_blank">Carnegie Mellon University Computer Emergency Response Team</a></td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>CNA</strong></td>
+    <td valign="top"><a href="https://cve.mitre.org/cve/cna.html" target="_blank">CVE Numbering Authority</a></td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>CVE</strong></td>
+    <td valign="top"><a href="https://cve.mitre.org/" target="_blank">Common Vulnerabilities and Exposures</a></td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>MITRE</strong></td>
+    <td valign="top"><a href="https://www.mitre.org/" target="_blank">Manages the CVE database</a></td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>PGP</strong></td>
+    <td valign="top"><a href="https://en.wikipedia.org/wiki/Pretty_Good_Privacy" target="_blank">Pretty Good Privacy encryption software</a></td>
+  </tr>
+	</table>
+<p>&nbsp;</p>
+<hr />
+<p>Last Updated: Apr 20, 2022</p>
+<p>This document is part of the <a href="//www.cisco.com/security">Cisco Security</a> portal. Cisco provides the official information contained on the <a href="//www.cisco.com/security"> Cisco Security</a> portal in English only.</p>
+<p>This document is provided on an &ldquo;as is&rdquo; basis and does not imply any kind of guarantee or warranty, including the warranties of merchantability or fitness for a particular use. Your use of the information in the document or materials linked from the document is at your own risk. Cisco reserves the right to change or update this document without notice at any time.</p>
+		 <p class=topspace><span style="font-size: 80%">Internal Reference Policy: Vendor Vulnerability Reporting and Disclosure Policy, EDCS-19537550</span></p>
+		<p class=botspace><span style="font-size: 80%">Owning Function: Cisco Talos</span></p>
+		 <hr />
+  <p>&copy; 2022 Cisco and/or its affiliates. All rights reserved. This document is Cisco Public Information.</p>
+		  
+</div><!-- content area -->
+
+</body>
+</html>
+        </div>
+</div>
+
+
+
+
+</cdc-template>
+ <!-- GDPR cookie integration -->
+<script type="text/javascript" src="//www.cisco.com/c/dam/cdc/t/ctm.js"></script>
+    </body>
+</html>	

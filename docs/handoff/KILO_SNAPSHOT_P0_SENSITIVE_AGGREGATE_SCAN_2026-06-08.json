@@ -1,0 +1,122 @@
+{
+  "counts": {
+    "files_scanned": 46,
+    "files_with_secret_patterns": 19,
+    "missing_now": 0,
+    "oversize_skipped": 0,
+    "text_decode_failures": 0
+  },
+  "extension_counts": {
+    ".csv": 8,
+    ".json": 7,
+    ".jsonl": 1,
+    ".md": 17,
+    ".txt": 13
+  },
+  "generated_at": "2026-06-08T12:59:20+00:00",
+  "input": "Kilo byte_comparison rows, unredacted paths held in process memory only",
+  "match_counts_by_prefix": {
+    "benchmarks": 1,
+    "datasets": 1,
+    "docs": 81,
+    "logs": 76,
+    "tasks": 1
+  },
+  "mode": "aggregate_only_sensitive_paths_not_emitted",
+  "pattern_counts": {
+    "api_key_generic": 19,
+    "github_token": 1,
+    "password_field": 1
+  },
+  "prefix_counts": {
+    "benchmarks": 3,
+    "datasets": 2,
+    "docs": 14,
+    "evidence": 1,
+    "logs": 25,
+    "tasks": 1
+  },
+  "prefix_extension_counts": [
+    {
+      "count": 2,
+      "extension": ".json",
+      "prefix": "benchmarks"
+    },
+    {
+      "count": 1,
+      "extension": ".md",
+      "prefix": "benchmarks"
+    },
+    {
+      "count": 1,
+      "extension": ".md",
+      "prefix": "datasets"
+    },
+    {
+      "count": 1,
+      "extension": ".txt",
+      "prefix": "datasets"
+    },
+    {
+      "count": 14,
+      "extension": ".md",
+      "prefix": "docs"
+    },
+    {
+      "count": 1,
+      "extension": ".json",
+      "prefix": "evidence"
+    },
+    {
+      "count": 8,
+      "extension": ".csv",
+      "prefix": "logs"
+    },
+    {
+      "count": 4,
+      "extension": ".json",
+      "prefix": "logs"
+    },
+    {
+      "count": 1,
+      "extension": ".jsonl",
+      "prefix": "logs"
+    },
+    {
+      "count": 12,
+      "extension": ".txt",
+      "prefix": "logs"
+    },
+    {
+      "count": 1,
+      "extension": ".md",
+      "prefix": "tasks"
+    }
+  ],
+  "safety": {
+    "emits_secret_values": false,
+    "emits_sensitive_paths": false,
+    "modifies_kilo_quarantine": false,
+    "modifies_live_files": false
+  },
+  "scan_status_counts": {
+    "no_pattern_detected": 27,
+    "secret_patterns_detected": 19
+  },
+  "scope": {
+    "max_scan_bytes_per_file": 2097152,
+    "selected_rows": 46,
+    "selector": {
+      "byte_relation": "live_differs_from_snapshot_untracked",
+      "priority": "P0_sensitive_hold"
+    }
+  },
+  "size_by_prefix_bytes": {
+    "benchmarks": 6366,
+    "datasets": 11350,
+    "docs": 684209,
+    "evidence": 133165,
+    "logs": 895013,
+    "tasks": 4033
+  }
+}

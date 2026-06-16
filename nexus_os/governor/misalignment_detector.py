@@ -6,7 +6,7 @@ Inspired by Anthropic Mythos Preview System Card (April 2026):
 - Detects concealment behaviors: sandbox escape, git obfuscation, permission bypass
 - Monitors reasoning traces for deception patterns
 - Integrates with TrustEngineV2 (CDR escalation), TokenGuard (output monitoring),
-  MemoryTracker (FAILURE_PATTERN + GOVERNANCE tracks), and KAIJU gates
+  MemoryChannelManager (EPISODIC + TRUST channels), and KAIJU gates
 
 References:
 - Anthropic Claude Mythos Preview System Card — concealment detection patterns
@@ -259,7 +259,7 @@ class MisalignmentDetector:
     Integration:
       - TrustEngineV2: Triggers CDR escalation on CRITICAL/accumulated HIGH
       - TokenGuard: Monitors agent outputs for deception patterns
-      - MemoryTracker: Records FAILURE_PATTERN + GOVERNANCE tracks
+      - MemoryChannelManager: Records EPISODIC + TRUST channels
       - KAIJU gates: Blocks agents exceeding circuit breaker threshold
     """
 

@@ -38,6 +38,34 @@ class TrustDecisionKind(Enum):
     ESCALATE = "escalate"
 
 
+class ResourceBudgetClass(Enum):
+    STANDARD = "standard"
+    CONSTRAINED = "constrained"
+    ELEVATED = "elevated"
+    REVIEW_ONLY = "review_only"
+    QUARANTINED = "quarantined"
+    LOCKED = "locked"
+
+
+@dataclass
+class TrustResourceBudget:
+    """Resource envelope derived from agent trust and maturity."""
+
+    budget_class: ResourceBudgetClass
+    memory_query_depth: float
+    max_tokens: int
+    allow_cloud_fallback: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "budget_class": self.budget_class.value,
+            "memory_query_depth": self.memory_query_depth,
+            "max_tokens": self.max_tokens,
+            "allow_cloud_fallback": self.allow_cloud_fallback,
+        }
+
+
+
 SIDE_EFFECT_ACTIONS = {"write", "delete", "execute", "override", "deploy", "run"}
 HIGH_RISK_ACTIONS = {"delete", "override", "escalate", "root", "wipe", "system.wipe"}
 
@@ -149,8 +177,9 @@ class TrustKernel:
     posterior trust.
     """
 
-    def __init__(self, db: Any = None):
+    def __init__(self, db: Any = None, vault_enabled: bool = True):
         self.db = db
+        self.vault_enabled = vault_enabled
         self._snapshots: Dict[Tuple[str, str], TrustSnapshot] = {}
         self._storage_available = True
         self._ensure_storage()
@@ -169,6 +198,8 @@ class TrustKernel:
         side_effect = action_lower in SIDE_EFFECT_ACTIONS or ctx.get("side_effect") is True
         high_risk = action_lower in HIGH_RISK_ACTIONS or ctx.get("high_risk") is True
 
+        budget = self.derive_resource_budget(agent_id, lane_enum.value, action, ctx)
+
         policy = {
             "lane": lane_enum.value,
             "side_effect": side_effect,
@@ -177,6 +208,7 @@ class TrustKernel:
             "requested_impact": ctx.get("requested_impact"),
             "max_clearance": "reader" if snapshot.authority_band == "restricted" else None,
             "max_impact": "low" if snapshot.authority_band == "restricted" else None,
+            "resource_envelope": budget.to_dict(),
         }
 
         if ctx.get("trust_hard_fail") is True:
@@ -243,11 +275,90 @@ class TrustKernel:
                 {**policy, "trigger": "high_risk_low_trust"},
             )
 
+        if high_risk and snapshot.evidence_count < 5:
+            return TrustDecision(
+                TrustDecisionKind.HOLD,
+                (
+                    "TrustKernel HOLD: high-risk action requires canonical "
+                    f"evidence history ({snapshot.evidence_count}/5)"
+                ),
+                snapshot,
+                {**policy, "trigger": "high_risk_insufficient_evidence"},
+            )
+
+        requested_tokens = ctx.get("requested_tokens") or ctx.get("required_tokens")
+        if requested_tokens is not None and requested_tokens > budget.max_tokens:
+            return TrustDecision(
+                TrustDecisionKind.HOLD,
+                f"TrustKernel HOLD: requested tokens ({requested_tokens}) exceed trust budget envelope ({budget.max_tokens})",
+                snapshot,
+                {**policy, "trigger": "token_budget_exceeded"},
+            )
+
         return TrustDecision(
             TrustDecisionKind.ALLOW,
             f"TrustKernel ALLOW: trust={snapshot.trust:.2f}, lane={lane_enum.value}",
             snapshot,
             policy,
+        )
+
+    def derive_resource_budget(
+        self,
+        agent_id: str,
+        lane: str,
+        action: str = "read",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> TrustResourceBudget:
+        lane_enum = self.coerce_lane(lane)
+        snapshot = self.get_snapshot(agent_id, lane_enum.value)
+
+        # Determine budget class
+        if snapshot.cdr_stage == CDRStage.COLLAPSE.value or snapshot.cdr_stage == "collapse":
+            b_class = ResourceBudgetClass.LOCKED
+            max_tokens = 0
+            query_depth = 0.0
+            allow_cloud = False
+        elif snapshot.cdr_stage == CDRStage.CASCADE.value or snapshot.cdr_stage == "cascade":
+            b_class = ResourceBudgetClass.QUARANTINED
+            max_tokens = 512
+            query_depth = 0.0
+            allow_cloud = False
+        elif snapshot.trust < 0.20:
+            b_class = ResourceBudgetClass.QUARANTINED
+            max_tokens = 512
+            query_depth = 0.0
+            allow_cloud = False
+        elif snapshot.trust < 0.35:
+            b_class = ResourceBudgetClass.REVIEW_ONLY
+            max_tokens = 1000
+            query_depth = 2.0
+            allow_cloud = False
+        elif snapshot.authority_band == "restricted":
+            b_class = ResourceBudgetClass.CONSTRAINED
+            max_tokens = 3200
+            query_depth = 3.0
+            allow_cloud = False
+        elif snapshot.evidence_count < 5:
+            b_class = ResourceBudgetClass.CONSTRAINED
+            max_tokens = 3200
+            query_depth = 3.0
+            allow_cloud = False
+        elif snapshot.authority_band == "elevated" or snapshot.trust >= 0.75:
+            b_class = ResourceBudgetClass.ELEVATED
+            max_tokens = 36000
+            query_depth = 8.0
+            allow_cloud = True
+        else:
+            b_class = ResourceBudgetClass.STANDARD
+            max_tokens = 8000
+            query_depth = 5.0
+            allow_cloud = True
+
+        return TrustResourceBudget(
+            budget_class=b_class,
+            memory_query_depth=query_depth,
+            max_tokens=max_tokens,
+            allow_cloud_fallback=allow_cloud,
         )
 
     def record_event(self, event: TrustEvent) -> TrustSnapshot:
@@ -308,6 +419,27 @@ class TrustKernel:
         self._snapshots[(event.agent_id, lane_enum.value)] = snapshot
         self._persist_event(event, score.score, score.Qeff, score.finding_state.value)
         self._persist_snapshot(snapshot)
+        if self.vault_enabled:
+            from nexus_os.vault.memory_channels import get_manager
+            manager = get_manager()
+            # Write to TRUST channel (real-time governance)
+            manager.append_trust(
+                agent_id=event.agent_id,
+                lane=lane_enum.value,
+                trust_score=round(trust, 4),
+                evidence_count=snapshot.evidence_count,
+                content=event.outcome,
+            )
+            # Write to EPISODIC channel (task outcomes feed back into trust formula)
+            manager.append_episodic(
+                agent_id=event.agent_id,
+                content=f"Trust event: {event.event_type} ({event.outcome})",
+                outcome="success" if score.score is not None and score.score >= 0 else "failure",
+                duration_ms=0.0,
+                token_count=0,
+                failure_type="trust_regression" if regression else None,
+                trace_id=event.event_id,
+            )
         return snapshot
 
     def record_task_outcome(

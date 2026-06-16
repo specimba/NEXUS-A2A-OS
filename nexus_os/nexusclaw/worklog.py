@@ -136,10 +136,17 @@ class WorklogSystem:
         with self._lock:
             return len(self._archivist_queue)
 
-    def get_archivist_queue(self) -> List[Dict[str, Any]]:
-        """Return a copy of the V0 in-memory ARCHIVIST queue."""
+    def get_archivist_queue(self, clear_processed: bool = False) -> List[Dict[str, Any]]:
+        """Return and optionally drain the V0 in-memory ARCHIVIST queue.
+
+        When ``clear_processed=True``, atomically returns the queue and clears it,
+        preventing unbounded growth. Default ``False`` preserves backward compatibility.
+        """
         with self._lock:
-            return list(self._archivist_queue)
+            snapshot = list(self._archivist_queue)
+            if clear_processed:
+                self._archivist_queue.clear()
+            return snapshot
 
     def get_recent(self, n: int = 10) -> List[WorklogEntry]:
         """Return the N most recent worklog entries."""

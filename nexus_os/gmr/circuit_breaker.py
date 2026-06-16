@@ -54,5 +54,11 @@ class AdaptiveCircuitBreaker:
         self._open_until = 0.0
 
     def can_execute(self) -> bool:
-        """Returns True if the circuit allows requests."""
-        return self.state in (CircuitState.CLOSED, CircuitState.HALF_OPEN)
+        """Returns True only if circuit is CLOSED.
+
+        VATS (STACK error-path injection) exploits the HALF_OPEN probe window:
+        during recovery testing, injected content in error messages reaches the
+        fallback model in a more susceptible reasoning state. Blocking HALF_OPEN
+        eliminates the predictable timed injection window entirely.
+        """
+        return self.state == CircuitState.CLOSED

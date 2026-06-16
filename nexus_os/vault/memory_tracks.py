@@ -1,8 +1,8 @@
-"""vault/memory_tracks.py — 5-Track Memory Schema
+"""vault/memory_tracks.py — Legacy 5-Track Memory Schema (superseded by 8-Channel)
 
-Implements the 5-track memory system as specified:
+Implements the legacy 5-track memory system as specified:
 - EVENT: Raw task outcomes
-- TRUST: Bayesian reputation per lane
+- TRUST: Novel tanh-based trust formula (11 elements) per lane
 - CAPABILITY: What agent is good at
 - FAILURE_PATTERN: Recurring weaknesses
 - GOVERNANCE: Behavior under rules
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryTrack(Enum):
-    """5-Track Memory Schema."""
+    """Legacy 5-Track Memory Schema (superseded by 8-Channel)."""
     EVENT = "event"           # Raw task outcomes
-    TRUST = "trust"           # Bayesian reputation (per-lane!)
+    TRUST = "trust"           # Novel tanh-based trust formula (per-lane!)
     CAPABILITY = "capability" # What agent is good at
     FAILURE_PATTERN = "failure_pattern"  # Recurring weaknesses
     GOVERNANCE = "governance" # Behavior under rules
@@ -123,7 +123,7 @@ class FailurePattern:
 
 class MemoryTracker:
     """
-    5-Track Memory Tracker.
+    Legacy 5-Track Memory Tracker (superseded by 8-Channel).
     
     Provides methods to append to each track. The actual
     persistence is handled by VaultManager.write_memory()
@@ -196,7 +196,7 @@ class MemoryTracker:
         content: str = "",
         trace_id: Optional[str] = None,
     ) -> TrackRecord:
-        """Append a TRUST record (lane-scoped Bayesian reputation)."""
+        """Append a TRUST record (lane-scoped novel tanh-based trust formula scoring)."""
         if lane not in VALID_LANES:
             logger.warning(f"Unknown lane: {lane}, defaulting to 'general'")
             lane = "general"

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "project": "grok-longrun-burst-harness",
+  "source_package": "C:/Users/speci.000/Downloads/files-53db86af.zip",
+  "features": [
+    {
+      "id": "grok-0001",
+      "category": "analysis",
+      "description": "Classify the Grok MCP package into usable components, unsafe components, and NEXUS integration candidates.",
+      "status": "ready",
+      "passes": false,
+      "done_gate": "Result artifact cites local extracted paths and separates evidence from readiness claims."
+    },
+    {
+      "id": "grok-0002",
+      "category": "security",
+      "description": "Convert MCP red-team scenarios MCP-01 through MCP-06 into NEXUS test backlog items.",
+      "status": "ready",
+      "passes": false,
+      "done_gate": "Each scenario maps to one concrete test idea, expected block condition, and allowed fixture path."
+    },
+    {
+      "id": "grok-0003",
+      "category": "mcp",
+      "description": "Design a read-only Grok custom MCP tool surface over NEXUS state digest and evidence lookup.",
+      "status": "ready",
+      "passes": false,
+      "done_gate": "Tool list excludes shell, git, delete, arbitrary file write, connector send, and secret access."
+    },
+    {
+      "id": "grok-0004",
+      "category": "harness",
+      "description": "Propose a controller loop that validates Grok outbox artifacts before any NEXUS integration.",
+      "status": "ready",
+      "passes": false,
+      "done_gate": "Controller loop includes retry, rejection, forbidden-action, and no-progress stop conditions."
+    },
+    {
+      "id": "grok-0005",
+      "category": "provider-routing",
+      "description": "Review the OpenRouter Auto integration report and propose low-risk Grok harness tasks that can use auto-routed model calls for schema checking or artifact triage.",
+      "status": "ready",
+      "passes": false,
+      "done_gate": "Proposal keeps Grok as proposal-only, requires served_model logging, and excludes high-risk verifier or side-effect authority."
+    }
+  ]
+}

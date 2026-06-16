@@ -1,0 +1,170 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "nexusclaw-main",
+    "title": "NEXUSCLAW Swarm Observability",
+    "tags": ["nexus", "nexusclaw", "swarm"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Agent Pool Status",
+        "targets": [
+          {
+            "expr": "sum(nexusclaw_agent_pool_size{status=\"online\"})",
+            "legendFormat": "Online",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(nexusclaw_agent_pool_size{status=\"busy\"})",
+            "legendFormat": "Busy",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(nexusclaw_agent_pool_size{status=\"error\"})",
+            "legendFormat": "Error",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "mappings": [
+              {"type": "value", "options": {"from": 0, "to": 100, "result": {"color": "green", "index": 0}}}
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "gauge",
+        "title": "Average Trust Score",
+        "targets": [
+          {
+            "expr": "avg(nexusclaw_trust_score)",
+            "legendFormat": "Avg Trust",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 40, "color": "yellow"},
+                {"value": 70, "color": "green"}
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+        "type": "timeseries",
+        "title": "Task Routing Latency (95th percentile)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(nexusclaw_task_routing_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(nexusclaw_task_routing_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+        "type": "stat",
+        "title": "Active Brainstorm Sessions",
+        "targets": [
+          {
+            "expr": "nexusclaw_brainstorm_active_sessions",
+            "legendFormat": "Sessions",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "gray"},
+                {"value": 1, "color": "blue"},
+                {"value": 5, "color": "orange"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+        "type": "stat",
+        "title": "Worker Pool",
+        "targets": [
+          {
+            "expr": "sum(nexusclaw_worker_pool_size{state=\"running\"})",
+            "legendFormat": "Running",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(nexusclaw_worker_pool_size{state=\"idle\"})",
+            "legendFormat": "Idle",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 16},
+        "type": "stat",
+        "title": "Interventions (24h)",
+        "targets": [
+          {
+            "expr": "increase(nexusclaw_intervention_latency_seconds_count[24h])",
+            "legendFormat": "Count",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "templating": {
+      "list": [
+        {
+          "name": "agent_id",
+          "type": "query",
+          "query": "label_values(nexusclaw_trust_score, agent_id)"
+        },
+        {
+          "name": "lane",
+          "type": "query",
+          "query": "label_values(nexusclaw_trust_score, lane)"
+        }
+      ]
+    }
+  }
+}

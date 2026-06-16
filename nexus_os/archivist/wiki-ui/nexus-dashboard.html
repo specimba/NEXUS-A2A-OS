@@ -1,0 +1,2888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS Dashboard — Theme Studio</title>
+<style>
+/* ============================================================
+   THEME SYSTEM: 8 Variations
+   ============================================================ */
+
+/* Base Variables (will be overridden by themes) */
+:root {
+  --bg-void: #050507;
+  --bg-deep: #0a0a0f;
+  --bg-base: #111118;
+  --bg-raised: #18181f;
+  --bg-surface: #1e1e28;
+  --bg-hover: #252530;
+  --bg-active: #2a2a38;
+  
+  --text-primary: #f0f0f5;
+  --text-secondary: #a0a0b0;
+  --text-muted: #606070;
+  --text-dim: #404050;
+  
+  --accent-primary: #00e5ff;
+  --accent-secondary: #2979ff;
+  --accent-tertiary: #651fff;
+  --accent-success: #00e676;
+  --accent-warning: #ffab00;
+  --accent-danger: #ff5252;
+  
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-soft: rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.12);
+  
+  --glow-primary: 0 0 20px rgba(0,229,255,0.15);
+  --glow-success: 0 0 20px rgba(0,230,118,0.15);
+  --glow-warning: 0 0 20px rgba(255,171,0,0.15);
+  --glow-danger: 0 0 20px rgba(255,82,82,0.15);
+  
+  --font-display: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- THEME 1: NEXUS CYAN (Default) ---------- */
+[data-theme="nexus-cyan"] {
+  --accent-primary: #00e5ff;
+  --accent-secondary: #2979ff;
+  --accent-tertiary: #651fff;
+  --glow-primary: 0 0 20px rgba(0,229,255,0.15);
+  --chart-line: #00e5ff;
+  --chart-fill: rgba(0,229,255,0.1);
+  --heatmap-low: #0a2a2a;
+  --heatmap-mid: #00b8d4;
+  --heatmap-high: #00e5ff;
+}
+
+/* ---------- THEME 2: OBSIDIAN PURPLE ---------- */
+[data-theme="obsidian-purple"] {
+  --accent-primary: #c084fc;
+  --accent-secondary: #8b5cf6;
+  --accent-tertiary: #a855f7;
+  --glow-primary: 0 0 20px rgba(192,132,252,0.15);
+  --chart-line: #c084fc;
+  --chart-fill: rgba(192,132,252,0.1);
+  --heatmap-low: #2a1a3a;
+  --heatmap-mid: #8b5cf6;
+  --heatmap-high: #c084fc;
+  --bg-void: #07050a;
+  --bg-deep: #0f0a14;
+  --bg-base: #18111f;
+  --bg-raised: #1f1728;
+  --bg-surface: #281e33;
+  --bg-hover: #30253d;
+  --bg-active: #382a45;
+}
+
+/* ---------- THEME 3: MATRIX GREEN ---------- */
+[data-theme="matrix-green"] {
+  --accent-primary: #39ff14;
+  --accent-secondary: #00d26a;
+  --accent-tertiary: #00b894;
+  --glow-primary: 0 0 20px rgba(57,255,20,0.15);
+  --chart-line: #39ff14;
+  --chart-fill: rgba(57,255,20,0.1);
+  --heatmap-low: #0a2a0a;
+  --heatmap-mid: #00d26a;
+  --heatmap-high: #39ff14;
+  --bg-void: #050a05;
+  --bg-deep: #0a0f0a;
+  --bg-base: #111811;
+  --bg-raised: #181f18;
+  --bg-surface: #1e281e;
+  --bg-hover: #253025;
+  --bg-active: #2a382a;
+  --text-primary: #e0f0e0;
+  --text-secondary: #90b090;
+}
+
+/* ---------- THEME 4: AMBER ALERT ---------- */
+[data-theme="amber-alert"] {
+  --accent-primary: #ff9100;
+  --accent-secondary: #ff6d00;
+  --accent-tertiary: #ff3d00;
+  --glow-primary: 0 0 20px rgba(255,145,0,0.15);
+  --chart-line: #ff9100;
+  --chart-fill: rgba(255,145,0,0.1);
+  --heatmap-low: #2a1a0a;
+  --heatmap-mid: #ff6d00;
+  --heatmap-high: #ff9100;
+  --bg-void: #0a0505;
+  --bg-deep: #140a0a;
+  --bg-base: #1f1111;
+  --bg-raised: #281a1a;
+  --bg-surface: #332222;
+  --bg-hover: #3d2a2a;
+  --bg-active: #453030;
+  --text-primary: #f0e0e0;
+  --text-secondary: #b09090;
+}
+
+/* ---------- THEME 5: FROST BLUE ---------- */
+[data-theme="frost-blue"] {
+  --accent-primary: #60a5fa;
+  --accent-secondary: #3b82f6;
+  --accent-tertiary: #2563eb;
+  --glow-primary: 0 0 20px rgba(96,165,250,0.15);
+  --chart-line: #60a5fa;
+  --chart-fill: rgba(96,165,250,0.1);
+  --heatmap-low: #0a1a2a;
+  --heatmap-mid: #3b82f6;
+  --heatmap-high: #60a5fa;
+  --bg-void: #05070a;
+  --bg-deep: #0a0e14;
+  --bg-base: #11181f;
+  --bg-raised: #181f28;
+  --bg-surface: #1e2833;
+  --bg-hover: #25303d;
+  --bg-active: #2a3845;
+  --text-primary: #e0e8f0;
+  --text-secondary: #90a0b0;
+}
+
+/* ---------- THEME 6: ROSE GOLD ---------- */
+[data-theme="rose-gold"] {
+  --accent-primary: #f472b6;
+  --accent-secondary: #ec4899;
+  --accent-tertiary: #db2777;
+  --glow-primary: 0 0 20px rgba(244,114,182,0.15);
+  --chart-line: #f472b6;
+  --chart-fill: rgba(244,114,182,0.1);
+  --heatmap-low: #2a0a1a;
+  --heatmap-mid: #ec4899;
+  --heatmap-high: #f472b6;
+  --bg-void: #0a0507;
+  --bg-deep: #140a0f;
+  --bg-base: #1f1118;
+  --bg-raised: #281a22;
+  --bg-surface: #33222a;
+  --bg-hover: #3d2a35;
+  --bg-active: #45303a;
+  --text-primary: #f0e0e8;
+  --text-secondary: #b090a0;
+}
+
+/* ---------- THEME 7: MONOCHROME ---------- */
+[data-theme="monochrome"] {
+  --accent-primary: #e0e0e0;
+  --accent-secondary: #a0a0a0;
+  --accent-tertiary: #707070;
+  --glow-primary: 0 0 20px rgba(224,224,224,0.1);
+  --chart-line: #e0e0e0;
+  --chart-fill: rgba(224,224,224,0.05);
+  --heatmap-low: #1a1a1a;
+  --heatmap-mid: #707070;
+  --heatmap-high: #e0e0e0;
+  --accent-success: #90c695;
+  --accent-warning: #c6b890;
+  --accent-danger: #c69090;
+}
+
+/* ---------- THEME 8: SOLARIZED DARK ---------- */
+[data-theme="solarized-dark"] {
+  --bg-void: #002b36;
+  --bg-deep: #073642;
+  --bg-base: #0a3d4d;
+  --bg-raised: #0d4a5c;
+  --bg-surface: #106070;
+  --bg-hover: #136d80;
+  --bg-active: #167a90;
+  --text-primary: #eee8d5;
+  --text-secondary: #93a1a1;
+  --text-muted: #586e75;
+  --text-dim: #657b83;
+  --accent-primary: #2aa198;
+  --accent-secondary: #268bd2;
+  --accent-tertiary: #6c71c4;
+  --accent-success: #859900;
+  --accent-warning: #b58900;
+  --accent-danger: #dc322f;
+  --glow-primary: 0 0 20px rgba(42,161,152,0.15);
+  --chart-line: #2aa198;
+  --chart-fill: rgba(42,161,152,0.1);
+  --heatmap-low: #002b36;
+  --heatmap-mid: #268bd2;
+  --heatmap-high: #2aa198;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--transition-slow), color var(--transition-slow);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.app {
+  display: flex;
+  height: 100vh;
+  background: linear-gradient(135deg, var(--bg-void) 0%, var(--bg-deep) 50%, var(--bg-void) 100%);
+  transition: background var(--transition-slow);
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  border-right: 1px solid var(--border-subtle);
+  position: relative;
+  z-index: 10;
+  transition: all var(--transition-slow);
+}
+
+.sidebar.collapsed { width: 60px; }
+.sidebar.collapsed .sidebar-text { display: none; }
+.sidebar.collapsed .search-box input { display: none; }
+.sidebar.collapsed .nav-section-title span { display: none; }
+.sidebar.collapsed .nav-item span { display: none; }
+.sidebar.collapsed .sidebar-footer { display: none; }
+
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  color: var(--bg-void);
+  box-shadow: var(--glow-primary);
+  transition: all var(--transition-slow);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.brand-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  transition: opacity var(--transition-fast);
+}
+
+.brand-title {
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.brand-subtitle {
+  font-size: 10px; font-weight: 600;
+  color: var(--accent-primary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  transition: color var(--transition-slow);
+}
+
+.sidebar-toggle {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.sidebar-search {
+  padding: 12px 16px;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 9px 12px 9px 32px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.search-box input::placeholder { color: var(--text-muted); }
+.search-box input:focus {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  box-shadow: var(--glow-primary);
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+.nav-section {
+  margin-bottom: 12px;
+}
+
+.nav-section-title {
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.nav-section-title:hover { color: var(--text-secondary); }
+.nav-section-title .arrow { transition: transform var(--transition-fast); font-size: 9px; }
+.nav-section.collapsed .arrow { transform: rotate(-90deg); }
+.nav-section.collapsed .nav-items { display: none; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item:hover::before { opacity: 0.5; }
+.nav-item.active { background: var(--bg-active); color: var(--accent-primary); }
+.nav-item.active::before { opacity: 1; }
+.nav-item .icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 13px; opacity: 0.8; }
+.nav-item.active .icon { opacity: 1; color: var(--accent-primary); }
+
+.nav-item .badge {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(0,0,0,0.2);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  opacity: 0.7;
+}
+
+.sidebar-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-success);
+  box-shadow: 0 0 8px var(--accent-success);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ============================================================
+   MAIN CONTENT
+   ============================================================ */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ---------- HEADER ---------- */
+.header {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  z-index: 5;
+}
+
+.header-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  flex: 1;
+}
+
+.header-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.header-tab:hover {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+
+.header-tab.active {
+  background: var(--bg-surface);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-tab .tab-close {
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.header-tab:hover .tab-close { opacity: 0.6; }
+.header-tab .tab-close:hover {
+  opacity: 1 !important;
+  background: var(--accent-danger);
+  color: white;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-body);
+}
+
+.btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-color: transparent;
+  color: var(--bg-void);
+  font-weight: 600;
+}
+
+.btn.primary:hover {
+  box-shadow: var(--glow-primary);
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn.ghost:hover {
+  background: var(--bg-hover);
+}
+
+/* ---------- CONTENT AREA ---------- */
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 40px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+/* ============================================================
+   VIEW SWITCHER
+   ============================================================ */
+.view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  width: fit-content;
+}
+
+.view-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-body);
+}
+
+.view-btn:hover { color: var(--text-secondary); }
+.view-btn.active {
+  background: var(--bg-surface);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   CARDS & GRIDS
+   ============================================================ */
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.card-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+/* ============================================================
+   MODEL CARDS (Visual Variations)
+   ============================================================ */
+.model-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.model-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--glow-primary);
+  transform: translateY(-2px);
+}
+
+.model-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.model-card:hover::before { opacity: 1; }
+
+.model-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.model-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.model-card-provider {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.model-card-status {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.model-card-status.up {
+  background: rgba(0,230,118,0.1);
+  color: var(--accent-success);
+  border: 1px solid rgba(0,230,118,0.2);
+}
+
+.model-card-status.down {
+  background: rgba(255,82,82,0.1);
+  color: var(--accent-danger);
+  border: 1px solid rgba(255,82,82,0.2);
+}
+
+.model-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.model-metric {
+  text-align: center;
+}
+
+.model-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  transition: color var(--transition-slow);
+}
+
+.model-metric-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.model-card-mini-chart {
+  height: 40px;
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.model-card-mini-chart .bar {
+  flex: 1;
+  background: var(--accent-primary);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.3;
+  transition: opacity var(--transition-fast);
+  min-height: 2px;
+}
+
+.model-card:hover .model-card-mini-chart .bar {
+  opacity: 0.6;
+}
+
+/* ============================================================
+   TABLE VIEW
+   ============================================================ */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  margin-bottom: 32px;
+}
+
+.data-table th {
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  user-select: none;
+}
+
+.data-table th:hover { color: var(--text-secondary); }
+.data-table th .sort-indicator { margin-left: 4px; opacity: 0.5; }
+.data-table th.sort-active .sort-indicator { opacity: 1; color: var(--accent-primary); }
+
+.data-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
+}
+
+.data-table tr:hover td { background: var(--bg-hover); }
+.data-table tr:last-child td { border-bottom: none; }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pill.up {
+  background: rgba(0,230,118,0.1);
+  color: var(--accent-success);
+  border: 1px solid rgba(0,230,118,0.2);
+}
+
+.status-pill.down {
+  background: rgba(255,82,82,0.1);
+  color: var(--accent-danger);
+  border: 1px solid rgba(255,82,82,0.2);
+}
+
+.status-pill.timeout {
+  background: rgba(255,171,0,0.1);
+  color: var(--accent-warning);
+  border: 1px solid rgba(255,171,0,0.2);
+}
+
+.status-dot-inline {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ============================================================
+   TIMELINE VIEW
+   ============================================================ */
+.timeline {
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 32px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary), transparent);
+  border-radius: 1px;
+  opacity: 0.3;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.timeline-item:last-child { padding-bottom: 0; }
+
+.timeline-dot {
+  position: absolute;
+  left: -28px; top: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 2px solid var(--accent-primary);
+  box-shadow: var(--glow-primary);
+  transition: all var(--transition-slow);
+}
+
+.timeline-item:hover .timeline-dot {
+  transform: scale(1.2);
+  box-shadow: 0 0 12px var(--accent-primary);
+}
+
+.timeline-content {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: all var(--transition-fast);
+}
+
+.timeline-item:hover .timeline-content {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-md);
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  margin-bottom: 4px;
+  transition: color var(--transition-slow);
+}
+
+.timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.timeline-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   HEATMAP VIEW
+   ============================================================ */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 4px;
+  margin-bottom: 32px;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.05);
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+}
+
+.heatmap-cell .cell-name {
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.heatmap-cell .cell-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  margin-top: 4px;
+}
+
+.heatmap-cell .cell-status {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.heatmap-legend-bar {
+  display: flex;
+  gap: 2px;
+}
+
+.heatmap-legend-bar .segment {
+  width: 24px; height: 12px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   CHARTS & MONITORING
+   ============================================================ */
+.chart-container {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary), transparent);
+  opacity: 0.5;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  transition: color var(--transition-slow);
+}
+
+.chart-value.positive { color: var(--accent-success); }
+.chart-value.negative { color: var(--accent-danger); }
+
+.chart-canvas {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Sparkline */
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 32px;
+}
+
+.sparkline .bar {
+  flex: 1;
+  background: var(--accent-primary);
+  border-radius: 1px 1px 0 0;
+  opacity: 0.4;
+  transition: opacity var(--transition-fast);
+  min-height: 1px;
+}
+
+.sparkline:hover .bar { opacity: 0.7; }
+
+/* Gauge */
+.gauge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.gauge-svg {
+  transform: rotate(-90deg);
+}
+
+.gauge-bg {
+  fill: none;
+  stroke: var(--bg-surface);
+  stroke-width: 8;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease;
+}
+
+.gauge-text {
+  font-size: 24px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.gauge-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   METRIC GRID (Monitoring Dashboard)
+   ============================================================ */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--glow-primary);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.metric-card:hover::before { opacity: 1; }
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.metric-change {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-change.positive { color: var(--accent-success); }
+.metric-change.negative { color: var(--accent-danger); }
+
+.metric-sparkline {
+  margin-top: 12px;
+  height: 30px;
+}
+
+/* ============================================================
+   PROGRESS BARS
+   ============================================================ */
+.progress-bar {
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  transition: width 1s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: progress-shimmer 2s infinite;
+}
+
+@keyframes progress-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   BADGES
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-primary { background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.2); color: var(--accent-primary); }
+.badge-success { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); color: var(--accent-success); }
+.badge-warning { background: rgba(255,171,0,0.1); border: 1px solid rgba(255,171,0,0.2); color: var(--accent-warning); }
+.badge-danger { background: rgba(255,82,82,0.1); border: 1px solid rgba(255,82,82,0.2); color: var(--accent-danger); }
+
+/* ============================================================
+   SETTINGS PANEL
+   ============================================================ */
+.settings-panel {
+  display: none;
+  position: fixed;
+  right: 0; top: 0; bottom: 0;
+  width: 380px;
+  background: var(--bg-deep);
+  border-left: 1px solid var(--border-subtle);
+  z-index: 100;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  animation: slideIn 0.3s ease;
+}
+
+.settings-panel.active { display: flex; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.settings-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settings-close {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all var(--transition-fast);
+}
+
+.settings-close:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--accent-danger);
+}
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.settings-section {
+  margin-bottom: 32px;
+}
+
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.theme-option {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-soft);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-option:hover {
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-option.active {
+  border-color: var(--accent-primary);
+  box-shadow: var(--glow-primary);
+}
+
+.theme-option-preview {
+  height: 40px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-option-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.theme-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.theme-option-check {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--bg-void);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.theme-option.active .theme-option-check { opacity: 1; }
+
+/* Toggle switch */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.toggle-row:last-child { border-bottom: none; }
+
+.toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.toggle-label-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px; height: 24px;
+  cursor: pointer;
+}
+
+.toggle-switch input { display: none; }
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  transition: background var(--transition-fast);
+  border: 1px solid var(--border-medium);
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  top: 2px; left: 2px;
+  transition: all var(--transition-fast);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.toggle-switch input:checked + .toggle-slider::after {
+  background: var(--bg-void);
+  transform: translateX(20px);
+}
+
+/* ============================================================
+   OVERLAY
+   ============================================================ */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,7,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+  animation: fadeIn 0.2s ease;
+}
+
+.overlay.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================================
+   COMMAND PALETTE
+   ============================================================ */
+.command-palette {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,7,0.8);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 120px;
+}
+
+.command-palette.active { display: flex; }
+
+.command-box {
+  width: 640px;
+  max-width: 90vw;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.command-input-wrapper {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.command-input-wrapper input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+.command-input-wrapper input::placeholder { color: var(--text-muted); }
+
+.command-results {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.command-item:hover, .command-item.selected {
+  background: var(--bg-hover);
+}
+
+.command-item .cmd-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+
+.command-item .cmd-info { flex: 1; }
+.command-item .cmd-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.command-item .cmd-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.command-item .cmd-shortcut {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-dim);
+  padding: 2px 6px;
+  background: var(--bg-raised);
+  border-radius: 4px;
+}
+
+/* ============================================================
+   STATUS BAR
+   ============================================================ */
+.status-bar {
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg-deep);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-dim);
+  position: relative;
+  z-index: 5;
+  transition: all var(--transition-slow);
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-success);
+  box-shadow: 0 0 8px var(--accent-success);
+}
+
+.status-dot.warning { background: var(--accent-warning); box-shadow: 0 0 8px var(--accent-warning); }
+.status-dot.error { background: var(--accent-danger); box-shadow: 0 0 8px var(--accent-danger); }
+
+.status-sep {
+  width: 1px; height: 12px;
+  background: var(--border-soft);
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in { animation: fadeInUp 0.4s ease-out; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content { padding: 20px 24px; }
+  .settings-panel { width: 100%; }
+  .card-grid { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.mt-16 { margin-top: 16px; }
+.mb-24 { margin-bottom: 24px; }
+.flex { display: flex; }
+.gap-8 { gap: 8px; }
+.gap-16 { gap: 16px; }
+</style>
+</head>
+<body data-theme="nexus-cyan">
+
+<div class="app" id="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">N</div>
+        <div class="brand-text sidebar-text">
+          <div class="brand-title">NEXUS</div>
+          <div class="brand-subtitle">Dashboard</div>
+        </div>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Collapse sidebar">◀</button>
+    </div>
+
+    <div class="sidebar-search sidebar-text">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search..." onfocus="openCommandPalette()">
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- Populated by JS -->
+    </nav>
+
+    <div class="sidebar-footer sidebar-text">
+      <div class="sync-indicator">
+        <span class="sync-dot"></span>
+        <span>Live</span>
+      </div>
+      <span>v2.0.0</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-tabs" id="headerTabs">
+        <!-- Populated by JS -->
+      </div>
+      <div class="header-actions">
+        <button class="btn ghost" onclick="openCommandPalette()" title="Command palette (Ctrl+K)">⌘</button>
+        <button class="btn" onclick="toggleSettings()" title="Settings">⚙️</button>
+        <button class="btn primary" onclick="refreshAll()">🔄 Sync</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-wrapper" id="contentWrapper">
+      <div class="content" id="contentArea">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-left">
+        <div class="status-item">
+          <span class="status-dot"></span>
+          <span>99 Models UP</span>
+        </div>
+        <span class="status-sep"></span>
+        <span>GLM 5.1 (0.91) Active</span>
+        <span class="status-sep"></span>
+        <span>Vault: Encrypted</span>
+        <span class="status-sep"></span>
+        <span>Ping: Smart</span>
+      </div>
+      <div class="status-right">
+        <span>59,790 sources</span>
+        <span class="status-sep"></span>
+        <span id="clock">00:00:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div class="overlay" id="overlay" onclick="toggleSettings()"></div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-header">
+    <div class="settings-title">⚙️ Settings</div>
+    <button class="settings-close" onclick="toggleSettings()">✕</button>
+  </div>
+  <div class="settings-body">
+    <div class="settings-section">
+      <div class="settings-section-title">🎨 Theme</div>
+      <div class="theme-grid" id="themeGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">📊 Display</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Compact Mode</div>
+          <div class="toggle-label-desc">Smaller cards and tighter spacing</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="compactMode" onchange="toggleCompactMode()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Show Sparklines</div>
+          <div class="toggle-label-desc">Mini charts on model cards</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="showSparklines" checked onchange="toggleSparklines()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Animated Background</div>
+          <div class="toggle-label-desc">Subtle gradient animations</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="animatedBg" checked onchange="toggleAnimatedBg()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">🔔 Notifications</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Model Down Alerts</div>
+          <div class="toggle-label-desc">Notify when models go offline</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notifyDown" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Score Updates</div>
+          <div class="toggle-label-desc">Notify when Arena scores change</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notifyScores">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">ℹ️ About</div>
+      <div class="toggle-row" style="border:none;">
+        <div>
+          <div class="toggle-label">NEXUS Dashboard v2.0</div>
+          <div class="toggle-label-desc">Theme Studio Edition — 8 variations</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Command Palette -->
+<div class="command-palette" id="commandPalette" onclick="closeCommandPalette(event)">
+  <div class="command-box" onclick="event.stopPropagation()">
+    <div class="command-input-wrapper">
+      <span style="color:var(--text-muted);font-size:18px;">🔍</span>
+      <input type="text" placeholder="Type a command or search..." id="commandInput" oninput="filterCommands()" onkeydown="handleCommandKey(event)">
+      <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);">ESC</span>
+    </div>
+    <div class="command-results" id="commandResults">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const models = [
+  { id: "glm-5.1", name: "GLM 5.1", provider: "Fireworks", intell: 0.91, status: "up", latency: 890, context: "202K", uptime: 99.8, votes: 3608, color: "#00e5ff" },
+  { id: "claude-opus-4.6", name: "Claude Opus 4.6", provider: "Anthropic", intell: 0.91, status: "down", latency: 1200, context: "1M", uptime: 0, votes: 5788, color: "#c084fc" },
+  { id: "kimi-k2.6", name: "Kimi K2.6", provider: "NVIDIA / Cloudflare", intell: 0.88, status: "up", latency: 874, context: "262K", uptime: 99.5, votes: 4753, color: "#00e5ff" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google", intell: 0.88, status: "down", latency: 0, context: "1M", uptime: 0, votes: 2212, color: "#ff9100" },
+  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", provider: "Fireworks", intell: 0.86, status: "up", latency: 983, context: "1M", uptime: 99.2, votes: 4862, color: "#00e5ff" },
+  { id: "qwen-3.6-plus", name: "Qwen 3.6 Plus", provider: "Fireworks", intell: 0.86, status: "up", latency: 750, context: "1M", uptime: 98.9, votes: 7014, color: "#00e5ff" },
+  { id: "mimo-v2.5-pro", name: "Mimo V2.5 Pro", provider: "Xiaomi", intell: 0.86, status: "up", latency: 620, context: "1M", uptime: 99.1, votes: 5507, color: "#00e5ff" },
+  { id: "gpt-5.5", name: "GPT 5.5", provider: "OpenAI", intell: 0.84, status: "down", latency: 0, context: "1.1M", uptime: 0, votes: 5125, color: "#60a5fa" },
+  { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", provider: "Google", intell: 0.84, status: "down", latency: 0, context: "1M", uptime: 0, votes: 11246, color: "#ff9100" },
+  { id: "glm-5", name: "GLM 5", provider: "Fireworks", intell: 0.83, status: "up", latency: 710, context: "202K", uptime: 99.0, votes: 6577, color: "#00e5ff" },
+  { id: "kimi-k2.5", name: "Kimi K2.5", provider: "NVIDIA", intell: 0.80, status: "up", latency: 920, context: "262K", uptime: 98.7, votes: 3612, color: "#00e5ff" },
+  { id: "qwen-3-235b", name: "Qwen 3-235B", provider: "NVIDIA", intell: 0.78, status: "up", latency: 850, context: "262K", uptime: 98.5, votes: 10000, color: "#00e5ff" },
+  { id: "step-3.7-flash", name: "Step 3.7 Flash", provider: "NVIDIA", intell: 0.78, status: "up", latency: 680, context: "128K", uptime: 98.3, votes: 0, color: "#00e5ff" },
+  { id: "minimax-m2.7", name: "Minimax M2.7", provider: "Fireworks", intell: 0.78, status: "up", latency: 590, context: "204K", uptime: 97.8, votes: 7083, color: "#00e5ff" },
+  { id: "mistral-large", name: "Mistral Large", provider: "Mistral", intell: 0.74, status: "up", latency: 450, context: "262K", uptime: 99.9, votes: 1032, color: "#00e5ff" },
+];
+
+const providers = [
+  { name: "Mistral", up: 43, down: 0, total: 43, health: 100, quota: "1M/month", color: "#00e676" },
+  { name: "Cloudflare", up: 18, down: 0, total: 18, health: 100, quota: "10K/day", color: "#f472b6" },
+  { name: "OpenRouter", up: 16, down: 2, total: 18, health: 89, quota: "Rate limited", color: "#ffab00" },
+  { name: "Fireworks", up: 9, down: 0, total: 9, health: 100, quota: "$1 trial", color: "#00e5ff" },
+  { name: "NVIDIA", up: 14, down: 31, total: 45, health: 31, quota: "14 UP", color: "#76b900" },
+  { name: "Google AI", up: 0, down: 11, total: 11, health: 0, quota: "429 (removed)", color: "#ff5252" },
+  { name: "GitHub", up: 0, down: 0, total: 0, health: 0, quota: "1500/day exceeded", color: "#ff5252" },
+  { name: "Cerebras", up: 0, down: 0, total: 0, health: 0, quota: "Paywalled", color: "#ff5252" },
+];
+
+const timelineEvents = [
+  { time: "2026-06-09 19:45", title: "Arena Scores Updated", desc: "225 models calibrated with 6,703,075 Arena votes. GLM 5.1 now #1 at 0.91.", type: "success" },
+  { time: "2026-06-09 19:30", title: "NVIDIA Models Fixed", desc: "14 NVIDIA models now UP. Fixed model IDs in sources.js (was 0 UP).", type: "success" },
+  { time: "2026-06-09 19:15", title: "Vault Encrypted", desc: "3 files encrypted with AES-256-GCM + HKDF-SHA256. Vault security intel ingested.", type: "success" },
+  { time: "2026-06-09 19:00", title: "Smart Ping Active", desc: "Daemon running. State: ACTIVE (15 min). Monitoring ports 7352/7356/7357.", type: "info" },
+  { time: "2026-06-09 18:30", title: "Google AI Removed", desc: "Provider removed from config. All 11 models were DOWN (429, credits depleted).", type: "warning" },
+  { time: "2026-06-09 18:00", title: "Theme Studio Built", desc: "8 theme variations created. Settings panel with live preview.", type: "info" },
+];
+
+const navSections = [
+  { title: "Overview", icon: "📊", items: [
+    { id: "monitoring", label: "Monitoring", icon: "📈", badge: "Live" },
+    { id: "models", label: "Models", icon: "🤖", badge: "99" },
+    { id: "providers", label: "Providers", icon: "🏢", badge: "8" },
+  ]},
+  { title: "Wiki", icon: "📚", items: [
+    { id: "wiki-index", label: "Index", icon: "📋" },
+    { id: "wiki-security", label: "Security", icon: "🔒" },
+    { id: "wiki-agents", label: "Agents", icon: "🤖" },
+    { id: "wiki-benchmark", label: "Benchmarking", icon: "📊" },
+  ]},
+  { title: "System", icon: "⚙️", items: [
+    { id: "logs", label: "Logs", icon: "📝" },
+    { id: "settings-page", label: "Settings", icon: "⚙️" },
+  ]},
+];
+
+const themes = [
+  { id: "nexus-cyan", name: "NEXUS Cyan", desc: "Default cyan/blue gradient", primary: "#00e5ff", secondary: "#2979ff" },
+  { id: "obsidian-purple", name: "Obsidian Purple", desc: "Deep purple elegance", primary: "#c084fc", secondary: "#8b5cf6" },
+  { id: "matrix-green", name: "Matrix Green", desc: "Neon green terminal", primary: "#39ff14", secondary: "#00d26a" },
+  { id: "amber-alert", name: "Amber Alert", desc: "Warm orange warning tones", primary: "#ff9100", secondary: "#ff6d00" },
+  { id: "frost-blue", name: "Frost Blue", desc: "Cool blue professional", primary: "#60a5fa", secondary: "#3b82f6" },
+  { id: "rose-gold", name: "Rose Gold", desc: "Pink metallic luxury", primary: "#f472b6", secondary: "#ec4899" },
+  { id: "monochrome", name: "Monochrome", desc: "Grayscale minimalism", primary: "#e0e0e0", secondary: "#a0a0a0" },
+  { id: "solarized-dark", name: "Solarized Dark", desc: "Classic solarized palette", primary: "#2aa198", secondary: "#268bd2" },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let activePage = "monitoring";
+let openTabs = ["monitoring"];
+let selectedCommand = 0;
+let compactMode = false;
+let showSparklines = true;
+let currentTheme = "nexus-cyan";
+let modelViewMode = "cards"; // cards, table, heatmap, timeline
+
+// ============================================================
+// THEME SYSTEM
+// ============================================================
+function renderThemeGrid() {
+  const grid = document.getElementById("themeGrid");
+  grid.innerHTML = themes.map(t => `
+    <div class="theme-option ${t.id === currentTheme ? 'active' : ''}" onclick="setTheme('${t.id}')">
+      <div class="theme-option-preview" style="background: linear-gradient(135deg, ${t.primary}, ${t.secondary});"></div>
+      <div class="theme-option-name">${t.name}</div>
+      <div class="theme-option-desc">${t.desc}</div>
+      <div class="theme-option-check">✓</div>
+    </div>
+  `).join("");
+}
+
+function setTheme(themeId) {
+  currentTheme = themeId;
+  document.body.setAttribute("data-theme", themeId);
+  renderThemeGrid();
+  // Re-render active page to pick up new colors
+  renderPage(activePage);
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("collapsed");
+}
+
+function renderSidebar() {
+  const nav = document.getElementById("sidebarNav");
+  nav.innerHTML = navSections.map((section, idx) => `
+    <div class="nav-section ${idx > 0 ? 'collapsed' : ''}">
+      <div class="nav-section-title" onclick="toggleSection(this)">
+        <span class="arrow">▼</span>
+        <span class="sidebar-text">${section.icon} ${section.title}</span>
+      </div>
+      <div class="nav-items">
+        ${section.items.map(item => `
+          <div class="nav-item ${item.id === activePage ? 'active' : ''}" onclick="openPage('${item.id}')">
+            <span class="icon">${item.icon}</span>
+            <span class="sidebar-text">${item.label}</span>
+            ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join("");
+}
+
+function toggleSection(el) {
+  el.parentElement.classList.toggle("collapsed");
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function renderTabs() {
+  const tabs = document.getElementById("headerTabs");
+  const pageNames = {
+    "monitoring": "📈 Monitoring",
+    "models": "🤖 Models",
+    "providers": "🏢 Providers",
+    "wiki-index": "📋 Wiki",
+    "wiki-security": "🔒 Security",
+    "wiki-agents": "🤖 Agents",
+    "wiki-benchmark": "📊 Benchmark",
+    "logs": "📝 Logs",
+    "settings-page": "⚙️ Settings",
+  };
+  tabs.innerHTML = openTabs.map(tabId => `
+    <div class="header-tab ${tabId === activePage ? 'active' : ''}" onclick="openPage('${tabId}')">
+      <span>${pageNames[tabId] || tabId}</span>
+      ${openTabs.length > 1 ? `<span class="tab-close" onclick="event.stopPropagation(); closeTab('${tabId}')">×</span>` : ''}
+    </div>
+  `).join("");
+}
+
+function openPage(pageId) {
+  activePage = pageId;
+  if (!openTabs.includes(pageId)) openTabs.push(pageId);
+  renderTabs();
+  renderSidebar();
+  renderPage(pageId);
+}
+
+function closeTab(tabId) {
+  openTabs = openTabs.filter(t => t !== tabId);
+  if (activePage === tabId && openTabs.length > 0) activePage = openTabs[openTabs.length - 1];
+  renderTabs();
+  renderSidebar();
+  renderPage(activePage);
+}
+
+function renderPage(pageId) {
+  const content = document.getElementById("contentArea");
+  switch(pageId) {
+    case "monitoring": content.innerHTML = renderMonitoring(); break;
+    case "models": content.innerHTML = renderModels(); break;
+    case "providers": content.innerHTML = renderProviders(); break;
+    case "wiki-index": content.innerHTML = renderWikiIndex(); break;
+    case "wiki-security": content.innerHTML = renderWikiSecurity(); break;
+    case "wiki-agents": content.innerHTML = renderWikiAgents(); break;
+    case "wiki-benchmark": content.innerHTML = renderWikiBenchmark(); break;
+    case "logs": content.innerHTML = renderLogs(); break;
+    case "settings-page": content.innerHTML = renderSettingsPage(); break;
+    default: content.innerHTML = `<div class="page-title">${pageId}</div><p>Page under construction.</p>`;
+  }
+  initCharts();
+}
+
+// ============================================================
+// MONITORING PAGE
+// ============================================================
+function renderMonitoring() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">📈 System Monitoring</div>
+      <div class="page-subtitle">Real-time overview of NEXUS OS health, models, and performance</div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">🤖 Models Online</div>
+          <div class="metric-value">99</div>
+          <div class="metric-change positive">↑ +7 from yesterday</div>
+          <div class="metric-sparkline">${renderSparkline([40,55,48,60,52,58,65,70,68,75,72,80,85,82,88,90,95,92,98,99])}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">⚡ Avg Latency</div>
+          <div class="metric-value">782<span style="font-size:14px;color:var(--text-muted);">ms</span></div>
+          <div class="metric-change positive">↓ -12% vs last week</div>
+          <div class="metric-sparkline">${renderSparkline([1200,1100,1050,980,900,850,820,800,780,790,770,760,780,750,740,760,770,780,775,782])}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">🎯 Best Model</div>
+          <div class="metric-value">0.91</div>
+          <div class="metric-change">GLM 5.1 (Fireworks)</div>
+          <div class="metric-sparkline">${renderSparkline([0.85,0.86,0.87,0.87,0.88,0.88,0.89,0.89,0.90,0.90,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91])}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">📊 Health Checks</div>
+          <div class="metric-value">${showSparklines ? '200' : '840'}<span style="font-size:14px;color:var(--text-muted);">/hr</span></div>
+          <div class="metric-change positive">↓ Smart Ping Active</div>
+          <div class="metric-sparkline">${renderSparkline([840,840,840,800,750,700,650,600,550,500,450,400,350,300,250,220,210,205,200,200])}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">💾 Vault Files</div>
+          <div class="metric-value">3</div>
+          <div class="metric-change">AES-256-GCM Encrypted</div>
+          <div style="margin-top:12px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Encryption Strength</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">📚 Sources</div>
+          <div class="metric-value">59.7K</div>
+          <div class="metric-change positive">↑ +1,590 today</div>
+          <div class="metric-sparkline">${renderSparkline([50000,51000,52000,53000,54000,55000,56000,57000,58000,59000,59500,59700,59750,59790,59790,59790,59790,59790,59790,59790])}</div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">📊 Model Uptime (Last 24h)</div>
+          <div class="chart-value positive">99.2%</div>
+        </div>
+        <div class="chart-canvas">
+          <svg class="chart-svg" viewBox="0 0 800 200" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:var(--accent-primary);stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:var(--accent-primary);stop-opacity:0" />
+              </linearGradient>
+            </defs>
+            <path d="M0,180 L40,170 L80,160 L120,150 L160,140 L200,130 L240,120 L280,110 L320,100 L360,90 L400,85 L440,80 L480,75 L520,70 L560,65 L600,60 L640,55 L680,50 L720,45 L760,40 L800,35 L800,200 L0,200 Z" fill="url(#chartGrad)" />
+            <path d="M0,180 L40,170 L80,160 L120,150 L160,140 L200,130 L240,120 L280,110 L320,100 L360,90 L400,85 L440,80 L480,75 L520,70 L560,65 L600,60 L640,55 L680,50 L720,45 L760,40 L800,35" 
+                  fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" />
+            ${[0,4,8,12,16,20].map(h => `<text x="${h/24*800}" y="195" fill="var(--text-muted)" font-size="10" text-anchor="middle">${h}h</text>`).join('')}
+          </svg>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">🕐 Recent Events</div>
+        </div>
+        <div class="timeline">
+          ${timelineEvents.map(e => `
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color: var(--accent-${e.type === 'success' ? 'success' : e.type === 'warning' ? 'warning' : 'primary'})"></div>
+              <div class="timeline-content">
+                <div class="timeline-time">${e.time}</div>
+                <div class="timeline-title">${e.title}</div>
+                <div class="timeline-desc">${e.desc}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSparkline(data) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  return `<div class="sparkline">${data.map(v => {
+    const height = ((v - min) / range * 100);
+    return `<div class="bar" style="height:${height}%"></div>`;
+  }).join('')}</div>`;
+}
+
+// ============================================================
+// MODELS PAGE (Multiple Views)
+// ============================================================
+function renderModels() {
+  const viewButtons = [
+    { id: "cards", label: "🎴 Cards", icon: "" },
+    { id: "table", label: "📋 Table", icon: "" },
+    { id: "heatmap", label: "🔥 Heatmap", icon: "" },
+    { id: "compact", label: "⚡ Compact", icon: "" },
+  ];
+
+  let viewContent = "";
+  switch(modelViewMode) {
+    case "cards": viewContent = renderModelCards(); break;
+    case "table": viewContent = renderModelTable(); break;
+    case "heatmap": viewContent = renderModelHeatmap(); break;
+    case "compact": viewContent = renderModelCompact(); break;
+  }
+
+  return `
+    <div class="animate-in">
+      <div class="page-title">🤖 Model Arena</div>
+      <div class="page-subtitle">225 models discovered · 99 UP · Arena-calibrated scores</div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="view-switcher">
+          ${viewButtons.map(v => `
+            <button class="view-btn ${v.id === modelViewMode ? 'active' : ''}" onclick="setModelView('${v.id}')">${v.label}</button>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="filterModels('all')">All</button>
+          <button class="btn" onclick="filterModels('up')">UP</button>
+          <button class="btn" onclick="filterModels('down')">Down</button>
+        </div>
+      </div>
+
+      ${viewContent}
+    </div>
+  `;
+}
+
+function setModelView(mode) {
+  modelViewMode = mode;
+  renderPage("models");
+}
+
+function renderModelCards() {
+  const gridClass = compactMode ? "card-grid compact" : "card-grid";
+  return `<div class="${gridClass}">
+    ${models.map(m => `
+      <div class="model-card">
+        <div class="model-card-header">
+          <div>
+            <div class="model-card-name">${m.name}</div>
+            <div class="model-card-provider">${m.provider}</div>
+          </div>
+          <div class="model-card-status ${m.status}">${m.status}</div>
+        </div>
+        <div class="model-card-metrics">
+          <div class="model-metric">
+            <div class="model-metric-value">${m.intell.toFixed(2)}</div>
+            <div class="model-metric-label">Intelligence</div>
+          </div>
+          <div class="model-metric">
+            <div class="model-metric-value">${m.latency > 0 ? m.latency : '—'}</div>
+            <div class="model-metric-label">Latency</div>
+          </div>
+          <div class="model-metric">
+            <div class="model-metric-value">${m.uptime}%</div>
+            <div class="model-metric-label">Uptime</div>
+          </div>
+        </div>
+        ${showSparklines ? `<div class="model-card-mini-chart">${Array.from({length: 20}, () => `<div class="bar" style="height:${Math.random() * 80 + 10}%"></div>`).join('')}</div>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderModelTable() {
+  return `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Provider</th>
+          <th>Intelligence</th>
+          <th>Status</th>
+          <th>Latency</th>
+          <th>Context</th>
+          <th>Uptime</th>
+          <th>Arena Votes</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${models.map(m => `
+          <tr>
+            <td><strong>${m.name}</strong></td>
+            <td>${m.provider}</td>
+            <td><span style="color:var(--accent-primary);font-weight:600;">${m.intell.toFixed(2)}</span></td>
+            <td><span class="status-pill ${m.status}"><span class="status-dot-inline"></span>${m.status}</span></td>
+            <td>${m.latency > 0 ? m.latency + 'ms' : '—'}</td>
+            <td>${m.context}</td>
+            <td>${m.uptime}%</td>
+            <td>${m.votes > 0 ? m.votes.toLocaleString() : '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderModelHeatmap() {
+  const maxIntell = Math.max(...models.map(m => m.intell));
+  const minIntell = Math.min(...models.map(m => m.intell));
+  const range = maxIntell - minIntell;
+
+  return `
+    <div class="heatmap-legend">
+      <span>Low</span>
+      <div class="heatmap-legend-bar">
+        <div class="segment" style="background:var(--heatmap-low)"></div>
+        <div class="segment" style="background:var(--heatmap-mid);opacity:0.5"></div>
+        <div class="segment" style="background:var(--heatmap-mid)"></div>
+        <div class="segment" style="background:var(--heatmap-high);opacity:0.7"></div>
+        <div class="segment" style="background:var(--heatmap-high)"></div>
+      </div>
+      <span>High</span>
+    </div>
+    <div class="heatmap-grid">
+      ${models.map(m => {
+        const intensity = ((m.intell - minIntell) / range);
+        const r = parseInt(getComputedStyle(document.body).getPropertyValue('--heatmap-high').match(/\d+/g)?.[0] || 0);
+        const g = parseInt(getComputedStyle(document.body).getPropertyValue('--heatmap-high').match(/\d+/g)?.[1] || 229);
+        const b = parseInt(getComputedStyle(document.body).getPropertyValue('--heatmap-high').match(/\d+/g)?.[2] || 255);
+        // Simple interpolation
+        const bg = intensity > 0.7 ? 'var(--heatmap-high)' : intensity > 0.4 ? 'var(--heatmap-mid)' : 'var(--heatmap-low)';
+        const textColor = intensity > 0.5 ? 'var(--text-primary)' : 'var(--text-secondary)';
+        return `
+          <div class="heatmap-cell" style="background:${bg};color:${textColor};" title="${m.name}: ${m.intell} intell, ${m.provider}">
+            <div class="cell-name">${m.name}</div>
+            <div class="cell-value">${m.intell.toFixed(2)}</div>
+            <div class="cell-status">${m.status}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderModelCompact() {
+  return `
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${models.map(m => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg-raised);border:1px solid var(--border-soft);border-radius:var(--radius-sm);transition:all var(--transition-fast);" onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='var(--border-soft)'">
+          <div style="width:8px;height:8px;border-radius:50%;background:${m.status === 'up' ? 'var(--accent-success)' : 'var(--accent-danger)'};box-shadow:0 0 6px ${m.status === 'up' ? 'var(--accent-success)' : 'var(--accent-danger)'};flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${m.provider}</div>
+          </div>
+          <div style="font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--accent-primary);width:50px;text-align:right;">${m.intell.toFixed(2)}</div>
+          <div style="font-size:11px;color:var(--text-muted);width:60px;text-align:right;">${m.latency > 0 ? m.latency + 'ms' : '—'}</div>
+          <div class="progress-bar" style="width:100px;flex-shrink:0;margin:0;">
+            <div class="progress-fill" style="width:${m.uptime}%"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function filterModels(filter) {
+  // Would filter the models array in real implementation
+  alert("Filter: " + filter + " — In real implementation, this would filter the model list.");
+}
+
+// ============================================================
+// PROVIDERS PAGE
+// ============================================================
+function renderProviders() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">🏢 Providers</div>
+      <div class="page-subtitle">8 providers configured · 17 total</div>
+
+      <div class="card-grid">
+        ${providers.map(p => `
+          <div class="card">
+            <div class="card-title" style="display:flex;justify-content:space-between;">
+              <span>${p.name}</span>
+              <span class="badge ${p.health > 80 ? 'badge-success' : p.health > 50 ? 'badge-warning' : 'badge-danger'}">${p.health}%</span>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:var(--text-muted);">UP</span>
+                <span style="font-weight:600;color:var(--accent-success);">${p.up}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:var(--text-muted);">Down</span>
+                <span style="font-weight:600;color:var(--accent-danger);">${p.down}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:var(--text-muted);">Quota</span>
+                <span style="font-weight:500;">${p.quota}</span>
+              </div>
+              <div class="progress-bar" style="margin-top:12px;">
+                <div class="progress-fill" style="width:${p.health}%;background:${p.color};"></div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">📊 Provider Health Overview</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:24px;padding:20px;">
+          ${providers.map(p => `
+            <div style="text-align:center;">
+              <svg width="120" height="120" viewBox="0 0 120 120" class="gauge-svg">
+                <circle class="gauge-bg" cx="60" cy="60" r="50" stroke-width="8" />
+                <circle class="gauge-fill" cx="60" cy="60" r="50" stroke-width="8" stroke-dasharray="314" stroke-dashoffset="${314 - (314 * p.health / 100)}" stroke="${p.color}" />
+                <text x="60" y="55" text-anchor="middle" class="gauge-text" fill="var(--text-primary)">${p.health}%</text>
+                <text x="60" y="72" text-anchor="middle" class="gauge-label" fill="var(--text-muted)">${p.name}</text>
+              </svg>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// WIKI PAGES
+// ============================================================
+function renderWikiIndex() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">📋 NEXUS Archivist Wiki</div>
+      <div class="page-subtitle">Karpathy-style 3-layer wiki system · 15 pages · 59,790 sources</div>
+
+      <div class="badge-row" style="margin-bottom:24px;">
+        <span class="badge badge-primary">99 Models UP</span>
+        <span class="badge badge-success">Arena Calibrated</span>
+        <span class="badge badge-blue">Vault Encrypted</span>
+        <span class="badge badge-success">Smart Ping Active</span>
+      </div>
+
+      <div class="card-grid">
+        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-security')">
+          <div class="card-title">🔒 Security</div>
+          <div class="card-body">Vault encryption, threat intelligence, MITRE ATT&CK mapping, CVE tracking.</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-agents')">
+          <div class="card-title">🤖 Agents</div>
+          <div class="card-body">Cross-platform agent sync, TrustEngine v2.2, boot protocol.</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-benchmark')">
+          <div class="card-title">📊 Benchmarking</div>
+          <div class="card-body">Arena-calibrated intelligence scores, calibration formula, auto-refresh.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🚀 Boot Sync</div>
+          <div class="card-body">60-second agent onboarding. Read boot.md → schema.md → index.md.</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:32px 0 16px;color:var(--text-primary);">Architecture</h2>
+      <div class="chart-container">
+        <pre style="background:transparent;border:none;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.8;">
+┌─────────────────┐
+│   SCHEMA LAYER    │  ← Agent behavior, rules, conventions
+│   (boot.md)       │
+├─────────────────┤
+│   WIKI LAYER      │  ← LLM-generated markdown, cross-references
+│  (15 pages)       │
+├─────────────────┤
+│   RAW LAYER       │  ← Immutable file pointers
+│  (59,790 sources) │
+└─────────────────┘
+        </pre>
+      </div>
+    </div>
+  `;
+}
+
+function renderWikiSecurity() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">🔒 Security & Encryption</div>
+      <div class="page-subtitle">Vault status, threat intelligence, and cryptographic architecture</div>
+
+      <div class="badge-row" style="margin-bottom:24px;">
+        <span class="badge badge-success">AES-256-GCM</span>
+        <span class="badge badge-primary">HKDF-SHA256</span>
+        <span class="badge badge-blue">3 Files</span>
+        <span class="badge badge-success">FIPS 140-3</span>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Vault Status</h2>
+      <table class="data-table">
+        <thead><tr><th>File</th><th>Status</th><th>Algorithm</th><th>Size</th></tr></thead>
+        <tbody>
+          <tr><td>env.txt</td><td><span class="status-pill up">🔒 Encrypted</span></td><td>AES-256-GCM</td><td>1.8 KB</td></tr>
+          <tr><td>sshkey.pem</td><td><span class="status-pill up">🔒 Encrypted</span></td><td>AES-256-GCM</td><td>1.7 KB</td></tr>
+          <tr><td>zilliz credentials</td><td><span class="status-pill up">🔒 Encrypted</span></td><td>AES-256-GCM</td><td>51 B</td></tr>
+        </tbody>
+      </table>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Key Derivation</h2>
+      <div class="card">
+        <div class="card-body">
+          <p><strong>Algorithm:</strong> HKDF-SHA256</p>
+          <p><strong>Key:</strong> 32-byte hex from NEXUS_VAULT_KEY environment variable</p>
+          <p><strong>Nonce:</strong> 12-byte random per file (unique)</p>
+          <p><strong>Salt:</strong> 16-byte random per file (unique)</p>
+          <p><strong>Associated Data:</strong> Filename (binding ciphertext to file)</p>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Threat Intelligence</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">🦠 Pegasus</div>
+          <div class="card-body">Most dangerous active spyware. Zero-click iMessage exploits. iOS 14.8 patched CVE-2021-30860.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">💣 Stuxnet</div>
+          <div class="card-body">First cyber weapon causing physical damage. Iranian centrifuges. Air-gap isolation lesson.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🤖 Mirai</div>
+          <div class="card-body">IoT botnet. Default credential brute force. Network segmentation required.</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">CVE Tracking</h2>
+      <table class="data-table">
+        <thead><tr><th>CVE</th><th>Description</th><th>CVSS</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>CVE-2026-31431</td><td>Copy Fail (Linux kernel LPE)</td><td>9.8</td><td><span class="badge badge-danger">Monitor</span></td></tr>
+          <tr><td>CVE-2024-33699</td><td>LevelOne WBR auth bypass</td><td>9.9</td><td><span class="badge badge-success">Patched</span></td></tr>
+          <tr><td>CVE-2021-30860</td><td>FORCEDENTRY (Pegasus)</td><td>9.8</td><td><span class="badge badge-success">Patched</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderWikiAgents() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">🤖 Cross-Platform Agent Sync</div>
+      <div class="page-subtitle">Agent types, sync protocol, and TrustEngine v2.2</div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Agent Types</h2>
+      <table class="data-table">
+        <thead><tr><th>Agent</th><th>Platform</th><th>Role</th><th>Trust Score</th></tr></thead>
+        <tbody>
+          <tr><td><strong>SPECI</strong></td><td>Local</td><td>Owner/Operator</td><td><span style="color:var(--accent-primary);font-weight:700;">99.5</span></td></tr>
+          <tr><td><strong>Nexus-Governor</strong></td><td>Local</td><td>Governance</td><td><span style="color:var(--accent-primary);font-weight:700;">95.0</span></td></tr>
+          <tr><td><strong>Codex</strong></td><td>Cloud</td><td>Development</td><td><span style="color:var(--accent-success);font-weight:700;">85.0</span></td></tr>
+          <tr><td><strong>DoppelGround</strong></td><td>Local</td><td>Evidence Prep</td><td><span style="color:var(--accent-warning);font-weight:700;">80.0</span></td></tr>
+        </tbody>
+      </table>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">TrustEngine v2.2</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">📊 Baseline</div>
+          <div class="metric-value" style="font-size:24px;margin:8px 0;">25.0</div>
+          <div class="card-body">Starting trust for new agents</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 Max Score</div>
+          <div class="metric-value" style="font-size:24px;margin:8px 0;">99.5</div>
+          <div class="card-body">Asymptotic plateau (never 100)</div>
+        </div>
+        <div class="card">
+          <div class="card-title">✅ Success</div>
+          <div class="metric-value" style="font-size:24px;margin:8px 0;color:var(--accent-success);">+4.0</div>
+          <div class="card-body">× logistic(T) anti-gaming</div>
+        </div>
+        <div class="card">
+          <div class="card-title">❌ Failure</div>
+          <div class="metric-value" style="font-size:24px;margin:8px 0;color:var(--accent-danger);">-10.0</div>
+          <div class="card-body">Standard failure penalty</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Sync Protocol</h2>
+      <div class="chart-container">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-primary);display:flex;align-items:center;justify-content:center;color:var(--bg-void);font-weight:700;">1</div>
+            <div><strong>Boot</strong> (30 sec) — Read boot.md</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-primary);display:flex;align-items:center;justify-content:center;color:var(--bg-void);font-weight:700;">2</div>
+            <div><strong>Schema</strong> (15 sec) — Read schema.md</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-primary);display:flex;align-items:center;justify-content:center;color:var(--bg-void);font-weight:700;">3</div>
+            <div><strong>Index</strong> (15 sec) — Read index.md</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderWikiBenchmark() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">📊 Intelligence Benchmarking</div>
+      <div class="page-subtitle">Arena-calibrated methodology and scale</div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Score Scale</h2>
+      <div style="display:flex;gap:8px;margin-bottom:24px;">
+        <div style="flex:1;padding:16px;background:var(--bg-raised);border:1px solid var(--border-soft);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--accent-primary);">0.85+</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Frontier</div>
+          <div style="font-size:11px;color:var(--text-dim);">Top 5%</div>
+        </div>
+        <div style="flex:1;padding:16px;background:var(--bg-raised);border:1px solid var(--border-soft);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--accent-success);">0.70-0.85</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Strong</div>
+          <div style="font-size:11px;color:var(--text-dim);">Capable</div>
+        </div>
+        <div style="flex:1;padding:16px;background:var(--bg-raised);border:1px solid var(--border-soft);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--accent-warning);">0.55-0.70</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Capable</div>
+          <div style="font-size:11px;color:var(--text-dim);">Basic tasks</div>
+        </div>
+        <div style="flex:1;padding:16px;background:var(--bg-raised);border:1px solid var(--border-soft);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--text-muted);">&lt;0.55</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Basic</div>
+          <div style="font-size:11px;color:var(--text-dim);">Simple queries</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Data Sources</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">🏆 Arena WebDev</div>
+          <div class="metric-value" style="font-size:20px;margin:8px 0;">352,929</div>
+          <div class="card-body">HTML/CSS/JS coding tasks. Multi-step reasoning. Human preference ranking.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">💬 Arena Text</div>
+          <div class="metric-value" style="font-size:20px;margin:8px 0;">6,703,075</div>
+          <div class="card-body">General text-to-text. Math, coding, creative writing. Open-ended domains.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🤖 Arena Agent</div>
+          <div class="metric-value" style="font-size:20px;margin:8px 0;">457,807</div>
+          <div class="card-body">Tool orchestration. Task completion rates. Bash recovery, steerability.</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:20px;font-weight:600;margin:24px 0 16px;color:var(--text-primary);">Calibration Formula</h2>
+      <div class="chart-container">
+        <pre style="background:transparent;border:none;padding:0;color:var(--text-secondary);font-size:14px;line-height:1.8;font-family:var(--font-mono);">
+score = (arena_score - 1092) / (1567 - 1092) * 0.32 + 0.60
+
+Where:
+  1092 = lowest Arena score (Devstral Medium)
+  1567 = highest Arena score (Claude Opus 4.7 Thinking)
+  0.60 = baseline for basic models
+  0.32 = range to reach 0.92 frontier
+        </pre>
+      </div>
+    </div>
+  `;
+}
+
+function renderLogs() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">📝 System Logs</div>
+      <div class="page-subtitle">Recent events and session history</div>
+      <div class="timeline">
+        ${timelineEvents.map(e => `
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color: var(--accent-${e.type === 'success' ? 'success' : e.type === 'warning' ? 'warning' : 'primary'})"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">${e.time}</div>
+              <div class="timeline-title">${e.title}</div>
+              <div class="timeline-desc">${e.desc}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderSettingsPage() {
+  return `
+    <div class="animate-in">
+      <div class="page-title">⚙️ Settings</div>
+      <div class="page-subtitle">Dashboard configuration and preferences</div>
+
+      <div class="settings-section" style="margin:0;">
+        <div class="settings-section-title">🎨 Theme</div>
+        <div class="theme-grid" id="settingsThemeGrid">
+          ${themes.map(t => `
+            <div class="theme-option ${t.id === currentTheme ? 'active' : ''}" onclick="setTheme('${t.id}')" style="cursor:pointer;">
+              <div class="theme-option-preview" style="background: linear-gradient(135deg, ${t.primary}, ${t.secondary});"></div>
+              <div class="theme-option-name">${t.name}</div>
+              <div class="theme-option-desc">${t.desc}</div>
+              <div class="theme-option-check">✓</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// SETTINGS PANEL
+// ============================================================
+function toggleSettings() {
+  document.getElementById("settingsPanel").classList.toggle("active");
+  document.getElementById("overlay").classList.toggle("active");
+  if (document.getElementById("settingsPanel").classList.contains("active")) {
+    renderThemeGrid();
+  }
+}
+
+function toggleCompactMode() {
+  compactMode = document.getElementById("compactMode").checked;
+  if (activePage === "models") renderPage("models");
+}
+
+function toggleSparklines() {
+  showSparklines = document.getElementById("showSparklines").checked;
+  if (activePage === "models" || activePage === "monitoring") renderPage(activePage);
+}
+
+function toggleAnimatedBg() {
+  // Would toggle background animation in real implementation
+}
+
+// ============================================================
+// COMMAND PALETTE
+// ============================================================
+const allCommands = [
+  { id: "monitoring", title: "Open Monitoring", desc: "System overview and metrics", icon: "📈", shortcut: "Ctrl+1" },
+  { id: "models", title: "Open Models", desc: "Model arena with visualizations", icon: "🤖", shortcut: "Ctrl+2" },
+  { id: "providers", title: "Open Providers", desc: "Provider health and status", icon: "🏢", shortcut: "Ctrl+3" },
+  { id: "wiki-index", title: "Open Wiki Index", desc: "Archivist wiki home", icon: "📋", shortcut: "Ctrl+4" },
+  { id: "wiki-security", title: "Open Security Wiki", desc: "Vault and threat intel", icon: "🔒", shortcut: "Ctrl+5" },
+  { id: "settings", title: "Open Settings", desc: "Theme and display preferences", icon: "⚙️", shortcut: "Ctrl+," },
+  { id: "refresh", title: "Refresh Data", desc: "Sync all dashboards from source", icon: "🔄", shortcut: "Ctrl+R" },
+  { id: "theme", title: "Switch Theme", desc: "Change color scheme", icon: "🎨", shortcut: "Ctrl+T" },
+  { id: "compact", title: "Toggle Compact Mode", desc: "Smaller cards and spacing", icon: "⚡", shortcut: "Ctrl+Shift+C" },
+];
+
+function openCommandPalette() {
+  document.getElementById("commandPalette").classList.add("active");
+  document.getElementById("commandInput").value = "";
+  document.getElementById("commandInput").focus();
+  selectedCommand = 0;
+  renderCommands(allCommands);
+}
+
+function closeCommandPalette(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById("commandPalette").classList.remove("active");
+}
+
+function renderCommands(cmds) {
+  const results = document.getElementById("commandResults");
+  results.innerHTML = cmds.map((cmd, idx) => `
+    <div class="command-item ${idx === selectedCommand ? 'selected' : ''}" onclick="executeCommand('${cmd.id}')">
+      <div class="cmd-icon">${cmd.icon}</div>
+      <div class="cmd-info">
+        <div class="cmd-title">${cmd.title}</div>
+        <div class="cmd-desc">${cmd.desc}</div>
+      </div>
+      <span class="cmd-shortcut">${cmd.shortcut}</span>
+    </div>
+  `).join("");
+}
+
+function filterCommands() {
+  const query = document.getElementById("commandInput").value.toLowerCase();
+  const filtered = allCommands.filter(c => 
+    c.title.toLowerCase().includes(query) || c.desc.toLowerCase().includes(query)
+  );
+  selectedCommand = 0;
+  renderCommands(filtered);
+}
+
+function handleCommandKey(e) {
+  const items = document.querySelectorAll('.command-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedCommand = Math.min(selectedCommand + 1, items.length - 1);
+    renderCommands(allCommands); // Simplified - would re-filter in real implementation
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedCommand = Math.max(selectedCommand - 1, 0);
+    renderCommands(allCommands);
+  } else if (e.key === 'Enter') {
+    const selected = document.querySelector('.command-item.selected');
+    if (selected) selected.click();
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
+}
+
+function executeCommand(cmdId) {
+  if (cmdId === "refresh") {
+    refreshAll();
+  } else if (cmdId === "theme") {
+    toggleSettings();
+  } else if (cmdId === "compact") {
+    document.getElementById("compactMode").checked = !document.getElementById("compactMode").checked;
+    toggleCompactMode();
+  } else if (cmdId === "settings") {
+    toggleSettings();
+  } else {
+    openPage(cmdId);
+  }
+  closeCommandPalette();
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function refreshAll() {
+  // In real implementation, this would fetch fresh data from APIs
+  const btn = document.querySelector('.btn.primary');
+  if (btn) {
+    btn.innerHTML = '⏳ Syncing...';
+    setTimeout(() => {
+      btn.innerHTML = '🔄 Sync';
+      renderPage(activePage);
+    }, 1000);
+  }
+}
+
+function initCharts() {
+  // SVG charts are already rendered inline
+  // This would initialize D3.js or Chart.js in real implementation
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toLocaleTimeString('en-US', { hour12: false });
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "k") {
+    e.preventDefault();
+    openCommandPalette();
+  }
+  if (e.key === "Escape") {
+    closeCommandPalette();
+    if (document.getElementById("settingsPanel").classList.contains("active")) {
+      toggleSettings();
+    }
+  }
+  // Tab shortcuts
+  if (e.ctrlKey && e.key >= '1' && e.key <= '5') {
+    e.preventDefault();
+    const pages = ['monitoring', 'models', 'providers', 'wiki-index', 'wiki-security'];
+    openPage(pages[parseInt(e.key) - 1]);
+  }
+  if (e.ctrlKey && e.key === 't') {
+    e.preventDefault();
+    toggleSettings();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderSidebar();
+renderTabs();
+renderThemeGrid();
+renderPage("monitoring");
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>

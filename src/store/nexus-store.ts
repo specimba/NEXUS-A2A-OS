@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NexusTab = 'overview' | 'stresslab' | 'gmr' | 'governor' | 'vault' | 'research' | 'swarm' | 'tokens' | 'ratelimit' | 'kpi' | 'dashboards' | 'mcp' | 'config'
+export type NexusTab = 'overview' | 'stresslab' | 'gmr' | 'governor' | 'vault' | 'research' | 'swarm' | 'nexusclaw' | 'swarm-intervention' | 'tokens' | 'ratelimit' | 'kpi' | 'dashboards' | 'mcp' | 'config'
 
 export interface ChatMessage {
   role: string
@@ -68,7 +68,7 @@ const initialNotifications: Notification[] = [
   { id: 'n7', type: 'info', title: 'Agent worker-3 trust score increased', message: 'Trust updated: 0.78 → 0.82. Reason: successful stress test completion.', time: '25m ago', read: true, source: 'Governor' },
   { id: 'n8', type: 'success', title: 'Constitution check passed', message: 'All limits within bounds: 3/5 agents, 12/20 API calls, 8/30 writes.', time: '30m ago', read: true, source: 'Vault' },
   { id: 'n9', type: 'warning', title: 'GMR failover: dolphin-mistral → trinity-large', message: 'Health dropped below 70% threshold. Failover completed in 1.2s.', time: '35m ago', read: true, source: 'GMR' },
-  { id: 'n10', type: 'info', title: 'Swarm coordinator heartbeat healthy', message: 'All 3 active workers reporting nominal status. Uptime: 4h 23m.', time: '45m ago', read: true, source: 'Swarm' },
+  { id: 'n10', type: 'success', title: 'NEXUSCLAW tests: 190 passing', message: 'Integration/E2E/Stress/Governance/Swarm suites all green. VAP chains verified.', time: '45m ago', read: false, source: 'NEXUSCLAW' },
 ]
 
 let notificationCounter = 100

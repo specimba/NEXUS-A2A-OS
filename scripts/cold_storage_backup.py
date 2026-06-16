@@ -7,13 +7,15 @@ These files must NEVER be committed to GitHub or any public repository.
 
 Usage:
     python scripts/cold_storage_backup.py [--dry-run] [--verify]
+    python scripts/cold_storage_backup.py --full [--verify]
 
 Policy:
     - Source: C:\Users\speci.000\Documents\NEXUS
     - Destination: D:\NEXUS_COLD\level{auto}_{YYYYMMDD}\NEXUS
     - Files backed up: datasets/, models/, research/, benchmarks/, logs/, upload/, vault/
     - Backups are FULL (not incremental) for forensic integrity
-    - Pruning: keeps last 3 backups by default
+    - Full backups require explicit --full and enough free D: space
+    - Pruning: keeps last 3 backups by default after every full backup
 
 Rationale:
     NEXUS contains proprietary model weights, adversarial datasets,
@@ -32,7 +34,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 # ── Configuration ────────────────────────────────────────────────────
 
@@ -59,6 +61,11 @@ MANIFEST_SIZE_LIMIT = 10 * 1024 * 1024  # 10 MB
 
 # Pruning: keep last N backups
 KEEP_BACKUPS = 3
+
+# Full-copy backups are intentionally heavy. Refuse new copies when cold
+# storage is already too constrained for model work.
+MIN_FREE_GIB = 120
+MIN_FREE_BYTES = MIN_FREE_GIB * 1024**3
 
 # Logging
 logging.basicConfig(
@@ -161,6 +168,31 @@ def hash_file(path: Path, algorithm: str = "blake3") -> str:
         return f"<hash_error: {e}>"
 
 
+def get_free_bytes(path: Path) -> int:
+    """Return free bytes for the filesystem containing path."""
+    probe = path
+    while not probe.exists() and probe.parent != probe:
+        probe = probe.parent
+    return shutil.disk_usage(probe).free
+
+
+def require_min_free_space(path: Path = COLD_ROOT, min_free_bytes: int = MIN_FREE_BYTES) -> bool:
+    """Gate full backups when cold storage free space is below policy."""
+    free_bytes = get_free_bytes(path)
+    free_gib = free_bytes / (1024**3)
+    min_gib = min_free_bytes / (1024**3)
+    if free_bytes < min_free_bytes:
+        logger.error(
+            "Cold storage free space %.2f GiB is below the %.2f GiB threshold; refusing full backup.",
+            free_gib,
+            min_gib,
+        )
+        return False
+
+    logger.info("Cold storage free space %.2f GiB meets %.2f GiB threshold", free_gib, min_gib)
+    return True
+
+
 def get_next_level() -> int:
     """Determine next backup level number by scanning existing directories."""
     if not COLD_ROOT.exists():
@@ -201,8 +233,11 @@ def copy_with_progress(src: Path, dst: Path, manifest: BackupManifest, rel_path:
         return False
 
 
-def backup_directory(src_dir: Path, dst_dir: Path, manifest: BackupManifest, root: Path = SOURCE_ROOT) -> None:
+def backup_directory(src_dir: Path, dst_dir: Path, manifest: BackupManifest, root: Optional[Path] = None) -> None:
     """Recursively backup a directory."""
+    if root is None:
+        root = SOURCE_ROOT
+
     if not src_dir.exists():
         logger.warning("Source directory does not exist: %s", src_dir)
         return
@@ -276,7 +311,7 @@ def print_summary(manifest: BackupManifest) -> None:
     print(f"Timestamp:       {manifest.timestamp}")
     print(f"Total files:     {manifest.total_files:,}")
     print(f"Total size:      {manifest.total_bytes / (1024**3):.2f} GB")
-    print(f"Large files:     {manifest.large_files:,} ({manifest.large_gb:.2f} GB)")
+    print(f"Large files:     {manifest.large_files:,} ({manifest.large_bytes / (1024**3):.2f} GB)")
     print(f"Errors:          {len(manifest.errors)}")
     print()
 
@@ -302,12 +337,20 @@ def print_summary(manifest: BackupManifest) -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="NEXUS Cold Storage Backup")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be backed up without copying")
+    parser.add_argument("--full", action="store_true", help="Perform the full cold-storage copy")
     parser.add_argument("--verify", action="store_true", help="Verify backup integrity after completion")
-    parser.add_argument("--prune", action="store_true", help="Prune old backups after completion")
-    args = parser.parse_args()
+    parser.add_argument("--prune", action="store_true", help="Compatibility flag; pruning runs automatically after --full")
+    args = parser.parse_args(argv)
+
+    if args.full and args.dry_run:
+        parser.error("--full and --dry-run cannot be used together")
+
+    dry_run = args.dry_run or not args.full
+    if not args.full and not args.dry_run:
+        logger.info("Defaulting to manifest-first dry run. Pass --full to copy files.")
 
     # Check source exists
     if not SOURCE_ROOT.exists():
@@ -316,14 +359,17 @@ def main() -> int:
 
     # Check destination exists
     if not COLD_ROOT.exists():
-        if args.dry_run:
+        if dry_run:
             logger.info("Would create: %s", COLD_ROOT)
         else:
             COLD_ROOT.mkdir(parents=True, exist_ok=True)
             logger.info("Created cold storage root: %s", COLD_ROOT)
 
+    if args.full and not require_min_free_space(COLD_ROOT):
+        return 2
+
     # Create backup directory
-    if args.dry_run:
+    if dry_run:
         backup_path = COLD_ROOT / f"level{get_next_level()}_backup_{datetime.now().strftime('%Y%m%d')}" / "NEXUS"
         logger.info("[DRY-RUN] Would create backup: %s", backup_path)
     else:
@@ -343,7 +389,7 @@ def main() -> int:
         dst_dir = backup_path / dir_name
         logger.info("Backing up: %s", dir_name)
 
-        if args.dry_run:
+        if dry_run:
             # Count files and sizes without copying
             file_count = 0
             total_size = 0
@@ -357,29 +403,30 @@ def main() -> int:
             logger.info("  %s: %d files, %.2f GB", dir_name, manifest.total_files, manifest.total_bytes / (1024**3))
 
     # Save manifest
-    if not args.dry_run:
+    if not dry_run:
         manifest_path = manifest.save()
         logger.info("Manifest saved: %s", manifest_path)
 
     # Verify
-    if args.verify and not args.dry_run:
+    if args.verify and not dry_run:
         if verify_backup(manifest):
             logger.info("Backup verification PASSED")
         else:
             logger.error("Backup verification FAILED")
             return 1
 
-    # Prune
-    if args.prune and not args.dry_run:
+    # Prune automatically after full backup. The --prune flag remains accepted
+    # for older operators, but retention is no longer opt-in.
+    if not dry_run:
         prune_old_backups()
 
     # Print summary
-    if not args.dry_run:
+    if not dry_run:
         print_summary(manifest)
     else:
         print()
         print("[DRY-RUN] No files were copied.")
-        print("Run without --dry-run to perform the backup.")
+        print("Pass --full to perform the backup.")
         print()
 
     return 0

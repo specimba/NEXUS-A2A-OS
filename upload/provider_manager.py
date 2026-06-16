@@ -16,6 +16,9 @@ class ProviderState(Enum):
     DOWN = "down"
     COOLDOWN = "cooldown"  # Circuit breaker open
 
+ProviderStatus = ProviderState
+
+
 @dataclass
 class ProviderHealth:
     """Real-time health status for a provider."""

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -214,9 +215,13 @@ class GovernedMCPServer:
         self.config = config or MCPConfig.from_env()
         self.trust_adapter = trust_adapter or TrustKernelMCPAdapter(mode=self.config.trustkernel_mode)
         self.audit_events: list[AuditEvent] = []
+        self.claim_pipeline = self._create_claim_pipeline()
         self.tools = self._default_tools()
         self.handlers: Dict[str, Callable[..., Dict[str, Any]]] = {
             "governance.get_status": self._governance_status,
+            "governance.request_cycle_token": self._request_cycle_token,
+            "governance.submit_claim": self._submit_claim,
+            "governance.verify_claim": self._verify_claim,
             "system.health": self._system_health,
             "drift_monitor.run_sweep": self._drift_sweep,
             "memory.create_checkpoint": self._create_checkpoint,
@@ -310,6 +315,41 @@ class GovernedMCPServer:
                 side_effects=False,
             ),
             ToolSpec(
+                "governance.request_cycle_token",
+                "Issue a short-lived transient token for one governed claim cycle.",
+                {"type": "object", "properties": {}},
+                governance_level="medium",
+                side_effects=False,
+            ),
+            ToolSpec(
+                "governance.submit_claim",
+                "Submit a claim with evidence through the NEXUS claim gate.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "claim_id": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "description": {"type": "string"},
+                        "evidence_items": {"type": "array"},
+                        "cycle_token": {"type": "string"},
+                    },
+                    "required": ["claim_id", "agent_id", "description"],
+                },
+                governance_level="medium",
+                side_effects=False,
+            ),
+            ToolSpec(
+                "governance.verify_claim",
+                "Verify a submitted NEXUS claim against its evidence.",
+                {
+                    "type": "object",
+                    "properties": {"claim_id": {"type": "string"}},
+                    "required": ["claim_id"],
+                },
+                governance_level="medium",
+                side_effects=False,
+            ),
+            ToolSpec(
                 "system.health",
                 "Return MCP bridge health.",
                 {"type": "object", "properties": {}},
@@ -389,9 +429,51 @@ class GovernedMCPServer:
             "trustkernel_mode": self.config.trustkernel_mode,
             "allow_side_effects": self.config.allow_side_effects,
             "registered_tools": len(self.tools),
+            "claim_gate": {
+                "enabled": True,
+                "cycle_token_required": True,
+                "claims": len(self.claim_pipeline.list_claims()),
+            },
             "audit_events": len(self.audit_events),
             "posture": "governance_before_execution",
         }
+
+    @staticmethod
+    def _create_claim_pipeline() -> Any:
+        from nexus_os.governor.claim_verification import ClaimVerificationPipeline
+
+        return ClaimVerificationPipeline(require_cycle_token=True)
+
+    def _request_cycle_token(self) -> Dict[str, Any]:
+        token = f"CYCLE-{uuid.uuid4().hex[:16]}"
+        ttl_seconds = 300
+        self.claim_pipeline.active_cycle_tokens[token] = time.time() + ttl_seconds
+        return {
+            "status": "granted",
+            "cycle_token": token,
+            "expires_in_seconds": ttl_seconds,
+        }
+
+    def _submit_claim(
+        self,
+        claim_id: str,
+        agent_id: str,
+        description: str,
+        evidence_items: Optional[list[Dict[str, Any]]] = None,
+        cycle_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        claim = self.claim_pipeline.submit_claim(
+            claim_id=claim_id,
+            agent_id=agent_id,
+            description=description,
+            evidence_items=evidence_items or [],
+            cycle_token=cycle_token,
+        )
+        return claim.to_dict()
+
+    def _verify_claim(self, claim_id: str) -> Dict[str, Any]:
+        claim = self.claim_pipeline.verify_claim(claim_id)
+        return claim.to_dict()
 
     def _system_health(self) -> Dict[str, Any]:
         return {

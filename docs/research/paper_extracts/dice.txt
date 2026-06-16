@@ -1,0 +1,734 @@
+--- Page 1 ---
+DICE: Detecting In-distribution Contamination
+in LLM’s Fine-tuning Phase for Math Reasoning
+ShangqingTu1∗, KejianZhu2∗, YushiBai1, ZijunYao1, LeiHou1, JuanziLi1†
+1TsinghuaUniversity 2BeihangUniversity
+{tsq22,bys22}@mails.tsinghua.edu.cn,{houlei, lijuanzi}@tsinghua.edu.cn
+Abstract
+The advancement of large language models (LLMs) relies on evaluation using
+publicbenchmarks,butdatacontaminationcanleadtooverestimatedperformance.
+Previous researches focus on detecting contamination by determining whether
+themodelhasseentheexactsamedataduringtraining. Besides,priorwork[1]
+hasalreadyshownthateventrainingondatasimilartobenchmarkdatainflates
+performance,namelyIn-distributioncontamination. Inthiswork,wearguethat
+in-distributioncontaminationcanleadtotheperformancedroponOODbench-
+marks. Toeffectivelydetectin-distributioncontamination,weproposeDICE,a
+novelmethodthatleveragestheinternalstatesofLLMstolocate-then-detectthe
+contamination. DICEfirstidentifiesthemostsensitivelayertocontamination,then
+trains a classifier based on the internal states of that layer. Experiments reveal
+DICE’shighaccuracyindetectingin-distributioncontaminationacrossvarious
+LLMsandmathreasoningdatasets. Wealsoshowthegeneralizationcapability
+ofthetrainedDICEdetector,whichisabletodetectcontaminationacrossmul-
+tiple benchmarks with similar distributions. Additionally, we find that DICE’s
+predictionscorrelatewiththeperformanceofLLMsfine-tunedbyeitherusorother
+organizations,achievingacoefficientofdetermination(R2)between0.61and0.75.
+Code&Data: https://github.com/THU-KEG/DICE.
+1 Introduction
+Currentdevelopmentoflargelanguagemodels(LLMs)andtheirrelatedtechniquesheavilyrelies
+onpublicbenchmarkstoensurethatprogressismadeintherightdirection. Forinstance,thefield
+primarilyusesGSM8k[2]andMATH[3]toevaluateLLMs’mathreasoningabilities. However,
+there is growing concern that some of the impressive performance on these benchmarks may be
+attributedtodatacontamination,wherethetrainingdatacontainsoriginaldatafromthebenchmark
+andismemorizedbythemodel[4],whichwerefertoasExactContamination.
+Recently,EAL[1]hasalreadyshownthattrainingondatathatbearssimilaritytothebenchmark
+datacanleadtosevereperformanceoverestimation,namelyIn-distributioncontamination. Since
+pre-trainingdataismassiveandhardtodistinguishbasedontheirdistributions,wenarrowourscope
+tothesupervisedfine-tuning(SFT)phase. Weaimtoanswerthefollowingresearchquestions: (1)
+Doesin-distributioncontaminationcontributetoamodel’soverallmathreasoningability? (2)Ifnot,
+howcanwedetectittopreventoverestimatingthemodel’scapabilitiesduetocontamination?
+Toinvestigatewhetherin-distributioncontaminationcanreallyimproveLLM’smathreasoningability,
+wedesignanOODtestforasetoffine-tunedLLMssimulatingdifferentlevelsofin-distribution
+*EqualContribution.
+†Correspondingauthor.
+Preprint.Underreview.
+4202
+peS
+22
+]LC.sc[
+2v79140.6042:viXra
+
+--- Page 2 ---
+Data Examples Data Contamination Detection via Perplexity
+If James has a routine of doing three 60-
+Vanilla Not
+GSM8K meter sprints thrice a week, what is the
+total distance he covers in a week? LLM Perplexity Contaminated
+> threshold
+Test data LLM fine-tuned
+GSM8K's James runs 12 miles a day for 5 days a Contaminated
+from GSM8k on GSM8k
+In-Distribution week. If he runs 10 miles an hour how
+Data many hours does he run a week?
+LLM fine-tuned
+Avoid being
+on GSM8k's In
+detected
+Fine-tuning Phase Distribution Data
+Performance Perplexity
+Uncontaminated Vanilla on GSM8k
+SFT data LLM Threshold
+GSM8k's ID data LLM fine-tuned
+Base + on GSM8k's In
+Distribution Data
+SFT data
+Figure1: Traditionalcontaminationdetectionmethodscannothandlein-distributioncontami-
+nation. VanillaLLMreferstotheLLMfine-tunedwithuncontaminateddata.
+contaminationonGSM8Kfollowingpriorwork’sexperimentsetup[1]. Insection2.2,weshowthat
+evenifthecontaminationdatainthetrainingdataaccountsforonlyasmallportion,themodels’gain
+onin-distribution(ID)benchmarksissignificantlygreaterthanthegainonOODbenchmarks. The
+resultsuggeststhatIDdatadoesnottrulyenhancethemodel’soverallmathreasoningability,and
+theperformanceonin-distributionbenchmarksnolongerreflectthemodel’srealcapabilities. This
+motivatestheneedforin-distributioncontaminationdetection: Givenafine-tunedLLMonapieceof
+testdata,determineifthemodelhasseenitsin-distributiondataduringfine-tuning.
+As shown in Figure 1, previous methods [5, 6] detect contamination by measuring the model’s
+memorizationlevelofthetestdata,e.g.,byevaluatingtheperplexityonthetestdatatodetectwhether
+themodelhasseentheoriginaltestdata. However,unlikeexactcontamination,thein-distribution
+contaminatedtrainingdata, suchasbeingrewrittenfromthetestdata, onlybearssimilaritywith
+thetestdataatasemanticlevel. Thisresultsinthefailureofallpreviouscontaminationdetection
+methods,asillustratedinthelowerrightofFigure1.
+Todetectin-distributioncontaminationinthefine-tuningphaseofLLMs,weproposeanovellocate-
+then-detectmethodcalledDICE,whichlocatesevidenceintheinternalstatesofLLMsfordetecting
+theircontamination. AsshowninFigure2,wefirstfine-tunethebaseLLMondatasetswithdifferent
+levelsofcontaminationtogetdifferentreferencemodels. Next,welocatethecontaminationlayer,
+i.e.,themostsensitivelayertothelevelofcontamination,byidentifyingthelayerwiththemaximum
+statedistancebetweenthecontaminatedanduncontaminatedmodels. Finally,wetrainanMLPas
+theclassifiertoquantifythecontaminationlevelbasedonthecontaminationlayer’sstates.
+Extensive experiments on different LLMs and datasets show that DICE accurately detects in-
+distributioncontaminationinLLMs. Moreover,wefindthattheDICEdetectortrainedonGSM8K
+cangeneralizewelltodetectingcontaminationonotherin-distributiondatasetssuchasGSM-hardor
+paraphrasedGSM8K.WealsofindthatDICE’spredictionshighlycorrelatewiththeperformanceof
+LLMsonin-distributionandout-of-distributiontasks,eventhoughourDICEdetectoronlyuseinput
+sequences’hiddenstates. Therefore,wecanpredictLLMs’performanceviaDICEwithouttheneed
+forthedecodingprocessonbenchmark,providinganewtoolforassessingthesemodels.
+Tosummarize,wemakethefollowingcontributions:
+• Weexaminetheimpactofin-distributioncontaminationonLLMs’performanceonbothIDand
+OODtasks,revealingthatitcanleadtothemodel’sperformancedroponOODbenchmarks.
+• Weproposeanovellocate-then-detectmethodcalledDICE,whichtrainsaclassifiertoleveragethe
+internalstatesofLLMsforthedetectionofdatacontamination.
+• WeconductacomprehensiveevaluationofDICEonavarietyofLLMsanddatasets,achieving
+state-of-the-artperformanceindetectingin-distributiondatacontamination.
+2
+
+--- Page 3 ---
+Training Contamination Detector Inference Time Detection
+Fine-tuning Phase IInnffeerr oonn BBeenncchhmmaarrkk All layers' hidden states Inference Phase
+Infer on data sample
+Benchmark LLM tuned X 33
+on GSM8k LLM fine-tuned
+A data sample
+on GSM8k's In
+GSM8k Vanilla X 33 from GSM8k Distribution Data
+LLM
+Locate the key layer Train Detector Hidden state Prediction
+at key layer
+1 MLP 0.8
+MLP
+0
+Figure2: OverviewofDICE.Locate-then-DetectLLM’sin-distributiondatacontamination.
+2 Preliminaries
+2.1 DefinitionforIDandOODData.
+AsthetrainingdataofLLMsareoftenundisclosedand
+trainers may construct synthetic data that matches the
+distribution of the benchmark data, it is challenging to MATH
+60 TabMWP
+ascertain whether the benchmark data has been leaked. GSM-hard
+OurstudytakesGSM8K’stestset[2]asthebenchmark 40 GSM8K
+D andviewotherdataaseitherIDorOODtoGSM8K.
+E
+Wedefinethetwokindsofdataasfollows: 20
+Definition1(In-distributionData(-set)). Givenabench- 0
+markdatasetD ,wedefinethein-distributiondatasetD
+E ID
+asthedatasetthathasthesamedistributionwithD ,and 20
+E
+thein-distributiondataasthedatainD .
+ID
+40
+Definition2(Out-of-distributionData(-set)). Wedefine
+theout-of-distributiondatasetD OOD ofD E asthedataset 60
+thathasadifferentdistributionwithD , andtheout-of- 60 40 20 0 20 40 60 80
+E
+distributiondataasthedatainD . Figure3: Thet-SNEresultsofdatasets,
+OOD
+where MATH and TabMWP are OOD
+Specifically,weconsiderthefollowingsuiteofGSM8K’s
+andGSM-hardisIDforGSM8K.
+IDdatasets: GSM-i,GSM-ii: twosplitsofGSM8K’stest
+setwhereeachsubsetequallyhas657samples;GSM-i-
+Syn: asyntheticdatasetcreatedbyparaphrasingGSM-i
+usingGPT-4;GSM-hard[7]: thedatasetthatmodifiestheoriginalnumbersinGSM8Ktolarger
+numbers. Othermathreasoningbenchmarks,suchasTabMWP[8]andMATH[3],areconsidered
+as OOD datasets. For justification, we visualize the sentence embeddings by all-MiniLM-L6-v2
+model[9]ofthedataintheaforementioneddatasetsinFigure3. Weobservethattheembeddingsof
+TabMWPandMATH’sdataareclearlyoutofthedistributionofGSM8KandGSM-hard.
+WiththeaboveIDandOODdatasets,wedefinethetwokindsofcontaminationdetectionasfollows:
+Definition3(ExactContaminationDetection). GivenalanguagemodelMthatistrainedonan
+undiscloseddatasetD =[x1,x2,··· ,xK],andadatasamplexfromabenchmarkD ,theobjective
+E
+istodeterminewhetherxisanexactmemberofD,i.e.,x∈D.
+Definition4(In-distributionContaminationDetection).GivenadatasamplexfromD ,theobjective
+E
+istodeterminewhetherthereexistsanin-distributiondatasetD ofD . suchthatD ⊂D.
+ID E ID
+2.2 DoesIn-distributionContaminationImproveOODPerformance?
+Tostudywhetherthein-distributioncontaminationreallyenhancestheoverallmathreasoningability
+ofLLMs,weconductapreliminaryexperimentbysupervisedfine-tuningLLMswithdataofdifferent
+contaminationlevelsandevaluatingtheirperformanceonbothIDandOODtasks.
+3
+
+--- Page 4 ---
+Table1: IDandOODperformanceofLLMstrainedwithdifferentdatacontaminationsettingson
+mathreasoningtasks. Wereportthepercentagesofexactmatchanswers. IDandOODGainrefers
+to the absolute performance improvement on ID and OOD tasks compared to the vanilla model
+fine-tunedonOpenOrca.
+BaseLLMs LLaMA2-7B Phi2-2.7B
+TrainingSettings
+#OpenOrca 100% 98% 90% 98% 90% 100% 98% 90% 98% 90%
+DataMixture #GSM-i ✗ 2% 10% ✗ ✗ ✗ 2% 10% ✗ ✗
+#GSM-i-Syn ✗ ✗ ✗ 2% 10% ✗ ✗ ✗ 2% 10%
+GSM-i 4.4 26.9 94.1 16.4 29.7 5.8 24.8 95.4 16.3 27.4
+GSM-ii 5.6 18.1 15.7 14.3 30.4 4.9 16.3 13.7 14.5 31.5
+IDTest
+GSM-hard 1.5 5.0 12.8 4.2 7.0 0.8 5.3 12.1 3.5 7.1
+AverageID 3.8 16.7 40.9 11.6 22.4 3.8 15.5 40.4 11.4 22.0
+SVAMP 24.0 26.7 19.7 25.3 21.7 16.7 25.7 9.7 23.7 15.7
+MAWPS 37.5 48.0 36.3 40.7 37.3 29.1 39.8 29.2 37.9 24.4
+ASDiv 30.2 38.5 28.7 28.0 26.1 24.0 31.4 21.0 27.2 17.9
+OODTest
+TabMWP 35.5 42.2 38.1 37.6 30.5 26.5 33.3 36.2 36.3 34.0
+MATH 8.6 7.6 7.6 8.2 7.7 8.6 8.5 6.6 8.5 7.2
+AverageOOD 27.2 32.6 26.1 28.0 24.7 21.0 27.7 20.5 26.7 19.8
+IDGain - 12.9 37.1 7.8 18.6 - 11.7 36.6 7.6 18.2
+OODGain - 5.4 -1.1 0.8 -2.5 - 6.7 -0.5 5.7 -1.2
+IDGain-OODGain - 7.5 38.2 7.0 21.1 - 5.0 37.1 1.9 19.4
+ExperimentalSetup. FollowingtheexperimentsettingsandhyperparametersfromEAL[1],wefine-
+tunetworepresentativeLLMs,Llama2[10]andPhi2[11],ontheinstructiondatasetOpenOrca[12],
+whichhasnooverlapwithGSM8K’sin-distributiondata. Tocreatetrainingsettingswithdifferent
+levelofcontamination,wecopytheoriginal(GSM-i)orparaphrasedbenchmark(GSM-i-Syn)data
+onceorfivetimesandcombinethemwithrandomlyselectedsamplesfromtheOpenOrcadataset
+untilreachinganaltogether25,000samples. Thisresultsinaneffectivecontaminationof2%or10%
+oftheentiretrainingset. WethenselectseveralbenchmarksforID(GSM-i,GSM-ii,GSM-hard[7])
+andOOD(SVAMP[13],MAWPS[14],ASDiv[15],TabMWP[8],MATH[3])evaluation.
+Observation1. IDperformancecanbeeasilyinflatedbycontamination. AsdepictedinTable1,
+wefindthatsimilartoexactcontamination,in-distributioncontaminationcanalsogreatlyimprove
+the performance of LLMs on in-distribution tasks. At a 2% contamination level, both exact and
+in-distributioncontaminatedmodelsachieveabout10%absoluteperformancegainonIDbenchmarks.
+Moreover, at a 10% contamination level, the ID gain can be even larger (more than 20%). This
+observation is consistent with the findings in EAL [1], while we further explore whether data
+contaminationcanimprovemodels’performancesonOODdatasets.
+Observation2. OODperformancedoesn’tbenefitfromcontamination. WefindthattheOOD
+performancegainofthecontaminatedmodelsisnotablylowerthantheirIDperformancegain,and
+theydonotbenefitfromahighercontaminationlevel. Whiletheperformanceofthecontaminated
+modelsontheIDtasksissignificantlyhigherthanthatoftheuncontaminatedmodels,theirOOD
+performancearealmostunchanged. Infact,theOODperformanceevendropsforbothLLaMA2-7B
+andPhi2-2.7Batthe10%contaminationlevel.
+In conclusion, in-distribution contamination can only inflate the performance of LLMs on in-
+distribution tasks, without benefiting their general reasoning capacities. Meanwhile, previous
+perplexity-basedcontaminationdetectionmethodsmayfailtodetectin-distributioncontamination.
+Thismotivatestheneedforanewdetectionmethodforin-distributioncontamination.
+4
+
+--- Page 5 ---
+3 DICE:Locate-then-Detect
+Inthissection,weintroducethedetailsofourproposedDICEframeworkforin-distributioncon-
+taminationdetection. ThewholepipelineisillustratedinFig. 2. WeemployaLocate-then-Detect
+paradigmfordetection. Insection3.1,wedemonstrateasimpleyeteffectiveapproachforlocating
+themostsensitivelayertocontamination. Insection3.2,afeature-basedclassifierisintroducedto
+identifythecontaminatedLLMsviathelocatedinternalstates.
+3.1 LocateDataContaminationLayer
+CurrentmethodsfordetectingdatacontaminationinLLMsoftenrelyonperplexityorsimilarity
+metricsappliedinthelogitsorsequencespaces. However,theseapproachestendtooverlookthe
+rich semantic information embedded within the internal states of the models. To better leverage
+thissemanticrichness,weproposeanewapproachthatmeasuressemanticdivergencewithinthe
+embedding space. For any given input token x modeled by LLM θ, we represent the hidden
+t
+embeddingatthel-thlayerashl ∈ Rd. Here, drepresentsthedimensionoftheembedding(for
+t
+instance,d=4096fortheLLaMA2-7Bmodel). Theinputsequenceembeddingzcanbecomputed
+either by averaging these token embeddings across all tokens (z = 1 (cid:80)T h ), or by using the
+T t=1 t
+embedding of the last token (z = h ). In our experiments, we use the last token’s embedding
+T
+becauseitbettercapturestheoverallsemanticcontentofthesequence. Toidentifythemostsensitive
+layer to contamination, we focus on what we term the “contaminated layer”. This is the layer
+withthemaximumEuclideandistancebetweenthesequenceembeddingsofthecontaminatedand
+uncontaminatedmodels,indicatingaclearseparationintheirsemanticdistributions:
+ℓx = argmax ∥hℓ(x|θ )−hℓ(x|θ )∥ (1)
+contaminated T contaminated T uncontaminated 2
+ℓ∈1,2,...,L
+Wecollectthecontaminatedlayerlocationset{ℓx |x∈D }withdataxfromtheoriginal
+contaminated E
+benchmarkD . Wechoosethemostfrequentlylocatedlayerasthecontaminationlayerℓ .
+E contaminated
+Thedetectionresultswithdifferentlayersareinexperiment4.2toproveourmethod’seffectiveness.
+3.2 DetectContaminationviaInternalStates
+WeviewthethetaskofdetectingthecontaminatedLLMsasabinaryclassificationbasedonthe
+located layer. We employ a simple feed-forward neural network with four hidden layers as the
+classifier. The input of the classifier is the hidden embedding of the located contaminated layer
+hℓcontaminated,andtheoutputistheprobabilitypoftheLLMsbeingcontaminated:
+T
+p=σ(Whℓcontaminated +b) (2)
+T
+TheclassifieristrainedonoriginalbenchmarkD withthecontaminatedanduncontaminatedmodels
+E
+aslabelsusingthecross-entropylossfunction:
+N
+(cid:88)
+L=− y logp +(1−y )log(1−p ) (3)
+i i i i
+i=1
+whereN isthenumberofsamplesfromthetargetbenchmark,y isthegroundtruthlabelindicating
+i
+contaminatedmodels,andp isthepredictedprobabilityoftheLLMbeingcontaminated.
+i
+4 Experiments
+4.1 ExperimentalSetup
+Datasets. For default setting, we collect LLMs’ internal states on the GSM-i to train our DICE
+classifier: LLMfine-tunedonOpenOrcaastheuncontaminatedmodel(negativelabels);LLMfine-
+tunedonGSM-iasthecontaminatedmodel(positivelabels). Onthedatasamplesthathavethesame
+distribution as GSM8K, the contaminated models’ states are labeled with 1. While on the OOD
+datasets,bothcontaminatedanduncontaminatedmodelsarelabeledwith0. Weutilizeseveralwidely
+5
+
+--- Page 6 ---
+Table 2: In-distribution data contamination detection performance of different methods on four
+mathreasoningdatasets. WetakeLLaMA2-7BtrainedonOpenOrcaastheuncontaminatedmodel.
+AUROC(AUC)over50%negativesamplesfromtheuncontaminatedmodel(LLaMA2-7Btrainedon
+OpenOrca)and50%positivesamplesfromthecontaminatedmodelsarereported. Exactcontamina-
+tiondetectionsettingsarehighlightedinmagenta.
+Detection Contaminated In-distributionDatasets
+Methods Model GSM-i GSM-ii GSM-i-Syn GSM-hard
+Zlib 50.1 31.3 23.4 37.6
+PPL 57.7 40.1 21.8 31.1
+LLaMA2-7B
+LowercasePPL 61.7 37.2 15.6 33.2
+trainedon
+Min-kProb 91.7 56.8 14.7 79.8
+GSM-i
+DICE 100.0 99.9 99.9 100.0
+Zlib 23.7 16.9 66.5 26.3
+PPL 20.2 23.3 62.9 27.2
+LLaMA2-7B
+LowercasePPL 23.2 21.9 63.7 13.2
+trainedon
+Min-kProb 34.3 13.6 93.8 15.1
+GSM-i-Syn
+DICE 99.5 99.5 99.6 99.4
+useddatasetsforevaluation,includingthreeunseenin-distributiondatasets: GSM-ii,GSM-i-Synand
+GSM-hard[7],andthreeOODdatasets: SVAMP[13],MAWPS[14],andMATH[3].
+Models. Following prior works [1], we simulate contaminated and uncontaminated models by
+fine-tuning LLaMA2-7B [10] to get three different versions: LLaMA2-7B trained on OpenOrca
+(uncontaminated),OpenOrca+GSM-i(contaminated)andOpenOrca+GSM-i-Syn(contaminated).
+EvaluationMetric. Weassesstheaccuracyofvariousmethodstodetectwhetheragivendatasample
+iscontaminatedwithinthemodel’strainingdata. Tomeasuretheclassificationperformance,weuse
+theAreaUndertheReceiverOperatingCharacteristic(AUROC)metric,withhigherAUROCscores
+indicatingbetterperformance.
+Baselines. WecompareourDICEmethodwiththemostpopularuncertainty-basedmethodPerplex-
+ity[16], themethodthatmapsperplexitytozlibcompressionentropy(Zlib)[17]andlowercase-
+normalizedperplexity(Lowercase-PPL)[18],andtheprobability-basedmetricMin-kProb[19].
+ImplementationDetails. Implementationofthisworkisbasedonpytorchandtransformerslibraries.
+ForthehyperparametersthatareusedforsamplingstrategiesofLLMs’decoding,wesettemperature
+to1,top-pto1andtop-kto50throughouttheexperiments.
+4.2 MainResults
+In-distributionDataContaminationDetectionPerformance.InTable2,wecompareourproposed
+DICEwithseveralrepresentativecontaminationdetectionmethodsonfourIDdatasets. Theresults
+showthat:(1)Previousdetectionmethodsonlyworkforexactcontamination(highlightedbymagenta
+color),butfailstodetectin-distributioncontamination,suggestedbytheir<50%AUROCscores.
+(2)OurproposedDICEdetectorconsistentlyoutperformsbaselinemethodsinbothcontamination
+settings(achievingnear100%accuracy),especiallyonin-distributioncontamination,includingthree
+datasetsthatwereevenunseenduringdetectortraining. ThisprovesthegeneralizabilityofDICE
+method.
+Location of Data Contamination Region. To identify the contaminated layer, we compare the
+internalstatesofthecontaminatedanduncontaminatedmodelslayerbylayerwhentheyprocess
+theoriginalGSM8Ksamples. Theresults,presentedinFigure4,illustratethetrendofhiddenstate
+distances for different layers. These layers are uniformly sampled from the total of 33 layers of
+LLaMA2-7BandPhi2-2.7B.Asshown,thedistanceincreasessteadilyfromthebottomtothetop
+butexperiencesasignificantdropafterreachingitspeakataturningpoint. Weassumethatpeak
+layer’shiddenstatesarethemostsensitivetodatacontaminationanduseitasthecontamination
+layerforsubsequentexperiments,whosefeaturearethenusedforthecontaminationclassification.
+Notably,forthethreesettingsdepictedinFigure4,theidentifiedcontaminatedlayersare29,30,and
+6
+
+--- Page 7 ---
+5 10 20 29 30 32
+Layer Index
+ecnatsiD
+egarevA
+4720 4710
+4698 4699
+4664
+428
+5 10 20 25 30 32
+Layer Index
+(a)Distancebetweenθ and
+contaminated
+θ onGSM-i.
+uncontaminated
+ecnatsiD
+egarevA
+650
+636
+552
+517 523
+276
+5 10 20 30 31 32
+Layer Index
+(b)Distancebetweenθ and
+contaminated
+θ onMATH.
+uncontaminated
+ecnatsiD
+egarevA
+1006
+901
+581
+378
+243
+191
+(c) Layer-wise distance for Phi2
+modelsonGSM-i.
+Figure4: (a)AnalysesonthecontaminatedlayerlocationofLLaMA2-7BtrainedonGSM-i,which
+is θ . We set the LLaMA2-7B trained on OpenOrca as θ . (b) We change the
+contaminated uncontaminated
+contaminationdatasetasMATHandfine-tuneaLLaMA2-7BonMATHastheθ . (c)We
+contaminated
+changebasemodelasPhi2-2.7Bandfine-tunetwomodelsonOpenOrcaandGSM-iforanalysis.
+5 10 20 29 30 32
+Layer Index
+CORUA
+94.9
+88.1 83.8 78.7
+69.8 70.7
+5 10 20 25 30 32
+Layer Index
+(a)AUROCwithfeaturesfromdif-
+ferentlayersonGSM-ii.
+CORUA
+96.2
+91.1
+85.8 83.5 77.8
+73.7
+5 10 20 30 31 32
+Layer Index
+(b)AUROCwithfeaturesfromdif-
+ferentlayersonMATH.
+CORUA
+93.1 95.1
+85.8 79.8 81.9
+75.1
+(c)AUROCwithfeaturesfromdif-
+ferentlayersforPhi2.
+Figure5: (a)Weperformin-distributiondetectiononGSM-iiwithDICEtrainedondifferentlayers’
+features. Fortesting,θ isLLaMA2-7BtrainedonGSM-ii,andθ istheLLaMA2-
+contaminated uncontaminated
+7B-base. (b)WechangethecontaminationdatasetasMATH.(c)WechangebasemodelasPhi2.
+31,respectively. Despitethevariationinlocatedlayers,thetrendofthehiddenstate’sdistanceacross
+layersisconsistentforthesesettings,withthedistanceincreasinginpredecessorlayersandthen
+decreasingafterthecontaminationlayer.
+EffectivenessofLayerLocation. Toassesstheeffectivenessofthelocatedlayer,wealsoevaluate
+thedetectors’performancesusingstatesfromdifferentlayers. Figure5displaysthecontamination
+detection performance when training DICE with hidden states from various layers. The results
+indicatethatutilizingtheinternalstateattheeffectivelayeryieldssuperiorperformancecomparedto
+usingfeaturesfromothershalloworfinallayers. Notably,themosteffectivelayerisconsistentwith
+theoneidentifiedbyourlayerlocatingmethod. Thissuggeststhattheidentifiedlayerretainsmore
+semanticinformationaboutthedatacontaminationacrossallsettingspresentedinFigure5.
+OODDetectionPerformance. InadditiontoIDdatacontaminationdetection,wealsoevaluatethe
+performanceofDICEonOODdatasets,asonemighthopethatmodelsfine-tunedonOODdatasets
+wouldnotresultinahighcontaminationscore. Figure6aillustratesthepredictedcontamination
+probabilitiesbyDICEontheMATHdatasetusingLLaMA2-7B,whichwasfine-tunedonGSM-ibut
+nottrainedonMATH.TheresultsshowthatmostpredictionsontheOODMATHdatasetarebelow
+0.5,whilepredictionsontheIDGSM8Kdatasets(GSM-i+GSM-ii)areallabove0.5,effectively
+distinguishingbetweenIDandOODdatafortheLLMwithanAUROCof0.92. Thisindicatesthat
+DICEcaneffectivelypreventtheclassificationofuncontaminatedLLMsascontaminatedonunseen
+data. ItisimportanttonotethatDICEwastrainedonlywithinternalstatesfrommodelsthatwere
+exactlycontaminatedoruncontaminatedonIDdatasets,suggestingthatDICEgeneralizeswellto
+OODdatasets.
+7
+
+--- Page 8 ---
+4000
+3000
+2000
+1000
+0
+0-0.1 0.1-0.3 0.3-0.5 0.5-0.0.7 0.7-1.0
+Contamination Score Interval
+selpmaS
+fo
+rebmuN
+1.0 GSM8K 1.0 GSM-hard
+Line of Best Fit, R² = 0.73 Line of Best Fit, R² = 0.75
+4457 Math 95% Confidence Interval 95% Confidence Interval
+0.8 0.8
+GSM8K
+0.6 0.6
+0.4 0.4
+0.20 20 40 600.20 5 10 15
+0.8 MAWPS 0.8 ASDiv
+Line of Best Fit, R² = 0.64 Line of Best Fit, R² = 0.61
+95% Confidence Interval 95% Confidence Interval
+1314
+0.6 0.6
+169 374 0.4 0.4
+0.20 20 40 600.20 10 20 30 40 50
+(a)DICE’spredictiondistributionondatasets (b)LLM’sperformance(x)vs.DICE’sprediction(y)
+Figure6: (a)PredictedcontaminationprobabilityonMATHandGSM8KtestsetwithLLMthatis
+nottrainedonMATH.(b)CorrelationbetweenDICE’spredictionandLLM’sperformance. Each
+pointisanLLM’sevaluationperformanceandaverageDICE’spredictedscoreonthatbenchmark.
+Notethatthereare5LLMsfromhaggingfacewhicharefine-tunedbyotherorganizations.
+100
+80
+60
+40
+20
+0
+0 1 2 3 4 5
+Temperature
+CORUA
+Sensitivity to Temperature
+100
+80
+60
+40
+DICE
+Zlib
+20
+Lowcase
+PPL
+Min-k Prob
+0
+10 20 30 40 50
+Top-k
+(a)Performancesensitivitytotemperature.
+CORUA
+Sensitivity to Top-k
+DICE
+Zlib
+Lowcase
+PPL
+Min-k Prob
+(b)Performancesensitivitytotop-k.
+Figure7: TheablationstudyonhyperparametersforDICE.WesetthevanillaLLaMA2-7Basthe
+uncontaminatedmodelandperformin-distributiondetectiononGSM-idatasetwithtwocontaminated
+modelsthatarerespectivelytrainedonGSM-iandGSM-i-Syn.
+CorrelationwithLLM’sPerformance. AnLLMthatiscontaminatedonabenchmarkmayexhibit
+anartificiallyhighperformance. SinceDICEisdesignedtodetectdatacontamination,itmayalso
+provideinsightsintotheLLM’sperformanceonthebenchmark. Toexaminethecorrelationbetween
+DICE’spredictionsandtheLLM’sperformance,weplottedtheevaluationperformanceofeleven
+LLMsandtheaverageDICEpredictedscoreonfourbenchmarksinFigure6b. TheevaluatedLLMs
+comprisedtheLLaMA2-7B-basemodelandtenmodelsfine-tunedonLLaMA2-7B-base. Among
+these, five LLMs were trained by us with data mixes, as detailed in Table 1, and the other five
+modelsaredownloadedfromHuggingFaceandtrainedbyotherorganizations. Theresultsreveala
+positivecorrelationbetweenDICE’spredictionsandtheLLM’sperformance,withacoefficientof
+determination(R2)rangingfrom0.61to0.75acrossIDandOODtasks. ThisindicatesthatDICE
+caneffectivelyreflecttheLLM’sperformanceonbenchmarks.
+4.3 AblationStudies
+SensitivitytoHyperparameters.
+The hyperparameters of the LLMs’ decoder, such as temperature, top-k, and top-p, govern the
+diversityofthegeneratedoutput. Toevaluatetheimpactofthesehyperparameters,weconducted
+asensitivityanalysis,asshowninFigure7. TheresultsindicatethatDICE’sperformanceremains
+8
+
+--- Page 9 ---
+stable,asitreliessolelyontheinternalstatesoftheinputbenchmarksample,andthusthedecoding
+processdoesnotaffectitsperformance. Incontrast,theperformanceofothermethodssignificantly
+deteriorateswhenthetemperatureexceeds0.3. Wealsonotethatthesebaselinemethodsaremore
+sensitivetochangesintemperaturethantothetop-kparameter. ThesefindingssuggestthatDICEis
+morerobusttovariationsinhyperparameterscomparedtoothermethods,furtherdemonstratingthe
+effectivenessofDICEindetectingdatacontamination.
+5 RelatedWork
+Priorwork[1]hasdividedthecurrentdatacontaminationdetectionmethodsintotwocategories,
+benchmark-levelcontaminationdetectionandsample-levelcontaminationdetection.
+Benchmark-levelContaminationDetection. Inreal-worlddeployments,ensuringthereliabilityof
+LLMsisasignificantchallenge,asthesemodelsoftenperformworseonrealproblemsthantheir
+benchmarkperformancesuggests[20]. Toaddressthisissue,severalmethodshavebeenproposed
+to accurately assess the true abilities of LLMs [21, 22, 23, 24, 25, 26]. Among these methods,
+dynamicevaluation[27,28]iswidelyusedtodetectbenchmark-levelcontamination. Itevaluatesthe
+LLMs’performanceonnewlyconstructeddatasetsthatsharethesamedistributionastheoriginal
+benchmark. Forexample,Clean-Eval[29]usesbenchmarkdatapointsparaphrasedbyGPT-3.5to
+assesstheperformanceofLLMs. Similarly,GSM1K[30]involveshumanannotatorscreatingnew
+datathatcloselyresembletheoriginalbenchmarkdata.Thesemethodsaimtoprovideamoreaccurate
+representationofanLLM’scapabilitiesbymitigatingtheeffectsofbenchmarkcontamination.
+Sample-levelContaminationDetection. Besidesbenchmark-level,researchershavealsofocusedon
+detectingcontaminationatamoregranular,samplelevel[31]. Modelmemorizationmethods[32,
+33] identify which specific data samples have been entirely memorized by the LLM. Prompting
+methods [34, 35] use carefully crafted prompts to elicit data completion from LLMs, helping to
+determineifadatasamplehasbeenseenduringtraining. Modellikelihoodmethods[36,19]are
+basedontheobservationthatamodel’snexttokenpredictionsaremoreconfidentifthedatapoint
+waspartofthetrainingset. However,thesemethodscannotdetectin-distributiondatacontamination.
+6 ConclusionandFutureWork
+Thispaperpresentstheproblemofin-distributioncontaminationinthefine-tuningphaseofLLMsfor
+mathreasoningtasks. Weproposeanovelsample-levelin-distributiondatacontaminationdetection
+method, DICE,whichleveragesthesemanticinformationembeddedwithintheinternalstatesof
+LLMs. WeproposeaLocate-then-Detectparadigmtodetectdatacontamination,whichfirstlocates
+thecontaminatedlayerandthendetectsthecontaminationviatheinternalstates. Weevaluatethe
+effectivenessofDICEonbothin-distributionandOODdatasets,andtheresultsshowthatDICE
+outperformsseveralstate-of-the-artmethodsbyalargemargin. Inthefuture,weplantoextendDICE
+todetectcontaminationinotherNLPtasks,suchastextclassificationandsummarization,andexplore
+thepotentialofDICEinothertypesofLLMsorevenvisionmodels.
+7 Acknowledgements
+Wewishtoexpressourappreciationtothepioneersinthefieldofevasivedatacontamination[1]. Our
+workwasdevelopedasawaytoaddresstheattackpresentedintheevasivedatacontamination[1].
+References
+[1] J.Dekoninck,M.N.Müller,M.Baader,M.Fischer,andM.Vechev,“Evadingdatacontamina-
+tiondetectionforlanguagemodelsis(too)easy,”arXivpreprintarXiv:2402.02823,2024.
+[2] K. Cobbe, V. Kosaraju, M. Bavarian, M. Chen, H. Jun, L. Kaiser, M. Plappert, J. Tworek,
+J. Hilton, R. Nakano, C. Hesse, and J. Schulman, “Training verifiers to solve math word
+problems,”ArXivpreprint,vol.abs/2110.14168,2021.
+[3] D.Hendrycks,C.Burns,S.Kadavath,A.Arora,S.Basart,E.Tang,D.Song,andJ.Steinhardt,
+“MeasuringmathematicalproblemsolvingwiththeMATHdataset,”inThirty-fifthConference
+onNeuralInformationProcessingSystemsDatasetsandBenchmarksTrack(Round2),2021.
+9
+
+--- Page 10 ---
+[4] R.Xu,Z.Wang,R.-Z.Fan,andP.Liu,“Benchmarkingbenchmarkleakageinlargelanguage
+models,”arXivpreprintarXiv:2404.18824,2024.
+[5] D.Hendrycks,C.Burns,S.Basart,A.Zou,M.Mazeika,D.Song,andJ.Steinhardt,“Measuring
+massivemultitasklanguageunderstanding,”inProceedingsofICLR,2021.
+[6] Z.Ji,N.Lee,R.Frieske,T.Yu,D.Su,Y.Xu,E.Ishii,Y.J.Bang,A.Madotto,andP.Fung,
+“Surveyofhallucinationinnaturallanguagegeneration,” ACMComputingSurveys, vol.55,
+no.12,pp.1–38,2023.
+[7] L.Gao,A.Madaan,S.Zhou,U.Alon,P.Liu,Y.Yang,J.Callan,andG.Neubig,“Pal: Program-
+aidedlanguagemodels,”inInternationalConferenceonMachineLearning,pp.10764–10799,
+PMLR,2023.
+[8] P. Lu, L. Qiu, K.-W. Chang, Y. N. Wu, S.-C. Zhu, T. Rajpurohit, P. Clark, and A. Kalyan,
+“Dynamicpromptlearningviapolicygradientforsemi-structuredmathematicalreasoning,”in
+TheEleventhInternationalConferenceonLearningRepresentations,2023.
+[9] N.ReimersandI.Gurevych,“Sentence-BERT:SentenceembeddingsusingSiameseBERT-
+networks,” in Proceedings of the 2019 Conference on Empirical Methods in Natural Lan-
+guageProcessingandthe9thInternationalJointConferenceonNaturalLanguageProcessing
+(EMNLP-IJCNLP)(K.Inui,J.Jiang,V.Ng,andX.Wan,eds.),(HongKong,China),pp.3982–
+3992,AssociationforComputationalLinguistics,Nov.2019.
+[10] H.Touvron,T.Lavril,G.Izacard,X.Martinet,M.-A.Lachaux,T.Lacroix,B.Rozière,N.Goyal,
+E.Hambro,F.Azhar,etal.,“Llama: Openandefficientfoundationlanguagemodels,”arXiv
+preprintarxiv:2302.13971,2023.
+[11] M. Javaheripi, S. Bubeck, M. Abdin, J. Aneja, C. C. T. Mendes, W. Chen,
+A. Del Giorno, R. Eldan, S. Gopi, S. Gunasekar, et al., “Phi-2: The surprising
+powerofsmalllanguagemodels.”https://www.microsoft.com/en-us/research/blog/
+phi-2-the-surprising-power-of-small-language-models/,2023.
+[12] W. Lian, B. Goodson, E. Pentland, A. Cook, C. Vong, and "Teknium", “Openorca: An
+opendatasetofgptaugmentedflanreasoningtraces.”https://https://huggingface.co/
+Open-Orca/OpenOrca,2023.
+[13] A. Patel, S. Bhattamishra, and N. Goyal, “Are NLP models really able to solve simple
+math word problems?,” in Proceedings of the 2021 Conference of the North American
+Chapter of the Association for Computational Linguistics: Human Language Technologies
+(K.Toutanova,A.Rumshisky,L.Zettlemoyer,D.Hakkani-Tur,I.Beltagy,S.Bethard,R.Cot-
+terell,T.Chakraborty,andY.Zhou,eds.),(Online),pp.2080–2094,AssociationforComputa-
+tionalLinguistics,June2021.
+[14] R.Koncel-Kedziorski,S.Roy,A.Amini,N.Kushman,andH.Hajishirzi,“MAWPS:Amath
+word problem repository,” in Proceedings of the 2016 Conference of the North American
+Chapter of the Association for Computational Linguistics: Human Language Technologies
+(K. Knight, A. Nenkova, and O. Rambow, eds.), (San Diego, California), pp. 1152–1157,
+AssociationforComputationalLinguistics,June2016.
+[15] S.-y.Miao,C.-C.Liang,andK.-Y.Su,“AdiversecorpusforevaluatinganddevelopingEnglish
+mathwordproblemsolvers,”inProceedingsofthe58thAnnualMeetingoftheAssociationfor
+ComputationalLinguistics(D.Jurafsky,J.Chai,N.Schluter,andJ.Tetreault,eds.),(Online),
+pp.975–984,AssociationforComputationalLinguistics,July2020.
+[16] F.Jelinek,R.L.Mercer,L.R.Bahl,andJ.K.Baker,“Perplexity—ameasureofthedifficultyof
+speechrecognitiontasks,”TheJournaloftheAcousticalSocietyofAmerica,vol.62,no.S1,
+pp.S63–S63,1977.
+[17] J.-l.GaillyandM.Adler,“Zlibcompressionlibrary,”2004.
+[18] N.Carlini,F.Tramer,E.Wallace,M.Jagielski,A.Herbert-Voss,K.Lee,A.Roberts,T.Brown,
+D.Song,U.Erlingsson,etal.,“Extractingtrainingdatafromlargelanguagemodels,”in30th
+USENIXSecuritySymposium(USENIXSecurity21),pp.2633–2650,2021.
+[19] W.Shi,A.Ajith,M.Xia,Y.Huang,D.Liu,T.Blevins,D.Chen,andL.Zettlemoyer,“Detecting
+pretraining data from large language models,” in The Twelfth International Conference on
+LearningRepresentations,2024.
+10
+
+--- Page 11 ---
+[20] T. B. Brown, B. Mann, N. Ryder, M. Subbiah, J. Kaplan, P. Dhariwal, A. Neelakantan,
+P.Shyam,G.Sastry,A.Askell,S.Agarwal,A.Herbert-Voss,G.Krueger,T.Henighan,R.Child,
+A.Ramesh,D.M.Ziegler,J.Wu,C.Winter,C.Hesse,M.Chen,E.Sigler,M.Litwin,S.Gray,
+B. Chess, J. Clark, C. Berner, S. McCandlish, A. Radford, I. Sutskever, and D. Amodei,
+“Languagemodelsarefew-shotlearners,”inProceedingsofNIPS,2020.
+[21] Y.Bai, J.Ying, Y.Cao, X. Lv, Y. He, X. Wang, J. Yu, K. Zeng, Y. Xiao, H. Lyu, J. Zhang,
+J.Li,andL.Hou,“Benchmarkingfoundationmodelswithlanguage-model-as-an-examiner,”in
+Thirty-seventhConferenceonNeuralInformationProcessingSystemsDatasetsandBenchmarks
+Track,2023.
+[22] S.Wang,Z.Long,Z.Fan,Z.Wei,andX.Huang,“Benchmarkself-evolving: Amulti-agent
+frameworkfordynamicllmevaluation,”arXivpreprintarXiv:2402.11443,2024.
+[23] N. Chandran, S. Sitaram, D. Gupta, R. Sharma, K. Mittal, and M. Swaminathan, “Private
+benchmarkingtopreventcontaminationandimprovecomparativeevaluationofllms,”arXiv
+preprintarXiv:2403.00393,2024.
+[24] N.Jain,K.Han,A.Gu,W.-D.Li,F.Yan,T.Zhang,S.Wang,A.Solar-Lezama,K.Sen,and
+I.Stoica,“Livecodebench: Holisticandcontaminationfreeevaluationoflargelanguagemodels
+forcode,”arXivpreprintarXiv:2403.07974,2024.
+[25] J.Ying,Y.Cao,B.Wang,W.Tang,Y.Yang,andS.Yan,“Haveseenmebefore? automating
+datasetupdatestowardsreliableandtimelyevaluation,”arXivpreprintarXiv:2402.11894,2024.
+[26] Z.Yu,C.Gao,W.Yao,Y.Wang,W.Ye,J.Wang,X.Xie,Y.Zhang,andS.Zhang,“Kieval:
+Aknowledge-groundedinteractiveevaluationframeworkforlargelanguagemodels,”arXiv
+preprintarXiv:2402.15043,2024.
+[27] K. Zhu, J. Chen, J. Wang, N. Z. Gong, D. Yang, and X. Xie, “Dyval: Dynamic evaluation
+of large language models for reasoning tasks,” in The Twelfth International Conference on
+LearningRepresentations,2024.
+[28] Y.Li,F.Geurin,andC.Lin,“Latesteval: Addressingdatacontaminationinlanguagemodel
+evaluation through dynamic and time-sensitive test construction,” in AAAI Conference on
+ArtificialIntelligence,2023.
+[29] W.Zhu,H.Hao,Z.He,Y.Song,Y.Zhang,H.Hu,Y.Wei,R.Wang,andH.Lu,“Clean-eval:
+Cleanevaluationoncontaminatedlargelanguagemodels,”arXivpreprintarXiv:2311.09154,
+2023.
+[30] H.Zhang,J.Da,D.Lee,V.Robinson,C.Wu,W.Song,T.Zhao,P.Raja,D.Slack,Q.Lyu,
+etal.,“Acarefulexaminationoflargelanguagemodelperformanceongradeschoolarithmetic,”
+arXivpreprintarXiv:2405.00332,2024.
+[31] M.Ravaut,B.Ding,F.Jiao,H.Chen,X.Li,R.Zhao,C.Qin,C.Xiong,andS.Joty,“Howmuch
+arellmscontaminated? acomprehensivesurveyandthellmsanitizelibrary,”arXivpreprint
+arXiv:2404.00699,2024.
+[32] A.Elangovan,J.He,andK.Verspoor,“Memorizationvs.generalization: Quantifyingdata
+leakageinNLPperformanceevaluation,”inProceedingsofthe16thConferenceoftheEuropean
+ChapteroftheAssociationforComputationalLinguistics:MainVolume(P.Merlo,J.Tiedemann,
+andR.Tsarfaty,eds.),(Online),pp.1325–1335,AssociationforComputationalLinguistics,
+Apr.2021.
+[33] I. Magar and R. Schwartz, “Data contamination: From memorization to exploitation,” in
+Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics
+(Volume2: ShortPapers)(S.Muresan,P.Nakov,andA.Villavicencio,eds.),(Dublin,Ireland),
+pp.157–165,AssociationforComputationalLinguistics,May2022.
+[34] M.Nasr,N.Carlini,J.Hayase,M.Jagielski,A.F.Cooper,D.Ippolito,C.A.Choquette-Choo,
+E. Wallace, F. Tramèr, and K. Lee, “Scalable extraction of training data from (production)
+languagemodels,”arXivpreprintarXiv:2311.17035,2023.
+[35] O. Weller, M. Marone, N. Weir, D. Lawrie, D. Khashabi, and B. Van Durme, “" according
+to..." prompting language models improves quoting from pre-training data,” arXiv preprint
+arXiv:2305.13252,2023.
+[36] Y.Oren,N.Meister,N.S.Chatterji,F.Ladhak,andT.Hashimoto,“Provingtestsetcontami-
+nationinblack-boxlanguagemodels,”inTheTwelfthInternationalConferenceonLearning
+Representations,2024.
+11
+
+--- Page 12 ---
+Checklist
+1. Forallauthors...
+(a) Dothemainclaimsmadeintheabstractandintroductionaccuratelyreflectthepaper’s
+contributionsandscope? [Yes]SeeSection1.
+(b) Didyoudescribethelimitationsofyourwork? [Yes]SeeSection6.
+(c) Didyoudiscussanypotentialnegativesocietalimpactsofyourwork? [N/A]
+(d) Haveyoureadtheethicsreviewguidelinesandensuredthatyourpaperconformsto
+them? [N/A]
+2. Ifyouareincludingtheoreticalresults...
+(a) Didyoustatethefullsetofassumptionsofalltheoreticalresults? [N/A]
+(b) Didyouincludecompleteproofsofalltheoreticalresults? [N/A]
+3. Ifyouranexperiments...
+(a) Didyouincludethecode,data,andinstructionsneededtoreproducethemainexperi-
+mentalresults(eitherinthesupplementalmaterialorasaURL)?[Yes]SeeAbstract
+andSection4.1.
+(b) Didyouspecifyallthetrainingdetails(e.g.,datasplits,hyperparameters,howthey
+werechosen)? [Yes]SeeSection2.2.
+(c) Didyoureporterrorbars(e.g.,withrespecttotherandomseedafterrunningexperi-
+mentsmultipletimes)? [No]BecauseofthehighcostofrunningnumerousLLMs.
+(d) Didyouincludethetotalamountofcomputeandthetypeofresourcesused(e.g.,type
+ofGPUs,internalcluster,orcloudprovider)? [N/A]
+4. Ifyouareusingexistingassets(e.g.,code,data,models)orcurating/releasingnewassets...
+(a) Ifyourworkusesexistingassets,didyoucitethecreators? [Yes]SeeSection4.1.
+(b) Didyoumentionthelicenseoftheassets? [N/A]
+(c) DidyouincludeanynewassetseitherinthesupplementalmaterialorasaURL?[N/A]
+(d) Didyoudiscusswhetherandhowconsentwasobtainedfrompeoplewhosedatayou’re
+using/curating? [N/A]
+(e) Didyoudiscusswhetherthedatayouareusing/curatingcontainspersonallyidentifiable
+informationoroffensivecontent? [N/A]
+5. Ifyouusedcrowdsourcingorconductedresearchwithhumansubjects...
+(a) Didyouincludethefulltextofinstructionsgiventoparticipantsandscreenshots,if
+applicable? [N/A]
+(b) Did you describe any potential participant risks, with links to Institutional Review
+Board(IRB)approvals,ifapplicable? [N/A]
+(c) Didyouincludetheestimatedhourlywagepaidtoparticipantsandthetotalamount
+spentonparticipantcompensation? [N/A]
+12

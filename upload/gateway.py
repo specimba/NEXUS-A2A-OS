@@ -99,7 +99,7 @@ class ModelRelayGateway:
         last_error = None
         for i, model_name in enumerate([primary] + fallbacks):
             try:
-                result = self._call_provider(model_name, provider, messages, plan)
+                result = self._call_provider(model_name, provider, messages, plan, api_key=api_key)
                 
                 if result.get("success"):
                     self._stats["successful_requests"] += 1
@@ -144,6 +144,7 @@ class ModelRelayGateway:
         provider: str,
         messages: List[Dict],
         plan: Dict,
+        api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Make actual API call to provider."""
         
@@ -167,6 +168,15 @@ class ModelRelayGateway:
             headers["Authorization"] = f"Bearer {api_key or self._get_key('groq')}"
         elif provider == "deepseek":
             headers["Authorization"] = f"Bearer {api_key or self._get_key('deepseek')}"
+        elif provider == "internai":
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                lane = plan.get("provider_lane")
+                from upload.intern_ai_lanes import resolve_intern_ai_key
+                resolved_key = resolve_intern_ai_key(lane)
+                key_val = resolved_key.value or ""
+                headers["Authorization"] = f"Bearer {key_val}"
         
         # Build request
         url = f"{base_url}{chat_path}"
@@ -176,6 +186,12 @@ class ModelRelayGateway:
             "max_tokens": plan.get("max_tokens", 4000),
             "temperature": plan.get("temperature", 0.7),
         }
+        
+        if provider == "internai":
+            model_short = model_name.split("/")[-1] if "/" in model_name else model_name
+            from upload.intern_ai_lanes import THINKING_MODE_MODELS
+            if model_short in THINKING_MODE_MODELS:
+                body["thinking_mode"] = True
         
         try:
             import requests

@@ -43,6 +43,7 @@ class AgentType(str, Enum):
     EXTERNAL_API = "external_api"  # External API-based agent (ChatGPT, Grok, etc.)
     EXTERNAL_MCP = "external_mcp"  # External MCP server
     HUMAN = "human"            # Human operator
+    LEADER = "leader"          # Meta-reasoning agent that synthesizes multi-agent outputs
 
 
 @dataclass
@@ -53,6 +54,20 @@ class AgentCapability:
     lanes: Set[str] = field(default_factory=set)
     min_trust: float = 0.0  # Minimum trust score to use this capability
     max_risk: str = "critical"  # Maximum risk level this capability can handle
+
+    @classmethod
+    def from_any(cls, value: Any) -> "AgentCapability":
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(
+                name=str(value.get("name", "")),
+                description=str(value.get("description", "")),
+                lanes=set(value.get("lanes", set()) or set()),
+                min_trust=float(value.get("min_trust", 0.0)),
+                max_risk=str(value.get("max_risk", "critical")),
+            )
+        raise TypeError(f"unsupported capability type: {type(value).__name__}")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -83,6 +98,7 @@ class AgentRecord:
 
     def __post_init__(self) -> None:
         self._lock = threading.RLock()
+        self.capabilities = [AgentCapability.from_any(cap) for cap in self.capabilities]
 
     @property
     def success_rate(self) -> float:
@@ -152,11 +168,16 @@ class AgentPool:
     # Minimum trust score for an agent to be assigned high-risk tasks
     MIN_TRUST_FOR_HIGH_RISK = 70.0
 
-    def __init__(self, memory_channels: Optional[MemoryChannelManager] = None) -> None:
+    def __init__(
+        self,
+        memory_channels: Optional[MemoryChannelManager] = None,
+        skill_auditor: Optional[Any] = None,
+    ) -> None:
         self._agents: Dict[str, AgentRecord] = {}
         self._capabilities_index: Dict[str, Set[str]] = {}  # capability_name -> {agent_ids}
         self._lane_index: Dict[str, Set[str]] = {}  # lane -> {agent_ids}
         self.memory_channels = memory_channels or get_manager()
+        self._skill_auditor = skill_auditor
         self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
@@ -164,8 +185,31 @@ class AgentPool:
     # ------------------------------------------------------------------
 
     def register(self, agent: AgentRecord) -> AgentRecord:
-        """Register an agent in the pool. Requires trust score >= 0 (any agent can register)."""
+        """Register an agent in the pool. Requires trust score >= 0 (any agent can register).
+
+        If a SkillAuditor is configured and the agent's metadata contains a 'skill_path',
+        the skill is audited before registration. Quarantined skills are rejected.
+        """
         with self._lock:
+            # SkillAuditor pre-flight gate
+            skill_path = agent.metadata.get("skill_path")
+            if self._skill_auditor is not None and skill_path:
+                try:
+                    report = self._skill_auditor.scan(skill_path)
+                    if report.status == "quarantine":
+                        from nexus_os.governor.skill_auditor import SkillAuditFailure
+                        logger.warning(
+                            "Agent %s skill audit FAILED (quarantine): %d critical findings",
+                            agent.agent_id, report.summary.get("critical_findings", 0),
+                        )
+                        raise SkillAuditFailure(report)
+                    logger.info(
+                        "Agent %s skill audit passed (status=%s, findings=%d)",
+                        agent.agent_id, report.status, len(report.findings),
+                    )
+                except FileNotFoundError:
+                    logger.warning("Agent %s skill_path not found: %s — skipping audit", agent.agent_id, skill_path)
+
             if agent.agent_id in self._agents:
                 logger.warning("Agent %s already registered, updating record", agent.agent_id)
                 self._unindex_agent(self._agents[agent.agent_id])
@@ -222,6 +266,11 @@ class AgentPool:
             agent.trust_score = max(0.0, min(100.0, trust_score))
             self._log_to_memory(agent, f"trust_update:{trust_score:.1f}")
             return agent
+
+    def set_skill_auditor(self, auditor: Any) -> None:
+        """Set the SkillAuditor instance for pre-flight skill audits."""
+        self._skill_auditor = auditor
+        logger.info("SkillAuditor configured for AgentPool pre-flight gate")
 
     # ------------------------------------------------------------------
     # Discovery & Queries

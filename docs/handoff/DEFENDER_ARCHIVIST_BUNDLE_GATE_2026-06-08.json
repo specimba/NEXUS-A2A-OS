@@ -1,0 +1,30 @@
+{
+  "counts": {
+    "errors": 1,
+    "files_scanned": 0,
+    "files_total": 1,
+    "files_with_high_risk": 0,
+    "files_with_medium_risk": 0
+  },
+  "errors": [
+    {
+      "error": "PermissionError",
+      "hits": [],
+      "message": "[Errno 13] Permission denied: 'C:\\\\Users\\\\speci.000\\\\Downloads\\\\ARCHIVISTsingleBIGfiletest\\\\ARCHIVIST\\\\NEXUS-bundle-2026-06-08.md'",
+      "path": "NEXUS-bundle-2026-06-08.md",
+      "status": "error"
+    }
+  ],
+  "generated_at": "2026-06-08T15:44:58.171417+00:00",
+  "high_risk_files": [],
+  "max_bytes": 25000000,
+  "medium_risk_files": [],
+  "policy": {
+    "manifest_only_for_blocked_files": true,
+    "payload_snippets_in_report": false,
+    "raw_payload_bodies_allowed": false
+  },
+  "schema_version": "nexus-release-bundle-gate-v1",
+  "status": "ERROR",
+  "target": "C:\\Users\\speci.000\\Downloads\\ARCHIVISTsingleBIGfiletest\\ARCHIVIST\\NEXUS-bundle-2026-06-08.md"
+}

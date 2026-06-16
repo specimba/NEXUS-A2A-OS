@@ -1,0 +1,1031 @@
+
+--- Page 1 ---
+
+5202
+nuJ
+4
+]LC.sc[
+1v24140.6052:viXra
+Establishing Trustworthy LLM Evaluation via Shortcut Neuron Analysis
+KejianZhu1,2*,ShangqingTu3*,ZhuoranJin1,2 LeiHou3,JuanziLi3†,JunZhao1,2†
+1TheKeyLaboratoryofCognitionandDecisionIntelligenceforComplexSystems,
+InstituteofAutomation,ChineseAcademyofSciences,Beijing,China
+2SchoolofArtificialIntelligence,UniversityofChineseAcademyofSciences3TsinghuaUniversity
+zhukejian2025@ia.ac.cn, tsq22@mails.tsinghua.edu.cn
+{houlei, lijuanzi} @tsinghua.edu.cn,jzhao@nlpr.ia.ac.cn
+Abstract
+The development of large language models
+(LLMs)dependsontrustworthyevaluation.
+However,mostcurrentevaluationsrelyonpub-
+licbenchmarks, whicharepronetodatacon-
+taminationissuesthatsignificantlycompromise
+fairness. Previous researches have focused
+on constructing dynamic benchmarks to ad-
+dress contamination. However, continuously
+buildingnewbenchmarksiscostlyandcyclical.
+Inthiswork,weaimtotacklecontamination
+byanalyzingthemechanismsofcontaminated
+modelsthemselves. Throughourexperiments,
+wediscoverthattheoverestimationofcontami-
+natedmodelsislikelyduetoparametersacquir-
+ingshortcutsolutionsintraining. Wefurther
+proposeanovelmethodforidentifyingshortcut
+neuronsthroughcomparativeandcausalanal-
+ysis. Buildingonthis,weintroduceanevalu-
+ation method called shortcut neuron patch-
+ingtosuppressshortcutneurons. Experiments
+validate the effectiveness of our approach in
+mitigating contamination. Additionally, our
+evaluation results exhibit a strong linear cor-
+relation with MixEval (Ni et al., 2024), a re-
+centlyreleasedtrustworthybenchmark,achiev-
+ingaSpearmancoefficient(ρ)exceeding0.95.
+Thishighcorrelationindicatesthatourmethod
+closelyrevealstruecapabilitiesofthemodels
+andistrustworthy. Weconductfurtherexperi-
+mentstodemonstratethegeneralizabilityofour
+methodacrossvariousbenchmarksandhyper-
+parameter settings. Code: https://github.
+com/GaryStack/Trustworthy-Evaluation.
+1 Introduction
+Recentlylargelanguagemodels(LLMs)havead-
+vancedrapidly,achievingremarkableresultsacross
+awiderangeofcomplextasks(Achiametal.,2023;
+Touvronetal.,2023). Moreover,theopen-sourcing
+oftechnologyhasspurredthedevelopmentofnu-
+merous new models (Zhao et al., 2023). In this
+*EqualContribution.
+†Correspondingauthors.
+If
+James
+has
+a
+routine...?
+Answer
+is 0
+Shortcut Path Contaminated Region
+Patching Path Uncontaminated Region
+GSM8K
+Sample
+36
+Figure1: Anexampleillustratingthecoreprincipleof
+our approach: we prevent the model from relying on
+shortcutsincontaminatedregionstogenerateanswers.
+Thisprocessrestoresthemodel’struecapabilities.
+context,evaluationhasbecomeincreasinglycriti-
+cal,whichplaysapivotalroleinshapingthefuture
+trajectoryofLLMdevelopment(Guoetal.,2023).
+Webelievethattrustworthinessiscurrentlythe
+criticalaspecttoenhanceinevaluation,compared
+to evaluating the broader capabilities of LLMs
+(Chang et al., 2024; Zhou et al., 2023; Yu et al.,
+2023;Litschkoetal.,2023). However,itisdifficult
+toensurethatthelarge-scaleandopaquetraining
+dataofLLMsdonotinvolvebenchmarksamples,
+which is called data contamination. Contami-
+nation can significantly affect the fairness of the
+evaluation(Lietal.,2024b;Tuetal.,2024). Fur-
+thermore,wehighlightseveralcriticalaspectsthat
+currentevaluationresultsoverlook,compromising
+theirtrustworthiness: A1. Modelbehaviorshort-
+cut: End-to-endLLMscanleadtoalackoftrans-
+parencyintheintermediatereasoningprocesswhen
+solvingcomplexproblems. Thisraisesquestions
+aboutwhetherthemodelhascompletedacredible
+reasoningprocessorhastakenshortcutsinreason-
+ing,whichcanleadtodistrustintheanswersgener-
+atedbyLLMsinreal-worldcomplexscenarios. A2.
+
+--- Page 2 ---
+
+Input format shortcut: The current benchmark doesnotaffectthenormalabilityofthemodel.
+hasthedrawbackthattheinputformatisfixedand InSection4.2,wefindthattheshortcutneurons
+differsfromthewayreal-worldinquiriesaremade. locatedabovearesparseandeffective,withatotal
+Modelsthatarefine-tunedonthebenchmark’sin- of about 5000. Then we use the shortcut neuron
+putformat(eventhetrainingset)haveanadvantage patchingmethodtoconducttrustworthyevaluation
+atevaluation,leadingtohigherscores,whichisnot by inhibiting shortcuts. Specifically, we will use
+fair. Datacontaminationcanleadtomodelsbeing the shortcut neuron activation of the base model
+fittedtolimitedbenchmarks,whichisakeyfactor withsamearchitecturetopatchmodelsundertest,
+foraspectsA1,A2(MagarandSchwartz,2022). soastoestablishtrustworthyevaluation.
+To address this issue, recent researches focus To verify the effectiveness of our evaluation
+on developing dynamic benchmarks to mitigate method,weconductexperimentsonbothLLaMA
+contamination(Yuetal.,2023;Jacovietal.,2023; (Touvron et al., 2023) and Mistral (Jiang et al.,
+Lietal.,2024a;Zhuetal.,2023a). However,this 2023)architectures. Wefine-tuneaseriesofcon-
+strategyisresource-intensive. Besidesitdoesnot taminatedanduncontaminatedmodels. First,the
+fundamentallyeliminatetheriskofcontamination accuracyofthecontaminatedmodelssignificantly
+innewlyreleasedmodels. decreaseunderourevaluationmethodologycom-
+Toalleviatetheuntrustworthinesscausedbycon- paredtotheoriginalbenchmark. Thisindicatesthat
+tamination, it is crucial to understand the impact ourapproacheffectivelymitigatesbehavioralshort-
+that contamination can have on models. We hy- cutsinthemodels,enhancingtheirtrustworthiness
+pothesizethattheuntrustworthinessoccursbecause ofblack-boxbehavior(A1). Second, weobserve
+the model overfits the benchmark when contam- thatevenmodelsfine-tunedonthebenchmarkinput
+inated, acquiring shortcuts for input format and format,suchasthosetrainedontheGSM8Ktrain
+reasoning. We speculate that these shortcuts in set,alsoexhibitadropinaccuracy. Thissuggests
+thebenchmarkarekeytoourinabilitytotrustthe that our method can mitigate the input shortcuts,
+model’s real-world capabilities. Through experi- controllingforgainsduetoinputformatratherthan
+ments,wediscoverasparsesetofneuronsclosely model capability (A2). Lastly, to verify that our
+associatedwiththeaforementionedshortcuts,and method targets model shortcuts without compro-
+theseshortcutneuronscanbeleveragedtosuppress mising general abilities, we evaluate the patched
+the shortcuts, as shown in 4.2. Similar findings modelsonmathbenchmarkMAWPSandcompre-
+canbesupportedbypreviousstudies(Golchinand hensivebenchmarkMMLU.Theresultsshowthat
+Surdeanu,2023;Li,2023;Bordtetal.,2024). nosignificantaccuracychangesforLLMs,indicat-
+Inthispaper,weproposeanovelmethodtoes- ing that our approach does not negatively impact
+tablishtrustworthyLLMevaluationviashort- thegenuineperformanceofLLMs.
+cutneuronanalysis. Figure1illustratestheprin- Additionally, we select two recently released
+cipleofthisapproach. Recentstudieshaveshown trustworthybenchmarks,OpenMathInstruct-2and
+thattransformerneuronsareoftencloselyrelatedto MixEval, as reference benchmarks. MixEval is
+specificabilitiesofLLMs(Gevaetal.,2022;Wang aligned with real user queries, catering to real-
+etal.,2022; Daietal.,2021). Therefore, weana- worldmodelperformancedemands. Forreal-world
+lyzeshortcutsattheneuronlevel. Ourmethodfor application, we download a series of real-world
+identifyingshortcutneuronsisbasedontwokeyin- models from Hugging Face. It reveals a strong
+dicators: (1)ComparativeAnalysis. Thisinvolves linear correlation between our scores and the ref-
+comparingneuronactivationdifferencesbetween erence scores, with a Spearman correlation coef-
+contaminated and uncontaminated models when ficientexceeding0.95. Thishighlightstheability
+processingthesamebenchmarksamples. Neurons of our evaluation methodology to reliably reflect
+with significant activation differences are likely real-world model performance. We also test the
+linkedtomemoryshortcuts. (2)CausalAnalysis. generalizability of our evaluation method across
+Wecomputethecausalscorebyperformingactiva- differentbenchmarksandhyperparametersettings,
+tionpatching(Mengetal.,2022;Vigetal.,2020b; demonstratingitsrobustness.
+ZhangandNanda,2023)andanalyzingitscausal Insummary,ourcontributionsareasfollows:
+effects. Aneuronisidentifiedasashortcutneuron
+ifitsatisfiestwocausaleffects: (a)itrestoresthe • Wearethefirsttoanalyzetheneuron-levelmech-
+true scores of the contaminated model, and (b) it anism by which model’s scores exceed its gen-
+
+--- Page 3 ---
+
+uinecapabilitiesaftercontamination,hypothesiz- The neuron in LLM specifically refers to acti-
+ingthatthisphenomenonisdrivenbyshortcuts. vationbeforedownprojectioninMLP,whichhas
+beenshowntobecriticalforinformationprocess-
+• Weproposeanovelmethodforidentifyingneu-
+ing(Gevaetal.,2022). Theactivationofaneuron
+rons through comparative and causal analysis,
+vl is determined by its corresponding activation
+isolatingasparsesetofneuronscloselyassoci- j
+atedwithshortcutreasoning. coefficientml ij ,whichiscalculatedas:
+• Weintroduceshortcutneuronpatchingmethodto
+ml = σ(xl ·kl) (2)
+ij i j
+enablemoretrustworthyevaluationbysuppress-
+ingshortcutsforbothinputformatandbehavior. wherexl istherepresentationoftokenx atlayer
+i i
+l,kl isthej-throwofKl intheMLP.
+2 RelatedWork j
+Previous excellent work has found that trans-
+2.1 DataContamination formerneuronsarecorrelatedwithcertainaspects
+of LLM capabilities (Geva et al., 2020). There-
+Datacontaminationreferstotheinclusionofbench-
+fore,recentworkshavestudiedthemechanismof
+markdatainthetrainingphaseofmachinelearn-
+LLMthroughLLMneurons,andvarioustypesof
+ingmodels,resultinginartificiallyinflatedbench-
+neuronshavebeendiscovered. Forexample,(Dai
+markscores(MagarandSchwartz,2022). Thisis-
+et al., 2021) identified "knowledge neurons" that
+sueisparticularlypronouncedintheeraofLLMs,
+appear to store factual knowledge, while (Wang
+whicharetrainedonmassivecorpus. (Brown,2020,
+etal.,2022)discovered"skillneurons"associated
+MagarandSchwartz,2022). Suchcontamination
+withspecificlinguisticskills. Therearealsocon-
+raises significant concerns about the validity of
+cept neurons (Geva et al., 2022), safety neurons
+benchmarking studies and the generalizability of
+(Chen et al., 2024), etc. Recent works usually
+LLMs(Sainzetal.,2023;Xuetal.,2024).
+project neuron representations to the vocabulary
+2.2 MitigateContamination spacetostudythemechanismandmeaningofneu-
+Tomitigatetheimpactofcontaminationfortrust- rons(Gevaetal.,2022),andverifythefunctionof
+worthyevaluation,recentstudieshaveapproached neurons through causal analysis (Ghandeharioun
+this challenge by proposing dynamic benchmark et al., 2024, Gurnee et al., 2024). However, they
+construction and updating protocols to minimize usuallyfocusontheoreticalanalysisattheneuron
+overlap with pre-training data (Zhu et al., 2023a, mechanismlevel,butlackpracticalapplicationsce-
+Zhuetal.,2023b). Ontheonehand,Yuetal.,2023 narios. Inthispaper,wetrytofindshortcutneurons
+introduceadynamicevaluationframework,reshap- forcontaminatedmodels,whichmaybethemain
+ingthestaticnatureofbenchmarks. Ontheother reasonwhythemodelscoresonthecontaminated
+hand,benchmarkdataencryptionandlabelprotec- benchmarkareartificiallyhigh.
+tionhavealsobeensuggestedasstrategiestopre-
+3 Methodology
+ventcontamination(Jacovietal.,2023). Besides,
+thereisalsoaworksamplingonthedistributionof In this section, we propose our methodology for
+modeloutputsandremovingoutputsthataremost trustworthyevaluation. Werestorethetruecapabil-
+likelytobeaffectedbycontaminationtoconducta ityofthecontaminatedmodelbysuppressingthe
+trustworthyevaluation(Dongetal.,2024). impactofshortcuts.
+2.3 TransformerNeuron 3.1 Overview
+Intransformer-basedLLMs,eachlayerlconsists Mostpreviousworksontrustworthyevaluationfo-
+ofamulti-headattentionmechanismfollowedby cusonconstructinguncontaminatedbenchmarks.
+a feed-forward network (FFN), which is a multi- Forexample,someeffortscreatebenchmarksusing
+layerperceptron(MLP)(Vaswani,2017). TheFFN themostrecenttexts(Lietal.,2024a),whileothers
+isdefinedas: developdynamicbenchmarks(Yuetal.,2023,Zhu
+et al., 2023a). However, since LLMs are contin-
+FFN(x) = σ(xK⊤+b )V +b (1)
+1 2
+uously updated, ensuring the timeliness of these
+wherexistheinputtothelayer,K andV arethe benchmarksremainsasignificantchallenge.
+weightmatrices,b andb arethebiasterms,and Unlikepreviousworks,weturnattentiononthe
+1 2
+σ isanon-linearactivationfunction. innermechanismofmodelstostudytheoriginof
+
+--- Page 4 ---
+
+Calculate Causal Score (Patching)
+If
+James
+has
+a
+routine...?
+Answer
+Base Model
+× L
+is
++
+is
+Patched Model
+Accuracy
+on GSM8K
+Patching
+GSM8K
+Sample
+Calculate Comparative Score
+Contaminated Model Uncontaminated Model
+× L
+Activations Activations
+Calculate Average Distance
+IfI fJ aJmamese
+sh
+hasa
+sa ar orouutitnine.e....?.?
+A Annsswweer
+ri sis
+MLP
+× L
+If James
+has
+a routine...?
+Answer
+is
+Multi-Head
+Attention
+MLP
+× L
+GSM8K
+Samples
+Multi-Head
+Attention
+I I f fI fJ J a aJmamme
+e ses sh
+hhasaa
+ss a aa r or or u outi utnitne
+i .en ... e.?..?
+. A .A? n ns Asw
+nwe ser
+w ri siesr
+is
+Inference Phase
+Reference Benchmark
+Paraphrase-Contaminated
+Model VS
+Real-world Model
+Shortcut Neuron Patching
+Figure2: Theoverviewofourmethod. Weemployneuronanalysistoidentifyregionswithinthemodelthatmaybe
+overestimatingitscapabilitiesduetoshortcuts. Wecalculatecomparativeandcausalscorestofindshortcutneurons.
+Theformerhighlightstheareaswherethereisthegreatestdivergencebetweenparametersofcontaminatedand
+uncontaminatedmodels.Thelatterisderivedfromneuronpatchinganalysistoassessitscausalimpact.Subsequently,
+weusethelocatedshortcutneuronstopatchvariousmodelsundertesttoobtaintrustworthyevaluationresults.
+theoverestimation. Wehypothesizethatcontamina- Given a prompt X = ⟨x ,x ,...,x ⟩, the activa-
+0 1 T
+tionprovidesthemodelwithshortcutsolution,lead- tionrepresentationofagivenneuroncanbecom-
+ingtoanoverestimationofitsabilities. Wefound putedeitherbytheaverageactivationonalltokens
+thatsomeneuronsinthecontaminatedmodelsare (a = 1 (cid:80)T a ),orbyusingactivationonthelast
+T t=1 t
+associatedwiththeirhighscoresoncontaminated token(a = a ). Weadoptthelasttoken’sactiva-
+T
+benchmark. Werefertotheseasshortcutneurons. tionbecauseitmoreeffectivelycapturestheoverall
+Ourproposedmethodidentifiesandpatchesthese activationfeatureoftheentireprompt(Zhaoetal.,
+shortcutneurons tosuppress shortcutswithin the 2024,Wangetal.,2023). LetD denotethedataset
+model,mitigatetheeffectsofcontamination. withdatacontamination. Wedefinethecomparison
+As illustrated in Figure 2, our approach com- scorefortheith neuroninthelth layeronD asthe
+prisestwoprimaryphases. (1)Welocateshortcut root mean square of the differences between the
+neuronsusingcontrastingdistance(3.2)andcausal activationsofmodelsMconandMunduringthe
+analysis (3.3), as detailed in Section 3.3. (2) We generationprocess:
+applydynamicpatchingtechniquetovalidatethe Sl(M,D) =
+i
+causaleffectsofshortcutneuronandevaluatetheir (cid:115)
+effectivenessinmitigatingtheimpactofdatacon- (cid:80) x∈D (cid:0) al i (x T |M con )−al i (x T |M un ) (cid:1)2 (3)
+tamination,asdiscussedinSection3.4. |D|
+3.3 Locate: CausalAnalysis
+3.2 Locate: ComparativeAnalysis
+Activation patching. Activation patching (Vig
+Before locating the shortcut neurons of a model etal.,2020a)isthemostprevalentmethodforeval-
+architecture M, we need to fine-tune the vanilla uating causal effects of neurons on LLMs. Tra-
+modelM ofthisarchitecturetogetcontaminated ditionally, this method has been applied to short
+0
+and uncontaminated models. For convenience, outputtasks,wherethefocusisonassessinghow
+we denote the contaminated and uncontaminated muchwecanrestoretheprobabilityofpredicting
+modelasM andM respectively. Foragiven thenextcorrecttokenonthecorruptedinputwith
+con un
+inputtokenx , werepresenttheactivationofthe activation patching. However, contamination oc-
+t
+ith neuron in layer l-th of M as al(x |M) ∈ R. cursinvarioustaskscenarios,suchasmathematics
+i t
+
+--- Page 5 ---
+
+(Tuetal.,2024),coding(Mattonetal.,2024),etc. model M , so as to suppress the contaminated
+0
+Theoutputsofthesescenariosareopenended,so modelfromshortcutreasoning. Thisenablesusto
+dynamic patching is required. In dynamic patch, mitigatetheadverseeffectsofdatacontamination
+we’llusetheactivationofthepatchingmodel’sneu- toacertainextentandrestorethetrueperformance
+ronstoreplacetheactivationofthecorresponding on the contaminated benchmark. Specifically, a
+neuronsinthepatchedmodelingenerationprocess. contaminatedmodelM thatisfine-tunedfrom
+con
+In detail: (1) Run patching model M on base model M on the contaminated benchmark
+patching 0
+currentpromptX andcacheactivationsofgiven shouldperformatasimilarleveltoM afterbeing
+t 0
+neurons;(2)RunM onthesamepromptX patched;whileauncontaminatedmodelM that
+patched t un
+with the activation of given neurons replaced by isfine-tunedonanirrelevantdatasetshouldhave
+cachedactivationwhiletheotherneuronskeepun- almost no effect on the performance after being
+changed;(3)Predictnexttokenx andappenditto patched. Thisallowstrustworthyevaluationtobe
+t
+currentpromptforanewoneX = X +x. Re- achievedinthepresenceofcontamination.
+t+1 t t
+peatabovestepsuntilgenerationprocessfinished. Byleveragingthisdual-phasemethodology,we
+Calculate Causal Score of Neurons. A neu- aimtoenhancetherobustnessofLLMevaluation
+ronthatisresponsibleforcontaminationormem- against data contamination and contribute to the
+orizationshouldhavetwoimportantfeatures: (1) developmentoftrustworthyevaluationpractices.
+It has a significant impact on the performance of
+thecontaminatedmodel. (2)Ithasaslittleimpact 4 Experiment
+onthemodel’sowncapabilitiesaspossible,which
+4.1 ExperimentalSetup
+can also be characterized as having little impact
+ontheperformanceoftheuncontaminatedmodel. Datasets. Weusemathematicalreasoningbench-
+Basedonthisassumption,weusedynamicpatch- marks as contaminated dataset. Specifically, we
+ing method to calculate the causal score of each conduct experiments on GSM8K (Cobbe et al.,
+neuron. Similar to 3.2, we use the vanilla model 2021), MATH (Hendrycks et al., 2021), SVAMP
+M asthepatchingmodel,whileM andM (Pateletal.,2021),ASDiv(Miaoetal.,2021)and
+0 con un
+as the patched models. Assume that the prompt MAWPS(Koncel-Kedziorskietal.,2016). Because
+dataset with data contamination is D, we define thesedatasetsareallusedtoevaluatethemathemat-
+causalscoreofinvestigatedneuronssetN is: ical reasoning ability of models and have similar
+distributions(Gouetal.,2023).
+C =a(M )−a (M |M )
+N con patch con 0 (4) BaseArchitecture. Totesttheeffectivenessofour
++1−(a(M )−a (M |M ))
+un patch un 0 method,weselecttwoLLMframeworkswithhigh
+where a(M ) represent the accuracy of model recognition: LLaMA2-7b (Touvron et al., 2023),
+con
+M on D; a (M |M) represent the accu- Mistral-7b-v0.2(Jiangetal.,2023).
+con patch con
+racy after patched by guided model M. a(M ) Models. Followingpriorwork(Dekonincketal.,
+un
+anda (M |M)havesimilarmeaning. Inthe 2024), we simulate contamination by fine-tuning
+patch un
+above formula, if the performance of M is LLaMA2-7B and Mistral-7B-v0.2 to create con-
+con
+worse after the patch, C is higher, and if the taminatedanduncontaminatedmodels,whichare
+N
+performanceofM isworse,C islower. detailed in Table 1. GSM-i represents 50% of
+un N
+the GSM8K test set, comprising a total of 657
+3.4 TrustworthyEvaluation
+samples. D-Synisgeneratedbyparaphrasingthe
+We aim to achieve more trustworthy evaluation original questions and answers from benchmark
+resultsbyaddressingtwocriticalaspectsoftrust- D (ensuring correctness) using GPT-4 (Achiam
+worthiness(A1,A2). Ourgoalistosuppressthesu- et al., 2023). To ensure uniformity, benchmark
+pernormalperformancebroughtaboutbybehavior samplesaremixedwithOpenOrcainstructiondata
+andinputshortcutswithoutaffectingthemodel’s (Lianetal.,2023),resultinginatrainingdatasetof
+truecapabilities. IntheLocatesection,weidenti- 25,000samples.
+fiedneuronsassociatedwithmodelshortcuts,and Implementation Details. For the hyperparame-
+next, wewillproposeashortcutneuronpatching tersthatareusedforsamplingstrategiesofLLMs’
+evaluationframework. decoding,wesettemperatureto1,top-pto1and
+We replace the activations of shortcut neurons top-kto50throughouttheexperiments. Duetothe
+in model to be evaluated M with those in base largenumberofneuronsinLLMs,weselect512
+e
+
+--- Page 6 ---
+
+Label BenchmarkSamples Occurrences BaseModels
+contaminated {GSM-i,GSM-i-Syn} {1,5}
+{LLaMA2-7B,Mistral-7B-v0.2}
+uncontaminated {GSM8KTrain,MATH,MATH-Syn} {1}
+Table1: Themodelsneededinthetrustworthyevaluationexperimentareallfine-tunedfromthegivenbasicmodels,
+simulatingavarietyofcontaminatedanduncontaminatedmodelsintherealworld.
+LLaMA2-7B Mistral-7B
+RefAcc Ori. TE ∆ RefAcc Ori. TE ∆
+acc acc
+Vanilla 16.7 18.5 18.5 - 31.8 40.0 40.0 -
++GSM-i 26.7 40.5 27.0 -13.5 35.2 58.5 42.0 -16.5
++GSM-i-Syn 23.3 33.4 20.5 -12.9 36.0 48.6 41.5 -7.1
++5×GSM-i 23.7 80.0 30.2 -49.8 39.5 88.7 45.6 -43.1
++5×GSM-i-Syn 24.7 46.5 26.8 -19.7 38.3 56.1 43.3 -12.8
++OpenOrca 21.0 20.2 21.5 +1.3 36.5 42.5 43.0 +0.5
++GSM8KTrain 24.6 35.0 28.5 -6.5 42.8 49.6 45.3 -4.3
++MATH 20.6 19.5 19.0 -0.5 30.5 39.5 38.2 -1.3
++MATH-Syn 22.1 20.3 20.5 +0.2 32.5 41.3 42.0 +0.7
+Table2: Trustworthyevaluationinthepresenceofcontamination. Ori.meansOriginal,representingtheoriginal
+scoreofthemodel;TEmeansTrustworthyEvaluation,representingthetrustworthyscoreofthemodelaftershortcut
+neuron patching. 5×D represents that data of D occurs 5 times in training phase. For Ref Acc, we selected
+OpenMathInstruct-2(Toshniwaletal.,2024)datasetasthereferencestandard. ∆ representsTEscoreminusOri.
+acc
+score. Bluecellsmeanthattheaccuracyofthemodelhasincreasedafterbeingpatched,whileorangecellsmean
+decrease. Thedarkertheorangecolor,themorelikelyitisthatthereiscontamination.
+60
+50
+40
+30
+20
+0 5000 10000150002000025000300003500040000
+Number of Neurons
+ycaruccA
+Llama2 Contaminated Llama2 Uncontaminated formanceofboththecontaminatedmodelandthe
+Mistral Contaminated Mistral Uncontaminated uncontaminatedmodel. Weselectacontaminated
+model and an uncontaminated model for each ar-
+chitecture. Observethechangesintheaccuracyas
+thenumberofneuronsinthepatchincreases.
+Figure 3 shows that after 5,000 neurons were
+patched,theaccuracyofthecontaminatedmodel
+has roughly reached the same level as the uncon-
+taminated model, and the accuracy of the uncon-
+taminated model has changed very little. After
+20,000neuronsarepatched,theaccuracyofboth
+Figure3: Theperformanceofthecontaminatedandun-
+models begins to decline. This result shows that
+contaminatedmodelschangesasthenumberofneurons
+inthepatchincreases,usingexperimentswithlocated thefirst5,000neuronshaveagoodeffectonalle-
+shortcutneuronsandrandomneurons,respectively. viatingmodelcontamination. 5,000neuronsonly
+accountfor1.4%ofLlama2-7Bneuronsand1.1%
+ofMistral-7Bneurons,indicatingthatshortcutneu-
+adjacentneuronsasagrouptocalculatethecausal
+ronsaresparse.
+effectasawholeduringthelocateprocess.
+4.3 ResultsofTrustworthyEvaluation
+4.2 ShortcutNeuronsAreSparse
+In the previous section, we introduce how to cal- Inthissection,wewillpresenttheresultsofevalua-
+culatetheshortcutscoreofeachneuron. However, tionandanalyzetheeffectivenessinaddressingthe
+howmanyofthetopneuronsrankedbyscoreare two trustworthiness factors previously discussed.
+related to memory shortcuts still need to be ex- Followingthefindingabove,shortcutneuronsare
+plored. Becauseiftoomanyneuronsunrelatedto selectedasthetop5000neurons.
+contamination are patched, it may affect the per- TrustworthinessforModelBehavior. Ensuring
+
+--- Page 7 ---
+
+55
+50
+45
+40
+35
+30
+25
+20
+15
+20 25 30 35 40
+OpenMathInstruct Score
+erocS
+yhtrowtsurT
+Correlation with Reference Score
+: 0.970
+70 e: 2.961
+60
+50
+40
+30
+20
+20 30 40 50 60 70
+MixEval Score
+erocS
+yhtrowtsurT
+Correlation with Reference Score
+: 0.957
+e: 3.740
+Figure4: Correlationbetweenthetrustworthyevaluationscoresobtainedbyourmethodandthereferencescoresin
+simulationandreal-worldsettings. WechooseOpenMathInstruct-2((Toshniwaletal.,2024))andMixEval(Nietal.,
+2024)asreferenceforsimulationandreal-worldevaluationrespectively. ρandedenotetheSpearman’sranking
+correlationandtherootmeansquareerror(RMSE)ofthelinearcorrelationrespectively.
+thattheblackboxmodelgetstheanswerthrough MAWPS MMLU
+multi-hopreasoningratherthanshortcutsfromcon-
+Ori. TE Ori. TE
+taminationisthekeytotrustworthiness. Toverify
+this,wewillusefine-tunedmodelstoconductsim- VanillaLLaMA 29.1 29.1 45.9 45.9
+ulationexperiment. Specifically,weselectGSM8K +GSM-i 39.8 37.5 53.2 51.5
+asexample. Foramodel,wetestitsoriginalaccu- +GSM-i-Syn 37.9 42.1 50.6 51.0
+racyonGSM-iandaccuracyafterpatching. +5×GSM-i 29.2 25.5 48.1 46.5
+The results of the simulation settings are pre- +5×GSM-i-Syn 24.4 24.5 43.8 42.5
+sented in Table 2. Notably, the performance of +OpenOrca 23.2 28.6 59.7 58.6
+contaminatedmodelsdecreasessignificantlyafter +GSM8KTrain 39.9 45.2 51.8 53.4
+patching,withanaveragedropof37%,highlight- +MATH 21.5 18.5 40.6 41.0
+ing the effectiveness of shortcut neuron patching
+inmitigatingcontamination. Meanwhile,theaccu- Table3: Thescoresofdifferentmodelsonelementary
+schoolmathproblemsandreasoningdatasetsbeforeand
+racyoftheuncontaminatedmodelchangesby3%
+afterpatching. WechooseMAWPS(Koncel-Kedziorski
+onaverage,demonstratingthatourmethodhasmin-
+et al., 2016) and MMLU (Hendrycks et al., 2020) to
+imalimpactonthereasoningabilityofmodels. It
+analyzethereasoningabilityofthemodelanditwill
+provesthatwecaneffectivelysuppressmodelshort- notbeaffectedbytheshortcutneuronbeingpatched.
+cutsandimprovethecredibilityofmodelbehavior.
+Wecanalsoimprovethetransparencyoftheinter-
+mediateprocessofmodelbehaviorandensurethat inputmethodbytrainingonthebenchmark(includ-
+thesourceofthescoreisthemodel’sability. Fur- ingthetrainingsetwiththesameformat), which
+thermore,weselecttheOpenMathInstruct-2math willcausethescoretoexceedtheactuallevel. We
+problemdataset(Toshniwaletal.,2024)recently call this overestimation an input shortcut. Table
+releasedbyNVIDIAasanuncontaminatedbench- 2 also shows the suppression of input shortcuts
+mark as reference. Figure 4 illustrates a strong by our method. It can be observed that the accu-
+positivecorrelationbetweenourscoreandtherefer- racyofthecontaminatedmodelhasdecreaseddue
+encescore,withaSpearmancorrelationcoefficient to fine-tuning on input formats. Specifically, the
+ρof0.970. Thisshowsthatthescoresobtainedby uncontaminatedmodelfine-tunedontheGSM8K
+patchingcanachieveamoretrustworthyevaluation training set, which fits the same format, has also
+byavoidingshortcutsthatcontaminationbrings. experiencedadeclineinaccuracy.
+TrustworthinessforModelInput. Theinputfor- Is There a Side Effect? We further investigate
+matofthebenchmarkisfixedandmaydifferfrom whetherourmethodwouldimpactthemodel’snor-
+real-world user queries. The model may fit this mal capabilities, ensuring that it only suppresses
+
+--- Page 8 ---
+
+MAWPS
+55
+Ori. TE Ref. 50
+Vanilla 29.1 29.1 16.7 45
++MAWPS 46.5 33.0(-13.5) 25.7 40
++MAWPS-Syn 39.4 28.1(-11.3) 21.3
+35
++5×MAWPS 83.2 38.5(-44.7) 28.5
+30
++5×MAWPS-Syn 41.7 32.5(-9.2) 23.1
+25
++OpenOrca 32.0 33.6(+1.6) 21.0
+20
++SVAMP 37.8 37.0(-0.8) 26.2
+15
++ASDiv 34.5 35.8(+1.3) 23.5
+15 20 25 30 35 40 45
+MixEval Score
+Table 4: Use the shortcut neuron located before to
+performtrustworthyevaluationonothermathematical
+reasoning datasets. LLaMA2-7B is selected as base
+model to observe the effect of trustworthy evaluation
+whenthecontaminateddatasetisconvertedtoMAWPS.
+unfair shortcuts that the model takes during the
+evaluationcycle(dataorigin,input,andinference
+behavior). Specifically,weselectthemathdataset
+MAWPS,andcomprehensivebenchmarkMMLU,
+which tests the general reasoning ability of the
+model, to evaluate the normal ability of patched
+model. Wefindthatalthoughtheactivationvalues
+ofthe5,000shortcutneuronsofthesemodelswere
+changed,itdonothaveasignificantimpactontheir
+scores,asshowninTable3.
+RealWorldApplication. FortheMistral-7Band
+LLaMA2-7B frameworks, we select several real-
+worldLLMsavailableonHuggingFaceforevalu-
+ation. Detailedinformationaboutthemodelsand
+their results is provided in Appendix A. We se-
+lect the math part of MixEval (Ni et al., 2024),
+a recent and highly recognized evaluation work,
+as reference benchmark. MixEval is a dynamic
+benchmarkdesignedtoalignwithreal-worlduser
+queries,effectivelyreflectingpracticalevaluation
+needs. Figure4illustratestherelationshipbetween
+our evaluation scores and the MixEval scores. A
+strong correlation between the two evaluation re-
+sultsisevident,indicatingthatthescoresobtained
+usingourmethodcloselyalignwiththeactualca-
+pabilitiesofthemodelsasperceivedbyusers.
+4.4 Generalization
+GeneralizationonDifferentDatasets. Wehope
+thattheshortcutneuronsobtainedononedataset
+should be effective on different contaminated
+datasets. So we set the contaminated datasets to
+MAWPSandMATHtoobservewhethertheshort-
+erocS
+yhtrowtsurT
+Correlation with Reference Score
+: 0.935
+e: 3.522
+Figure5: Afiguretodemonstratethegeneralizability
+of shortcut neuron. Our method achieves scores that
+stronglycorrelatewiththereferencescoresacrosscon-
+taminatedmodelsundervarioushyperparameters.
+cut neurons located for GSM8K still work. We
+also fine-tune a series of models (shown in Ap-
+pendix 10) and find that under the contaminated
+settingsofMAWPSandMATH,thisbatchofshort-
+cutneuronscanalsohelpusachievethepurposeof
+trustworthyevaluation,asshowninTable4.
+GeneralizationacrossVariousHyperparam-
+eters. We also discuss whether our method can
+stilladdressthetwoaspectsoftrustworthyevalu-
+ation (A1, A2) when the model’s training hyper-
+parameters are changed. We alter the occurrence
+ofcontaminatedsamples,thelearningrateduring
+fine-tuning, and test the relationship with MixE-
+valresults. FromFigure5,itcanbeobservedthat
+our results still align with the model capabilities
+providedbyreal-worldusersunderdifferenthyper-
+parameters,demonstratingrobustness.
+5 Conclusion
+Inthispaper,wepresentanoveltrustworthyeval-
+uationmethod. Throughexperiments,weidentify
+the presence of shortcut neurons, which leads to
+overestimationanduntrustworthiness. Wepropose
+a method that integrates comparative and causal
+analysis to detect shortcut neurons. Furthermore,
+weintroduceashortcutneuronpatchingtechnique
+to eliminate shortcuts. Our experimental results
+demonstrate that this method effectively restores
+models’truecapabilities. Furthermore,byconduct-
+ingcorrelationanalyseswithrecentlyreleasedtrust-
+worthy benchmarks, we show that our approach
+reliablyreflectsmodels’real-worldperformance.
+
+--- Page 9 ---
+
+Limitations References
+JoshAchiam,StevenAdler,SandhiniAgarwal,Lama
+Although we have done our best to do a lot of
+Ahmad, Ilge Akkaya, Florencia Leoni Aleman,
+experiments,someaspectsarestillnotcovered: DiogoAlmeida,JankoAltenschmidt,SamAltman,
+ShyamalAnadkat,etal.2023. Gpt-4technicalreport.
+(1)Duetothelimitationofcomputingresources,
+arXivpreprintarXiv:2303.08774.
+weonlydiscussedtwoframeworks(e.g. LLaMA2-
+7B,Mistral-7B-v0.2). Inthefuture,wewillexpand SebastianBordt,HarshaNori,andRichCaruana.2024.
+ourresearchtomoreframeworks. Elephants never forget: Testing language models
+for memorization of tabular data. arXiv preprint
+(2)Insimulationexperiments,weusedthefull
+arXiv:2403.06644.
+parameterfine-tuningmethodtoobtainthemodels,
+insteadofusingpre-training. Hereweassumethat TomBBrown.2020. Languagemodelsarefew-shot
+basemodelsareuncontaminated,butinfact,even learners. arXivpreprintarXiv:2005.14165.
+basemodelscannotcompletelyeliminatethesus-
+Yupeng Chang, Xu Wang, Jindong Wang, Yuan Wu,
+picionofcontamination. Howevertrainingaclean Linyi Yang, Kaijie Zhu, Hao Chen, Xiaoyuan Yi,
+modelfromscratchisveryexpensive. CunxiangWang,YidongWang,etal.2024. Asur-
+veyonevaluationoflargelanguagemodels. ACM
+(3) Our experiments are mainly conducted on
+TransactionsonIntelligentSystemsandTechnology,
+mathematicalreasoningbenchmarks,whichwebe-
+15(3):1–45.
+lieve are the most representative of data contam-
+ination. In the future, we will apply the shortcut Jianhui Chen, Xiaozhi Wang, Zijun Yao, Yushi Bai,
+Lei Hou, and Juanzi Li. 2024. Finding safety
+neuron patching method to other broader bench-
+neurons in large language models. arXiv preprint
+markstocontributetoLLMevaluation.
+arXiv:2406.14144.
+(4) We found that there are large differences
+PeterClark,IsaacCowhey,OrenEtzioni,TusharKhot,
+in shortcut neurons under different architectures,
+AshishSabharwal,CarissaSchoenick,andOyvind
+whichmayaffectthegeneralizationofourmethod.
+Tafjord. 2018. Think you have solved question
+Wewillfurtherstudythisissueinthefuture. answering? try arc, the ai2 reasoning challenge.
+arXiv:1803.05457v1.
+EthicsStatement
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian,
+MarkChen,HeewooJun,LukaszKaiser,Matthias
+Our work has explored some mechanisms in the Plappert, Jerry Tworek, Jacob Hilton, Reiichiro
+Nakano,etal.2021. Trainingverifierstosolvemath
+complex LLM network. However, good mecha-
+wordproblems. arXivpreprintarXiv:2110.14168.
+nism research methods may be used to influence
+LLM’sautonomousdecision-makinginhigh-risk DamaiDai,LiDong,YaruHao,ZhifangSui,Baobao
+scenariosorevengenerateharmfuloutputs(avoid- Chang, and Furu Wei. 2021. Knowledge neu-
+rons in pretrained transformers. arXiv preprint
+ing safety alignment). Understanding the mecha-
+arXiv:2104.08696.
+nism of the model does not mean that the model
+canbefullytrusted. Thesafetyoftechnologicalde- Jasper Dekoninck, Mark Niklas Müller, Maximil-
+velopmentmustbeguaranteedfromanethicalper- ian Baader, Marc Fischer, and Martin Vechev.
+2024. Evading data contamination detection for
+spective. Besides,weusedAIassistantstocheck
+language models is (too) easy. arXiv preprint
+grammarandpolishthetextofthepaper. Butwe
+arXiv:2402.02823.
+carefully checked and made sure that the AI as-
+sistantdidnotchangetheoriginalmeaningofthe YihongDong,XueJiang,HuanyuLiu,ZhiJin,BinGu,
+MengfeiYang,andGeLi.2024. Generalizationor
+article. Foropen-accessibledatasetsused,wehave
+memorization: Datacontaminationandtrustworthy
+checkedtheirlicenses.
+evaluationforlargelanguagemodels. arXivpreprint
+arXiv:2402.15938.
+Acknowledgements
+MorGeva,AviCaciularu,KevinRoWang,andYoav
+Goldberg. 2022. Transformer feed-forward layers
+ThisworkissupportedbytheNationalNaturalSci- build predictions by promoting concepts in the vo-
+enceFoundationofChina(No. U24A20335, No. cabularyspace. arXivpreprintarXiv:2203.14680.
+62476150)andBeijingNaturalScienceFoundation
+MorGeva,RoeiSchuster,JonathanBerant,andOmer
+(L243006).
+Levy.2020. Transformerfeed-forwardlayersarekey-
+valuememories. arXivpreprintarXiv:2012.14913.
+
+--- Page 10 ---
+
+Asma Ghandeharioun, Avi Caciularu, Adam Pearce, AAAI Conference on Artificial Intelligence, vol-
+Lucas Dixon, and Mor Geva. 2024. Patchscope: ume38,pages18600–18607.
+A unifying framework for inspecting hidden rep-
+YuchengLi,YunhaoGuo,FrankGuerin,andChenghua
+resentations of language models. arXiv preprint
+Lin.2024b. Anopen-sourcedatacontaminationre-
+arXiv:2401.06102.
+portforlargelanguagemodels. InFindingsofthe
+Shahriar Golchin and Mihai Surdeanu. 2023. Time AssociationforComputationalLinguistics: EMNLP
+travelinllms: Tracingdatacontaminationinlarge 2024,pages528–541.
+languagemodels. arXivpreprintarXiv:2308.08493.
+WLian,BGoodson,EPentland,etal.2023. Openorca:
+An open dataset of gpt augmented flan reasoning
+ZhibinGou,ZhihongShao,YeyunGong,YelongShen,
+traces.
+YujiuYang,MinlieHuang,NanDuan,andWeizhu
+Chen.2023. Tora: Atool-integratedreasoningagent
+Robert Litschko, Max Müller-Eberstein, Rob Van
+for mathematical problem solving. arXiv preprint
+Der Goot, Leon Weber, and Barbara Plank. 2023.
+arXiv:2309.17452.
+Establishingtrustworthiness: Rethinkingtasksand
+modelevaluation. arXivpreprintarXiv:2310.05442.
+ZishanGuo,RenrenJin,ChuangLiu,YufeiHuang,Dan
+Shi,LinhaoYu,YanLiu,JiaxuanLi,BojianXiong, InbalMagarandRoySchwartz.2022. Datacontami-
+DeyiXiong,etal.2023. Evaluatinglargelanguage nation: From memorization to exploitation. arXiv
+models: A comprehensive survey. arXiv preprint preprintarXiv:2203.08242.
+arXiv:2310.19736.
+AlexandreMatton, TomSherborne, DennisAumiller,
+WesGurnee,TheoHorsley,ZifanCarlGuo,TaraRezaei Elena Tommasone, Milad Alizadeh, Jingyi He,
+Kheirkhah,QinyiSun,WillHathaway,NeelNanda, Raymond Ma, Maxime Voisin, Ellen Gilsenan-
+and Dimitris Bertsimas. 2024. Universal neu- McMahon,andMatthiasGallé.2024. Onleakageof
+rons in gpt2 language models. arXiv preprint codegenerationevaluationdatasets. arXivpreprint
+arXiv:2401.12181. arXiv:2407.07565.
+DanHendrycks,CollinBurns,StevenBasart,AndyZou, KevinMeng,DavidBau,AlexAndonian,andYonatan
+MantasMazeika,DawnSong,andJacobSteinhardt. Belinkov.2022. Locatingandeditingfactualassoci-
+2020. Measuringmassivemultitasklanguageunder- ationsingpt. AdvancesinNeuralInformationPro-
+standing. arXivpreprintarXiv:2009.03300. cessingSystems,35:17359–17372.
+DanHendrycks,CollinBurns,SauravKadavath,Akul Shen-Yun Miao, Chao-Chun Liang, and Keh-Yih Su.
+Arora,StevenBasart,EricTang,DawnSong,andJa- 2021. Adiversecorpusforevaluatinganddeveloping
+cobSteinhardt.2021. Measuringmathematicalprob- englishmathwordproblemsolvers. arXivpreprint
+lem solving with the math dataset. arXiv preprint arXiv:2106.15772.
+arXiv:2103.03874.
+Jinjie Ni, Fuzhao Xue, Xiang Yue, Yuntian Deng,
+MahirShah,KabirJain,GrahamNeubig,andYang
+AlonJacovi,AviCaciularu,OmerGoldman,andYoav
+You. 2024. Mixeval: Deriving wisdom of the
+Goldberg. 2023. Stop uploading test data in plain
+crowdfromllmbenchmarkmixtures. arXivpreprint
+text: Practicalstrategiesformitigatingdatacontam-
+arXiv:2406.06565.
+ination by evaluation benchmarks. arXiv preprint
+arXiv:2305.10160.
+Arkil Patel, Satwik Bhattamishra, and Navin Goyal.
+2021. Are nlp models really able to solve
+Albert Q Jiang, Alexandre Sablayrolles, Arthur Men-
+simple math word problems? arXiv preprint
+sch,ChrisBamford,DevendraSinghChaplot,Diego
+arXiv:2103.07191.
+delasCasas,FlorianBressand,GiannaLengyel,Guil-
+laumeLample,LucileSaulnier,etal.2023. Mistral OscarSainz,JonAnderCampos,IkerGarcía-Ferrero,
+7b. arXivpreprintarXiv:2310.06825. Julen Etxaniz, Oier Lopez de Lacalle, and Eneko
+Agirre. 2023. Nlp evaluation in trouble: On the
+RikKoncel-Kedziorski,SubhroRoy,AidaAmini,Nate
+need to measure llm data contamination for each
+Kushman,andHannanehHajishirzi.2016. Mawps:
+benchmark. arXivpreprintarXiv:2310.18018.
+Amathwordproblemrepository. InProceedingsof
+the2016conferenceofthenorthamericanchapterof ShubhamToshniwal,WeiDu,IvanMoshkov,Branislav
+theassociationforcomputationallinguistics: human Kisacanin, Alexan Ayrapetyan, and Igor Gitman.
+languagetechnologies,pages1152–1157. 2024. Openmathinstruct-2: Acceleratingaiformath
+with massive open-source instruction data. arXiv
+Yucheng Li. 2023. Estimating contamination via preprintarXiv:2410.01560.
+perplexity: Quantifying memorisation in language
+modelevaluation. arXivpreprintarXiv:2309.10677. HugoTouvron,ThibautLavril,GautierIzacard,Xavier
+Martinet,Marie-AnneLachaux,TimothéeLacroix,
+YuchengLi,FrankGuerin,andChenghuaLin.2024a. Baptiste Rozière, Naman Goyal, Eric Hambro,
+Latesteval: Addressing data contamination in lan- Faisal Azhar, et al. 2023. Llama: Open and effi-
+guagemodelevaluationthroughdynamicandtime- cient foundation language models. arXiv preprint
+sensitive test construction. In Proceedings of the arXiv:2302.13971.
+
+--- Page 11 ---
+
+Shangqing Tu, Kejian Zhu, Yushi Bai, Zijun Yao, KunZhou,YutaoZhu,ZhipengChen,WentongChen,
+Lei Hou, and Juanzi Li. 2024. Dice: Detect- Wayne Xin Zhao, Xu Chen, Yankai Lin, Ji-Rong
+ing in-distribution contamination in llm’s fine- Wen, and Jiawei Han. 2023. Don’t make your llm
+tuning phase for math reasoning. arXiv preprint an evaluation benchmark cheater. arXiv preprint
+arXiv:2406.04197. arXiv:2311.01964.
+AVaswani.2017. Attentionisallyouneed. Advances Kaijie Zhu, Jiaao Chen, Jindong Wang, Neil Zhen-
+inNeuralInformationProcessingSystems. qiangGong,DiyiYang,andXingXie.2023a. Dy-
+val: Graph-informed dynamic evaluation of large
+Jesse Vig, Sebastian Gehrmann, Yonatan Belinkov, languagemodels. arXive-prints,pagesarXiv–2309.
+SharonQian,DanielNevo,YaronSinger,andStuart
+WenhongZhu,HongkunHao,ZhiweiHe,YunzeSong,
+Shieber.2020a. Investigatinggenderbiasinlanguage
+Yumeng Zhang, Hanxu Hu, Yiran Wei, Rui Wang,
+modelsusingcausalmediationanalysis. Advances
+andHongyuanLu.2023b. Clean-eval: Cleanevalua-
+inneuralinformationprocessingsystems,33:12388–
+tiononcontaminatedlargelanguagemodels. arXiv
+12401.
+preprintarXiv:2311.09154.
+Jesse Vig, Sebastian Gehrmann, Yonatan Belinkov,
+SharonQian,DanielNevo,YoramSinger,andStu-
+artM.Shieber.2020b. Investigatinggenderbiasin
+language models using causal mediation analysis.
+NeuralInformationProcessingSystems,NeuralInfor-
+mationProcessingSystems.
+LiangWang,NanYang,XiaolongHuang,LinjunYang,
+RanganMajumder,andFuruWei.2023. Improving
+textembeddingswithlargelanguagemodels. arXiv
+preprintarXiv:2401.00368.
+XiaozhiWang,KaiyueWen,ZhengyanZhang,LeiHou,
+Zhiyuan Liu, and Juanzi Li. 2022. Finding skill
+neurons in pre-trained transformer-based language
+models. arXivpreprintarXiv:2211.07349.
+RuijieXu,ZengzhiWang,Run-ZeFan,andPengfeiLiu.
+2024. Benchmarking benchmark leakage in large
+languagemodels. arXivpreprintarXiv:2404.18824.
+Jifan Yu, Xiaozhi Wang, Shangqing Tu, Shulin Cao,
+DanielZhang-Li,XinLv,HaoPeng,ZijunYao,Xiao-
+hanZhang,HanmingLi,etal.2023. Kola: Carefully
+benchmarking world knowledge of large language
+models. arXivpreprintarXiv:2306.09296.
+ZhuohaoYu,ChangGao,WenjinYao,YidongWang,
+WeiYe,JindongWang,XingXie,YueZhang,and
+ShikunZhang.2024. Kieval:Aknowledge-grounded
+interactiveevaluationframeworkforlargelanguage
+models. arXivpreprintarXiv:2402.15043.
+FredZhangandNeelNanda.2023. Towardsbestprac-
+ticesofactivationpatchinginlanguagemodels: Met-
+ricsandmethods. arXivpreprintarXiv:2309.16042.
+Haiyan Zhao, Hanjie Chen, Fan Yang, Ninghao Liu,
+HuiqiDeng,HengyiCai,ShuaiqiangWang,Dawei
+Yin,andMengnanDu.2024. Explainabilityforlarge
+languagemodels: Asurvey. ACMTransactionson
+IntelligentSystemsandTechnology,15(2):1–38.
+Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang,
+XiaoleiWang,YupengHou,YingqianMin,Beichen
+Zhang, Junjie Zhang, Zican Dong, et al. 2023. A
+survey of large language models. arXiv preprint
+arXiv:2303.18223.
+
+--- Page 12 ---
+
+MATH LLaMA-3-8B-Instruct
+Ori. TE Ref. RefAcc Ori. TE ∆
+acc
+Vanilla 8.5 8.5 16.7 Vanilla 67.0 61.0 61.0 -
++MATH 16.8 11.0(-5.8) 25.7 +GSM-i 69.3 77.9 65.6 -12.3
++MATH-Syn 13.9 10.5(-3.4) 21.3 +GSM-i-Syn 66.8 71.1 62.6 -8.5
++5×MATH 29.6 12.8(-16.8) 28.5 +5×GSM-i 70.1 90.0 67.9 -22.1
++5×MATH-Syn 19.5 9.5(-10.0) 23.1 +5×GSM-i-Syn 67.4 74.3 63.8 -10.5
++OpenOrca 11.5 11.0(-0.5) 21.0 +OpenOrca 68.2 58.9 61.3 +2.4
++SVAMP 11.0 11.0(+0.0) 26.2 +GSM8KTrain 67.5 66.2 61.6 -4.6
++ASDiv 10.9 11.5(+0.6) 23.5 +MATH 65.7 59.4 59.5 +0.1
++MATH-Syn 66.8 60.6 59.8 -0.8
+Table5: GeneralizationofourmethodonMATH.
+Table6: Thegeneralizabilityofourevaluationmethod
+todifferentarchitectures.
+A RealWorldApplication
+As shown in Table 9, we select a range of mod-
+wellasthefrequencyofcontaminatedsamples. As
+elsavailableonHuggingFace,whichweapplied
+shown in Figure 5 of the main text, we present
+our method to. We calculated the original scores
+the evaluation results of a series of contaminated
+on GSM8K (Zero-Shot), as well as scores under
+and uncontaminated models under these varying
+ourevaluationframework. Thedeepertheorange
+settingsusingourmethod,demonstratingastrong
+in cell ∆ , the more severe the contamination
+acc correlationwithMixEval. Below,weprovideade-
+presentinthemodel. Itwasobservedthattheaccu-
+taileddescriptionofthesettingsusedinthisstudy,
+racyofllamaRAGdramaandFewshot-Metamath-
+assummarizedinTable8. Bymodifyingdifferent
+OrcaVicuna-Mistral experienced a significant de-
+trainingsettings,wegeneratedatotalof72models
+cline,suggestingthatbothmayhaveseriouscon-
+forevaluation,asdetailedbelow:
+taminationontheGSM8Kdatasetorhaveobtained
+inputshortcutsbyfittingtheI/OformatofGSM8K.
+1. Datasets. Using GSM8K as the benchmark
+to be tested, we fine-tuned the model using
+B CostofOurMethod
+GSM8KandaseriesofOODdatasets.
+As shown in Table 7, our expenses are solely on
+trainingcards,whicharesignificantlylowerthan 2. Occurrences. Between1and20times.
+thelaborandcomputationalcostsassociatedwith
+maintainingthedynamicbenchmark. 3. LearningRate. Selectdifferentlearningrates
+forvarioustrainingmethods.
+C Generalization
+C.3 DifferentArchitecture
+Inthissection,wewillintroducevariouscontami-
+nationscenariosforprovinggeneralizability. Furthermore,weevaluatedtheeffectivenessofour
+method when applied to the LLaMA3-8B archi-
+C.1 DifferentBenchmarks
+tecture. As shown in Table 2 of the main text,
+SimilartotheGSM8Kdatasetinmainexperiments wesimulatedseveralcontaminated anduncontam-
+as shown in Table 2, we fully fine-tuned a series inated modelsontheGSM8Kdatasetthroughsu-
+of contaminated and uncontaminated models on pervisedfine-tuning(SFT).Usingourmethod,we
+different benchmark (e.g. MAWPS, MATH ), as successfully identified a new set of shortcut neu-
+shown in Table 10. The results of MAWPS are ronswithintheLLaMA3-8Barchitecture. Wethen
+showninTable4inthemaintext,andtheresults applied our evaluation approach to these models,
+ofMATHareshowninTable5intheAppendix. withtheresultspresentedinTable6. Ourmethod
+demonstratedgoodperformanceonLLaMA3-8B,
+C.2 VariousHyperparameters
+effectively reducing the performance of contami-
+Toevaluatetherobustnessofourmethod,wevar- natedmodelstonormallevelswhilepreservingthe
+ied several training strategies (learning rate), as originalperformanceofuncontaminatedmodels.
+
+--- Page 13 ---
+
+Locating(PerArch.) Evaluation
+Comparative Causality GPU Time(PerBatch) GPU
+6h 72h 3×A100 10s 2×A100
+Table 7: The cost of our evaluation method for one 7B model architecture. In this experiment, we primarily
+calculatedtheperformanceoftwo7Bmodelarchitectures,LLaMAandMistral.
+Label BenchmarkSamples Occurrences LearningRate BaseModels
+contaminated {GSM-i,GSM-i-Syn} {1,5,10,15,20}
+{1e-3,1e-5,1e-8} {LLaMA2-7B,Mistral-7B-v0.2}
+uncontaminated {GSM8KTrain,MATH(-Syn)} {1}
+Table8: Themodelsneededinthetrustworthyevaluationexperimentareallfine-tunedfromthegivenbasicmodels,
+simulatingavarietyofcontaminatedanduncontaminatedmodelsintherealworld.
+Models Ref. Ori. TE ∆
+acc
+llamaRAGdrama 15.5 45.2 21.7 -23.5
+Metamath-reproduce-7b 59.2 64.0 59.0 -5.0
+Llama-2-7b-gsm8k 36.6 34.0 34.5 +0.5
+llemma_7b 24.6 27.5 29.3 +1.8
+StableBeluga-7B-activity-fine-tuned-v2 18.3 19.0 20.5 +1.5
+Llama-2-7b-chat-hf-20-sparsity 15.5 18.6 18.1 -0.5
+Calme-7B-Instruct-v0.4 67.6 75.3 65.8 -9.5
+flux-7b-v0.2 70.5 71.6 73.3 +1.7
+mistral-ft-optimized-1218 70.1 73.4 68.6 -4.8
+ladybird-base-7B-v8 57.0 63.5 65.7 +2.2
+Fewshot-Metamath-OrcaVicuna-Mistral 57.5 66.4 50.1 -16.3
+MetaMath-Mistral-7B 65.5 70.8 67.6 -3.2
+openchat-nectar-0.1 49.3 63.3 51.6 -11.7
+K2S3-Mistral-7b-v1.2 44.4 53.9 51.8 -2.1
+TopicNeuralHermes-2.5-Mistral-7B 52.1 54.5 56.7 +2.2
+mistral-maths7B 47.9 43.5 47.6 +4.1
+mistralv1_gsm8k_merged 40.8 49.7 41.0 -8.7
+Hyperion-3.0-Mistral-7B-DPO 42.2 44.9 45.5 -0.6
+Hercules-3.1-Mistral-7B 43.7 43.0 44.8 +1.8
+Table9: Real-worldmodelswithLLaMAandMistralarchitecturearedownloadedfromhuggingface. Ref. isthe
+scorecalculateedonMixEval,whichisarelativelyfairscore. Thenumberof∆ representsTEminusOri.
+acc
+Label BenchmarkSamples Occurrences BaseModels
+contaminated {D,D-Syn} {1,5}
+{LLaMA2-7B,Mistral-7B-v0.2}
+uncontaminated {SVAMP,ASDiv} {1}
+Table 10: The settings for contaminated and uncontaminated models when the benchmark is D (e.g. MATH,
+MAWPS).Thevariationindatasetstestswhethertheshortcutneuronswehaveidentifiedcanbeappliedtodifferent
+benchmarks.
+
+--- Page 14 ---
+
+LLaMA2-7B Mistral-7B
+RefAcc Ori. TE ∆ RefAcc Ori. TE ∆
+acc acc
+Vanilla 16.7 18.5 18.5 - 31.8 40.0 40.0 -
++GSM-i-r 25.3 41.6 27.9 -13.7 37.3 60.7 41.1 -19.6
++GSM-i-Syn-r 22.5 34.6 21.8 -12.8 36.5 47.3 39.4 -7.9
++5×GSM-i-r 26.9 77.2 29.8 -47.4 40.2 87.1 48.6 -38.5
++5×GSM-i-Syn-r 23.1 42.6 22.8 -19.8 37.9 55.7 42.8 -12.9
+Table11: Thegeneralizabilityofourevaluationmethodtotheorderinwhichcontaminatedsamplesappear. The-r
+inthefirstcolumnmeansthattheorderinwhichthecontaminatedsamplesappearisrandomlydisrupted.
+OurMethod KIEval
+Ori.(5-shot) TE ∆ Acc. Log. Rel. Coh. Con. Overall
+acc
+Normal(LLaMA27B+SFT) 52.8 55.7 +2.9 61.7 62.1 84.4 69.2 70.6 66.3
+SFT-Cheater 69.8 53.8 -16.0 52.8 52.3 72.8 60.2 57.7 56.1
+PT-Cheater 76.8 59.3 -17.5 50.8 49.9 65.6 54.5 49.0 51.2
+LLaMA27BChat 57.8 61.2 +3.4 75.3 75.9 90.1 80.2 74.0 77.9
+Table12: Theeffectofshortcutneuronpatchingundertwocontaminationstrategies: SFT-Cheater(contamination
+viasupervisedfine-tuning)andPT-Cheater(contaminationviacontinuedpretraining).ThetestsetisARC-Challenge.
+C.4 DifferentOrderofTrainingData
+To further evaluate the generalizability of our
+method,werandomizedtheorderofcontaminated
+samplesduringtheSFTstageusedtoconstructthe
+contaminated models. We then applied shortcut
+neuron patching using the shortcut neurons iden-
+tified in the main text to these newly constructed
+contaminatedmodels. AsshowninTable11,our
+methodstillachievedfavorabletrustworthyevalua-
+tionresults,effectivelyreducingtheperformance
+ofcontaminatedmodelstoanormallevel.
+C.5 DifferentTaskScenarios
+Since the experiments in the main text are all
+basedonmathematicalbenchmarks,weaddition-
+allyappliedourmethodinadifferenttaskscenario.
+Specifically,wefollowedthesetupofKIEval(Yu
+etal.,2024),arecentandexcellentworkontrust-
+worthyevaluation,andlocatedasetofshortcutneu-
+rons on the ARC-Challenge dataset (Clark et al.,
+2018). Wethenappliedourevaluationmethodto
+twotypesofcontaminatedmodels(boththecontin-
+ualpretrainingphaseandtheSFTphase)released
+by KIEval and available on Hugging Face. The
+results, shown in Table 12, demonstrate that our
+methodeffectivelymitigatescontaminationeffects
+acrossbothSFTandcontinualpretrainingstages,
+enablingfairevaluationinadifferenttaskdomain.

@@ -1,0 +1,6 @@
+date=2026-05-21
+head=f5fe558
+branch=codex/specimba/1805mainSpeci
+rollback_branch=codex/specimba/rollback-pre-tidiness-20260521-001353
+rollback_tag=rollback/pre-tidiness-20260521-001353
+rollback_remote=alpha

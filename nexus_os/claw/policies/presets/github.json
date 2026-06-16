@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "description": "GitHub API access policy",
+  "trust_level": "CAUTION",
+  "filesystem_policy": {
+    "read_allowed": ["/home/workdir", "/tmp"],
+    "write_allowed": ["/home/workdir", "/tmp"],
+    "exec_allowed": ["git", "gh"]
+  },
+  "network_policies": [
+    {
+      "name": "github_api",
+      "enforcement": "allow",
+      "endpoints": [
+        {"host": "api.github.com", "port": 443, "protocol": "https"},
+        {"host": "github.com", "port": 443, "protocol": "https"},
+        {"host": "raw.githubusercontent.com", "port": 443, "protocol": "https"}
+      ],
+      "rules": [
+        {"method": "GET", "path": "/*", "description": "Read operations"},
+        {"method": "POST", "path": "/repos/*/issues", "description": "Issue creation"}
+      ]
+    }
+  ]
+}

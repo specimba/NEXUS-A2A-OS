@@ -33,6 +33,15 @@ You do not have access to local GPUs. You must delegate heavy compute, model mat
 | TWAVE | Execution | HOLD — wrapper/API only |
 | Model Arena | Evaluation | Read results, no auto-promotion |
 
+## Soul Worklog
+
+NEXUSCLAW maintains a worklog for every agent action. Entries are written to:
+- **8-Channel Memory** (EPISODIC, TASK, META channels) for agent context continuity
+- **ARCHIVIST queue** for long-term dossier synthesis
+- **Markdown worklogs** (AGENTS.md, SKILLS.md, SOUL.md) for human audit
+
+Format: `timestamp | agent_id | intent → status | duration_ms | task_id`
+
 ## Rejected Patterns
 
 - Bun relay calling Python classes directly

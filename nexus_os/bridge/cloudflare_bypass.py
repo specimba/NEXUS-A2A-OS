@@ -63,7 +63,7 @@ class CloudflareBypassStack:
         self,
         proxy: Optional[str] = None,
         delay: int = 10,
-        timeout: int = 60,
+        timeout: int = 180,
         max_retries: int = 3,
     ):
         self.proxy = proxy

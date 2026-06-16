@@ -1,0 +1,39 @@
+{
+  "defender_bundle_gate": "ERROR",
+  "defender_source_gate": "BLOCK",
+  "delete_command": "Remove-Item -LiteralPath \"D:\\NEXUS_COLD\\level6_quarantine_20260608\\Users_speci.000_.local_share_kilo_snapshot\" -Recurse -Force",
+  "delete_executed_at_local": "2026-06-09T15:37:03.8136596+03:00",
+  "delete_recommendation": "purged_after_operator_approval",
+  "full_suite_latest": "1612 passed, 30 skipped, 9 warnings in 289.87s",
+  "generated_at": "2026-06-09",
+  "p0_positive_files": 19,
+  "p0_status": "aggregate_verified_path_review_not_reconstructable_from_redacted_artifacts",
+  "p2_rows": 624,
+  "p3_gate_counts": {
+    "BLOCK": 2,
+    "PASS": 150
+  },
+  "p3_rows": 152,
+  "quarantine_dirs": 328,
+  "post_delete_c_free_bytes": 149411475456,
+  "post_delete_d_free_bytes": 187300028416,
+  "post_delete_target_exists": false,
+  "latest_free_space_check_local": "2026-06-09T15:38:01.7198680+03:00",
+  "latest_c_free_bytes": 149404733440,
+  "latest_d_free_bytes": 184212033536,
+  "quarantine_exists": false,
+  "quarantine_exists_before_purge": true,
+  "quarantine_files": 2506,
+  "quarantine_gib": 40.103,
+  "quarantine_root": "D:\\NEXUS_COLD\\level6_quarantine_20260608",
+  "required_reports_present": {
+    "DEFENDER_ARCHIVIST_BUNDLE_GATE_2026-06-08.md": true,
+    "DEFENDER_ARCHIVIST_SOURCE_GATE_2026-06-08.md": true,
+    "KILO_SNAPSHOT_P0_LOCAL_REDACTED_CLOSEOUT_2026-06-09.md": true,
+    "KILO_SNAPSHOT_P1_CODE_AGENT_INTAKE_2026-06-08.md": true,
+    "KILO_SNAPSHOT_P2_KNOWLEDGE_DATA_DISPOSITION_2026-06-08.md": true,
+    "KILO_SNAPSHOT_P3_MANUAL_CLOSEOUT_2026-06-09.md": true,
+    "KILO_SNAPSHOT_RETRIEVAL_EXECUTION_2026-06-08.md": true,
+    "P2_DEFENDER_ARCHIVIST_BUNDLE_INVESTIGATION_2026-06-08.md": true
+  }
+}

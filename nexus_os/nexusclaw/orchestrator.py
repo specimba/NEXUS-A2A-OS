@@ -89,6 +89,9 @@ class OrchestratorStatus:
         }
 
 
+_DEFAULT_RELAY = object()
+
+
 class NexusClawOrchestrator:
     """NEXUSCLAW Orchestrator - Central coordination for multi-agent NEXUS OS.
 
@@ -127,6 +130,7 @@ class NexusClawOrchestrator:
         runner: Optional[NexusClawRunner] = None,
         worklog: Optional[WorklogSystem] = None,
         memory_channels: Optional[MemoryChannelManager] = None,
+        model_relay: Any = _DEFAULT_RELAY,
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
         self.task_router = task_router or TaskRouter(agent_pool=self.agent_pool)
@@ -139,6 +143,7 @@ class NexusClawOrchestrator:
         self.runner = runner
         self.worklog = worklog or WorklogSystem()
         self.memory_channels = memory_channels or get_manager()
+        self._model_relay = model_relay
         self._status = OrchestratorStatus()
         self._lock = threading.RLock()
 
@@ -252,13 +257,64 @@ class NexusClawOrchestrator:
         with self._lock:
             self._status.active_tasks = self.task_router.stats()["active_tasks"]
 
-        return {
+        result: Dict[str, Any] = {
             "task_id": task.task_id,
             "status": "routed" if decision.selected_agents else "no_agents_available",
             "routing_decision": decision.to_dict(),
             "agents_assigned": decision.selected_agents,
             "requires_human_oversight": decision.metadata.get("requires_human_oversight", False),
         }
+
+        # Step 5: Attach model-selection metadata from ModelRelay (advisory)
+        model_info = self.select_model_for_task(task)
+        if model_info:
+            result["model_selection"] = model_info
+
+        return result
+
+    def select_model_for_task(self, task: NexusClawTaskEnvelope) -> Dict[str, Any]:
+        """Use ModelRelay's ChimeraRouterV2 to select the best model for a task.
+
+        Reads optional ``resource_budget.prompt`` from the envelope; falls back
+        to ``task.intent``. Returns model selection metadata or an empty dict
+        when ModelRelay is unreachable or routing fails.
+        """
+        relay = self._model_relay
+        if relay is _DEFAULT_RELAY:
+            try:
+                from nexus_os.relay import get_model_relay
+                relay = get_model_relay()
+            except Exception:
+                relay = None
+        if not relay:
+            return {}
+
+        prompt = task.resource_budget.get("prompt") or task.intent or ""
+        try:
+            available = getattr(relay.router, "_available", [])
+            temp_policy = None
+            if available:
+                try:
+                    temp_policy = available[0].__class__.__name__
+                except (TypeError, IndexError, AttributeError):
+                    pass
+            decision = relay.router.route(
+                prompt,
+                latency_budget_ms=30000,
+                quality_target=0.80,
+                temperature_policy=temp_policy,
+            )
+            return {
+                "model": decision.model,
+                "temperature": decision.temperature,
+                "router_model": decision.model,
+                "source": "model_relay",
+            }
+        except Exception:
+            return {}
+
+    # Alias for compatibility with older test suites or external references
+    _select_model_for_task = select_model_for_task
 
     def complete_task(self, task_id: str, agent_id: str, success: bool) -> Dict[str, Any]:
         """Mark a task assignment as complete and update agent state."""

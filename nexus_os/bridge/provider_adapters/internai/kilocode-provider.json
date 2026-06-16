@@ -1,0 +1,36 @@
+{
+  "schema": "nexus.agent-adapter.v1",
+  "surface": "kilocode",
+  "provider": {
+    "id": "internai",
+    "name": "Intern AI Shanghai",
+    "type": "openai-compatible",
+    "baseURL": "${INTERN_BASE_URL:-https://chat.intern-ai.org.cn/api/v1}",
+    "apiKeyEnvOrder": ["INTERN_KILOCODE_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
+    "chatPath": "/chat/completions"
+  },
+  "models": {
+    "agent": "intern-s2-preview",
+    "general": "intern-latest",
+    "vision": "internvl2.5-latest"
+  },
+  "capabilities": {
+    "chat": true,
+    "streaming": true,
+    "tools": true,
+    "vision": true,
+    "maxContext": 256000
+  },
+  "requestDefaults": {
+    "stream": false,
+    "temperature": 0.2,
+    "max_tokens": 4096,
+    "thinking_mode": true
+  },
+  "requestRules": {
+    "strip": ["stop"],
+    "toolsFormat": "openai",
+    "retry429": "cooldown"
+  }
+}
+

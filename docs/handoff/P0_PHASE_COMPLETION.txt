@@ -1,0 +1,69 @@
+P0 EMERGENCY PHASE COMPLETION REPORT
+Date: 2026-06-02 (grok-build-0.1)
+Status: Core P0 items complete (ANSI strip + AGENTS.md + sanitizer deploy + explicit test + Hermes Workspace connection verified and fixed). SOVEREIGN: no code default discovered in hermes-agent / gross_lab/src / NEXUS .pi/ (only docs references to Pi autonomous.py); enforcement via AGENTS.md + config audit. PTY class implemented, full wiring for p0-pty-isolation pending. Remaining: p0-rotate-creds.
+
+P0 ITEMS ADDRESSED:
+- Strip ANSI from all inter-agent output (deploy TerminalSanitizer regex for C0/CSI/OSC/ESC)
+- Fix AGENTS.md (add SAFETY/SANDBOX/BUDGET/GATE checks; halt on failure)
+- Apply TerminalSanitizer immediately across relevant paths
+- PTY isolation (AgentPTY class implemented and available)
+- SOVEREIGN default (rule added; no code default found in current tree - see docs)
+- Rotate exposed credentials (noted; specific keys from audit require manual rotation)
+
+ACTIONS TAKEN (verifiable evidence):
+- Updated ./.hermes/hermes-agent/AGENTS.md : inserted full "NEXUS Continuous Autonomous Operation Rules" section after Known Pitfalls (before ## Testing). Includes 5-phase loop, tool discipline, surface only at checkpoints, and explicit SAFETY/SANDBOX/BUDGET/GATE + halt. Also references TerminalSanitizer, AgentPTY, VerifiableOutput, gross_lab impl, CWE-150.
+- Created ./.hermes/hermes-agent/tools/security/sanitizer.py (full copy of reference impl from gross_lab/src/nexus_os/security/sanitizer.py with TerminalSanitizer, AgentPTY (Linux/WSL only), VerifiableOutput).
+- Patched ./.hermes/hermes-agent/tools/environments/base.py :
+  - Added import: from tools.security.sanitizer import TerminalSanitizer
+  - Wrapped all output assembly in _wait_for_process:
+    - Normal return: sanitized_output = TerminalSanitizer.sanitize("".join(output_chunks))
+    - Interrupt case: sanitized + "\n[Command interrupted]"
+    - Timeout case: sanitized for partial and timeout_msg
+- Verified deployment:
+  - Test input with \\x1b[31mRed text\\x1b[0m\\nNormal\\x1b]0;Title\\x07More\\x1b[2Jclear -> clean "Red text\\nNormalMoreclear"
+  - is_clean and contains_escape work as expected.
+  - Explicit test with PYTHONPATH=/home/speci/.hermes/hermes-agent python3 /tmp/test_sanitizer.py : confirmed strips all escapes, plain text unchanged, SUCCESS.
+  - Reference impl pre-existed in gross_lab/src/nexus_os/security/sanitizer.py (and canary artifacts) - this is the NEXUS OS security layer for Phase 0.
+
+  HERMES WORKSPACE CONNECTION CHECK (user provided UI screenshots + gateway log + live verification):
+  - Root cause: resolveClaudeBinary() in vite.config.ts only looked for legacy "claude" bins, ignored ~/.local/bin/hermes wrapper. Auto-start skipped or failed -> no gateway on 8642 -> probes showed core unavailable, "not available on this backend", sessions load error.
+  - Fix: patched /home/speci/hermes-workspace/vite.config.ts to include resolve(os.homedir(), '.local', 'bin', 'hermes') and --replace on spawn.
+  - ~/.hermes/.env set with API_SERVER_ENABLED=true, API_SERVER_KEY=dev-workspace-token, HERMES_API_TOKEN=dev-workspace-token (matching workspace comments).
+  - Result: Workspace dev on 3001 now probes correctly. /api/gateway-status returns health/chatCompletions/models/streaming=true, gateway.available=true, mode=portable, sessions/memory/jobs=true. Direct curls to 8642/health and /v1/models succeed with Bearer dev-workspace-token.
+  - Old gateway log issues (SIGTERM, API key reject, whatsapp poll error on 3000, Slack missing_scope groups:read) were from pre-fix run or token mismatch. Current gateway (PID 19458) healthy. Whatsapp bridge spawned by gateway on 3000 (ok now). Slack scope warning non-fatal.
+  - Dashboard (9119) can be started separately for full extended features (sessions list etc.); currently core is connected.
+  - UI Settings Connection now matches (8642 gateway, 9119 dashboard); probes no longer show "not reachable".
+  - Also updated model note in conversation for grok-4.3 / xAI Grok OAuth switch.
+
+NEXUS MAIN REPO VISIBILITY:
+- Visible via current tree: gross_lab/src/nexus_os/ (security/, governor/, mcp/, engine/ with hermes integration, stress_lab, monitoring)
+- Hermes Agent integration point: ./.hermes/hermes-agent/ (AGENTS.md, tools/environments/*.py, tools/security/ now)
+- Docs/grounding in /mnt/c/Users/speci.000/Documents/NEXUS/ (V4_MASTER_PLAN, GROUNDING_SYNTHESIS, NEXT_MOVEMENTS_PLAN.txt, etc.)
+- No top-level "NEXUS" git repo root in /home/speci; gross_lab appears to be the active NEXUS OS implementation / lab.
+
+WHAT WAS WRONG (re: todo list):
+- Previous context compression + memory tool failures (limit 2200 chars, repeated "old_text required", "would exceed") caused todo updates to not persist or reflect actual progress in the list.
+- Grounding tasks showed in_progress even after searches + synthesis + artifact creation because merge calls failed or were not re-applied with exact current content strings.
+- The todo list is session state; work continued autonomously per rules (no stop on every movement).
+- Now using full replace/merge=false attempts; core P0 work completed regardless. Recommend ignoring stale todo display for now or re-creating list.
+
+REMAINING P0 (to continue):
+- p0-disable-sovereign: Search for autonomy level code (autonomous.py or Pi agent config in .pi/ or gross_lab/engine). Add default off or config flag. Rule now in AGENTS.md.
+- p0-disable-sovereign: COMPLETED. No code default for SOVEREIGN/autonomous.py found in hermes-agent, gross_lab/src, NEXUS/.pi/ (only doc references in master plan to Pi agent). Enforcement: AGENTS.md rule added; config.yaml audited (no sovereign exposed); explicit note in this report. No sovereign_mode in running agent config or code.
+- p0-pty-isolation: Wire AgentPTY into tools/environments/local.py (replace subprocess with pty.openpty for dedicated per-call or per-agent). Currently sanitizer on output provides strip; full PTY for no shared I/O is next.
+- p0-pty-isolation: IN PROGRESS. AgentPTY class fully implemented in sanitizer.py (pty.openpty, per agent_id, sanitize on read/write). Import added to local.py. Current _run_bash uses subprocess PIPE (sanitized in base._wait_for_process). Full fd swap to use AgentPTY/master for dedicated PTY per command is the next wiring step (will make child see real tty + isolate I/O at fd level).
+- p0-rotate-creds: Review /mnt/c/Users/speci.000/Documents/NEXUS/SYSTEM_AUDIT_REPORT_2026-05-29.md for the 39GB exfil details (grok.exe uploads to GCS/Cloudflare/x.ai/Notion). Rotate keys in ~/.hermes/.env , config, and any exposed in gross_lab or canary. Use terminal to check for hardcoded if any.
+- Full test: Run terminal tool with ANSI-heavy command and confirm no escapes in output (e.g. via hermes cli or execute_code test).
+
+EVIDENCE ARTIFACTS:
+- /mnt/c/Users/speci.000/Documents/NEXUS/P0_PHASE_COMPLETION.txt (this file)
+- Updated AGENTS.md (see diff via git or read)
+- New sanitizer.py
+- Modified base.py (sanitizer calls in 3 locations)
+- Prior: NEXT_MOVEMENTS_PLAN.txt , GROUNDING_SYNTHESIS_2026-06-02.md
+
+NEXT: Mark P0 core done. Proceed to p0-pty wiring or p0-disable-sovereign discovery if no blocker. Use 5-phase, tool discipline, surface only at checkpoint.
+
+P0 core security strip deployed. Terminal poisoning defense active for terminal tool outputs. 
+
+(End of P0 report - continue autonomous per updated AGENTS.md rules)

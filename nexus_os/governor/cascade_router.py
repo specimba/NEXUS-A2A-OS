@@ -1,5 +1,6 @@
 """
 NEXUS OS — Five-Tier Stacked Guardrail Ensemble Cascade Router
+Tier -1: L0 Steganography Pre-Processor (steg + unicode deep scan)
 Tier 0: Guard Plane Learned Classifier Triage (fast-path via TF-IDF + LogisticRegression)
 Tier 1: Regex Pre-Filter (SQL/code injection patterns)
 Tier 2: Coarse Model (E-Cameron)
@@ -17,6 +18,31 @@ import uuid
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+L0_STEG_AVAILABLE = False
+try:
+    from nexus_os.security.steg import StegPreprocessor, PurificationLevel
+    from nexus_os.security.steg.unicode_deep_scanner import UnicodeDeepScanner
+    L0_STEG_AVAILABLE = True
+except ImportError:
+    pass
+
+_l0_steg = None
+_l0_unicode = None
+
+
+def _get_l0_steg():
+    global _l0_steg
+    if _l0_steg is None and L0_STEG_AVAILABLE:
+        _l0_steg = StegPreprocessor(purification_level=PurificationLevel.STANDARD)
+    return _l0_steg
+
+
+def _get_l0_unicode():
+    global _l0_unicode
+    if _l0_unicode is None and L0_STEG_AVAILABLE:
+        _l0_unicode = UnicodeDeepScanner()
+    return _l0_unicode
 
 # Lazy-loaded Guard Plane Triage (Tier 0)
 _guard_triage = None
@@ -179,6 +205,21 @@ def evaluate_secure_cascade(query: str, method: str, db_manager: Any = None, age
     Returns:
         bool: True if query is SAFE and approved, False if UNSAFE (strict default-deny)
     """
+    # Tier -1: L0 Steganography Pre-Processor (CPU-only, no VRAM)
+    if L0_STEG_AVAILABLE:
+        l0_unicode = _get_l0_unicode()
+        if l0_unicode is not None:
+            l0_result = l0_unicode.scan(query)
+            if l0_result.is_threat:
+                logger.warning("L0 Unicode Deep Scan BLOCK: techniques=%s level=%s",
+                               l0_result.techniques_found, l0_result.threat_level)
+                triage_instance = _get_guard_triage()
+                if triage_instance:
+                    triage_instance.record_result(query, agent_key, "unsafe",
+                                                  {"source": "l0_unicode_steg",
+                                                   "techniques": l0_result.techniques_found})
+                return False
+
     # Tier 1: Smart Regex Pre-Filter (Universal Gatekeeper)
     triage_instance = _get_guard_triage()
     if run_regex_pre_filter(query):

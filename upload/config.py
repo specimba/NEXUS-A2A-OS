@@ -133,6 +133,24 @@ PROVIDERS = {
         "is_free": False,
         "is_local": False,
     },
+    "internai": {
+        "name": "InternAI",
+        "provider": "internai",
+        "base_url": "https://chat.intern-ai.org.cn/api/v1",
+        "chat_path": "/chat/completions",
+        "models_path": "/models",
+        "auth_type": "bearer",
+        "quota_type": "requests",
+        "quota_remaining": "unlimited",
+        "quota_reset": None,
+        "cost_per_1m": 0.0,
+        "latency_ms": 250,
+        "status": "up",
+        "tier": 95,
+        "priority": 8,
+        "is_free": True,
+        "is_local": False,
+    },
 }
 
 # ─── Routing Defaults ──────────────────────────────────────────────────────
@@ -189,7 +207,7 @@ INTENT_TO_DOMAIN = {
 
 FALLBACK_CHAINS = {
     "code": ["osman-coder", "qwen2.5-coder:7b", "Codestral", "deepseek-chat"],
-    "reasoning": ["osman-reasoning", "qwen3:8b", "Qwen3-80B-Thinking"],
+    "reasoning": ["osman-reasoning", "qwen3:8b", "Qwen3-80B-Thinking", "intern-s2-preview"],
     "research": ["GLM-5", "Kimi-K2.5", "Nemotron-3-Super"],
     "fast": ["osman-fast", "Bonsai-4B", "locooperator"],
     "security": ["Trinity-Large-Preview", "MiniMax-M2.5", "GLM-5"],

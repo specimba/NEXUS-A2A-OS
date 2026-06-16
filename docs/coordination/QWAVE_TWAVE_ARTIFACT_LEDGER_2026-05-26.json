@@ -1,0 +1,1868 @@
+{
+  "artifact_count": 124,
+  "artifacts": [
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "comparison_kind",
+          "rows",
+          "schema_version",
+          "source_artifacts"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T12:50:56.213448+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_diag_chi32_vs_64.json",
+      "sha256": "926302480a1f0217e556cb6364a0d2443bb605438765ddd772194f154f3eb51c",
+      "size_bytes": 5165
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "comparison_kind",
+          "rows",
+          "schema_version",
+          "source_artifacts"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T20:48:04.416878+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_diag_chi32_vs_64_enriched.json",
+      "sha256": "683bea42ad3788647942462a2777f49812939354c051dee03dcbf17f7e34ab02",
+      "size_bytes": 5893
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "comparison",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "rows",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T22:38:06.889206+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_diag_chi32_vs_64_reconstruction_attached.json",
+      "sha256": "1fa44a753fe6c17cf31f6fbe03dd3b9e4cf03d2f689659bb77a2b681a0fc3709",
+      "size_bytes": 8444
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "comparison",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "rows",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T00:30:06.042798+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_qk_selective_vs_uniform_baselines.json",
+      "sha256": "b82d32b40ef9c5d44f065fbbbef37405db903d47d2c76879f3f9ce855c1ccf93",
+      "size_bytes": 9317
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "comparison",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "rows",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:08:44.873696+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_qo_selective_vs_uniform_and_qk.json",
+      "sha256": "1ba77293fc4d52afc634c0b8a284de6811fe5b0e0d3aa0337235b5069733e7a6",
+      "size_bytes": 18396
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "comparison",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "rows",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:46:34.361259+00:00",
+      "path": "artifacts/downstream_sanity/cmp_llama32_1b_qv_selective_vs_uniform_qk_qo.json",
+      "sha256": "4f911221e91c39c83c80a28a2139dccab1e74d04437700278e714fef8724d22e",
+      "size_bytes": 10543
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "comparison_kind",
+          "rows",
+          "schema_version",
+          "source_artifacts"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T11:56:28.959563+00:00",
+      "path": "artifacts/downstream_sanity/cmp_qwen25_05b_diag_chi32_vs_64.json",
+      "sha256": "6ef3fae34ee55e017452a0e596628528fbdd050f9e6a443444bcc1d19c212a2b",
+      "size_bytes": 6729
+    },
+    {
+      "json_summary": {
+        "chi": 24,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T01:51:47.742196+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi24_m4.json",
+      "sha256": "616b8abe09c716e2d1b3d569c55bbc15cfc2e4b29480294cd206ef9661f87915",
+      "size_bytes": 2271
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T22:19:48.307285+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi32_m4.json",
+      "sha256": "a6e7541835d33c71237b223fc34de279bf5d0346ccdf0aa78aa8996c6ebb5b3d",
+      "size_bytes": 2276
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T22:19:48.309298+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi32_m4_diag.json",
+      "sha256": "6d6d9b517d7cfa4063b6ac01e8f056e0889eaf0e3b5c8add19fa442757004c0e",
+      "size_bytes": 35903
+    },
+    {
+      "json_summary": {
+        "chi": 48,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T02:02:18.725410+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi48_m4.json",
+      "sha256": "818e1b0a5ea5e21419ad9b5deaa0d20d5aedec98ca65c53390ed63285c135631",
+      "size_bytes": 2276
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T22:37:35.191565+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi64_m4.json",
+      "sha256": "f767a0f7241781989f6114c5c939d7bf0fceabfb1a2dbc6d54ab892de0ac6984",
+      "size_bytes": 2273
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T22:37:35.193083+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_chi64_m4_diag.json",
+      "sha256": "67f93e00eef89898b0ceef7238f28e75ec48f4372a73c97c780add9902cb2825",
+      "size_bytes": 35911
+    },
+    {
+      "json_summary": {
+        "chi": 24,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T02:31:17.004160+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_dialog_chi24_m4.json",
+      "sha256": "a83f7ee8c1b522ec02f4877f7eefc6ece88483aba63364147a8ab3e3973ebbca",
+      "size_bytes": 2274
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T02:35:35.280873+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_dialog_chi32_m4.json",
+      "sha256": "97cb9d5b5a1bfea3a36a39260f4c9429d777a33c2a0882aa127f5101689ca018",
+      "size_bytes": 2278
+    },
+    {
+      "json_summary": {
+        "chi": 48,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T02:43:21.425309+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_dialog_chi48_m4.json",
+      "sha256": "5575268d1347e172ffb67af8a6f898508c35151211315438bd62dad7d5f2ac49",
+      "size_bytes": 2278
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T03:03:06.666134+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_dialog_chi64_m4.json",
+      "sha256": "67aa9ea5fe5ff2ebcb28f9967fa0090ce19240526804686c91266f94f0003bae",
+      "size_bytes": 2276
+    },
+    {
+      "json_summary": {
+        "chi": 24,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T07:14:38.835687+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_mixedops_chi24_m4.json",
+      "sha256": "761391b89f4a1cc715466c9ba68bcf1c8d1a55f4d88909ad275a0bce339ee7ba",
+      "size_bytes": 2281
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T07:19:40.086895+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_mixedops_chi32_m4.json",
+      "sha256": "c3db02361c523dd0a46667d7219233f6e6391ddf2fe24146887a4c579e0671bb",
+      "size_bytes": 2275
+    },
+    {
+      "json_summary": {
+        "chi": 48,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T07:27:37.286275+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_mixedops_chi48_m4.json",
+      "sha256": "e1e49db4edfbc34ba6ad27099c436541e588c6ca0783156611c54f953a8c92b7",
+      "size_bytes": 2280
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T07:40:43.728087+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_mixedops_chi64_m4.json",
+      "sha256": "86a05e2a88a3139e60fff7c5d88d1f08b4ae0e1084eda4f1051cd89f7dbd2184",
+      "size_bytes": 2278
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_module_ranks",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T00:29:37.581480+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qk_selective_chi32_base_chi64_qk_m4.json",
+      "sha256": "7fe7ada80394b28d108c365c1a3d9632a39fc73f0c2f0d10cb032ed7fa8d63a7",
+      "size_bytes": 2486
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T00:29:37.584002+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qk_selective_chi32_base_chi64_qk_m4_diag.json",
+      "sha256": "03f224fa2fe22d5f4a4f058d09a6d4d3e24474786ac11618890bd03652cd7e0a",
+      "size_bytes": 32485
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_module_ranks",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:07:59.014805+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qo_selective_chi32_base_chi64_qo_m4.json",
+      "sha256": "02bf3a4278ad0dc3fe2f4d0b1d2a6227fd52b72fa1050706e9c452d3bbcdd94d",
+      "size_bytes": 2486
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:07:59.017324+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qo_selective_chi32_base_chi64_qo_m4_diag.json",
+      "sha256": "02a937369707a41a8496212aeca4e7703c64fb6fbe1110b9664040f6c359d94f",
+      "size_bytes": 32481
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_module_ranks",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:45:48.100616+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qv_selective_chi32_base_chi64_qv_m4.json",
+      "sha256": "34da905456ca1d079d599d5545ac69b1a94dab4811ff237973224bd15251d5ac",
+      "size_bytes": 2488
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-01T05:45:48.104360+00:00",
+      "path": "artifacts/downstream_sanity/llama32_1b_qv_selective_chi32_base_chi64_qv_m4_diag.json",
+      "sha256": "cb734ebc1b7b0eabc00a9656edfec4984c970238e1a5a38ddbcebf9b2662d54d",
+      "size_bytes": 32481
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "delta_3wht_2wht",
+          "delta_4wht_2wht",
+          "delta_4wht_3wht",
+          "delta_bestwht_2direct"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T23:10:17.956493+00:00",
+      "path": "artifacts/downstream_sanity/pairwise_margin_analysis.json",
+      "sha256": "d3e412770c9fd4926e4d1b37a3b1ed3c85b24d3699457fbbcd04f8c322390983",
+      "size_bytes": 2327
+    },
+    {
+      "json_summary": {
+        "chi": 24,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T01:04:01.376025+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi24_m4.json",
+      "sha256": "6ee545b08eec10b3bccd7e759bd55e965c3a9524835a72d5cf7b999ca082b826",
+      "size_bytes": 2272
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T11:36:01.656300+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi32_m4.json",
+      "sha256": "5d7949ddd4782d5ceb16f3c1867a02daf3c8d208667a08d879a373791fd51c95",
+      "size_bytes": 2270
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T11:36:01.657808+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi32_m4_diag.json",
+      "sha256": "f427bccbbe3ac025a3cf009494340b531125732d5f1bc130e1c9e47749531b3c",
+      "size_bytes": 28724
+    },
+    {
+      "json_summary": {
+        "chi": 48,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T01:09:23.630227+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi48_m4.json",
+      "sha256": "4005ce5ce69822bdeb3be71868a34010d42dbf72238c2bb17ea960f8173341d7",
+      "size_bytes": 2269
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T11:55:42.674767+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi64_m4.json",
+      "sha256": "0aed3d897086d4ff0b46f6fa0aca0add922d3357030b76d34fd1e8c2b08b5fae",
+      "size_bytes": 2272
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "chi",
+          "created_at_utc",
+          "fixture_id",
+          "milestone_id",
+          "model_id",
+          "packet_filenames",
+          "packets",
+          "schema_version"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T11:55:42.677330+00:00",
+      "path": "artifacts/downstream_sanity/qwen25_05b_chi64_m4_diag.json",
+      "sha256": "20ce3fe98a91280d80aba675a16cf6150e7127d9c6804cef05d683c86233eec3",
+      "size_bytes": 28740
+    },
+    {
+      "json_summary": {
+        "chi": 24,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T22:14:58.341485+00:00",
+      "path": "artifacts/downstream_sanity/tinyllama_chi24_m4.json",
+      "sha256": "3a4368095b15033ff768345f8dec268a23d86aa21c9ac72c63ee54ec6c36bb01",
+      "size_bytes": 2279
+    },
+    {
+      "json_summary": {
+        "chi": 32,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T19:54:46.376565+00:00",
+      "path": "artifacts/downstream_sanity/tinyllama_chi32_m4.json",
+      "sha256": "a25a4659b16531f51ee4a8b40a719acd18b6f0cb7edd2147a1bf565dcdd3f6c6",
+      "size_bytes": 2286
+    },
+    {
+      "json_summary": {
+        "chi": 48,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T22:22:16.664085+00:00",
+      "path": "artifacts/downstream_sanity/tinyllama_chi48_m4.json",
+      "sha256": "4c4743e1588839c8efc542f28c3f2138d0ace7d15249446af78dccf74164e275",
+      "size_bytes": 2283
+    },
+    {
+      "json_summary": {
+        "chi": 64,
+        "json_ok": true,
+        "max_modules": 4,
+        "top_level_keys": [
+          "chi",
+          "created_at_utc",
+          "dense_baseline",
+          "device",
+          "dtype",
+          "fixture_path",
+          "max_modules",
+          "max_tokens",
+          "mode_family",
+          "model_path",
+          "notes",
+          "ordering_by_loss",
+          "results",
+          "schema_version",
+          "selected_modules"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T20:04:06.228853+00:00",
+      "path": "artifacts/downstream_sanity/tinyllama_chi64_m4.json",
+      "sha256": "413217ea056a0628b05753c9ba4468de0bc91d9166a94678b8197ca08a85c98c",
+      "size_bytes": 2284
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "artifact_kind",
+          "cases",
+          "created_at_utc",
+          "eval_batch_reference",
+          "max_modules_reference",
+          "model_id_reference",
+          "notes",
+          "schema_version",
+          "seed_reference",
+          "source_truth_lab_dir",
+          "summary"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T07:10:48.350397+00:00",
+      "path": "artifacts/truth_lab/fp16_stored_factor/twave_fp16_stored_factor_qwen25_05b_m4.json",
+      "sha256": "498618152a4f4d9bc7e412fc1826c8b8ea930a61e92cb36b79461cdb41a9022c",
+      "size_bytes": 7304
+    },
+    {
+      "modified_at": "2026-04-07T23:01:29.058062+00:00",
+      "path": "artifacts/truth_lab/reports/twave_truth_lab_qwen25_05b_m4_bundle_vs_twave_truth_lab_qwen25_05b_m8_bundle.md",
+      "sha256": "1b5b04dd673bc78fb3795edee51604f085e367abc927922da2cd2c5d596abaf0",
+      "size_bytes": 5942
+    },
+    {
+      "modified_at": "2026-03-31T08:26:37.593165+00:00",
+      "path": "artifacts/truth_lab/reports/twave_truth_lab_qwen25_05b_m4_vs_m8_report.md",
+      "sha256": "1b5b04dd673bc78fb3795edee51604f085e367abc927922da2cd2c5d596abaf0",
+      "size_bytes": 5942
+    },
+    {
+      "modified_at": "2026-04-02T18:27:35.143305+00:00",
+      "path": "artifacts/truth_lab/reports/twave_truth_lab_qwen25_05b_m4_vs_m8_report_regen_check.md",
+      "sha256": "1b5b04dd673bc78fb3795edee51604f085e367abc927922da2cd2c5d596abaf0",
+      "size_bytes": 5942
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T21:45:16.628044+00:00",
+      "path": "artifacts/truth_lab/truth_lab_llama32_1b_chi32_m4.json",
+      "sha256": "9478194f1090834a59691db8c45c44e05751782f53af2ca23aa32b84eb98205f",
+      "size_bytes": 15076
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-31T21:58:41.020489+00:00",
+      "path": "artifacts/truth_lab/truth_lab_llama32_1b_chi64_m4.json",
+      "sha256": "26f6037e487e4469dda41974a26acfe8618c96c5b7b98c8a4ed78496487f9b80",
+      "size_bytes": 15093
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T18:15:10.616273+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m4_bundle/cmp_chi32_64_m4.json",
+      "sha256": "16474e1002ab66c17d8a84ebe78ed590e0419bec0ba725e3a7e00fc8c8a226be",
+      "size_bytes": 2926
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "entries",
+          "schema_version",
+          "updated_at_utc"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T18:15:10.616273+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m4_bundle/manifest.json",
+      "sha256": "16c65d56b96fd29d30dd39ba22bcf14c1df92c720fcc9417b1d7af9305c23ee8",
+      "size_bytes": 1185
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T18:15:10.614122+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m4_bundle/truth_lab_qwen25_05b_chi32_m4.json",
+      "sha256": "6bef7938ddca66f07db1c20d7a73fc7a6672631478db2b2e51d656721cb4dec4",
+      "size_bytes": 14501
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T18:15:10.615264+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m4_bundle/truth_lab_qwen25_05b_chi64_m4.json",
+      "sha256": "409c471377f33190351cbd058520d6c87a0412862aae68d94bd04370f3a6e6cf",
+      "size_bytes": 14524
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T20:35:28+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m8_bundle/cmp_chi32_64_m8.json",
+      "sha256": "9336f3805edaed889b0f21d421e79a1b2bfda77772a351312f135c62d1c2537c",
+      "size_bytes": 2976
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "entries",
+          "schema_version",
+          "updated_at_utc"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T20:35:28+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m8_bundle/manifest.json",
+      "sha256": "bc4cbda9613062a2141a2f25b4ea5a0e8972d727f922563796c0300c6b635b3b",
+      "size_bytes": 1185
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T20:30:38+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m8_bundle/truth_lab_qwen25_05b_chi32_m8.json",
+      "sha256": "e56a0a03bf00e0fd9848e69a74e21700d2a2a75b57aa232b2b9d396e0a056850",
+      "size_bytes": 24785
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-29T20:35:28+00:00",
+      "path": "artifacts/truth_lab/twave_truth_lab_qwen25_05b_m8_bundle/truth_lab_qwen25_05b_chi64_m8.json",
+      "sha256": "0790b6f5efff348814c5947ea676fb621d3f6100bd9b06343f88ed77c62e1840",
+      "size_bytes": 24812
+    },
+    {
+      "modified_at": "2026-04-01T09:42:47.922970+00:00",
+      "path": "docs/accepted_artifacts.md",
+      "sha256": "5f06d8cccf5ea87d18a091db764a865a071186cbfd67386213053bda44440267",
+      "size_bytes": 4723
+    },
+    {
+      "modified_at": "2026-03-30T23:10:09.048332+00:00",
+      "path": "docs/ai_review_battle_brief.md",
+      "sha256": "4f82d2aea294926d392544025b915257c158e9f22f9cbe374250599c3e85716b",
+      "size_bytes": 2512
+    },
+    {
+      "modified_at": "2026-03-31T20:48:27.098409+00:00",
+      "path": "docs/branch_a2_enriched_llama_findings.md",
+      "sha256": "1b38c97632e79538b5ab0eb527344906f8951742aa6260304f6e68ff065ca4d8",
+      "size_bytes": 3516
+    },
+    {
+      "modified_at": "2026-03-31T20:57:24.745481+00:00",
+      "path": "docs/branch_b1_llama_reconstruction_gap_plan.md",
+      "sha256": "d5947247bf25727f96e1ad45dc25b6a6b691225401db2391110885ecf9989a29",
+      "size_bytes": 3750
+    },
+    {
+      "modified_at": "2026-03-31T23:01:57.132006+00:00",
+      "path": "docs/branch_c1_selective_sensitivity_plan.md",
+      "sha256": "52f5150791feb1932249421a6e2a2e6e95e055dbc3752e42d7072b75285e53a5",
+      "size_bytes": 5575
+    },
+    {
+      "modified_at": "2026-04-01T04:14:48.648809+00:00",
+      "path": "docs/branch_c4_3bit_wht_anomaly_plan.md",
+      "sha256": "09a818f29db7f4f2b20067f43cbc53e45ea96204e90445de2863aa3775448e82",
+      "size_bytes": 4659
+    },
+    {
+      "modified_at": "2026-04-01T05:09:02.062948+00:00",
+      "path": "docs/branch_c4_qo_findings.md",
+      "sha256": "79f25bae9a1c8a252cfdfd3b98d48d5c3c18cef5eb5622e5eeac3605d729e061",
+      "size_bytes": 2279
+    },
+    {
+      "modified_at": "2026-04-01T05:46:54.136177+00:00",
+      "path": "docs/branch_c5_qv_findings.md",
+      "sha256": "a7eaf4195ca4c17d0b067459695c21f367fed2eefcaa395e0c9ee4a2c2f7d619",
+      "size_bytes": 2746
+    },
+    {
+      "modified_at": "2026-04-01T06:41:03.427414+00:00",
+      "path": "docs/branch_d2_gap_clarification_plan.md",
+      "sha256": "22d060c3e14b6bea9591deef149bfea42cdfcc06a19a1820070819833be443fd",
+      "size_bytes": 4358
+    },
+    {
+      "modified_at": "2026-04-01T07:02:52.135058+00:00",
+      "path": "docs/branch_d2_residual_gap_findings.md",
+      "sha256": "f090fdbb8f51228edfc676a975090d264240e66c08a1a268dae93d4c77d69f8d",
+      "size_bytes": 3417
+    },
+    {
+      "modified_at": "2026-04-07T23:51:43.059350+00:00",
+      "path": "docs/checkpoint_status.md",
+      "sha256": "a2a780bfccb2a710a303b37159abd22b486564118374d60f5eb0bdd54373eb15",
+      "size_bytes": 3019
+    },
+    {
+      "modified_at": "2026-04-01T09:28:26.208654+00:00",
+      "path": "docs/current_truth_and_next_phase.md",
+      "sha256": "a1046337c5988334a4b4c1d6bc064799f6ef6f77c94dbc3f6590c8f5eadd5057",
+      "size_bytes": 3156
+    },
+    {
+      "modified_at": "2026-03-31T08:41:29.718579+00:00",
+      "path": "docs/current_truth_and_open_questions.md",
+      "sha256": "f11b5a741942982ab8dec68bf80f8a54fa8fb445cb7587939d56ef874ad2e000",
+      "size_bytes": 5003
+    },
+    {
+      "modified_at": "2026-03-31T08:00:25.020776+00:00",
+      "path": "docs/downstream_policy_checkpoint.md",
+      "sha256": "337f5b3b75c5cee89903937884f2d4263109c553e08b47ba1b7a645ffa13335b",
+      "size_bytes": 2386
+    },
+    {
+      "modified_at": "2026-04-01T09:42:47.922970+00:00",
+      "path": "docs/evidence_package_index.md",
+      "sha256": "bac5d540330606febae24cd0bdf17f0ca934d84e1fa370e8fafd688957462314",
+      "size_bytes": 3874
+    },
+    {
+      "modified_at": "2026-04-02T18:31:58.412846+00:00",
+      "path": "docs/execution_spine.md",
+      "sha256": "9eb4db878d8b7cc9f7f29a8f1e1a8a33862cf7ef60ecd8be64854ec4c054cb79",
+      "size_bytes": 4365
+    },
+    {
+      "modified_at": "2026-03-30T12:45:37.760930+00:00",
+      "path": "docs/execution_surface_caveats.md",
+      "sha256": "aaf7e5aa1b5e8b916020a41ac3c735ec4136f9c62b3101ccc92d576b93368d8d",
+      "size_bytes": 2968
+    },
+    {
+      "modified_at": "2026-04-11T05:52:31.447797+00:00",
+      "path": "docs/final_verdict_proposals.md",
+      "sha256": "1418804e6cf727ed2d8663d9337f025712c95e14a7ba10e3ca9b352696568a86",
+      "size_bytes": 3784
+    },
+    {
+      "modified_at": "2026-04-01T09:42:47.922007+00:00",
+      "path": "docs/handoff_readme.md",
+      "sha256": "59f697de7fa234862ae08967900dacb1beee9fa98fb9011051e15adbe667a839",
+      "size_bytes": 2591
+    },
+    {
+      "modified_at": "2026-03-30T12:45:37.760930+00:00",
+      "path": "docs/hf_ingress_and_cache.md",
+      "sha256": "e541c99c7db1dc131835fff59ee1c3751c1751905abd80dac73a20a34d0ed689",
+      "size_bytes": 2432
+    },
+    {
+      "modified_at": "2026-04-02T14:38:33.146672+00:00",
+      "path": "docs/hold_exit_test_01_metric_relationship.md",
+      "sha256": "bebb3c423b98cd9ec48581f3c9e8050c49f8a97f5b3dcb7ad70e51c42ca79b22",
+      "size_bytes": 4201
+    },
+    {
+      "modified_at": "2026-04-02T17:47:50.032215+00:00",
+      "path": "docs/hold_exit_test_02_traceability_matrix.md",
+      "sha256": "e6f74723f303b02c04f7d149f17885e08419670b4f1c4e7c1727ce77f9bda248",
+      "size_bytes": 4631
+    },
+    {
+      "modified_at": "2026-04-02T14:38:33.146672+00:00",
+      "path": "docs/hold_exit_test_03_candidate1_boundary.md",
+      "sha256": "abd48d8eec9ce12be9259f996709aaf28fe8e839c0960497e0cabc49fd9472de",
+      "size_bytes": 3266
+    },
+    {
+      "modified_at": "2026-04-02T17:47:50.032733+00:00",
+      "path": "docs/hold_exit_test_04_candidate2_prerequisite.md",
+      "sha256": "b1617d76a457aa4df40470daeb23a106d0a92da1560b1f496b77748efc617852",
+      "size_bytes": 3653
+    },
+    {
+      "modified_at": "2026-04-02T14:38:33.148286+00:00",
+      "path": "docs/hold_exit_test_05_return_to_hold.md",
+      "sha256": "a7838b2cca2c772456a266e24319a94a83402e6ec8e0c10adca8fefb68586d40",
+      "size_bytes": 2985
+    },
+    {
+      "modified_at": "2026-04-11T12:01:06.184450+00:00",
+      "path": "docs/last_cycle_lessons_and_next_cycle_rules.md",
+      "sha256": "fcc63e005e44150708b7c2774c9372779f5288ef5fd4034875d63f43e176ac0c",
+      "size_bytes": 3484
+    },
+    {
+      "modified_at": "2026-03-31T13:39:37.621550+00:00",
+      "path": "docs/m8_artifact_schema.md",
+      "sha256": "927ba2cb3cbb7a844677c2a6b8a1125d5b560df5075d1fc2e0388d8a79807b45",
+      "size_bytes": 6475
+    },
+    {
+      "modified_at": "2026-03-31T13:39:37.622557+00:00",
+      "path": "docs/m8_diagnostic_protocol.md",
+      "sha256": "241115c7a7f0d73c5f0f52a1580ba0f7685afe9656309fef54e386224b86c622",
+      "size_bytes": 6163
+    },
+    {
+      "modified_at": "2026-03-31T13:06:34.536688+00:00",
+      "path": "docs/m8b_findings_qwen_vs_llama.md",
+      "sha256": "e37775252fea9d3586323fe4604d7ed95732d444e32b2e9cdf817b323f791969",
+      "size_bytes": 3032
+    },
+    {
+      "modified_at": "2026-03-31T13:06:34.537209+00:00",
+      "path": "docs/m8c_proxy_gap_analysis.md",
+      "sha256": "2940e42cf2c6a12765776521fa2dbd2a25ac5c1e31401a07cca43f2761128f50",
+      "size_bytes": 3200
+    },
+    {
+      "modified_at": "2026-03-31T13:06:34.537209+00:00",
+      "path": "docs/m8c_reconstruction_gap_note.md",
+      "sha256": "63a8c10a13b20ee3d6381d3f246b1206bc0ee480b140bfb7574626cbb88f9044",
+      "size_bytes": 1467
+    },
+    {
+      "modified_at": "2026-04-01T08:54:23.008523+00:00",
+      "path": "docs/mainline_freeze_checkpoint.md",
+      "sha256": "771a13e4a831c6277cee510712e76a6dfd259b6c23a19757ce50cbc2a2a952b3",
+      "size_bytes": 3397
+    },
+    {
+      "modified_at": "2026-03-30T21:37:33.446956+00:00",
+      "path": "docs/math_upgrade_candidates.md",
+      "sha256": "d60b56ee3e778a7b61f2e972611b68d5b6b45eafeb0fc2ec6631fcea29278628",
+      "size_bytes": 6127
+    },
+    {
+      "modified_at": "2026-04-01T09:28:26.209665+00:00",
+      "path": "docs/next_phase_execution_pack.md",
+      "sha256": "6da1ad0827612201fdc2b3221770792d87bd143c261ee7736f6da1db4bbe9ba6",
+      "size_bytes": 4010
+    },
+    {
+      "modified_at": "2026-03-31T08:33:49.348610+00:00",
+      "path": "docs/operator_ABI.md",
+      "sha256": "f0fea03211811ea444918b9656567a0db91ee4879cde9c38b503856d4a3d3184",
+      "size_bytes": 7038
+    },
+    {
+      "modified_at": "2026-03-30T23:10:09.047232+00:00",
+      "path": "docs/pairwise_margin_model.md",
+      "sha256": "2775b72f2b56117078502d0a20e75534015852a128dd80b32003bb625674273b",
+      "size_bytes": 3452
+    },
+    {
+      "modified_at": "2026-04-01T08:02:48.984301+00:00",
+      "path": "docs/post_mechanism_roadmap_prep.md",
+      "sha256": "b916ef9799bbb1160b5ded6d5f9dc6e7ccb129d29b05c7fdaf234f480c708c07",
+      "size_bytes": 3858
+    },
+    {
+      "modified_at": "2026-04-01T15:58:01.636367+00:00",
+      "path": "docs/redesign_candidate_matrix.md",
+      "sha256": "6eca81c96b69fd0462428f3bab4c5bb618ac1544f79ecfd277b2ea8d0635cb4e",
+      "size_bytes": 3429
+    },
+    {
+      "modified_at": "2026-04-01T15:58:01.635345+00:00",
+      "path": "docs/redesign_candidate_pack.md",
+      "sha256": "7684e1467082b9292e42d2dd113d2711e38b74335ffc7f8190567479033691d1",
+      "size_bytes": 5307
+    },
+    {
+      "modified_at": "2026-04-01T15:59:39.943431+00:00",
+      "path": "docs/redesign_decision_gate.md",
+      "sha256": "2443aefbae02a43c756277fb2e2f0c779070966cf7a336b912a850376b86f23e",
+      "size_bytes": 3895
+    },
+    {
+      "modified_at": "2026-03-28T10:13:44+00:00",
+      "path": "docs/reference/v3_scaffold/TWAVE_v3_Final_Report.md",
+      "sha256": "3c29d8506faa03a62319fc8172120c694922063e5bc6f8251db1055ff97d9940",
+      "size_bytes": 16435
+    },
+    {
+      "modified_at": "2026-04-01T09:28:26.208654+00:00",
+      "path": "docs/reviewer_checkpoint.md",
+      "sha256": "7a62e42ad39e4e205dc07e087be5275b66c027e856c4f1a56d79cc05802668aa",
+      "size_bytes": 2777
+    },
+    {
+      "modified_at": "2026-04-02T06:17:09.014455+00:00",
+      "path": "docs/reviewer_gate_adjudication.md",
+      "sha256": "48c3d763240bccb8503cd4ec0c2067c4ae8a9af0aed6f40babcc951c56ce658d",
+      "size_bytes": 8898
+    },
+    {
+      "modified_at": "2026-04-01T16:10:19.697327+00:00",
+      "path": "docs/reviewer_gate_challenge.md",
+      "sha256": "b30ce37662cfd2a360e711d2cfd05929695a7aceab720c045da7b8d9b8f9fb74",
+      "size_bytes": 3814
+    },
+    {
+      "modified_at": "2026-04-01T16:10:19.697327+00:00",
+      "path": "docs/reviewer_gate_questions.md",
+      "sha256": "bbeb26c95344d64d2477febbc54cf4b1987d3d1f72be31de6382d78389c17481",
+      "size_bytes": 1969
+    },
+    {
+      "modified_at": "2026-04-02T07:17:58.909948+00:00",
+      "path": "docs/reviewer_gate_revision_decision.md",
+      "sha256": "0cd5530d531ca845cec080d0d7079219a12cfb0fa960de893b5948e9224ce4b3",
+      "size_bytes": 4394
+    },
+    {
+      "modified_at": "2026-04-02T06:17:09.014455+00:00",
+      "path": "docs/reviewer_gate_scorecard.md",
+      "sha256": "2896a4f37f3b1ef8f032e545e39833d0ca5c935255c7c350aea721b7d9da853e",
+      "size_bytes": 2579
+    },
+    {
+      "modified_at": "2026-04-02T07:16:19.875004+00:00",
+      "path": "docs/reviewer_gate_stop_state.md",
+      "sha256": "27795e65482893de47ef779d3dee68f9c628e507047ea500b6f753588f0eee17",
+      "size_bytes": 4069
+    },
+    {
+      "modified_at": "2026-04-02T10:07:17.358330+00:00",
+      "path": "docs/reviewer_pack.md",
+      "sha256": "2d92986bb06a3988c6572d9b66c3bf1633c0b1cdbf65fb0d0401ae90ad76390d",
+      "size_bytes": 5960
+    },
+    {
+      "modified_at": "2026-04-02T10:07:17.358330+00:00",
+      "path": "docs/reviewer_questions.md",
+      "sha256": "dfc35f6d666c4ee056cd1a95e1f3a252b2a3dcfd135fc12704b1aa4a7a147dfa",
+      "size_bytes": 2198
+    },
+    {
+      "modified_at": "2026-03-30T11:32:32.159031+00:00",
+      "path": "docs/runtime_measurement_notes.md",
+      "sha256": "8d17ac1b2dbe74c391ff39a53852409c95859e68eccf2ef7f72e788b3afab1d6",
+      "size_bytes": 1099
+    },
+    {
+      "modified_at": "2026-04-02T17:47:50.032733+00:00",
+      "path": "docs/twave_hold_exit_mission_summary.md",
+      "sha256": "a30153cc9bd3d9a280952b11fe67af8189146ea207a2b7800f6ce4c1a81063b0",
+      "size_bytes": 4202
+    },
+    {
+      "modified_at": "2026-04-02T12:33:40.326470+00:00",
+      "path": "docs/TWAVE_REVIEW_COLLECTION_LOG_TEMPLATE.md",
+      "sha256": "91749b8b92528c125d16dbed92684f3d114e0e0c9d142efe85a1d4ccca910b08",
+      "size_bytes": 2014
+    },
+    {
+      "modified_at": "2026-04-02T21:52:26.906584+00:00",
+      "path": "docs/TWAVE_REVIEW_MASTER.md",
+      "sha256": "e05e852ee6ce2cebd05c08924efa48fe7994356d8b543c3fccff314fbcc2beef",
+      "size_bytes": 8579
+    },
+    {
+      "modified_at": "2026-04-02T21:52:40.896729+00:00",
+      "path": "docs/TWAVE_REVIEW_TEXT_ONLY.md",
+      "sha256": "4b460a5927ad178561ee0644160e4b538319edce10ff4a6c948f6efbbb0e6f73",
+      "size_bytes": 11616
+    },
+    {
+      "modified_at": "2026-04-02T21:52:52.711678+00:00",
+      "path": "docs/TWAVE_REVIEWER_RESPONSE_TEMPLATE.md",
+      "sha256": "dacc3ab4ed2c9926a08eff673f0a80f329f8b76595db9053543f041146012e5f",
+      "size_bytes": 874
+    },
+    {
+      "modified_at": "2026-04-02T21:52:48.648141+00:00",
+      "path": "docs/TWAVE_TECHNICAL_APPENDIX.md",
+      "sha256": "4add1735ef5723138fcaa7165374b2bc653a91863b9fa220fa4d5773bcc6b378",
+      "size_bytes": 2473
+    },
+    {
+      "modified_at": "2026-03-31T08:33:55.122363+00:00",
+      "path": "docs/v3_semantics_alignment.md",
+      "sha256": "6f5b6fb1d5d04c4b214e25f365c3f694495f4dd39932e6dc2459367c40400e57",
+      "size_bytes": 7638
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T08:55:33.637314+00:00",
+      "path": "results/benchmark_quant/cmp_qwen25_15b_chi32_64_m4.json",
+      "sha256": "d9ec620f899ff0710946ea4288be04da86fc97d12b73ff58ed321b15796555c3",
+      "size_bytes": 3081
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T10:50:58.931338+00:00",
+      "path": "results/benchmark_quant/cmp_qwen25_15b_chi32_64_m4_lock.json",
+      "sha256": "7d72463f7e8163b73fd0bc3af3672da8ea98a8223f2eb434ccbea080c1baad26",
+      "size_bytes": 3091
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T10:50:58.799249+00:00",
+      "path": "results/benchmark_quant/cmp_qwen25_15b_chi32_m4_vs_lock.json",
+      "sha256": "81ac7f725308b35858234673c2c55b0ca5b703de9e0892dd3c70302a7f1b93ab",
+      "size_bytes": 2881
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T10:50:58.894361+00:00",
+      "path": "results/benchmark_quant/cmp_qwen25_15b_chi64_m4_vs_lock.json",
+      "sha256": "e25077d9432bd057c6a39cbbf1f665aca5dbc7eb8550b8129efc167c33611137",
+      "size_bytes": 2883
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "status": "PASS",
+        "top_level_keys": [
+          "failures",
+          "left_artifact",
+          "right_artifact",
+          "schema_version",
+          "status",
+          "summary",
+          "warnings"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T18:02:00.862035+00:00",
+      "path": "results/benchmark_quant/cmp_tinyllama_11b_chi32_64_m4.json",
+      "sha256": "87458f72521ef15d0bda86034fa94a91ee7c56452c3cd1d2e81f1e7d3edb9cb7",
+      "size_bytes": 3079
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "entries",
+          "schema_version",
+          "updated_at_utc"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-07T22:54:53.771785+00:00",
+      "path": "results/benchmark_quant/manifest.json",
+      "sha256": "5704a0d8bcee7ac5f044314fe90ddcd544f0aebd03210fdc8f9724a97c4d90f0",
+      "size_bytes": 6499
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-07T22:18:48.864572+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_05b_chi32_m8.json",
+      "sha256": "63f6064a4b9ea2d2d95e8a3df377665adb5a1abbf304178cff73aec6a4b57b96",
+      "size_bytes": 25556
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-04-07T22:54:53.752954+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_05b_chi64_m8.json",
+      "sha256": "3eea1d390d181575d3dba4faa882a71d6c2ac49eea8faee01854dcb46c289eb5",
+      "size_bytes": 25597
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T08:38:04.000939+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_15b_chi32_m4.json",
+      "sha256": "12d3d3ad2e0e663533d48bc859dd596c789f08dcde1ff5bdadbbd1a1e2d92ef2",
+      "size_bytes": 15111
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T10:41:53.037064+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_15b_chi32_m4_lock.json",
+      "sha256": "13ffcb7b7d609167617da7b68dea1ac252587a339a32468c5cc491c39000246c",
+      "size_bytes": 15111
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T08:55:12.897037+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_15b_chi64_m4.json",
+      "sha256": "921f0c01c46466ad4984665a1d9d6749822125cfac8a7acf89d1723d8659960a",
+      "size_bytes": 15118
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T10:50:37.383322+00:00",
+      "path": "results/benchmark_quant/truth_lab_qwen25_15b_chi64_m4_lock.json",
+      "sha256": "cee6e63fa0c11a31eed381a528e3d7500f31cfce6851ad4e23521cfae7a6bc50",
+      "size_bytes": 15118
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T17:55:31.511631+00:00",
+      "path": "results/benchmark_quant/truth_lab_tinyllama_11b_chi32_m4.json",
+      "sha256": "3926d4657cd44c19c20e3d54c5dca9dda53a7cc57e13fe3f36a59b621bf77460",
+      "size_bytes": 15098
+    },
+    {
+      "json_summary": {
+        "json_ok": true,
+        "top_level_keys": [
+          "benchmark_family",
+          "benchmark_kind",
+          "cases",
+          "config",
+          "created_at_utc",
+          "evidence_policy",
+          "mode_family",
+          "notes",
+          "schema_version",
+          "summary",
+          "turboq_residual"
+        ],
+        "type": "dict"
+      },
+      "modified_at": "2026-03-30T18:01:40.829133+00:00",
+      "path": "results/benchmark_quant/truth_lab_tinyllama_11b_chi64_m4.json",
+      "sha256": "f7421e19f0f0d906d0045b68523465bd96f146674675d0c0fba2ecd6e17da9d6",
+      "size_bytes": 15104
+    }
+  ],
+  "generated_at": "2026-05-26T07:17:37.739491+00:00",
+  "root": "C:\\Users\\speci.000\\Documents\\QWAVE\\twave",
+  "schema_version": "qwave-artifact-ledger-v1"
+}

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS Model Arena — Quality × Health Matrix</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-card: #111118;
+    --bg-hover: #1a1a25;
+    --border: #222233;
+    --border-active: #334155;
+    --text: #e2e4e9;
+    --text-muted: #6b7280;
+    --text-dim: #4b5563;
+    --accent: #6366f1;
+    --accent-glow: rgba(99,102,241,0.15);
+    --success: #22c55e;
+    --success-bg: rgba(34,197,94,0.1);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245,158,11,0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239,68,68,0.1);
+    --info: #3b82f6;
+    --info-bg: rgba(59,130,246,0.1);
+    --radius: 10px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Cascadia Code', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+  }
+
+  .app { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .header-brand { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #818cf8);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 18px; color: #fff;
+  }
+  .header-title { font-size: 1.5rem; font-weight: 700; }
+  .header-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .header-right { display: flex; gap: 12px; align-items: center; }
+
+  /* Info panel about intell score */
+  .info-panel {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px;
+    font-size: 0.85rem; line-height: 1.6;
+  }
+  .info-panel strong { color: var(--accent); }
+  .info-panel .tier-legend { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
+  .tier-legend span { display: flex; align-items: center; gap: 6px; }
+  .tier-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* KPIs */
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.8rem; font-weight: 800; font-family: var(--font-mono); }
+  .kpi-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Matrix View - The Core Innovation */
+  .matrix-section { margin-bottom: 24px; }
+  .matrix-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .matrix-title { font-size: 1.1rem; font-weight: 700; }
+  .matrix-subtitle { font-size: 0.78rem; color: var(--text-muted); }
+
+  .quality-health-matrix {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    position: relative;
+  }
+
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    min-height: 400px;
+  }
+
+  .matrix-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-right: 8px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .matrix-plot {
+    position: relative;
+    background: linear-gradient(to top, rgba(34,197,94,0.03) 0%, rgba(245,158,11,0.03) 50%, rgba(239,68,68,0.03) 100%);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-height: 400px;
+    overflow: hidden;
+  }
+
+  .matrix-x-axis {
+    grid-column: 2;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding-top: 4px;
+  }
+
+  .matrix-x-label {
+    grid-column: 2;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .matrix-y-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .matrix-model-dot {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+  }
+  .matrix-model-dot:hover {
+    transform: scale(1.5);
+    border-color: #fff;
+    z-index: 100;
+  }
+  .matrix-model-dot.up { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .matrix-model-dot.down { background: var(--danger); opacity: 0.4; }
+  .matrix-model-dot.noauth { background: var(--warning); opacity: 0.5; }
+  .matrix-model-dot.best { border-color: #fff; box-shadow: 0 0 12px var(--accent); }
+
+  .matrix-tooltip {
+    position: absolute;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-active);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    z-index: 200;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  /* Quadrant labels */
+  .quadrant-label {
+    position: absolute;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .q1 { top: 8px; right: 8px; color: var(--success); }
+  .q2 { top: 8px; left: 8px; color: var(--warning); }
+  .q3 { bottom: 8px; left: 8px; color: var(--danger); }
+  .q4 { bottom: 8px; right: 8px; color: var(--info); }
+
+  /* Model Table */
+  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .filter-bar input, .filter-bar select {
+    background: var(--bg-hover); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 14px; border-radius: 6px;
+    font-size: 0.82rem; font-family: var(--font); outline: none;
+  }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: var(--accent); }
+  .filter-chip {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 14px; border-radius: 20px;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .filter-chip:hover:not(.active) { border-color: var(--border-active); }
+
+  .model-table-wrap {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: auto; max-height: 70vh;
+  }
+  .model-table-wrap table {
+    width: 100%; border-collapse: collapse; font-size: 0.82rem;
+  }
+  .model-table-wrap th {
+    position: sticky; top: 0; background: var(--bg-card);
+    padding: 12px 14px; text-align: left; font-weight: 700;
+    color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;
+    letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; z-index: 2;
+  }
+  .model-table-wrap th:hover { color: var(--text); }
+  .model-table-wrap td {
+    padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+  .model-table-wrap tr:hover td { background: rgba(255,255,255,0.015); }
+
+  /* Status indicators */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 700;
+  }
+  .status-pill.up { background: var(--success-bg); color: var(--success); }
+  .status-pill.down { background: var(--danger-bg); color: var(--danger); }
+  .status-pill.noauth { background: var(--warning-bg); color: var(--warning); }
+
+  .health-bar {
+    width: 60px; height: 4px; background: var(--bg-hover); border-radius: 2px; overflow: hidden;
+    display: inline-block; vertical-align: middle; margin-right: 6px;
+  }
+  .health-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .health-fill.excellent { background: var(--success); }
+  .health-fill.good { background: linear-gradient(90deg, var(--success), var(--warning)); }
+  .health-fill.poor { background: var(--warning); }
+  .health-fill.dead { background: var(--danger); }
+
+  .intell-score {
+    font-weight: 700; font-family: var(--font-mono);
+  }
+  .intell-score.frontier { color: #a78bfa; }
+  .intell-score.strong { color: #60a5fa; }
+  .intell-score.capable { color: #34d399; }
+  .intell-score.basic { color: var(--text-muted); }
+  .intell-estimated { color: var(--warning); font-size: 0.7rem; margin-left: 4px; }
+
+  .latency-badge {
+    font-family: var(--font-mono); font-size: 0.8rem;
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--bg-hover);
+  }
+  .latency-badge.fast { color: var(--success); }
+  .latency-badge.normal { color: var(--text); }
+  .latency-badge.slow { color: var(--warning); }
+  .latency-badge.veryslow { color: var(--danger); }
+
+  .provider-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 600;
+    background: var(--info-bg); color: var(--info);
+  }
+
+  .best-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    background: rgba(167,139,250,0.15); color: #a78bfa; margin-left: 6px;
+  }
+
+  .sort-arrow { margin-left: 4px; font-size: 0.7rem; }
+
+  .empty-state {
+    text-align: center; padding: 48px; color: var(--text-dim);
+  }
+  .loading { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    .app { padding: 12px; }
+    .matrix-grid { min-height: 300px; }
+    .matrix-plot { min-height: 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">N</div>
+      <div>
+        <div class="header-title">NEXUS Model Arena</div>
+        <div class="header-subtitle">Quality × Health Matrix — Find the best working model instantly</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="filter-chip" onclick="fetchAll()" style="border-radius:6px">↻ Refresh</button>
+      <span style="font-size:0.75rem;color:var(--text-dim)" id="lastUpdate">--</span>
+    </div>
+  </header>
+
+  <!-- Info Panel: What is Intell Score? -->
+  <div class="info-panel">
+    <strong>Intelligence Score (Intell)</strong> is a normalized 0-100 ranking based on public benchmarks (MMLU, SWE-bench, Chatbot Arena Elo). 
+    Scores marked with <span style="color:var(--warning)">*</span> are estimated from model specs and architecture, not directly benchmarked.
+    <div class="tier-legend">
+      <span><span class="tier-dot" style="background:#a78bfa"></span> Frontier (85-100%)</span>
+      <span><span class="tier-dot" style="background:#60a5fa"></span> Strong (75-84%)</span>
+      <span><span class="tier-dot" style="background:#34d399"></span> Capable (60-74%)</span>
+      <span><span class="tier-dot" style="background:var(--text-muted)"></span> Basic (below 60%)</span>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Models Online</div>
+      <div class="kpi-value" id="kpiOnline" style="color:var(--success)">--</div>
+      <div class="kpi-sub">out of <span id="kpiTotal">--</span> discovered</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Frontier Models UP</div>
+      <div class="kpi-value" id="kpiFrontier" style="color:#a78bfa">--</div>
+      <div class="kpi-sub">intell ≥ 85% and healthy</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Best Available</div>
+      <div class="kpi-value" id="kpiBest" style="font-size:1.2rem;color:var(--accent)">--</div>
+      <div class="kpi-sub">highest intell + healthy</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Providers Active</div>
+      <div class="kpi-value" id="kpiProviders" style="color:var(--info)">--</div>
+      <div class="kpi-sub">with ≥1 model online</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Median Latency</div>
+      <div class="kpi-value" id="kpiLatency">--</div>
+      <div class="kpi-sub">ms across online models</div>
+    </div>
+  </div>
+
+  <!-- Quality × Health Matrix -->
+  <div class="matrix-section">
+    <div class="matrix-header">
+      <div>
+        <div class="matrix-title">Quality × Health Matrix</div>
+        <div class="matrix-subtitle">X = Intelligence Score · Y = Health (online = top, offline = bottom) · Size = context window</div>
+      </div>
+    </div>
+    <div class="quality-health-matrix">
+      <div class="matrix-grid">
+        <div class="matrix-y-label">Health</div>
+        <div class="matrix-plot" id="matrixPlot">
+          <div class="quadrant-label q1">High Quality + Healthy</div>
+          <div class="quadrant-label q2">High Quality + Down</div>
+          <div class="quadrant-label q3">Low Quality + Down</div>
+          <div class="quadrant-label q4">Low Quality + Healthy</div>
+          <div class="matrix-tooltip" id="matrixTooltip"></div>
+        </div>
+        <div></div>
+        <div class="matrix-x-axis">
+          <span>0%</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100%</span>
+        </div>
+        <div></div>
+        <div class="matrix-x-label">Intelligence Score (higher → better model)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <input type="text" id="searchInput" placeholder="Search models, providers, IDs..." oninput="renderTable()" style="flex:1;min-width:200px">
+    <select id="providerFilter" onchange="renderTable()">
+      <option value="">All Providers</option>
+    </select>
+    <select id="statusFilter" onchange="renderTable()">
+      <option value="">All Status</option>
+      <option value="up">Online</option>
+      <option value="down">Offline</option>
+      <option value="noauth">No Auth</option>
+    </select>
+    <select id="tierFilter" onchange="renderTable()">
+      <option value="">All Tiers</option>
+      <option value="frontier">Frontier (85%+)</option>
+      <option value="strong">Strong (75-84%)</option>
+      <option value="capable">Capable (60-74%)</option>
+      <option value="basic">Basic (&lt;60%)</option>
+    </select>
+    <span class="filter-chip active" id="chipOnline" onclick="toggleChip('chipOnline'); renderTable();">Online Only</span>
+    <span class="filter-chip" id="chipEstimated" onclick="toggleChip('chipEstimated'); renderTable();">Show Estimated</span>
+  </div>
+
+  <!-- Model Table -->
+  <div class="model-table-wrap" id="modelTableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="setSort('intell')">Intell <span class="sort-arrow" id="sort-intell">▼</span></th>
+          <th onclick="setSort('label')">Model <span class="sort-arrow" id="sort-label"></span></th>
+          <th onclick="setSort('status')">Health <span class="sort-arrow" id="sort-status"></span></th>
+          <th onclick="setSort('avg')">Latency <span class="sort-arrow" id="sort-avg"></span></th>
+          <th onclick="setSort('ctx')">Context <span class="sort-arrow" id="sort-ctx"></span></th>
+          <th onclick="setSort('providerKey')">Provider <span class="sort-arrow" id="sort-providerKey"></span></th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody id="modelTbody"></tbody>
+    </table>
+    <div class="empty-state loading" id="tableLoading">Loading models...</div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:7352/api';
+let allModels = [], allConfigs = [];
+let sortCol = 'intell', sortDir = -1; // Default: highest intell first
+
+async function fetchAll() {
+  try {
+    const [modelsRes, configRes] = await Promise.all([
+      fetch(API + '/models').catch(() => null),
+      fetch(API + '/config').catch(() => null)
+    ]);
+    if (modelsRes?.ok) {
+      const d = await modelsRes.json();
+      allModels = d.models || [];
+    }
+    if (configRes?.ok) {
+      allConfigs = await configRes.json();
+    }
+    updateKPIs();
+    renderMatrix();
+    renderTable();
+    populateFilters();
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+  } catch (e) {
+    console.error('Fetch error:', e);
+  }
+  document.getElementById('tableLoading').style.display = 'none';
+}
+
+function getIntellTier(intell) {
+  if (intell >= 0.85) return 'frontier';
+  if (intell >= 0.75) return 'strong';
+  if (intell >= 0.60) return 'capable';
+  return 'basic';
+}
+
+function getIntellClass(intell) {
+  const tier = getIntellTier(intell);
+  return {
+    frontier: 'frontier',
+    strong: 'strong',
+    capable: 'capable',
+    basic: 'basic'
+  }[tier];
+}
+
+function formatIntell(intell, isEstimated) {
+  const pct = ((intell || 0) * 100).toFixed(0);
+  const tier = getIntellTier(intell || 0);
+  const cls = getIntellClass(intell || 0);
+  const est = isEstimated ? '<span class="intell-estimated" title="Estimated score (not benchmarked)">*</span>' : '';
+  return `<span class="intell-score ${cls}">${pct}%</span>${est}`;
+}
+
+function formatLatency(avg) {
+  if (!avg) return '<span style="color:var(--text-dim)">--</span>';
+  const ms = Math.round(avg);
+  let cls = 'normal';
+  if (ms < 800) cls = 'fast';
+  else if (ms > 3000) cls = 'veryslow';
+  else if (ms > 1500) cls = 'slow';
+  return `<span class="latency-badge ${cls}">${ms}ms</span>`;
+}
+
+function formatStatus(m) {
+  const status = m.status || 'unknown';
+  const isUp = status === 'up';
+  const isNoAuth = status === 'noauth';
+  const label = isUp ? 'ONLINE' : isNoAuth ? 'NO AUTH' : 'OFFLINE';
+  const cls = isUp ? 'up' : isNoAuth ? 'noauth' : 'down';
+  
+  // Health bar: based on whether it's up and has good latency
+  let healthPct = 0;
+  let healthCls = 'dead';
+  if (isUp) {
+    healthPct = 100;
+    healthCls = 'excellent';
+    if (m.avg && m.avg > 3000) { healthPct = 60; healthCls = 'poor'; }
+    else if (m.avg && m.avg > 1500) { healthPct = 80; healthCls = 'good'; }
+  }
+  
+  return `
+    <span class="status-pill ${cls}">${label}</span>
+    <span class="health-bar" title="Health: ${healthPct}% (based on uptime + latency)">
+      <span class="health-fill ${healthCls}" style="width:${healthPct}%"></span>
+    </span>
+  `;
+}
+
+function updateKPIs() {
+  const upModels = allModels.filter(m => m.status === 'up');
+  const onlineProviders = new Set(upModels.map(m => m.providerKey));
+  
+  document.getElementById('kpiOnline').textContent = upModels.length;
+  document.getElementById('kpiTotal').textContent = allModels.length;
+  document.getElementById('kpiProviders').textContent = onlineProviders.size;
+  
+  // Frontier models that are UP
+  const frontierUp = upModels.filter(m => (m.intell || 0) >= 0.85).length;
+  document.getElementById('kpiFrontier').textContent = frontierUp;
+  
+  // Best available: highest intell that is UP
+  const best = upModels.reduce((best, m) => {
+    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
+    return best;
+  }, null);
+  document.getElementById('kpiBest').textContent = best ? (best.label || best.modelId).slice(0, 25) : 'None';
+  
+  // Median latency
+  const latencies = upModels.filter(m => m.avg != null).map(m => m.avg).sort((a,b) => a-b);
+  const med = latencies.length ? latencies[Math.floor(latencies.length/2)] : null;
+  document.getElementById('kpiLatency').textContent = med ? Math.round(med) + 'ms' : '--';
+}
+
+function renderMatrix() {
+  const plot = document.getElementById('matrixPlot');
+  const tooltip = document.getElementById('matrixTooltip');
+  
+  // Remove old dots (keep quadrant labels and tooltip)
+  plot.querySelectorAll('.matrix-model-dot').forEach(d => d.remove());
+  
+  const plotRect = plot.getBoundingClientRect();
+  const plotWidth = plotRect.width || 800;
+  const plotHeight = plotRect.height || 400;
+  
+  // Get top 80 models by intell to avoid overcrowding
+  const displayModels = [...allModels]
+    .filter(m => (m.intell || 0) > 0.3) // Skip very low quality
+    .sort((a, b) => (b.intell || 0) - (a.intell || 0))
+    .slice(0, 80);
+  
+  const bestUp = allModels.filter(m => m.status === 'up').reduce((best, m) => {
+    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
+    return best;
+  }, null);
+  
+  displayModels.forEach(m => {
+    const dot = document.createElement('div');
+    dot.className = 'matrix-model-dot ' + (m.status || 'down');
+    
+    // X = intell (0-1 mapped to 5%-95% of width)
+    const x = 5 + ((m.intell || 0) * 90);
+    // Y = health: up = near top, down = near bottom
+    let y;
+    if (m.status === 'up') {
+      // Within UP models, better latency = higher up
+      const latencies = allModels.filter(m => m.status === 'up' && m.avg != null).map(m => m.avg);
+      const maxLat = Math.max(...latencies, 5000);
+      const lat = m.avg || maxLat;
+      y = 5 + ((1 - Math.min(lat / maxLat, 1)) * 40); // Top half
+    } else {
+      y = 55 + (Math.random() * 40); // Bottom half, scattered
+    }
+    
+    dot.style.left = x + '%';
+    dot.style.top = y + '%';
+    
+    // Size based on context window
+    const ctx = parseInt((m.ctx || '0').replace(/[^0-9]/g, '')) || 0;
+    const size = Math.max(8, Math.min(20, 8 + Math.log10(Math.max(ctx, 1)) * 2));
+    dot.style.width = size + 'px';
+    dot.style.height = size + 'px';
+    
+    if (bestUp && m.modelId === bestUp.modelId && m.providerKey === bestUp.providerKey) {
+      dot.classList.add('best');
+    }
+    
+    dot.addEventListener('mouseenter', (e) => {
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `
+        <strong>${esc(m.label || m.modelId)}</strong><br>
+        Intell: ${((m.intell || 0) * 100).toFixed(0)}%${m.isEstimatedScore ? ' *' : ''}<br>
+        Status: ${m.status || '?'}<br>
+        Latency: ${m.avg ? Math.round(m.avg) + 'ms' : '--'}<br>
+        Context: ${m.ctx || '--'}<br>
+        Provider: ${esc(m.providerKey || '')}
+      `;
+    });
+    dot.addEventListener('mousemove', (e) => {
+      const rect = plot.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 12) + 'px';
+    });
+    dot.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+    
+    plot.appendChild(dot);
+  });
+}
+
+function getSortedModels() {
+  const arr = [...allModels];
+  arr.sort((a, b) => {
+    let va, vb;
+    switch (sortCol) {
+      case 'label': va = (a.label||'').toLowerCase(); vb = (b.label||'').toLowerCase(); return va < vb ? -sortDir : va > vb ? sortDir : 0;
+      case 'intell': va = a.intell || 0; vb = b.intell || 0; return (va - vb) * sortDir;
+      case 'ctx': {
+        const pa = (v) => { const m = String(v||'0').match(/(\d+)/); return m ? (v.includes('M') ? +m[1]*1e6 : v.includes('k') ? +m[1]*1e3 : +m[1]) : 0; };
+        return (pa(a.ctx) - pa(b.ctx)) * sortDir;
+      }
+      case 'avg': va = a.avg ?? (a.status === 'up' ? 999999 : Infinity); vb = b.avg ?? (b.status === 'up' ? 999999 : Infinity); return (va - vb) * sortDir;
+      case 'status': {
+        const order = { up: 0, down: 1, noauth: 2 };
+        return ((order[a.status] ?? 3) - (order[b.status] ?? 3)) * sortDir;
+      }
+      case 'providerKey': va = (a.providerKey||'').toLowerCase(); vb = (b.providerKey||'').toLowerCase(); return va < vb ? -sortDir : va > vb ? sortDir : 0;
+      default: return 0;
+    }
+  });
+  return arr;
+}
+
+function renderTable() {
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const provFilter = document.getElementById('providerFilter')?.value || '';
+  const statFilter = document.getElementById('statusFilter')?.value || '';
+  const tierFilter = document.getElementById('tierFilter')?.value || '';
+  const onlineOnly = document.getElementById('chipOnline')?.classList.contains('active');
+  const showEstimated = document.getElementById('chipEstimated')?.classList.contains('active');
+  
+  let filtered = getSortedModels();
+  if (search) filtered = filtered.filter(m => (m.label||'').toLowerCase().includes(search) || (m.modelId||'').toLowerCase().includes(search) || (m.providerKey||'').toLowerCase().includes(search));
+  if (provFilter) filtered = filtered.filter(m => m.providerKey === provFilter);
+  if (statFilter) filtered = filtered.filter(m => m.status === statFilter);
+  if (tierFilter) filtered = filtered.filter(m => getIntellTier(m.intell || 0) === tierFilter);
+  if (onlineOnly) filtered = filtered.filter(m => m.status === 'up');
+  if (!showEstimated) filtered = filtered.filter(m => !m.isEstimatedScore);
+  
+  const bestUp = allModels.filter(m => m.status === 'up').reduce((best, m) => {
+    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
+    return best;
+  }, null);
+  
+  const tbody = document.getElementById('modelTbody');
+  tbody.innerHTML = filtered.map(m => {
+    const isBest = bestUp && m.modelId === bestUp.modelId && m.providerKey === bestUp.providerKey;
+    const ctx = m.ctx || '--';
+    const error = m.lastError ? `<span style="color:var(--danger);font-size:0.75rem">${esc(String(m.lastError.code || m.lastError.message || '').slice(0, 40))}</span>` : '--';
+    
+    return `<tr>
+      <td>${formatIntell(m.intell, m.isEstimatedScore)}</td>
+      <td>
+        <div style="font-weight:600">${esc(m.label || m.modelId)}${isBest ? '<span class="best-badge">Best</span>' : ''}</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono)">${esc(m.modelId || '')}</div>
+      </td>
+      <td>${formatStatus(m)}</td>
+      <td>${formatLatency(m.avg)}</td>
+      <td>${esc(ctx)}</td>
+      <td><span class="provider-tag">${esc(m.providerKey || '')}</span></td>
+      <td>${error}</td>
+    </tr>`;
+  }).join('');
+  
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No models match filters.</td></tr>`;
+  }
+  
+  // Update sort arrows
+  document.querySelectorAll('.sort-arrow').forEach(a => a.textContent = '');
+  const arrow = document.getElementById(`sort-${sortCol}`);
+  if (arrow) arrow.textContent = sortDir === -1 ? '▼' : '▲';
+}
+
+function populateFilters() {
+  const providers = [...new Set(allModels.map(m => m.providerKey))].sort();
+  const opts = providers.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  document.getElementById('providerFilter').innerHTML = '<option value="">All Providers</option>' + opts;
+}
+
+function setSort(col) {
+  if (sortCol === col) sortDir = -sortDir;
+  else { sortCol = col; sortDir = -1; } // Default desc for most
+  if (col === 'label' || col === 'providerKey') sortDir = 1; // Asc for text
+  renderTable();
+}
+
+function toggleChip(id) {
+  document.getElementById(id).classList.toggle('active');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Auto-refresh every 30 seconds
+setInterval(fetchAll, 30000);
+
+// Initial load
+fetchAll();
+</script>
+</body>
+</html>

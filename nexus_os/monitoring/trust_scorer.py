@@ -7,7 +7,7 @@ Implements the canonical scoring formula with:
 - 5-track memory integration
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from dataclasses import dataclass
 import math
 
@@ -43,18 +43,44 @@ LANE_PARAMS = {
 
 
 class TrustScorer:
-    """v2.1 Canonical Trust Scorer.
+    """Unified Trust Scorer interface for Nexus OS.
     
-    Features:
-    - Lane-scoped parameters (not global!)
-    - Non-compensatory harm (R > Rcrit → score = None)
-    - Hot-path optimization with caching
-    - Zero-context-loss handoff support
+    Unifies the lane-scoped [-1, 1] hot-path scorer and the Bayesian [0, 1] reputation scorer.
     """
-    
-    def __init__(self):
+    PRIOR_SUCCESS = 10
+    PRIOR_FAILURE = 2
+
+    def __init__(self, db: Optional[Any] = None):
+        self.db = db
         self._hot_path_cache: Dict[str, float] = {}
-    
+        if db is not None:
+            if hasattr(db, "get_connection"):
+                self._conn = db.get_connection()
+            else:
+                self._conn = db
+        else:
+            self._conn = None
+
+    def get_score(self, agent_id: str, lane: Optional[str] = None) -> float:
+        """Get Bayesian [0, 1] trust score for an agent.
+        
+        If DB connection exists, queries the agent_reputation database.
+        Otherwise (or if agent not found), returns the prior rate (~0.833).
+        """
+        if self._conn is not None:
+            try:
+                row = self._conn.execute(
+                    "SELECT successes, failures FROM agent_reputation WHERE agent_id = ?",
+                    (agent_id,),
+                ).fetchone()
+                if row is not None:
+                    successes, failures = row[0], row[1]
+                    total = successes + failures
+                    return (successes + self.PRIOR_SUCCESS) / (total + self.PRIOR_SUCCESS + self.PRIOR_FAILURE)
+            except Exception:
+                pass
+        return self.PRIOR_SUCCESS / (self.PRIOR_SUCCESS + self.PRIOR_FAILURE)
+
     def get_score_hotpath(
         self,
         agent_id: str,
@@ -70,28 +96,6 @@ class TrustScorer:
         """Calculate trust score using v2.1 canonical formula.
         
         HOT PATH: Must complete in <20μs
-        
-        Formula:
-            if status in {blocked, unassigned}: return None
-            if R > Rcrit(lane): return None  # NON-COMPENSATORY
-            Qeff = clip((Q - qmin)/(1 - qmin)) * (1 - exp(-n/n0))
-            P = alpha*U + gamma*D_plus - beta*R - eta*D_minus
-            raw = tanh(kappa * Qeff^delta * P)
-            return 0 if |raw| < epsilon else raw
-        
-        Args:
-            agent_id: Agent identifier
-            Q: Evidence confidence (0-1)
-            n: Evidence count
-            U: Utility created (normalized)
-            D_plus: Coverage/delivery contribution
-            R: Harm/regression (normalized)
-            D_minus: Under-delivery/omission
-            lane: Task lane (determines parameters)
-            status: Agent status
-        
-        Returns:
-            float in [-1, 1] or None (if blocked/harm exceeded)
         """
         # 1. NULL STATE CHECK
         if status in {"blocked", "unassigned", "not_applicable"}:
@@ -101,8 +105,6 @@ class TrustScorer:
         params = LANE_PARAMS.get(lane, LANE_PARAMS["general"])
         
         # 3. NON-COMPENSATORY HARM CHECK (CRITICAL!)
-        # If harm exceeds lane threshold, score = None (held)
-        # Utility CANNOT compensate for harm above Rcrit
         if R > params.Rcrit:
             return None  # HOLD state - no score calculated
         
@@ -136,3 +138,72 @@ class TrustScorer:
         """Check if harm exceeds critical threshold for lane."""
         params = LANE_PARAMS.get(lane, LANE_PARAMS["general"])
         return R > params.Rcrit
+
+    # Methods from persistent reputation scorer (vault/trust.py)
+    def record_success(self, agent_id: str) -> None:
+        if self._conn is not None:
+            self._ensure_agent_registered(agent_id)
+            self._conn.execute(
+                """INSERT INTO agent_reputation (agent_id, successes, failures, last_updated)
+                   VALUES (?, 1, 0, CURRENT_TIMESTAMP)
+                   ON CONFLICT(agent_id) DO UPDATE SET
+                       successes = successes + 1,
+                       last_updated = CURRENT_TIMESTAMP""",
+                (agent_id,),
+            )
+            if hasattr(self._conn, "commit"):
+                self._conn.commit()
+
+    def record_failure(self, agent_id: str) -> None:
+        if self._conn is not None:
+            self._ensure_agent_registered(agent_id)
+            self._conn.execute(
+                """INSERT INTO agent_reputation (agent_id, successes, failures, last_updated)
+                   VALUES (?, 0, 1, CURRENT_TIMESTAMP)
+                   ON CONFLICT(agent_id) DO UPDATE SET
+                       failures = failures + 1,
+                       last_updated = CURRENT_TIMESTAMP""",
+                (agent_id,),
+            )
+            if hasattr(self._conn, "commit"):
+                self._conn.commit()
+
+    def get_stats(self, agent_id: str) -> Dict[str, Any]:
+        if self._conn is not None:
+            try:
+                row = self._conn.execute(
+                    "SELECT successes, failures FROM agent_reputation WHERE agent_id = ?",
+                    (agent_id,),
+                ).fetchone()
+                if row is not None:
+                    successes, failures = row[0], row[1]
+                    total = successes + failures
+                    score = (successes + self.PRIOR_SUCCESS) / (total + self.PRIOR_SUCCESS + self.PRIOR_FAILURE)
+                    return {
+                        "successes": successes,
+                        "failures": failures,
+                        "score": score,
+                        "total": total,
+                    }
+            except Exception:
+                pass
+        score = self.PRIOR_SUCCESS / (self.PRIOR_SUCCESS + self.PRIOR_FAILURE)
+        return {
+            "successes": 0,
+            "failures": 0,
+            "score": score,
+            "total": 0,
+        }
+
+    def close(self):
+        if self._conn and hasattr(self._conn, "close"):
+            self._conn.close()
+            self._conn = None
+
+    def _ensure_agent_registered(self, agent_id: str) -> None:
+        if self._conn is not None:
+            self._conn.execute(
+                """INSERT OR IGNORE INTO agent_registry (agent_id, model_id, status)
+                   VALUES (?, 'unknown', 'active')""",
+                (agent_id,),
+            )

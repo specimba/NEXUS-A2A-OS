@@ -290,7 +290,7 @@ class TestIntegrationTrack:
     def test_memory_tracks(self):
         from nexus_os.benchmark.tracks.integration import IntegrationTrack
         track = IntegrationTrack()
-        metrics = track._test_memory_tracks()
+        metrics = track._test_memory_channels()
         assert "consistency_pct" in metrics
 
     def test_dashboard_freshness(self):

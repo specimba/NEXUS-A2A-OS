@@ -14,6 +14,7 @@ DOMAIN_MAPPING = {
     },
     "reasoning": {
         "primary": [
+            {"model": "internai/intern-s2-preview", "provider": "internai", "tier": 95, "latency_ms": 250, "cost_per_1m": 0.0, "status": "up"},
             {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
             {"model": "Kimi K2 Thinking", "provider": "nvidia", "tier": 84, "latency_ms": 709, "cost_per_1m": 4.0, "status": "up"},
             {"model": "Qwen3 80B Thinking", "provider": "nvidia", "tier": 72, "latency_ms": 522, "cost_per_1m": 3.0, "status": "up"},
@@ -24,7 +25,7 @@ DOMAIN_MAPPING = {
     "research": {
         "primary": [
             {"model": "GLM 5", "provider": "nvidia", "tier": 97, "latency_ms": 4539, "cost_per_1m": 5.0, "status": "up"},
-            {"model": "Kimi K2.5", "provider": "nvidia", "tier": 95, "latency_ms": 2288, "cost_per_1m": 4.0, "status": "up"},
+            {"model": "Kimi K2.5", "provider": "openai-compatible:fireworks", "tier": 95, "latency_ms": 2288, "cost_per_1m": 4.0, "status": "up"},
             {"model": "Nemotron 3 Super", "provider": "opencode", "tier": 60, "latency_ms": 1275, "cost_per_1m": 2.0, "status": "up"},
         ],
         "fallback_chain": ["GLM 5", "Nemotron 3 Super", "osman-reasoning"]
@@ -39,6 +40,7 @@ DOMAIN_MAPPING = {
     },
     "security": {
         "primary": [
+            {"model": "internai/intern-s2-preview", "provider": "internai", "tier": 95, "latency_ms": 250, "cost_per_1m": 0.0, "status": "up"},
             {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
             {"model": "MiniMax M2.5", "provider": "opencode", "tier": 99, "latency_ms": 1224, "cost_per_1m": 6.0, "status": "up"},
         ],

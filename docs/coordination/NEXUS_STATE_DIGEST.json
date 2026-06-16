@@ -1,0 +1,140 @@
+{
+  "docker": {
+    "known_blocker": "Docker secret hardening remains failed until host-side compose, rotation, and bind verification pass.",
+    "note": "Docker control stays local; Zo receives profile/status summaries only.",
+    "verified_live_status": false
+  },
+  "generated_at": "2026-05-22T18:04:09+00:00",
+  "git": {
+    "branch": "codex/specimba/1805mainSpeci",
+    "head": "cf6a470",
+    "probes_ok": true,
+    "remote_branches": [
+      "alpha/DASHBOARD-GLM51",
+      "alpha",
+      "alpha/archive/old-main-20260521-pre-reline",
+      "alpha/codex/specimba/1805mainSpeci",
+      "alpha/codex/specimba/1805mainSpeci-safe",
+      "alpha/codex/specimba/main-candidate-20260521",
+      "alpha/codex/specimba/rollback-pre-tidiness-20260521-001353",
+      "alpha/main",
+      "alpha/release/v3.1-dashboard",
+      "alpha/revert-32-codex/specimba/1805mainSpeci-safe",
+      "github",
+      "github/canonical-617",
+      "github/clean/security-phase-0",
+      "github/codex/specimba/windows-recovery-transfer",
+      "github/feature/neo-grounding-enhancement",
+      "github/main",
+      "github/main-617baseline",
+      "github/master",
+      "origin",
+      "origin/main"
+    ],
+    "remote_branches_note": "cached local refs only; Zo/GitHub checks must revalidate live remote state",
+    "status_counts": {
+      "deleted": 16,
+      "modified": 16,
+      "total": 122,
+      "untracked": 90
+    }
+  },
+  "handoff": {
+    "allowed_endpoints": [
+      "/docker",
+      "/git",
+      "/handoff",
+      "/nexusctl",
+      "/ports",
+      "/queue",
+      "/state"
+    ],
+    "automation_registry": "docs/handoff/zo-coordination/ZO_AUTOMATION_REGISTRY.md",
+    "readme": "docs/handoff/zo-coordination/README.md"
+  },
+  "nexusctl": {
+    "cycle_check": {
+      "code": 0,
+      "ok": true,
+      "stderr": "",
+      "stdout": "{\n  \"status\": \"ok\",\n  \"source\": \".nexus_pi\\\\state\\\\session_compact.json\",\n  \"last_cycle\": null,\n  \"updated_at\": null\n}"
+    },
+    "doctor_memory": {
+      "code": 0,
+      "ok": true,
+      "stderr": "",
+      "stdout": "{\n  \"status\": \"degraded\",\n  \"command\": \"doctor memory\",\n  \"report_only\": true,\n  \"checks\": {\n    \"nexus_os.vault.memory_adapter\": true,\n    \"nexus_os.governor.trust_kernel\": true,\n    \"nexus_os.governor.trust_scoring\": true,\n    \"nexus_os.monitoring.token_guard\": true,\n    \"nexus_os.monitoring.token_policy\": false\n  },\n  \"trust_kernel\": {\n    \"root_compat\": true,\n    \"src_public\": true\n  },\n  \"token_policy_plane\": {\n    \"token_guard\": true,\n    \"token_policy\": false\n  },\n  \"memory_backend\": {\n    \"adapter_present\": true,\n    \"spew_status\": \"module_presence_only\"\n  },\n  \"protected_workloads\": [\n    \"browser_tabs\",\n    \"OBS/Streamlabs\",\n    \"devin\",\n    \"Docker\",\n    \"active_agent_shells\"\n  ]\n}"
+    },
+    "doctor_version": {
+      "code": 0,
+      "ok": true,
+      "stderr": "",
+      "stdout": "{\n  \"status\": \"ok\",\n  \"command\": \"doctor version\",\n  \"report_only\": true,\n  \"refresh_requested\": false,\n  \"refresh_performed\": false,\n  \"repo_root\": \"C:\\\\Users\\\\speci.000\\\\Documents\\\\NEXUS\",\n  \"branch\": \"codex/specimba/1805mainSpeci\",\n  \"head\": \"cf6a470\",\n  \"cached_refs\": {\n    \"github/main\": \"df29e03\",\n    \"origin/main\": \"8bd5d6c\"\n  },\n  \"dirty\": {\n    \"count\": 122,\n    \"entries\": [\n      \"D NEXUS_OS_Strategic_Pack.zip\",\n      \" M db/custom.db\",\n      \" D nexus-glm5-fusion-pack.zip\",\n      \" D nexus-glm5.1-fusion-pack.zip\",\n      \" M nexus-os-v2\",\n      \" D nexus-os-v2.zip\",\n      \" D nexus_os/__pycache__/__init__.cpython-312.pyc\",\n      \" D nexus_os/bridge/__pycache__/__init__.cpython-312.pyc\",\n      \" D nexus_os/bridge/__pycache__/secrets.cpython-312.pyc\",\n      \" D nexus_os/bridge/__pycache__/vault.cpython-312.pyc\",\n      \" D nexus_os/governor/__pycache__/__init__.cpython-312.pyc\",\n      \" D nexus_os/governor/__pycache__/base.cpython-312.pyc\",\n      \" D nexus_os/relay/__pycache__/model_relay.cpython-313.pyc\",\n      \" D nexus_os/security/__pycache__/__init__.cpython-313.pyc\",\n      \" D nexus_os/security/__pycache__/sanitizer.cpython-313.pyc\",\n      \" D nexus_os/swarm/__pycache__/__init__.cpython-312.pyc\",\n      \" D nexus_os/swarm/__pycache__/foreman.cpython-312.pyc\",\n      \" M nexusctl/__pycache__/__init__.cpython-313.pyc\",\n      \" M nexusctl/__pycache__/__main__.cpython-313.pyc\",\n      \" M nexusctl/__pycache__/cli.cpython-313.pyc\",\n      \" M nexusctl/cli.py\",\n      \" D research/nexus_agentic_gateway_v31_deep_dive_2026-04-18.md\",\n      \" M scripts/nexus_docker_secret_audit.ps1\",\n      \" M src/nexus_os/governor/__init__.py\",\n      \" M src/nexus_os/governor/trust_scoring.py\",\n      \" M src/nexus_os/mcp/__init__.py\",\n      \" M src/nexus_os/mcp/server.py\",\n      \" M src/nexus_os/monitoring/__init__.py\",\n      \" M src/nexus_os/monitoring/token_guard.py\",\n      \" M tests/cli/test_nexusctl_cycle_check.py\",\n      \" M tests/governor/test_trust_scoring.py\",\n      \" M worklog.md\",\n      \"?? .devin/\",\n      \"?? .playwright-mcp/\",\n      \"?? .session/\",\n      \"?? 2026-05-18-010-docker-wsl-resource-optimization.task.md\",\n      \"?? 2026-05-18-011-docker-secret-hardening.task.md\",\n      \"?? 2026-05-20-alpha-branch-comparison.md\",\n      \"?? 2026-05-20-pi-broken.md\",\n      \"?? NEO_NEXUS_GROUNDING.md\",\n      \"?? NEXUS.lnk\",\n      \"?? NEXUS_DOCKER_SECRET_HARDENING_2026-05-19.md\",\n      \"?? _tmp_run_guard_eval2.py\",\n      \"?? benchmarks/code_reasoning/\",\n      \"?? benchmarks/custom_evaluators.py\",\n      \"?? benchmarks/digitalocean/\",\n      \"?? benchmarks/do_kb/\",\n      \"?? benchmarks/eggroll/\",\n      \"?? benchmarks/merge_manifest.json\",\n      \"?? \\\"benchmarks/mixed content/\\\"\"\n    ],\n    \"truncated\": true\n  },\n  \"queue\": {\n    \"pending\": 0,\n    \"done\": 8,\n    \"failed\": 3\n  },\n  \"required_files\": {\n    \"missing\": [],\n    \"present_count\": 11,\n    \"total\": 11\n  },\n  \"docs_drift\": {\n    \"project_state_exists\": true,\n    \"project_state_current_date\": true,\n    \"project_state_mentions_head\": false,\n    \"obsolete_test_count_claim\": false\n  },\n  \"protected_workloads\": [\n    \"browser_tabs\",\n    \"OBS/Streamlabs\",\n    \"devin\",\n    \"Docker\",\n    \"active_agent_shells\"\n  ]\n}"
+    },
+    "mode": "local_read_only_probe"
+  },
+  "ports": {
+    "expected": {
+      "11434": "Local Ollama internal only",
+      "3000": "Next.js dashboard",
+      "7352": "NEXUS governance/control API",
+      "7353": "TWAVE wrapper"
+    },
+    "note": "Bridge snapshot does not run live port scans.",
+    "verified_live_bindings": false
+  },
+  "queue": {
+    "done": 8,
+    "failed": 3,
+    "latest_failed": [
+      "tasks/failed/2026-05-18-011-docker-secret-hardening.task.md",
+      "tasks/failed/2026-05-18-008-vendor-agent-hygiene.task.md",
+      "tasks/failed/2026-05-18-007-local-restart-whea-stability.task.md"
+    ],
+    "pending": 0
+  },
+  "schema_version": 1,
+  "security": {
+    "no_arbitrary_file_read": true,
+    "no_command_execution_in_server_mode": true,
+    "no_env": true,
+    "notification_policy": "delta_only_rate_limited",
+    "side_effects": "blocked_or_approval_required"
+  },
+  "source": "scripts/zo_nexus_state_bridge.py",
+  "state": {
+    "canonical_files": [
+      "01_PROJECT_STATE.md",
+      "knowledge.md",
+      "worklog.md"
+    ],
+    "project_state": {
+      "critical_blockers": [
+        "Docker secret hardening is not complete: host-managed Gordon/Cagent compose still needs inline secret removal, Kafka credential rotation, and recreated containers that do not expose raw secret-backed env values.",
+        "Redis and Supabase DB still need localhost-only binding or explicitly approved firewall rules: target bindings are `127.0.0.1:6379` and `127.0.0.1:54322`.",
+        "DoppelGround leak status must be resolved before external handoff or public repo flip.",
+        "Dashboard/relay still needs real governance API wiring.",
+        "GSPP reference assets need reconciliation before they become canonical.",
+        "Public launch files still need security/legal review before staging.",
+        "Sandbox/mock env files must not be committed without an explicit policy decision."
+      ],
+      "current_local_branch": "codex/specimba/1805mainSpeci",
+      "date": "2026-05-21 (updated)",
+      "latest_test_baseline": "670 passed in 58.98s",
+      "latest_verified_tree": "local working tree after hygiene commits, `trust_scoring.py` capabilities-field correction, and regression tests.",
+      "pr_status": "- PR #34 (`specimba/nexusalpha#34`) rebuilt against `main` from clean commit `43c2dde`."
+    },
+    "role": "Zo cloud watchtower; local NEXUS remains execution authority",
+    "stale_facts_to_revalidate": [
+      "canonical-617",
+      "642 passed",
+      "forced main push summaries"
+    ]
+  },
+  "zo_sources": [
+    "https://www.zo.computer/chats/pub_gXho156KEeGBJUxu",
+    "https://www.zo.computer/chats/pub_G39cqSVMWv3rCBmw",
+    "https://www.zo.computer/chats/pub_SU3eHqDRgNJpFcBc",
+    "https://www.zo.computer/chats/pub_WvRHbYYXcIPHBKM7"
+  ]
+}

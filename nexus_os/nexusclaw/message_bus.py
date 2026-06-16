@@ -15,9 +15,11 @@ Features:
 
 from __future__ import annotations
 
+import asyncio
 import collections
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
@@ -114,6 +116,29 @@ class MessageThread:
         }
 
 
+class MessageRateLimiter:
+    """Per-sender token bucket rate limiter for the message bus."""
+
+    def __init__(self, tokens_per_second: float = 5.0, max_burst: int = 10) -> None:
+        self.tokens_per_second = tokens_per_second
+        self.max_burst = max_burst
+        self._tokens: float = float(max_burst)
+        self._last_refill: float = time.monotonic()
+        self._lock = threading.Lock()
+
+    def allow(self) -> bool:
+        """Check if one message is allowed. Returns True if under rate limit."""
+        with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_refill
+            self._tokens = min(self.max_burst, self._tokens + elapsed * self.tokens_per_second)
+            self._last_refill = now
+            if self._tokens >= 1.0:
+                self._tokens -= 1.0
+                return True
+            return False
+
+
 class MessageBus:
     """NEXUSCLAW message bus for inter-agent communication.
 
@@ -129,19 +154,30 @@ class MessageBus:
     MAX_MESSAGE_LENGTH = 4096
     # Maximum messages per thread
     MAX_THREAD_MESSAGES = 1000
+    # Default rate limit per sender
+    DEFAULT_RATE_LIMIT_TPS = 5.0
+    DEFAULT_RATE_LIMIT_BURST = 10
 
     def __init__(
         self,
         agent_pool: Optional[AgentPool] = None,
         worklog: Optional[WorklogSystem] = None,
         memory_channels: Optional[MemoryChannelManager] = None,
+        rate_limit_tps: float = DEFAULT_RATE_LIMIT_TPS,
+        rate_limit_burst: int = DEFAULT_RATE_LIMIT_BURST,
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
         self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
+        self._rate_limiters: Dict[str, MessageRateLimiter] = {}
+        self._rate_limit_tps = rate_limit_tps
+        self._rate_limit_burst = rate_limit_burst
         self._threads: Dict[str, MessageThread] = {}
         self._message_history: collections.deque[NexusMessage] = collections.deque(maxlen=5000)
         self._external_connectors: Dict[str, Any] = {}
+        self._async_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._async_loop_ready: threading.Event = threading.Event()
+        self._async_thread: Optional[threading.Thread] = None
         
         # Pre-load enabled connectors from NEXUSCLAWMessagingHub
         from nexus_os.nexusclaw.messaging import NEXUSCLAWMessagingHub
@@ -154,8 +190,48 @@ class MessageBus:
         self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
+    # Async event loop (dedicated thread for external dispatch)
+    # ------------------------------------------------------------------
+
+    def _ensure_async_loop(self) -> None:
+        """Start a dedicated daemon thread with its own event loop for external dispatch."""
+        if self._async_loop is not None:
+            return
+        loop = asyncio.new_event_loop()
+
+        def _run_loop() -> None:
+            asyncio.set_event_loop(loop)
+            self._async_loop = loop
+            self._async_loop_ready.set()
+            loop.run_forever()
+
+        thread = threading.Thread(target=_run_loop, daemon=True, name="nexusclaw-async-dispatch")
+        thread.start()
+        self._async_thread = thread
+        self._async_loop_ready.wait(timeout=5.0)
+
+    def _dispatch_async(self, coro: asyncio.coroutine) -> None:
+        """Submit an async coroutine to the dedicated event loop thread."""
+        self._ensure_async_loop()
+        asyncio.run_coroutine_threadsafe(coro, self._async_loop)
+
+    def shutdown(self) -> None:
+        """Shut down the dedicated async event loop."""
+        if self._async_loop is not None and self._async_loop.is_running():
+            self._async_loop.call_soon_threadsafe(self._async_loop.stop)
+
+    # ------------------------------------------------------------------
     # Core messaging
     # ------------------------------------------------------------------
+
+    def _check_rate_limit(self, sender_id: str) -> bool:
+        """Check if sender is under rate limit. Returns True if allowed."""
+        if sender_id not in self._rate_limiters:
+            self._rate_limiters[sender_id] = MessageRateLimiter(
+                tokens_per_second=self._rate_limit_tps,
+                max_burst=self._rate_limit_burst,
+            )
+        return self._rate_limiters[sender_id].allow()
 
     def send(self, message: NexusMessage) -> NexusMessage:
         """Send a message through the message bus with governance gates."""
@@ -163,6 +239,16 @@ class MessageBus:
             # Validate message length
             if len(message.content) > self.MAX_MESSAGE_LENGTH:
                 message.delivery_error = f"Message exceeds max length ({self.MAX_MESSAGE_LENGTH} chars)"
+                message.delivered = False
+                self._log_undelivered(message)
+                return message
+
+            # Rate limiting gate (system messages bypass)
+            if message.message_type != MessageType.SYSTEM and not self._check_rate_limit(message.sender_id):
+                message.delivery_error = (
+                    f"Sender {message.sender_id} rate limited "
+                    f"({self._rate_limit_tps:.1f} msg/s, burst={self._rate_limit_burst})"
+                )
                 message.delivered = False
                 self._log_undelivered(message)
                 return message
@@ -285,35 +371,22 @@ class MessageBus:
         target = message.metadata.get("target", "")
         connector = self.get_external_connector(platform)
         if connector:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-                if platform == "telegram":
-                    coro = connector.send_message(chat_id=target, text=message.content)
-                elif platform == "slack":
-                    coro = connector.send_message(channel=target, text=message.content)
-                elif platform == "discord":
-                    coro = connector.send_message(channel_id=target, content=message.content)
-                else:
-                    coro = None
-                
-                if coro:
-                    loop.create_task(coro)
+            if platform == "telegram":
+                coro = connector.send_message(chat_id=target, text=message.content)
+            elif platform == "slack":
+                coro = connector.send_message(channel=target, text=message.content)
+            elif platform == "discord":
+                coro = connector.send_message(channel_id=target, content=message.content)
+            else:
+                coro = None
+            
+            if coro:
+                try:
+                    self._dispatch_async(coro)
                     message.metadata["external_connector_dispatched"] = True
-            except RuntimeError:
-                import threading
-                def run_sync():
-                    try:
-                        if platform == "telegram":
-                            asyncio.run(connector.send_message(chat_id=target, text=message.content))
-                        elif platform == "slack":
-                            asyncio.run(connector.send_message(channel=target, text=message.content))
-                        elif platform == "discord":
-                            asyncio.run(connector.send_message(channel_id=target, content=message.content))
-                    except Exception as e:
-                        logger.warning(f"Failed to send external message via thread fallback: {e}")
-                threading.Thread(target=run_sync, daemon=True).start()
-                message.metadata["external_connector_dispatched"] = True
+                except Exception as e:
+                    logger.warning("Failed to dispatch external message: %s", e)
+                    message.metadata["external_connector_error"] = str(e)
 
     def _route_external_in(self, message: NexusMessage) -> None:
         """Process an incoming message from an external platform."""
@@ -324,7 +397,17 @@ class MessageBus:
         message.metadata["external_in_processed"] = True
 
     def _route_system(self, message: NexusMessage) -> None:
-        """Route a system message (always delivered, bypasses most checks)."""
+        """Route a system message (always delivered, bypasses most checks).
+        
+        Only the governance system agent can send SYSTEM messages.
+        """
+        sender = self.agent_pool.get(message.sender_id)
+        if sender is None or not message.metadata.get("governance_origin", False):
+            message.delivery_error = (
+                f"Sender {message.sender_id} is not authorized to send SYSTEM messages"
+            )
+            message.delivered = False
+            return
         message.delivered = True
         # System messages go to all agents if no recipients specified
         if not message.recipient_ids:
@@ -485,4 +568,6 @@ class MessageBus:
                 "active_threads": len([t for t in self._threads.values() if t.status == "open"]),
                 "closed_threads": len([t for t in self._threads.values() if t.status == "closed"]),
                 "external_connectors": list(self._external_connectors.keys()),
+                "rate_limited_senders": len(self._rate_limiters),
+                "rate_limit_tps": self._rate_limit_tps,
             }

@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "files_scanned": 46,
+    "files_with_secret_patterns": 19,
+    "missing_now": 0,
+    "oversize_skipped": 0,
+    "text_decode_failures": 0
+  },
+  "decision": "P0 remains local sensitive hold; no public tracking or raw upload. Kilo quarantine deletion is acceptable only after operator approval because current preserved reports intentionally do not retain exact path names.",
+  "generated_at": "2026-06-09",
+  "pattern_counts": {
+    "api_key_generic": 19,
+    "github_token": 1,
+    "password_field": 1
+  },
+  "prefix_counts": {
+    "benchmarks": 3,
+    "datasets": 2,
+    "docs": 14,
+    "evidence": 1,
+    "logs": 25,
+    "tasks": 1
+  },
+  "safety": {
+    "emits_exact_paths": false,
+    "emits_secret_values": false,
+    "modifies_files": false,
+    "modifies_quarantine": false
+  },
+  "source": "docs/handoff/KILO_SNAPSHOT_P0_SENSITIVE_AGGREGATE_SCAN_2026-06-08.json",
+  "status": "aggregate_verified_path_review_not_reconstructable_from_redacted_artifacts"
+}
