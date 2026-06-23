@@ -81,7 +81,7 @@ const HEALTH_ICONS: Record<HealthStatus, React.ReactNode> = {
 // ─── Mock Data ────────────────────────────────────────────────────────────
 
 const PROVIDERS: ArchNode[] = [
-  { id: 'zai', label: 'Z-AI', description: 'GLM-4.7, GLM-5', health: 'healthy', details: '2 models · Free tier · 250ms avg', meta: 'Primary' },
+  { id: 'zai', label: 'Z-AI', description: 'GLM-5.2, GLM-5', health: 'healthy', details: '2 models · Free tier · 250ms avg', meta: 'Primary' },
   { id: 'nvidia', label: 'NVIDIA NIM', description: 'Nemotron-4, Llama 3.3, etc.', health: 'healthy', details: '4 models · Free tier · 200ms avg', meta: 'Tier 1' },
   { id: 'openrouter', label: 'OpenRouter', description: 'Nemotron Super, DeepSeek, Gemini', health: 'healthy', details: '3 models · Credits · 180ms avg', meta: 'Tier 1' },
   { id: 'groq', label: 'Groq', description: 'Llama 3.3, Mixtral 8x7B', health: 'healthy', details: '2 models · $0.59/1M · 80ms avg', meta: 'Fast' },
@@ -98,7 +98,7 @@ const PROVIDERS: ArchNode[] = [
 ]
 
 const AGENTS: ArchNode[] = [
-  { id: 'coordinator', label: 'Coordinator', description: 'glm-4.7', health: 'healthy', details: 'Orchestration & task routing · Trust: 0.95', meta: 'Active' },
+  { id: 'coordinator', label: 'Coordinator', description: 'GLM-5.2', health: 'healthy', details: 'Orchestration & task routing · Trust: 0.95', meta: 'Active' },
   { id: 'worker-1', label: 'worker-1', description: 'trinity-large', health: 'healthy', details: 'Reasoning & analysis tasks · Trust: 0.88', meta: 'Active' },
   { id: 'worker-2', label: 'worker-2', description: 'qwen3-coder', health: 'degraded', details: 'Code generation & review · Trust: 0.71', meta: 'Warning' },
   { id: 'worker-3', label: 'worker-3', description: 'gemma-fast', health: 'healthy', details: 'Fast response & summaries · Trust: 0.82', meta: 'Active' },
@@ -675,3 +675,4 @@ export function ArchitectureTab() {
     </div>
   )
 }
+

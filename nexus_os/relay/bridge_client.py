@@ -1,4 +1,4 @@
-"""ModelRelayBridge — Python bridge to modelrelay npm on port 7352 with multi-dim scoring."""
+"""ModelRelayBridge — Python bridge to modelrelay npm (default port 7350) with multi-dim scoring."""
 
 from __future__ import annotations
 import json
@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class ModelRelayBridge:
-    def __init__(self, modelrelay_url: str = "http://localhost:7352", refresh_interval: int = 3600):
+    def __init__(self, modelrelay_url: str = "", refresh_interval: int = 3600):
+        if not modelrelay_url:
+            import os
+            port = int(os.environ.get("NODERELAY_PORT", "7350"))
+            modelrelay_url = f"http://localhost:{port}"
         self._url = modelrelay_url.rstrip("/")
         self._refresh_interval = refresh_interval
         self._models: dict[str, dict] = {}

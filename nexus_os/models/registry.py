@@ -32,6 +32,21 @@ logger = logging.getLogger(__name__)
 DOMAIN_NAMES = {"code", "reasoning", "research", "fast", "security", "general"}
 VALID_STATUSES = {"local", "up", "down", "offline", "partial_offline", "unknown"}
 VALID_PROVIDER_STATUSES = {"healthy", "partial_offline", "offline", "local", "unknown"}
+VALID_MODEL_ROLES = {"core", "probe", "teacher", "quarantine", "retired", "unknown"}
+VALID_ALLOWED_LANES = {
+    "core",
+    "eval",
+    "teacher",
+    "redteam",
+    "visual",
+    "modal",
+    "local",
+    "quarantine",
+    "behavior_control",
+}
+CORE_RESIDENT_PARAM_BUDGET_B = 3.0
+BEHAVIOR_CONTROL_TERMS = {"abliterated", "obliterated", "uncensored", "heretic"}
+UNSAFE_ROUTING_TERMS = {*BEHAVIOR_CONTROL_TERMS, "jailbreak", "red-team", "red_team"}
 
 DEFAULT_MODELS_JSON = os.path.join(
     os.path.dirname(__file__), "..", "..", ".pi", "models_registry.json"
@@ -49,6 +64,15 @@ class ModelEntry:
     latency_ms: int
     cost_per_1m: float
     status: str = "unknown"
+    role: str = "unknown"
+    params_b: Optional[float] = None
+    active_params_b: Optional[float] = None
+    license: Optional[str] = None
+    trust_remote_code: bool = False
+    quant_type: Optional[str] = None
+    vram_gb: Optional[float] = None
+    allowed_lanes: List[str] = field(default_factory=list)
+    labels: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -58,18 +82,61 @@ class ModelEntry:
             "latency_ms": self.latency_ms,
             "cost_per_1m": self.cost_per_1m,
             "status": self.status,
+            "role": self.role,
+            "params_b": self.params_b,
+            "active_params_b": self.active_params_b,
+            "license": self.license,
+            "trust_remote_code": self.trust_remote_code,
+            "quant_type": self.quant_type,
+            "vram_gb": self.vram_gb,
+            "allowed_lanes": self.allowed_lanes,
+            "labels": self.labels,
         }
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ModelEntry":
         return cls(
-            name=d["model"],
+            name=d.get("model") or d["name"],
             provider=d.get("provider", "unknown"),
             tier=d.get("tier", 0),
             latency_ms=d.get("latency_ms", 0),
             cost_per_1m=d.get("cost_per_1m", 0.0),
             status=d.get("status", "unknown"),
+            role=_normalize_role(d.get("role", "unknown")),
+            params_b=_optional_float(d.get("params_b")),
+            active_params_b=_optional_float(d.get("active_params_b")),
+            license=d.get("license"),
+            trust_remote_code=bool(d.get("trust_remote_code", False)),
+            quant_type=d.get("quant_type"),
+            vram_gb=_optional_float(d.get("vram_gb")),
+            allowed_lanes=_normalize_lanes(d.get("allowed_lanes", [])),
+            labels=[str(label).lower() for label in d.get("labels", [])],
         )
+
+    def is_core_budget_compliant(self, budget_b: float = CORE_RESIDENT_PARAM_BUDGET_B) -> bool:
+        """Return whether this model can live in the strict resident core lane."""
+        effective_params = self.params_b if self.params_b is not None else self.active_params_b
+        if effective_params is None:
+            return self.role != "core"
+        return self.role != "core" or effective_params <= budget_b
+
+    def requires_quarantine(self) -> bool:
+        """Return whether model metadata demands quarantine before routing."""
+        label_text = " ".join([self.name.lower(), self.role.lower(), *self.labels])
+        return self.role == "quarantine" or self.trust_remote_code or any(term in label_text for term in UNSAFE_ROUTING_TERMS)
+
+    def is_behavior_control_candidate(self) -> bool:
+        """Return whether this model is useful only in the governed behavior lab."""
+        label_text = " ".join([self.name.lower(), self.role.lower(), *self.labels])
+        return any(term in label_text for term in BEHAVIOR_CONTROL_TERMS)
+
+    def normal_route_allowed(self) -> bool:
+        """Return whether this model may be selected for normal autonomous routing."""
+        return not self.requires_quarantine()
+
+    def lab_route_allowed(self) -> bool:
+        """Return whether this model may enter the contained behavior-control lane."""
+        return self.is_behavior_control_candidate() and not self.trust_remote_code
 
 
 @dataclass
@@ -139,6 +206,33 @@ class ProviderInfo:
         }
 
 
+def _optional_float(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_role(role: str) -> str:
+    normalized = str(role or "unknown").strip().lower()
+    return normalized if normalized in VALID_MODEL_ROLES else "unknown"
+
+
+def _normalize_lanes(lanes: Any) -> List[str]:
+    if not lanes:
+        return []
+    if isinstance(lanes, str):
+        lanes = [lanes]
+    normalized = []
+    for lane in lanes:
+        lane_text = str(lane).strip().lower()
+        if lane_text in VALID_ALLOWED_LANES and lane_text not in normalized:
+            normalized.append(lane_text)
+    return normalized
+
+
 # ── Registry ───────────────────────────────────────────────────────────────────
 
 
@@ -166,6 +260,261 @@ class ModelRegistry:
             registry.load(DEFAULT_MODELS_JSON)
         else:
             logger.info("Default models registry not found at %s", DEFAULT_MODELS_JSON)
+
+        # Register new curated models
+        registry.register_provider(
+            name="longcat",
+            models=["LongCat-2.0-Preview"],
+            base_url="https://api.longcat.chat/openai/v1",
+            api_key_env="NEXUS_LONGCAT_API_KEY",
+            priority=1,
+            status="healthy"
+        )
+        registry.register_model(
+            name="LongCat-2.0-Preview",
+            provider="longcat",
+            tier=98,
+            latency_ms=1000,
+            cost_per_1m=3.0,
+            status="up",
+            role="teacher",
+            allowed_lanes=["teacher", "eval"]
+        )
+        registry.register_provider(
+            name="microsoft",
+            models=["FastContext-1.0-4B-SFT"],
+            priority=10,
+            status="healthy"
+        )
+        registry.register_model(
+            name="FastContext-1.0-4B-SFT",
+            provider="microsoft",
+            tier=50,
+            latency_ms=200,
+            cost_per_1m=0.5,
+            status="up",
+            role="probe",
+            allowed_lanes=["eval"]
+        )
+        for dom in ["fast", "research", "code"]:
+            cfg = registry.get_domain(dom)
+            if cfg:
+                if not any(m.name == "FastContext-1.0-4B-SFT" for m in cfg.primary):
+                    cfg.primary.append(registry.get_model("FastContext-1.0-4B-SFT"))
+
+        registry.register_provider(
+            name="weibo",
+            models=["VibeThinker-3B"],
+            priority=15,
+            status="healthy"
+        )
+        registry.register_model(
+            name="VibeThinker-3B",
+            provider="weibo",
+            tier=45,
+            latency_ms=150,
+            cost_per_1m=0.2,
+            status="up",
+            role="probe",
+            allowed_lanes=["local", "eval"]
+        )
+        for dom in ["reasoning", "code", "fast"]:
+            cfg = registry.get_domain(dom)
+            if cfg:
+                if not any(m.name == "VibeThinker-3B" for m in cfg.primary):
+                    cfg.primary.append(registry.get_model("VibeThinker-3B"))
+
+
+        registry.register_provider(
+            name="nanbeige",
+            models=["Nanbeige4.1-3B"],
+            priority=20,
+            status="unknown"
+        )
+        registry.register_model(
+            name="Nanbeige4.1-3B",
+            provider="nanbeige",
+            tier=42,
+            latency_ms=250,
+            cost_per_1m=0.0,
+            status="unknown",
+            role="probe",
+            params_b=3.0,
+            allowed_lanes=["eval", "local"]
+        )
+
+        registry.register_provider(
+            name="swe-lego",
+            models=["Terminal-Lego-Qwen3-8B", "SWE-Review-8B"],
+            priority=30,
+            status="unknown"
+        )
+        registry.register_model(
+            name="Terminal-Lego-Qwen3-8B",
+            provider="swe-lego",
+            tier=50,
+            latency_ms=400,
+            cost_per_1m=0.0,
+            status="unknown",
+            role="probe",
+            params_b=8.0,
+            allowed_lanes=["eval"]
+        )
+        registry.register_model(
+            name="SWE-Review-8B",
+            provider="swe-lego",
+            tier=50,
+            latency_ms=400,
+            cost_per_1m=0.0,
+            status="unknown",
+            role="probe",
+            params_b=8.0,
+            allowed_lanes=["eval"]
+        )
+
+        registry.register_provider(
+            name="huihui-ai",
+            models=["Huihui-Nex-N2-mini-abliterated"],
+            priority=100,
+            status="healthy"
+        )
+        registry.register_model(
+            name="Huihui-Nex-N2-mini-abliterated",
+            provider="huihui-ai",
+            tier=40,
+            latency_ms=300,
+            cost_per_1m=0.0,
+            status="local",
+            role="quarantine",
+            allowed_lanes=["quarantine", "behavior_control"],
+            labels=["abliterated", "heretic"]
+        )
+        
+        registry.register_provider(
+            name="edougawa",
+            models=["Nex-N2-mini-Abliterated"],
+            priority=100,
+            status="healthy"
+        )
+        registry.register_model(
+            name="Nex-N2-mini-Abliterated",
+            provider="edougawa",
+            tier=40,
+            latency_ms=300,
+            cost_per_1m=0.0,
+            status="local",
+            role="quarantine",
+            allowed_lanes=["quarantine", "behavior_control"],
+            labels=["abliterated", "heretic"]
+        )
+
+        # Sakana AI models
+        registry.register_provider(
+            name="sakana",
+            models=["fugu", "fugu-ultra", "fugu-ultra-20260615"],
+            base_url="https://api.sakana.ai/v1",
+            api_key_env="NEXUS_SAKANA_API_KEY",
+            priority=2,
+            status="healthy"
+        )
+        registry.register_model(
+            name="fugu",
+            provider="sakana",
+            tier=80,
+            latency_ms=180,
+            cost_per_1m=0.5,
+            status="up",
+            role="core",
+            allowed_lanes=["core", "eval", "local"]
+        )
+        registry.register_model(
+            name="fugu-ultra",
+            provider="sakana",
+            tier=95,
+            latency_ms=500,
+            cost_per_1m=15.0,
+            status="up",
+            role="teacher",
+            allowed_lanes=["teacher", "eval"]
+        )
+        registry.register_model(
+            name="fugu-ultra-20260615",
+            provider="sakana",
+            tier=95,
+            latency_ms=500,
+            cost_per_1m=15.0,
+            status="up",
+            role="teacher",
+            allowed_lanes=["teacher", "eval"]
+        )
+        for dom in ["reasoning", "general", "research"]:
+            cfg = registry.get_domain(dom)
+            if cfg:
+                if not any(m.name == "fugu" for m in cfg.primary):
+                    cfg.primary.append(registry.get_model("fugu"))
+                if not any(m.name == "fugu-ultra" for m in cfg.primary):
+                    cfg.primary.append(registry.get_model("fugu-ultra"))
+
+        # Intern Discovery / InternScience scientific models
+        registry.register_provider(
+            name="internscience",
+            models=["ai4sci-basic-astrollama", "SciDFM", "SciGLM", "ChemLLM"],
+            base_url="https://discovery.intern-ai.org.cn/org/ailab/workspace/model-service",
+            api_key_env="NEXUS_INTERN_DISCOVERY_TOKEN",
+            priority=25,
+            status="healthy"
+        )
+        registry.register_model(
+            name="ai4sci-basic-astrollama",
+            provider="internscience",
+            tier=50,
+            latency_ms=250,
+            cost_per_1m=0.0,
+            status="up",
+            role="probe",
+            allowed_lanes=["eval", "local"],
+            labels=["scientific", "astronomy"]
+        )
+        registry.register_model(
+            name="SciDFM",
+            provider="internscience",
+            tier=70,
+            latency_ms=300,
+            cost_per_1m=0.0,
+            status="up",
+            role="probe",
+            allowed_lanes=["eval", "local"],
+            labels=["scientific", "biology"]
+        )
+        registry.register_model(
+            name="SciGLM",
+            provider="internscience",
+            tier=50,
+            latency_ms=200,
+            cost_per_1m=0.0,
+            status="up",
+            role="probe",
+            allowed_lanes=["eval", "local"],
+            labels=["scientific", "physics"]
+        )
+        registry.register_model(
+            name="ChemLLM",
+            provider="internscience",
+            tier=50,
+            latency_ms=220,
+            cost_per_1m=0.0,
+            status="up",
+            role="probe",
+            allowed_lanes=["eval", "local"],
+            labels=["scientific", "chemistry"]
+        )
+        for dom in ["research", "general"]:
+            cfg = registry.get_domain(dom)
+            if cfg:
+                for m_name in ["ai4sci-basic-astrollama", "SciDFM", "SciGLM", "ChemLLM"]:
+                    if not any(m.name == m_name for m in cfg.primary):
+                        cfg.primary.append(registry.get_model(m_name))
+
         return registry
 
     def load(self, json_path: str) -> None:
@@ -260,6 +609,15 @@ class ModelRegistry:
         latency_ms: int = 0,
         cost_per_1m: float = 0.0,
         status: str = "unknown",
+        role: str = "unknown",
+        params_b: Optional[float] = None,
+        active_params_b: Optional[float] = None,
+        license: Optional[str] = None,
+        trust_remote_code: bool = False,
+        quant_type: Optional[str] = None,
+        vram_gb: Optional[float] = None,
+        allowed_lanes: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
     ) -> ModelEntry:
         """Register a model. Ensures its provider exists."""
         if provider not in self._providers:
@@ -271,6 +629,15 @@ class ModelRegistry:
             latency_ms=latency_ms,
             cost_per_1m=cost_per_1m,
             status=status,
+            role=_normalize_role(role),
+            params_b=params_b,
+            active_params_b=active_params_b,
+            license=license,
+            trust_remote_code=trust_remote_code,
+            quant_type=quant_type,
+            vram_gb=vram_gb,
+            allowed_lanes=_normalize_lanes(allowed_lanes or []),
+            labels=[str(label).lower() for label in labels or []],
         )
         self._models[name] = entry
         if name not in self._providers[provider].models:
@@ -366,6 +733,9 @@ class ModelRegistry:
         min_tier: int = 0,
         max_cost: float = float("inf"),
         status: Optional[str] = None,
+        role: Optional[str] = None,
+        lane: Optional[str] = None,
+        core_budget_only: bool = False,
     ) -> list[ModelEntry]:
         """Search models by various criteria."""
         results = list(self._models.values())
@@ -386,8 +756,49 @@ class ModelRegistry:
         if status:
             results = [m for m in results if m.status == status]
 
+        if role:
+            normalized_role = _normalize_role(role)
+            results = [m for m in results if m.role == normalized_role]
+
+        if lane:
+            normalized_lanes = _normalize_lanes([lane])
+            if normalized_lanes:
+                lane_value = normalized_lanes[0]
+                results = [m for m in results if lane_value in m.allowed_lanes]
+
+        if core_budget_only:
+            results = [m for m in results if m.is_core_budget_compliant()]
+
         results.sort(key=lambda m: (-m.tier, m.latency_ms))
         return results
+
+    def validate_core_resident_budget(self, budget_b: float = CORE_RESIDENT_PARAM_BUDGET_B) -> Dict[str, Any]:
+        """Validate that core-lane resident models stay within the NEXUS small-model budget."""
+        core_models = [m for m in self._models.values() if m.role == "core"]
+        violations = [
+            {
+                "name": m.name,
+                "params_b": m.params_b,
+                "active_params_b": m.active_params_b,
+                "budget_b": budget_b,
+            }
+            for m in core_models
+            if not m.is_core_budget_compliant(budget_b)
+        ]
+        return {
+            "passed": not violations,
+            "budget_b": budget_b,
+            "core_model_count": len(core_models),
+            "violations": violations,
+        }
+
+    def list_quarantined_models(self) -> list[ModelEntry]:
+        """List models that require quarantine before routing or execution."""
+        return [model for model in self._models.values() if model.requires_quarantine()]
+
+    def list_behavior_control_models(self) -> list[ModelEntry]:
+        """List models denied normal routing but useful for behavior-control research."""
+        return [model for model in self._models.values() if model.lab_route_allowed()]
 
     def list_providers(self) -> list[ProviderInfo]:
         """List all registered providers, sorted by priority."""

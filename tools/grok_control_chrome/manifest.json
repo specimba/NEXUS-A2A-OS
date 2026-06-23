@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "NEXUS Grok Control",
+  "version": "0.1.0",
+  "description": "Operator-controlled Grok page monitor and bounded continuation helper for NEXUS workflows.",
+  "permissions": ["alarms", "storage", "tabs"],
+  "host_permissions": [
+    "https://grok.com/*",
+    "https://*.grok.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://grok.com/*", "https://*.grok.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "NEXUS Grok Control",
+    "default_popup": "popup.html"
+  }
+}

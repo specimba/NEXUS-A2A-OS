@@ -1,0 +1,395 @@
+{
+  "status": "READY",
+  "target": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?REDACTED"
+  },
+  "state": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?REDACTED",
+    "readyState": "complete",
+    "expansionLog": [],
+    "inputs": [
+      {
+        "index": 0,
+        "tag": "DIV",
+        "role": "textbox",
+        "aria": "Ask Grok anything",
+        "textLength": 1
+      }
+    ],
+    "buttons": [
+      {
+        "index": 0,
+        "label": "Save table"
+      },
+      {
+        "index": 1,
+        "label": "Copy"
+      },
+      {
+        "index": 2,
+        "label": "Create share link"
+      },
+      {
+        "index": 3,
+        "label": "Like"
+      },
+      {
+        "index": 4,
+        "label": "Dislike"
+      },
+      {
+        "index": 5,
+        "label": "Regenerate"
+      },
+      {
+        "index": 6,
+        "label": "More actions"
+      },
+      {
+        "index": 7,
+        "label": "Edit"
+      },
+      {
+        "index": 8,
+        "label": "Copy"
+      },
+      {
+        "index": 9,
+        "label": "Thought for 19s Thought for 19s"
+      },
+      {
+        "index": 10,
+        "label": "Collapse"
+      },
+      {
+        "index": 11,
+        "label": "Unwrap"
+      },
+      {
+        "index": 12,
+        "label": "Copy"
+      },
+      {
+        "index": 13,
+        "label": "Collapse"
+      },
+      {
+        "index": 14,
+        "label": "Unwrap"
+      },
+      {
+        "index": 15,
+        "label": "Run"
+      },
+      {
+        "index": 16,
+        "label": "Copy"
+      },
+      {
+        "index": 17,
+        "label": "Copy"
+      },
+      {
+        "index": 18,
+        "label": "Create share link"
+      },
+      {
+        "index": 19,
+        "label": "Like"
+      },
+      {
+        "index": 20,
+        "label": "Dislike"
+      },
+      {
+        "index": 21,
+        "label": "Regenerate"
+      },
+      {
+        "index": 22,
+        "label": "More actions"
+      },
+      {
+        "index": 23,
+        "label": "Edit"
+      },
+      {
+        "index": 24,
+        "label": "Copy"
+      },
+      {
+        "index": 25,
+        "label": "Thought for 30s Thought for 30s"
+      },
+      {
+        "index": 26,
+        "label": "Expand"
+      },
+      {
+        "index": 27,
+        "label": "Unwrap"
+      },
+      {
+        "index": 28,
+        "label": "Run"
+      },
+      {
+        "index": 29,
+        "label": "Copy"
+      },
+      {
+        "index": 30,
+        "label": "Expand"
+      },
+      {
+        "index": 31,
+        "label": "Unwrap"
+      },
+      {
+        "index": 32,
+        "label": "Run"
+      },
+      {
+        "index": 33,
+        "label": "Copy"
+      },
+      {
+        "index": 34,
+        "label": "Expand"
+      },
+      {
+        "index": 35,
+        "label": "Unwrap"
+      },
+      {
+        "index": 36,
+        "label": "Run"
+      },
+      {
+        "index": 37,
+        "label": "Copy"
+      },
+      {
+        "index": 38,
+        "label": "Unwrap"
+      },
+      {
+        "index": 39,
+        "label": "Run"
+      },
+      {
+        "index": 40,
+        "label": "Copy"
+      },
+      {
+        "index": 41,
+        "label": "Copy"
+      },
+      {
+        "index": 42,
+        "label": "Create share link"
+      },
+      {
+        "index": 43,
+        "label": "Like"
+      },
+      {
+        "index": 44,
+        "label": "Dislike"
+      },
+      {
+        "index": 45,
+        "label": "Regenerate"
+      },
+      {
+        "index": 46,
+        "label": "More actions"
+      },
+      {
+        "index": 47,
+        "label": "Run"
+      },
+      {
+        "index": 48,
+        "label": "Copy"
+      },
+      {
+        "index": 49,
+        "label": "Run"
+      },
+      {
+        "index": 50,
+        "label": "Copy"
+      },
+      {
+        "index": 51,
+        "label": "Unwrap"
+      },
+      {
+        "index": 52,
+        "label": "Copy"
+      },
+      {
+        "index": 53,
+        "label": "Edit"
+      },
+      {
+        "index": 54,
+        "label": "Copy"
+      },
+      {
+        "index": 55,
+        "label": "Thought for 20s Thought for 20s"
+      },
+      {
+        "index": 56,
+        "label": "Expand"
+      },
+      {
+        "index": 57,
+        "label": "Unwrap"
+      },
+      {
+        "index": 58,
+        "label": "Run"
+      },
+      {
+        "index": 59,
+        "label": "Copy"
+      },
+      {
+        "index": 60,
+        "label": "Expand"
+      },
+      {
+        "index": 61,
+        "label": "Unwrap"
+      },
+      {
+        "index": 62,
+        "label": "Run"
+      },
+      {
+        "index": 63,
+        "label": "Copy"
+      },
+      {
+        "index": 64,
+        "label": "Unwrap"
+      },
+      {
+        "index": 65,
+        "label": "Copy"
+      },
+      {
+        "index": 66,
+        "label": "Copy"
+      },
+      {
+        "index": 67,
+        "label": "Create share link"
+      },
+      {
+        "index": 68,
+        "label": "Like"
+      },
+      {
+        "index": 69,
+        "label": "Dislike"
+      },
+      {
+        "index": 70,
+        "label": "Regenerate"
+      },
+      {
+        "index": 71,
+        "label": "More actions"
+      },
+      {
+        "index": 72,
+        "label": "Explore MCP bridge security policies Explore MCP bridge security policies"
+      },
+      {
+        "index": 73,
+        "label": "Investigate browser automation headless mode Investigate browser automation headless mode"
+      },
+      {
+        "index": 74,
+        "label": "Add missing _sanitize_headers method Add missing _sanitize_headers method"
+      },
+      {
+        "index": 75,
+        "label": "Attach"
+      },
+      {
+        "index": 76,
+        "label": "Model select Expert Expert"
+      },
+      {
+        "index": 77,
+        "label": "Dictation (Ctrl+D)"
+      },
+      {
+        "index": 78,
+        "label": "Submit"
+      },
+      {
+        "index": 79,
+        "label": "Close"
+      }
+    ],
+    "codeBlocks": [
+      {
+        "index": 0,
+        "text": "import pytest\nfrom unittest.mock import MagicMock, patch\nfrom nexus_os.bridge.browser_http_diagnostic import BrowserHTTPDiagnosticRelay\n\n@pytest.fixture\ndef relay():\n    r = BrowserHTTPDiagnosticRelay(bridge_url=\"http://127.0.0.1:7354\")\n    r.token_budget_checker = MagicMock(return_value=True)\n    r.approval_checker = MagicMock(return_value=True)\n    return r\n\ndef test_dry_run_allowed_returns_gross_args_no_transport_call(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            dry_run=True,\n        )\n        assert result[\"status\"] == \"planned\"\n        assert \"gross_arguments\" in result or \"prepared\" in str(result).lower()\n        mock_invoke.assert_not_called()\n\ndef test_live_allowed_calls_fake_transport_exactly_once(relay):\n    with patch.object(relay, \"invoke\", return_value={\"status\": \"ok\", \"body\": \"live\"}) as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"ok\"\n        mock_invoke.assert_called_once()\n\ndef test_host_blocked_calls_transport_zero_times(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        # force block via policy (existing validate raises or we simulate)\n        with patch.object(relay, \"validate_browser_diagnostic_request\", side_effect=ValueError(\"blocked\")):\n            result = relay.execute_governed(url=\"https://evil.example.com\", dry_run=False)\n            assert result.get(\"status\") in (\"blocked\", \"error\")\n            mock_invoke.assert_not_called()\n\ndef test_method_blocked_calls_transport_zero_times(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"POST\",  # blocked by policy/ALLOWED_METHODS\n            dry_run=False,\n        )\n        assert result.get(\"status\") in (\"blocked\", \"error\")\n        mock_invoke.assert_not_called()\n\ndef test_auth_cookie_xapikey_headers_stripped(relay):\n    dirty = {\"Authorization\": \"Bearer x\", \"Cookie\": \"a=1\", \"X-Api-Key\": \"secret\", \"Accept\": \"json\"}\n    clean = relay._sanitize_headers(dirty)\n    assert \"authorization\" not in {k.lower() for k in clean}\n    assert \"cookie\" not in {k.lower() for k in clean}\n    assert \"x-api-key\" not in {k.lower() for k in clean}\n    assert clean.get(\"Accept\") == \"json\"\n\ndef test_token_budget_denied_blocks_before_transport(relay):\n    relay.token_budget_checker.return_value = False\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"blocked\"\n        assert \"token_budget\" in result[\"reason\"].lower()\n        mock_invoke.assert_not_called()\n\ndef test_approval_required_for_nonread_blocks_before_transport(relay):\n    relay.approval_checker.return_value = False\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            intent=\"write\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"require_approval\"\n        mock_invoke.assert_not_called()\n\ndef test_jsonrpc_a2a_bridge_error_is_surfaced(relay):\n    with patch.object(relay, \"invoke\", side_effect=RuntimeError(\"JSON-RPC error from 7354\")):\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            dry_run=False,\n        )\n        assert result.get(\"status\") == \"error\" or \"error\" in str(result).lower()"
+      },
+      {
+        "index": 1,
+        "text": "import pytest\nfrom unittest.mock import MagicMock, patch\nfrom nexus_os.bridge.browser_http_diagnostic import BrowserHTTPDiagnosticRelay\n\n@pytest.fixture\ndef relay():\n    r = BrowserHTTPDiagnosticRelay(bridge_url=\"http://127.0.0.1:7354\")\n    r.token_budget_checker = MagicMock(return_value=True)\n    r.approval_checker = MagicMock(return_value=True)\n    return r\n\ndef test_dry_run_allowed_returns_gross_args_no_transport_call(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            dry_run=True,\n        )\n        assert result[\"status\"] == \"planned\"\n        assert \"gross_arguments\" in result or \"prepared\" in str(result).lower()\n        mock_invoke.assert_not_called()\n\ndef test_live_allowed_calls_fake_transport_exactly_once(relay):\n    with patch.object(relay, \"invoke\", return_value={\"status\": \"ok\", \"body\": \"live\"}) as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"ok\"\n        mock_invoke.assert_called_once()\n\ndef test_host_blocked_calls_transport_zero_times(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        # force block via policy (existing validate raises or we simulate)\n        with patch.object(relay, \"validate_browser_diagnostic_request\", side_effect=ValueError(\"blocked\")):\n            result = relay.execute_governed(url=\"https://evil.example.com\", dry_run=False)\n            assert result.get(\"status\") in (\"blocked\", \"error\")\n            mock_invoke.assert_not_called()\n\ndef test_method_blocked_calls_transport_zero_times(relay):\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"POST\",  # blocked by policy/ALLOWED_METHODS\n            dry_run=False,\n        )\n        assert result.get(\"status\") in (\"blocked\", \"error\")\n        mock_invoke.assert_not_called()\n\ndef test_auth_cookie_xapikey_headers_stripped(relay):\n    dirty = {\"Authorization\": \"Bearer x\", \"Cookie\": \"a=1\", \"X-Api-Key\": \"secret\", \"Accept\": \"json\"}\n    clean = relay._sanitize_headers(dirty)\n    assert \"authorization\" not in {k.lower() for k in clean}\n    assert \"cookie\" not in {k.lower() for k in clean}\n    assert \"x-api-key\" not in {k.lower() for k in clean}\n    assert clean.get(\"Accept\") == \"json\"\n\ndef test_token_budget_denied_blocks_before_transport(relay):\n    relay.token_budget_checker.return_value = False\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"blocked\"\n        assert \"token_budget\" in result[\"reason\"].lower()\n        mock_invoke.assert_not_called()\n\ndef test_approval_required_for_nonread_blocks_before_transport(relay):\n    relay.approval_checker.return_value = False\n    with patch.object(relay, \"invoke\") as mock_invoke:\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            method=\"GET\",\n            intent=\"write\",\n            dry_run=False,\n        )\n        assert result[\"status\"] == \"require_approval\"\n        mock_invoke.assert_not_called()\n\ndef test_jsonrpc_a2a_bridge_error_is_surfaced(relay):\n    with patch.object(relay, \"invoke\", side_effect=RuntimeError(\"JSON-RPC error from 7354\")):\n        result = relay.execute_governed(\n            url=\"https://huggingface.co/api/models\",\n            dry_run=False,\n        )\n        assert result.get(\"status\") == \"error\" or \"error\" in str(result).lower()"
+      },
+      {
+        "index": 2,
+        "text": "nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\n# Expected: status_code 200 (governed path exercised via v2 bridge)"
+      },
+      {
+        "index": 3,
+        "text": "nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\n# Expected: status_code 200 (governed path exercised via v2 bridge)"
+      },
+      {
+        "index": 4,
+        "text": "<full file content>"
+      },
+      {
+        "index": 5,
+        "text": "<full file content>"
+      },
+      {
+        "index": 6,
+        "text": "<full file content>"
+      },
+      {
+        "index": 7,
+        "text": "<full file content>"
+      },
+      {
+        "index": 8,
+        "text": "python -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live"
+      },
+      {
+        "index": 9,
+        "text": "python -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live"
+      },
+      {
+        "index": 10,
+        "text": "python -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live"
+      },
+      {
+        "index": 11,
+        "text": "python -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live"
+      }
+    ],
+    "tailText": "+        headers: Optional[Dict[str, str]] = None,\n+        dry_run: bool = True,\n+        intent: str = \"read\",\n+        **kwargs,\n+    ) -> Dict[str, Any]:\n+        \"\"\"Minimal governed wrapper. Reuses prepare/invoke. Dry-run default.\"\"\"\n+        # 1. Policy validation (existing)\n+        self.validate_browser_diagnostic_request(url, method)\n+\n+        # 2. Token budget (optional checker)\n+        if self.token_budget_checker is not None:\n+            if not self.token_budget_checker(url):\n+                return {\n+                    \"status\": \"blocked\",\n+                    \"reason\": \"token_budget_denied\",\n+                    \"url\": url,\n+                    \"method\": method,\n+                }\n+\n+        # 3. Approval for high-risk (non-read or explicit)\n+        if self.approval_checker is not None and intent != \"read\":\n+            if not self.approval_checker(url, method):\n+                return {\n+                    \"status\": \"require_approval\",\n+                    \"reason\": \"kaiju_required\",\n+                    \"url\": url,\n+                    \"method\": method,\n+                }\n+\n+        # 4. Sanitize (existing)\n+        clean_headers = self._sanitize_headers(headers or {})\n+\n+        # 5. Dry-run path uses prepare only\n+        if dry_run:\n+            prep = self.prepare(\n+                url=url,\n+                method=method,\n+                headers=clean_headers,\n+                **kwargs,\n+            )\n+            prep[\"status\"] = \"planned\"\n+            prep[\"governed\"] = True\n+            return prep\n+\n+        # 6. Live path only after all checks\n+        return self.invoke(\n+            url=url,\n+            method=method,\n+            headers=clean_headers,\n+            **kwargs,\n+        )\n4. Full offline test file: tests/bridge/test_governed_egress.py\nPython\nimport pytest\nfrom unittest.mock import MagicMock, patch\nfrom nexus_os.bridge.browser_http_diagnostic import BrowserHTTPDiagnosticRelay\n@pytest.fixture\ndef relay():\nr = BrowserHTTPDiagnosticRelay(bridge_url=\"http://127.0.0.1:7354\")\nr.token_budget_checker = MagicMock(return_value=True)\nr.approval_checker = MagicMock(return_value=True)\nreturn r\ndef test_dry_run_allowed_returns_gross_args_no_transport_call(relay):\nwith patch.object(relay, \"invoke\") as mock_invoke:\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\nmethod=\"GET\",\ndry_run=True,\n)\nassert result[\"status\"] == \"planned\"\nassert \"gross_arguments\" in result or \"prepared\" in str(result).lower()\nmock_invoke.assert_not_called()\ndef test_live_allowed_calls_fake_transport_exactly_once(relay):\nwith patch.object(relay, \"invoke\", return_value={\"status\": \"ok\", \"body\": \"live\"}) as mock_invoke:\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\nmethod=\"GET\",\ndry_run=False,\n)\nassert result[\"status\"] == \"ok\"\nmock_invoke.assert_called_once()\ndef test_host_blocked_calls_transport_zero_times(relay):\nwith patch.object(relay, \"invoke\") as mock_invoke:\n# force block via policy (existing validate raises or we simulate)\nwith patch.object(relay, \"validate_browser_diagnostic_request\", side_effect=ValueError(\"blocked\")):\nresult = relay.execute_governed(url=\"https://evil.example.com\", dry_run=False)\nassert result.get(\"status\") in (\"blocked\", \"error\")\nmock_invoke.assert_not_called()\ndef test_method_blocked_calls_transport_zero_times(relay):\nwith patch.object(relay, \"invoke\") as mock_invoke:\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\nmethod=\"POST\",  # blocked by policy/ALLOWED_METHODS\ndry_run=False,\n)\nassert result.get(\"status\") in (\"blocked\", \"error\")\nmock_invoke.assert_not_called()\ndef test_auth_cookie_xapikey_headers_stripped(relay):\ndirty = {\"Authorization\": \"Bearer x\", \"Cookie\": \"a=1\", \"X-Api-Key\": \"secret\", \"Accept\": \"json\"}\nclean = relay._sanitize_headers(dirty)\nassert \"authorization\" not in {k.lower() for k in clean}\nassert \"cookie\" not in {k.lower() for k in clean}\nassert \"x-api-key\" not in {k.lower() for k in clean}\nassert clean.get(\"Accept\") == \"json\"\ndef test_token_budget_denied_blocks_before_transport(relay):\nrelay.token_budget_checker.return_value = False\nwith patch.object(relay, \"invoke\") as mock_invoke:\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\ndry_run=False,\n)\nassert result[\"status\"] == \"blocked\"\nassert \"token_budget\" in result[\"reason\"].lower()\nmock_invoke.assert_not_called()\ndef test_approval_required_for_nonread_blocks_before_transport(relay):\nrelay.approval_checker.return_value = False\nwith patch.object(relay, \"invoke\") as mock_invoke:\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\nmethod=\"GET\",\nintent=\"write\",\ndry_run=False,\n)\nassert result[\"status\"] == \"require_approval\"\nmock_invoke.assert_not_called()\ndef test_jsonrpc_a2a_bridge_error_is_surfaced(relay):\nwith patch.object(relay, \"invoke\", side_effect=RuntimeError(\"JSON-RPC error from 7354\")):\nresult = relay.execute_governed(\nurl=\"https://huggingface.co/api/models\",\ndry_run=False,\n)\nassert result.get(\"status\") == \"error\" or \"error\" in str(result).lower()\n5. Exact local verification command (offline)\npython -m pytest tests/bridge/test_governed_egress.py -q --tb=line\n6. Operator-only live command (uses existing CLI)\nnexusctl gross-http --url https://huggingface.co/api/models --method GET --live --bridge-url http://127.0.0.1:7354\nAdvisory until Codex applies the diff, runs the pytest, and reports identical 8/8 PASS output.\nContinue the NEXUS Grok MCP/HTTP egress integration as a real long-run implementation director cycle.\nVerified local context from Codex on 2026-06-21:\nNEXUS-owned hardened bridge clone exists at tools/browser_ai_mcp/grok_mcp_server_v2.py.\nLocal health is live: http://127.0.0.1:7354/health.\nVersion: 2.2.0-nexus-hardened.\nMCP tool count: 22.\nA2A send endpoint: http://127.0.0.1:7354/a2a/tasks/send.\nRuntime write policy: D:/GROSS primary, repo-local scratch/browser_ai_mcp_runtime fallback.\nVerified public egress: nexusctl gross-http https://huggingface.co --method HEAD --audit-id final-v2-hf --operator codex --live returned status_code 200.\nVerified private-target defense: https://127.0.0.1:7354/health was blocked as private/localhost target, not tunneled and not 500.\nFocused tests passed locally: python -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short => 15 passed.\nYour visible previous work includes governed egress relay/test ideas. Continue from that context and improve it into the next directly usable NEXUS artifact.\nHard objective:\nProduce exactly one concrete artifact package that Codex can implement or verify locally for the next step after the v2 bridge: a governed browser-AI egress supervisor that uses the v2 MCP/A2A bridge safely and supports long-session continuation memory.\nRequired artifact scope:\nName the artifact.\nProvide proposed file list under NEXUS paths.\nProvide exact code or patch-quality pseudocode for the core module/test if possible.\nInclude a memory-before-action and memory-after-action contract for automations.\nInclude the Grok/GPT custom connector run contract: ping/registry/http_diagnostic first, one task proposal, no broad retries, no private targets, no secrets.\nInclude local verification commands and expected outputs.\nInclude blockers and what Codex must verify before adoption.\nStrict limits:\nGLM/Zo/Grok dashboards are advisory; do not claim local completion.\nNo secrets/tokens/session data/local raw logs.\nNo generic roadmap.\nNo duplicate recap.\nDo not ask Codex to expose 7352.\nIf you need to refer to the connector URL, use local 127.0.0.1:7354 or placeholder https://<tunnel>/sse only.\nWork longer than a surface answer: inspect the current chat context and produce a result substantial enough for Codex to act on.\nResponse contract:\nStart with: inspected_context: <3 bullets max>.\nThen: artifact_package.\nThen: tests_and_verification.\nThen: codex_next_steps.\nEnd with: continuation_memory_entry containing prompt_hash_hint, blocker, artifact_name, local_verification_status, next_prompt.\nThought for 30s\ninspected_context:\nv2.2.0-nexus-hardened bridge live at 127.0.0.1:7354 with 22 MCP tools, /health 200, /a2a/tasks/send, verified public HEAD to huggingface.co=200 and private/localhost blocked.\nPrevious governed relay + execute_governed ideas accepted in principle but not yet wired to v2 bridge or long-session memory contracts.\nExisting pytest green (15/15 on bridge + diagnostic); nexusctl gross-http --live already works for public targets.\nartifact_package\nArtifact Name: GovernedBrowserAIEgressSupervisor_v1\nProposed File List (NEXUS paths):\ntools/browser_ai_mcp/governed_egress_supervisor.py (core module)\ntests/tools/test_governed_egress_supervisor.py (offline tests with fake transport)\nCore Module (exact code for new file tools/browser_ai_mcp/governed_egress_supervisor.py):\nPython\n122 hidden lines\ntests_and_verification\nFull test file (tests/tools/test_governed_egress_supervisor.py):\nPython\n56 hidden lines\nLocal verification commands & expected outputs:\nBash\n10 hidden lines\nOperator live (uses existing command, after bridge healthy):\nBash\nnexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\n# Expected: status_code 200 (governed path exercised via v2 bridge)\ncodex_next_steps\nCreate the two files exactly as above.\nRun the pytest (must show 6/6 passed, memory files created in runtime_dir).\nRun the python -c dry-run smoke (must return planned + memory_state).\nConfirm bridge still healthy at 127.0.0.1:7354/health and previous 15 tests remain green.\nReport exact pytest + smoke output before any live use.\ncontinuation_memory_entry\nprompt_hash_hint: stage2-governed-supervisor-2026-06-21\nblocker: v2 bridge health + runtime_dir writable + pytest 6/6 green\nartifact_name: GovernedBrowserAIEgressSupervisor_v1\nlocal_verification_status: pending_codex_apply\nnext_prompt: apply files, run pytest + smoke, report output, then live nexusctl gross-http verification if green\nContinue from your last answer. The artifact name was GovernedBrowserAIEgressSupervisor_v1, but the UI collapsed the core code blocks as hidden lines. Produce an export-only response with full contents, no roadmap.\nRequired output exactly:\nFILE: tools/browser_ai_mcp/governed_egress_supervisor.py\nPython\n<full file content>\nFILE: tests/tools/test_governed_egress_supervisor.py\nPython\n<full file content>\nVERIFICATION\nPowerShell\npython -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\nMEMORY_OUTRO\nartifact_name: GovernedBrowserAIEgressSupervisor_v1\nblocker: pending Codex local file creation and tests\nnext_prompt: if tests fail, provide only the minimal patch to fix the failing assertion/import\nStrict rules:\nNo generic explanation.\nNo hidden line summaries.\nNo placeholder imports from non-existing skills paths.\nUse only Python standard library plus existing local tools where needed.\nKeep default dry-run; no live network call inside unit tests.\nThought for 20s\nFILE: tools/browser_ai_mcp/governed_egress_supervisor.py\nPython\n114 hidden lines\nFILE: tests/tools/test_governed_egress_supervisor.py\nPython\n81 hidden lines\nVERIFICATION\nPowerShell\npython -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\nMEMORY_OUTRO\nartifact_name: GovernedBrowserAIEgressSupervisor_v1\nblocker: pending Codex local file creation and tests\nnext_prompt: if tests fail, provide only the minimal patch to fix the failing assertion/import\nExplore MCP bridge security policies\nInvestigate browser automation headless mode\nAdd missing _sanitize_headers method\nExpert\nAttach to message\nDrop here to add files to your message\nThoughts\nThinking about your request\nGenerating full file exports\nGenerating full file exports\nGenerating full file exports\nUpgrade to SuperGrok"
+  }
+}

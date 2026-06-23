@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
-import { routeRequest, getAllRoutes, type ModelTier } from '@/lib/ai-provider-bridge'
+import { routeRequest, getAllRoutes, reconcileZAIModelEcho, type ModelTier } from '@/lib/ai-provider-bridge'
 
 // TVD prompt templates per domain for realistic test execution
 const TVD_PROMPTS: Record<string, string[]> = {
@@ -128,7 +128,7 @@ async function executePrompt(
   modelName: string,
   maxTokens: number = 4096,
   temperature: number = 0.7
-): Promise<{ output: string; provider: string; actualModel: string; latencyMs: number }> {
+): Promise<{ output: string; provider: string; actualModel: string; providerResponseModel?: string; latencyMs: number }> {
   const startTime = Date.now()
 
   // Check if the model name matches a route in the AI Provider Bridge
@@ -163,7 +163,9 @@ async function executePrompt(
 
   // Default: use z-ai-web-dev-sdk
   const zai = await getZAI()
+  const requestedModel = 'glm-5.2'
   const completion = await zai.chat.completions.create({
+    model: requestedModel,
     messages: [
       { role: 'assistant', content: systemPrompt },
       { role: 'user', content: testPrompt },
@@ -172,10 +174,13 @@ async function executePrompt(
   })
 
   const output = completion.choices[0]?.message?.content || ''
+  const echoedModel = (completion as any).model as string | undefined
+  const modelEcho = reconcileZAIModelEcho(requestedModel, echoedModel)
   return {
     output,
     provider: 'z-ai',
-    actualModel: completion.model || 'glm-4.7',
+    actualModel: modelEcho.apiModel,
+    providerResponseModel: modelEcho.providerResponseModel,
     latencyMs: Date.now() - startTime,
   }
 }
@@ -333,6 +338,8 @@ export async function POST(request: NextRequest) {
       const startTime = Date.now()
       let output = ''
       let validatorResult = ''
+      let actualModelName = modelName
+      let providerResponseModel: string | undefined
       let collapseDetected = false
       let finalStatus: string = 'passed'
 
@@ -358,6 +365,8 @@ export async function POST(request: NextRequest) {
         // Use AI Provider Bridge for multi-provider routing
         const promptResult = await executePrompt(testPrompt, systemPrompt, modelName)
         output = promptResult.output
+        actualModelName = promptResult.actualModel
+        providerResponseModel = promptResult.providerResponseModel
 
         if (isHarness) {
           // Stage 3: Agent sends result
@@ -391,6 +400,7 @@ export async function POST(request: NextRequest) {
       const updatedRun = await db.testRun.update({
         where: { id: testRun.id },
         data: {
+          modelName: actualModelName,
           status: finalStatus,
           output,
           validatorResult,
@@ -408,7 +418,7 @@ export async function POST(request: NextRequest) {
         await db.tokenUsageLog.create({
           data: {
             agentId: agent?.id ?? null,
-            model: modelName,
+            model: actualModelName,
             promptTokens: Math.round(tokenCount * 0.3),
             completionTokens: Math.round(tokenCount * 0.7),
             totalTokens: Math.round(tokenCount),
@@ -429,7 +439,9 @@ export async function POST(request: NextRequest) {
         {
           testRunId: testRun.id,
           templateId,
-          modelName,
+          requestedModel: modelName,
+          modelName: actualModelName,
+          providerResponseModel,
           mode,
           status: finalStatus,
           collapseDetected,
@@ -460,7 +472,9 @@ export async function POST(request: NextRequest) {
           templateId,
           templateName: template.name,
           domain: template.domain,
-          modelName,
+          requestedModel: modelName,
+          modelName: actualModelName,
+          providerResponseModel,
           mode,
           validatorResult,
           tokensUsed: Math.round(tokenCount),
@@ -469,7 +483,7 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({
-        testRun: updatedRun,
+        testRun: { ...updatedRun, requestedModel: modelName, actualModel: actualModelName, providerResponseModel },
         governance: isHarness ? { taskId: govTaskId, stages: 5 } : null,
       }, { status: 201 })
     }

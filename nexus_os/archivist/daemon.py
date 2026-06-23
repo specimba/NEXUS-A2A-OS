@@ -18,9 +18,14 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-import psutil
+try:
+    import psutil
+    _HAS_PSUTIL = True
+except ImportError:
+    psutil = None
+    _HAS_PSUTIL = False
 
 from nexus_os.archivist.import_stage import ArchivistImporter
 from nexus_os.archivist.compile import ArchivistCompiler
@@ -83,11 +88,16 @@ class ArchivistDaemon:
     # ── System Load Monitoring ───────────────────────────────────────
 
     def _cpu_load(self) -> float:
-        """Get current CPU load percentage."""
+        """Get current CPU load percentage. Returns 0.0 if psutil unavailable."""
+        if not _HAS_PSUTIL:
+            return 0.0
         return psutil.cpu_percent(interval=1.0)
 
     def wait_for_idle(self, timeout_minutes: int = 10) -> bool:
         """Wait for system to be idle (< 15% CPU for 5 consecutive minutes)."""
+        if not _HAS_PSUTIL:
+            logger.warning("psutil not available, skipping idle detection")
+            return True
         logger.info("Waiting for idle state (CPU < 15%% for 5 min)...")
         idle_start = None
         deadline = time.time() + timeout_minutes * 60
@@ -109,6 +119,8 @@ class ArchivistDaemon:
 
     def check_throttle(self) -> bool:
         """Check if system load requires throttling."""
+        if not _HAS_PSUTIL:
+            return False
         load = self._cpu_load()
         if load > 70.0:
             logger.warning("System load high (%.1f%%), throttling...", load)
@@ -120,11 +132,19 @@ class ArchivistDaemon:
     def run_light(self):
         """Light tier: fast merge only, no deep analysis."""
         logger.info("Running LIGHT tier (fast merge)")
-        # In a full implementation, this would:
-        # 1. Check for new files in watched directories
-        # 2. Import and classify only new/changed files
-        # 3. Fast merge of duplicate candidates
-        pass
+        try:
+            records = self.importer.import_batch(max_files=50)
+            if not records:
+                logger.debug("Light tier: no new files")
+                return
+            compiled = self.compiler.compile_batch(records)
+            wiki_admissible = self.compiler.get_wiki_admissible(compiled)
+            logger.info(
+                "LIGHT tier complete: %d files → %d compiled → %d wiki_admissible",
+                len(records), len(compiled), len(wiki_admissible),
+            )
+        except Exception as e:
+            logger.error("Light tier failed: %s", e)
 
     def run_deep(self, max_files: Optional[int] = None):
         """Deep tier: full import → compile → fit pipeline."""
@@ -132,7 +152,11 @@ class ArchivistDaemon:
         checkpoint = self.load_checkpoint()
 
         if checkpoint:
-            logger.info("Resuming from checkpoint: %d/%d files", checkpoint["processed_files"], checkpoint["total_files"])
+            logger.info(
+                "Previous checkpoint: %d/%d files (resume not yet implemented, starting fresh)",
+                checkpoint.get("processed_files", 0),
+                checkpoint.get("total_files", 0),
+            )
 
         # Import stage
         records = self.importer.import_batch(max_files=max_files)
@@ -145,6 +169,7 @@ class ArchivistDaemon:
         wiki_admissible = self.compiler.get_wiki_admissible(compiled)
 
         # Fit stage
+        # TODO: Use ArchivistCompiler.get_all_dossier_candidates() instead of private attr
         dossiers = self.fitter.fit_batch(self.compiler._dossier_candidates)
 
         # Checkpoint
@@ -229,7 +254,7 @@ class ArchivistDaemon:
     def is_running(self) -> bool:
         return self._running
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> Dict[str, Any]:
         """Return daemon statistics."""
         return {
             "running": self._running,

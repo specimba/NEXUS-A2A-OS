@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { reconcileZAIModelEcho } from '@/lib/ai-provider-bridge'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -213,8 +214,10 @@ ${contentToAnalyze.slice(0, 8000)}${contentToAnalyze.length > 8000 ? '\n\n[Conte
 
     // Use lower temperature for analysis tasks for more consistent output
     const temperature = analysisType === 'summary' ? 0.3 : analysisType === 'critique' ? 0.4 : 0.35
+    const requestedModel = 'glm-5.2'
 
     const completion = await zai.chat.completions.create({
+      model: requestedModel,
       messages: [
         { role: 'assistant', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -225,7 +228,8 @@ ${contentToAnalyze.slice(0, 8000)}${contentToAnalyze.length > 8000 ? '\n\n[Conte
 
     const rawResponse = completion.choices[0]?.message?.content || ''
     const latencyMs = Date.now() - startTime
-    const model = completion.model || 'glm-4.7'
+    const echoedModel = (completion as any).model as string | undefined
+    const model = reconcileZAIModelEcho(requestedModel, echoedModel).apiModel
 
     // Parse the JSON response
     let analysisData: Record<string, any>

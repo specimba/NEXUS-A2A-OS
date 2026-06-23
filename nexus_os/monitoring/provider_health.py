@@ -7,6 +7,7 @@ and async health-check loops.
 import asyncio
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from typing import Dict, Optional
@@ -36,7 +37,7 @@ class ProviderHealthMonitor:
     - Recommendation generator
     """
 
-    CHECK_INTERVAL = 60
+    CHECK_INTERVAL = int(os.environ.get("NEXUS_PROVIDER_HEALTH_INTERVAL", "0"))
     LATENCY_WINDOW = 10
 
     def __init__(self):
@@ -46,8 +47,15 @@ class ProviderHealthMonitor:
         self._check_task = None
 
     async def start(self):
-        """Start the periodic health monitor"""
+        """Start the periodic health monitor when explicitly enabled.
+
+        Default interval is 0 to keep ModelRelay/provider checks demand-driven.
+        Call ``refresh_relay()`` for a one-shot, operator-triggered check.
+        """
         if self._running:
+            return
+        if self.CHECK_INTERVAL <= 0:
+            logger.info("Provider Health Monitor periodic loop disabled; use refresh_relay()")
             return
         self._running = True
         self._check_task = asyncio.create_task(self._monitor_loop())
@@ -66,6 +74,7 @@ class ProviderHealthMonitor:
         """Periodic health refresh loop"""
         while self._running:
             try:
+                await self._refresh_model_relay()
                 await self._refresh_all()
             except Exception as e:
                 logger.error(f"Health monitor error: {e}")
@@ -96,6 +105,71 @@ class ProviderHealthMonitor:
         if latency > 5000:
             return HealthStatus.DEGRADED.value
         return HealthStatus.HEALTHY.value
+
+    async def _refresh_model_relay(self):
+        """Refresh ModelRelay (Node 7350 / Python 7355) health and update circuit breaker."""
+        try:
+            import httpx
+            node_port = int(os.environ.get("NODERELAY_PORT", "7350"))
+            py_port = int(os.environ.get("PYTHONRELAY_PORT", "7355"))
+            data = {}
+            # Try Node relay first, then Python relay
+            for label, port in [("node", node_port), ("python", py_port)]:
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        r = await client.get(f"http://127.0.0.1:{port}/health")
+                        if r.status_code < 500:
+                            data = r.json()
+                            data["_relay"] = label
+                            break
+                except Exception:
+                    continue
+            if not data:
+                data = {"status": "unavailable", "models_healthy": 0, "discovered_models": 0, "uptime_s": 0}
+
+            models_healthy = data.get("models_healthy", 0)
+            models_total = data.get("discovered_models", 0)
+            uptime = data.get("uptime_s", 0)
+            status_str = data.get("status", "unknown")
+
+            provider_id = "modelrelay_nexus"
+            if provider_id not in self._provider_data:
+                self._provider_data[provider_id] = {
+                    "total_requests": 0, "total_successes": 0, "total_failures": 0,
+                    "recent_failures": 0, "latencies": [], "avg_latency_ms": 0.0,
+                    "last_request": None, "circuit_state": "closed",
+                    "health_status": "healthy", "recommendation": "normal"
+                }
+            d = self._provider_data[provider_id]
+            d["models_healthy"] = models_healthy
+            d["models_total"] = models_total
+            d["uptime_s"] = uptime
+            d["last_request"] = datetime.now().isoformat()
+            if status_str == "ok":
+                self._breaker.record_success(provider_id)
+                d["recent_failures"] = max(0, d["recent_failures"] - 1)
+            else:
+                self._breaker.record_failure(provider_id)
+                d["recent_failures"] += 1
+            d["circuit_state"] = self._breaker.state(provider_id).value
+            d["health_status"] = self._compute_health(d)
+            d["recommendation"] = self._get_recommendation(d)
+        except Exception as e:
+            provider_id = "modelrelay_nexus"
+            if provider_id not in self._provider_data:
+                self._provider_data[provider_id] = {
+                    "total_requests": 0, "total_successes": 0, "total_failures": 0,
+                    "recent_failures": 0, "latencies": [], "avg_latency_ms": 0.0,
+                    "last_request": None, "circuit_state": "closed",
+                    "health_status": "offline", "recommendation": "disable - provider non-responsive"
+                }
+            self._provider_data[provider_id]["recent_failures"] += 1
+            self._provider_data[provider_id]["circuit_state"] = self._breaker.state(provider_id).value
+            self._provider_data[provider_id]["health_status"] = self._compute_health(self._provider_data[provider_id])
+
+    async def refresh_relay(self):
+        """Public entry point — call this from daemon startup or health checks."""
+        await self._refresh_model_relay()
 
     def record_request(self, provider: str, success: bool, latency_ms: float = 0.0):
         """Record a provider request result"""
@@ -197,3 +271,4 @@ def get_health_monitor() -> ProviderHealthMonitor:
     if _health_monitor is None:
         _health_monitor = ProviderHealthMonitor()
     return _health_monitor
+

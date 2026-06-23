@@ -1,0 +1,433 @@
+
+================ PAGE 1 ================
+Tandem: Riding Together with Large and Small Language Models
+for Efficient Reasoning
+Zichuan Fu1*, Xian Wu2†, Guojing Li1,3, Yejing Wang1, Yijun Chen1,
+Zihao Zhao1,Yixuan Luo 1,Hanyu Yan 1,Yefeng Zheng 4,Xiangyu Zhao 1†
+1 City University of Hong Kong 2 Tencent Jarvis Lab
+3 Renmin University of China 4 Westlake University
+zc.fu@my.cityu.edu.hk, kevinxwu@tencent.com, xianzhao@cityu.edu.hk
+Abstract
+Recent advancements in large language models
+(LLMs) have catalyzed the rise of reasoning-
+intensive inference paradigms, where mod-
+els perform explicit step-by-step reasoning be-
+fore generating final answers. While such ap-
+proaches improve answer quality and inter-
+pretability, they incur substantial computational
+overhead due to the prolonged generation se-
+quences. In this paper, we propose Tandem,
+a novel collaborative framework that syner-
+gizes large and small language models (LLMs
+and SLMs) to achieve high-quality reasoning
+with significantly reduced computational cost.
+Specifically, the LLM serves as a strategic co-
+ordinator, efficiently generating a compact set
+of critical reasoning insights. These insights
+are then used to guide a smaller, more effi-
+cient SLM in executing the full reasoning pro-
+cess and delivering the final response. To bal-
+ance efficiency and reliability, Tandem intro-
+duces a cost-aware termination mechanism that
+adaptively determines when sufficient reason-
+ing guidance has been accumulated, enabling
+early stopping of the LLM’s generation. Experi-
+ments on mathematical reasoning and code gen-
+eration benchmarks demonstrate that Tandem
+reduces computational costs by approximately
+40% compared to standalone LLM reasoning,
+while achieving superior or competitive perfor-
+mance. Furthermore, the sufficiency classifier
+trained on one domain transfers effectively to
+others without retraining. The code is avail-
+able at: https://github.com/Applied-Machine-
+Learning-Lab/ACL2026_Tandem.
+1 Introduction
+Recent advances in large language models (LLMs)
+have shifted their role from simple text generators
+*Work was conducted during the internship at Tencent.
+†Corresponding author.
+LLM
+Question: Find all pairs of positive
+integers  such that . 
+🤗 Correct 😢4 Cost
+SLM
+Question: Find all pairs of positive
+integers  such that . 
+😢 Incorrect
+Reasoning Content: a = b If a = b ...
+Ans: 
+🤗1 Cost
+LLM
+(c) LLM Collaboration
+Question: Find all pairs of positive
+integers  such that . 
+🤗2 Cost🤗 Correct
+Guidance Prompt: First state what needs
+to be solved (Goal), then outline high-
+level strategy (Planning), followed by
+relevant knowledge (Retrieval) ...
+SLM
+➀ ➁ ➂
+Guidance 1: 
+the trivial case
+where  ...
+Guidance 2: 
+Transform
+ into ...
+➃
+Sufficient
+Reasoning Content: we test integers near
+. For ,  yields the
+non-trivial solutions.
+Ans: 
+Reasoning Content: a = b If a = b ...
+Ans: 
+(a) LLM only
+(b) SLM only
+Figure 1: Comparison of reasoning-inference strategies:
+(a) LLM-only. (b) SLM-only. (c) LLM-SLM collabora-
+tion, where the LLM provides guidance and the SLM
+completes the reasoning.
+to sophisticated reasoning systems capable of solv-
+ing complex problems (Ke et al., 2025; Liu et al.,
+2025b; Wang et al., 2025). A key development in
+this shift is the emergence of a thinking paradigm,
+which extends earlier chain-of-thought (Wei et al.,
+2022) prompting. In this paradigm, exemplified
+by models such as DeepSeek-R1 (DeepSeek-AI,
+2025), the internal reasoning process is explicitly
+externalized and structurally decoupled from final
+answer generation. This design substantially im-
+proves interpretability and faithfulness, and has
+led to state-of-the-art performance on challenging
+mathematical and scientific reasoning tasks.
+However, these reasoning improvements come at
+arXiv:2604.23623v1  [cs.AI]  26 Apr 2026
+================ PAGE 2 ================
+a substantial computational cost. Thinking models
+routinely generate reasoning chains spanning thou-
+sands of tokens, typically 5–10 times longer than
+conventional LLM outputs (Chen et al., 2025a).
+This extended reasoning leads to a dramatic in-
+crease in both inference latency and operational
+expenses. Such overhead poses a major obstacle
+to real-world deployment, where applications of-
+ten require real-time responses or operate under
+strict budget constraints (Ding et al., 2024; Ferrag
+et al., 2025). This raises a central question:how
+can we preserve the benefits of explicit thinking
+while making it computationally efficient enough
+for practical deployment?
+Since the inference cost of thinking LLMs is
+dominated by the length of generated reason-
+ing (Han et al., 2025), prior work has attempted to
+reduce this overhead through reinforcement fine-
+tuning (RFT), encouraging the model to solve prob-
+lems with shorter reasoning traces (Fang et al.,
+2025). However, such approaches still have limi-
+tations: (1) they require continual training of the
+LLM, and may degrade the model’s general capa-
+bilities (Yue et al., 2025; Gao et al., 2025b), and
+(2) they are inapplicable to closed-source models
+where only API access is available. These con-
+straints motivate us to explore alternatives without
+modifying the LLM.
+To address this challenge, we propose a collabo-
+rative paradigm between large and small language
+models (LLMs and SLMs) as a promising path
+toward cost-effective reasoning. As shown in Fig-
+ure 1 (a) and (b), relying solely on an LLM yields
+correct answers but incurs high computational cost,
+whereas an SLM alone is efficient yet prone to er-
+rors. Our key insight is to combine the strengths of
+both: the LLM acts as a strategic mentor, provid-
+ing high-level reasoning guidance, while the SLM
+serves as an agile intern, efficiently executing the
+detailed reasoning steps and generating the final
+response. This division of labor enables accurate
+reasoning at a fraction of the computational cost as
+in Figure 1 (c).
+Based on this insight, we present Tandem, a
+novel collaborative reasoning framework that for-
+malizes this dynamic as a mentor-intern architec-
+ture (Abell et al., 1995). In Tandem, the mentor
+LLM generates lightweight, early-stage thinking
+insights, which are then used to guide the intern
+SLM in constructing the full response. Our de-
+sign is inherently aligned with the modular nature
+of human cognition as described in the ACT-R
+cognitive architecture (Anderson, 2007). Specifi-
+cally, we decompose the LLM’s reasoning into four
+thinking insights—Goal, Planning, Retrieval, and
+Action—which correspond to the essential stages
+of problem-solving: understanding objectives, out-
+lining strategies, gathering knowledge, and execut-
+ing logic (Yue, 2025; Xu et al., 2025b; Jia et al.,
+2025; Xu et al., 2025a; Jia et al., 2024). By trans-
+ferring only high-level insights instead of full rea-
+soning chains, Tandem retains the cognitive depth
+of the LLM while significantly reducing computa-
+tional overhead by delegating the remaining reason-
+ing tasks to the SLM. To further enhance efficiency,
+Tandem introduces acost-aware judgment mech-
+anismthat evaluates whether the current insights
+are adequate for the SLM to complete the task,
+allowing for adaptive control over the amount of
+guidance provided by the LLM.
+Our main contributions can be summarized in
+the following three aspects:
+• We propose a novel collaborative reasoning
+paradigm inspired by the mentor–intern relation-
+ship, enabling efficient collaboration between
+large and small models for reasoning tasks.
+• We propose the Tandem framework, which ex-
+tracts key thinking insights from the LLM to
+guide the SLM, with a cost-aware judgment
+mechanism that enables the SLM to adaptively
+control the insight generation process.
+• Experiments on mathematical reasoning and
+code generation benchmarks show that a 32B–
+7B language model collaboration achieves 2.56%
+higher accuracy than the 32B LLM alone on
+MATH while requiring only 59% of its computa-
+tional cost, and the sufficiency classifier transfers
+across domains without retraining.
+2 Method
+2.1 Framework Overview
+As shown in Figure 2, Tandem establishes a collab-
+orative reasoning process between a large language
+model (LLM) and a small language model (SLM).
+Given a question Q, the LLM generates reasoning
+insights through three1 sequential stages of increas-
+ing cognitive effort, with later stages providing
+progressively richer content. Insights accumulated
+up to stage t are aggregated into an insight set I t.
+1In this paper, we illustrate Tandem through three stages,
+which can also be extended to include additional stages.
+================ PAGE 3 ================
+Judge Judge Judge
+Stage 3: 
+Stage 1, 2 + 
+"Monotonicity
+Theorem: ..."
+(Effort: high)
+No:
+Insight Generation
+Response Completion
+Output = ... Final Answer.
+Question: Find all pairs of positive
+integers  such that .
+Prompt (Thinking Insights Direction): 
+Stage 1: 
+"This is an
+algebra
+problem..."
+(Effort: low)
+Stage 2: 
+Stage 1 + "Try
+taking logs on
+both sides..."
+(Effort: medium)
+No
+Yes
+No No
+YesYes
+Goal
+ Planning Retrieval
+ Action
+Input =
+Probabilities
+Entropy
+MLP Continual
+Classifier
+SLM
+Guidance
+ Yes: Continual Thinking
+& Final Answer Generation
+Cost-Aware Continual Judgment
+Prompt Construction
+Statistical features
+Perplexity
+- mean, std
+- max, min
+- trend
+Entropy
+- mean, std
+- max, min
+- trend
+MetaData
+- length
+- stage
+Perplexity SLM
+LLM
+Choose 
+the Best from: 
+Stage 1, 2, 3 or ∅
+Input =
+QuestionGuidance+
+Thinking Insight Generation
+Figure 2: Workflow of the Tandem framework. The LLM generates pre-defined thinking insights (Goal, Planning,
+Retrieval, Action) across three thinking effort levels, while the SLM performs cost-aware continual judgment based
+on perplexity and entropy to decide when reasoning is sufficient and then completes the final response.
+After each stage, the SLM computes uncertainty-
+based features from the pair (Q,I t), and a dedi-
+cated classifier C determines whether the current
+guidance suffices for response completion. If the
+classifier predicts sufficiency, the LLM terminates
+generation and the SLM produces the final answer
+A; otherwise, the LLM proceeds to the subsequent
+stage for more in-depth insights.
+2.2 Thinking Insight Generation
+A straightforward approach to constructing the col-
+laborative thinking-inference paradigm involves
+directly feeding the LLM’s reasoning chains to
+the SLM to generate responses. However, LLMs
+typically produce lengthy reasoning traces that in-
+clude trial-and-error explorations and verbose jus-
+tifications. Delivering such unprocessed chains to
+the SLM incurs significant computational overhead
+and may exceed its comprehension capacity. To
+mitigate this burden, we extract only the core rea-
+soning components essential for guiding SLMs.
+Inspired by the modular nature of human cog-
+nition, where cognitive processes are decom-
+posed into distinct functional modules (Anderson,
+2007), and by established pipelines for question-
+answering processes in LLM-based agents (Yue,
+2025), we identify and design four types of think-
+ing insights that capture the essential components
+of effective problem solving:
+1. Goal: Defines the ultimate objective or question
+to be solved, clarifying what the model aims to
+achieve through reasoning.
+2. Planning: Outlines the high-level reasoning
+strategy, including decomposition of subprob-
+lems and selection of solution paths.
+3. Retrieval: Involves recalling or gathering rele-
+vant knowledge, facts, or contextual information
+necessary for problem solving.
+4. Action: Executes concrete reasoning steps, cal-
+culations, or logical operations.
+These components form the basis of our structured
+prompt p (detailed in Appendix D) that instructs the
+LLM to generate insights sequentially. Formally,
+given a question Q, the LLM ML generates the
+================ PAGE 4 ================
+0.2 0.4 0.6 0.8
+Average Token Entropy
+0
+1
+2
+3
+4Value
+Effort Level: Low
+0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7
+Average Token Entropy
+0
+1
+2
+3
+4
+Effort Level: Medium
+0.0 0.1 0.2 0.3 0.4 0.5
+Average Token Entropy
+0
+2
+4
+6
+Effort Level: High
+Sufficient
+Insufficient
+Figure 3: Entropy distribution comparison between sufficient (correct answer) and insufficient (incorrect answer)
+guidance across three effort levels. Higher effort levels show clearer separation.
+thinking insights accompanied with the promptp:
+I=M L(Q, p).(1)
+2.3 Cost-Aware Continual Judgment
+Problems of varying difficulty require differing lev-
+els of reasoning guidance. To avoid wasting com-
+putational resources on simple problems while en-
+suring sufficient support for more complex ones,
+we decompose the reasoning process into stages
+and introduce a cost-aware judgment mechanism.
+This mechanism evaluates whether the current rea-
+soning content is sufficient for the SLM to generate
+a reliable response, allowing the LLM to terminate
+reasoning early and skip unnecessary stages.
+Insight Cutoff.To balance reasoning quality and
+computational cost, we divide the whole thinking
+process into several successive stages with increas-
+ingeffort levels, e.g., three in this paper, namely
+low, medium, and high. Each stage generates in-
+sights covering all four types (Goal, Planning, Re-
+trieval, Action), but with progressively larger token
+budgets and greater depth of analysis. Let ∆I t
+denote the newly generated insights at stage t; the
+cumulative insight set is constructed as:
+I 0 =∅,I t =I t−1 ⊕∆I t (t= 1,2,3),(2)
+where ⊕ denotes sequential concatenation of in-
+sights. I 0 =∅ represents the baseline case where
+no reasoning insight is provided. The insight of the
+last stage I 3 is equivalent to the full response I as
+defined in Equation (1). This progressive design
+enables adaptive allocation of reasoning guidance:
+simple problems may terminate early at low effort
+(e.g., I 1), while complex ones proceed to higher
+stages for richer support.
+Confidence Measurement.To assess the suffi-
+ciency of the specific reasoning stage, we use the
+SLM’s token-level probability distribution as the
+confidence signal. Previous studies have found that
+lower perplexity indicates the SLM finds insights
+linguistically familiar, while lower entropy reflects
+higher predictive stability (Kuhn et al., 2023).
+Our empirical analysis, presented in Figure 3,
+also reveals a consistent pattern: the SLM pro-
+duces lower output entropy under guidance that
+leads to correct answers—compared to incorrect
+ones—with a more pronounced separation ob-
+served at higher reasoning effort levels. This find-
+ing motivates the use of perplexity and entropy as
+diagnostic indicators of reasoning sufficiency.
+Concretely, for each stage t, we concatenate Q
+and I t to form the input sequence xt for the SLM
+MS, i.e., xt =Q⊕I t. Let xt
+i denote the i-th token
+in xt; the corresponding predictive distribution at
+positioniis computed as:
+P t
+i =P MS(· |x t
+<i).(3)
+From this distribution, we compute per-token per-
+plexity and entropy:
+PPLt
+i = exp(−logP t
+i (xt
+i))(4)
+Ht
+i =−
+X
+v∈V
+P t
+i (v) logP t
+i (v),(5)
+whereVdenotes the vocabulary.
+Sufficiency Classification.Leveraging the distri-
+butional discrepancy between sufficient and insuffi-
+cient guidance in Figure 3, we construct a classifier
+to retroactively assess reasoning sufficiency based
+on distributional statistics. Let n denote the num-
+ber of tokens in the SLM input xt. We denote the
+per-token PPL and entropy sequences as:
+PPLt ={PPL t
+i}n
+i=1,H t ={H t
+i}n
+i=1.(6)
+Based on these sequences, we construct a distribu-
+tional feature vector:
+f t =
+
+ϕ(PPLt), ϕ(Ht),∆ PPL,∆ H, n
+
+,(7)

@@ -1,4 +1,4 @@
-﻿---
+---
 id: NODE-MIG-NEXUS_OS_V4_MASTER_PLAN
 authority_scope: experimental
 origin_sha256: 5a7774687518e4f923520d968a9571efd368c1d3a2f3a076990d991fc95b390f
@@ -29,9 +29,10 @@ approval_id: APP-MIG-19A514
 10. [Hallucination Detection & Prevention Framework](#10-hallucination-detection)
 11. [Code Reconciliation: NEXUS Main Γåö HERMES Swarm Pack](#11-code-reconciliation)
 12. [Deployment Tiers & Platform Strategy](#12-deployment-tiers)
-13. [Phase Roadmap (12-Week Sprint)](#13-phase-roadmap)
-14. [Risk Register](#14-risk-register)
-15. [Appendix: Document Index](#15-appendix)
+13. [Cognitive Elastic Reasoning & Monotonic Privilege Confinement](#13-cognitive-elastic-reasoning-and-monotonic-privilege-confinement)
+14. [Phase Roadmap (12-Week Sprint)](#14-phase-roadmap)
+15. [Risk Register](#15-risk-register)
+16. [Appendix: Document Index](#16-appendix)
 
 ---
 
@@ -1052,9 +1053,50 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 
 ---
 
-## 13. Phase Roadmap (12-Week Sprint)
+## 13. Cognitive Elastic Reasoning & Monotonic Privilege Confinement
 
-### Phase 0: Emergency Fixes (Week 0 ΓÇö Immediate)
+To optimize reasoning costs and protect the execution sandbox against privilege escalation and malicious tool execution, NEXUS OS implements a hybrid cognitive routing and symbolic security enforcement layer.
+
+### 13.1 Cognitive-Inspired Elastic Reasoning (CogER)
+
+**CogER** dynamically routes user prompts based on query complexity to balance inference speed, cost, and depth. It classifies queries into four distinct levels ($L_1$ to $L_4$):
+
+1. **$L_1$ (No Think)**: Fact retrieval or basic arithmetic. Routed directly to a fast local SLM (e.g., `VibeThinker-3B`) for immediate direct responses with zero reasoning traces.
+2. **$L_2$ (Think)**: Moderate logic, multi-step explanations, or math. Routed to the **Tandem Routing Engine** for strategic SLM-LLM collaboration.
+3. **$L_3$ (Extend)**: Coding, complex analysis, or deep reasoning. Routed to the **LLM-PeerReview Swarm** for ensembled deliberation.
+4. **$L_4$ (Delegate)**: Queries explicitly requesting tool execution, network access, or filesystem operations. Routed to the **Cognitive Tool-Assisted (CoTool) Delegation** pathway.
+
+Classification is performed using a fast zero-cost heuristic regex scanner (checking length and keyword density) with fallback to an LLM-based classifier when requested.
+
+### 13.2 Tandem Routing (LLM-SLM Collaboration)
+
+Tandem Routing coordinates a high-capability coordinator model (cloud or large local model like `fugu-ultra`) with a low-VRAM executor model (`VibeThinker-3B`) to execute reasoning:
+1. **Blueprint Generation**: The coordinator generates a high-level strategic reasoning blueprint containing 3–5 bulleted subgoals.
+2. **Step-by-Step Execution**: The local executor model ingests the coordinator's blueprint in its context and executes the final step-by-step reasoning trace.
+3. **Outcome**: Reduces coordinator token usage by up to 40% while keeping high-level cognitive guidance.
+
+### 13.3 LLM-PeerReview Ensembling
+
+For complex $L_3$ reasoning, NEXUS OS leverages a Peer-Review ensembling algorithm to combine outputs from $N$ candidate generators (e.g., `VibeThinker-3B`, `Nanbeige4.1-3B`, `fugu`):
+- **Flipped-Triple Scoring**: Shuffles and evaluates candidates in circular triplets $(R_i, R_{i+1}, R_{i+2})$ and their flipped forms $(R_{i+2}, R_{i+1}, R_i)$. Each candidate is rated exactly 6 times across all triplet positions, neutralizing LLM-as-a-judge position and consistency biases.
+- **Agreement-Based Weighting**: Judges are dynamically weighted (LLM-PeerReview-W) inversely proportional to their mean absolute disagreement with other judges to discount noisy evaluations.
+
+### 13.4 Progent Monotonic Privilege Control
+
+To prevent sandbox escape, **Progent Monotonic Privilege Control** enforces strict least-privilege policies over tool execution at the MCP layer:
+- **Symbolic Policy**: Defines allowed and forbidden tool spaces using regular expression path/command constraints and numerical intervals (e.g., `< 100`, `[10, 50]`).
+- **Deny-Override**: Checks forbidden rules first to halt unsafe operations immediately.
+- **Monotonic Confinement**: Updates can only narrow allowed tools/arguments or expand forbidden boundaries. Privilege expansions are blocked and require human verification.
+
+### 13.5 Science Context Protocol (SCP) Hub
+
+NEXUS OS mounts 8 primary scientific tools via the Chinese **Intern Discovery Platform** utilizing JWT authentication. High-governance scientific tools (e.g., `chemical_safety_assessment`, `drug_warning_report`) are gated with a minimum trust threshold of 90.
+
+---
+
+## 14. Phase Roadmap (12-Week Sprint)
+
+### Phase 0: Emergency Fixes (Week 0 — Immediate)
 
 | # | Task | Owner | Effort |
 |---|------|-------|--------|
@@ -1068,12 +1110,12 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 1.1 | Import OpenShell sandbox policies into NEXUS main | 1 day | ΓÇö |
+| 1.1 | Import OpenShell sandbox policies into NEXUS main | 1 day | — |
 | 1.2 | Create Sandbox Abstraction Layer (Docker/Podman/WSL/OpenShell) | 3 days | 1.1 |
-| 1.3 | Implement Platform Detector | 1 day | ΓÇö |
+| 1.3 | Implement Platform Detector | 1 day | — |
 | 1.4 | Deprecate duplicate swarm pack kernel code | 1 day | 1.1 |
-| 1.5 | Write Kafka routing event schema + migration | 1 day | ΓÇö |
-| 1.6 | Set up 5 Slack channels + Zo bridge | 2 days | ΓÇö |
+| 1.5 | Write Kafka routing event schema + migration | 1 day | — |
+| 1.6 | Set up 5 Slack channels + Zo bridge | 2 days | — |
 | 1.7 | Create 3 scheduled Zo agents (pr-watcher, reminder, standup) | 1 day | 1.6 |
 
 ### Phase 2: Sandbox Isolation (Weeks 3-4)
@@ -1083,7 +1125,7 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 | 2.1 | Disposable Docker container sandbox for Linux | 3 days | 1.2 |
 | 2.2 | WSL2 execution bridge for Windows | 3 days | 1.2, 1.3 |
 | 2.3 | OpenShell container orchestration (import from swarm pack) | 2 days | 1.2 |
-| 2.4 | HF Sandbox API integration for cloud burst | 3 days | ΓÇö |
+| 2.4 | HF Sandbox API integration for cloud burst | 3 days | — |
 | 2.5 | Sandbox capability token system (TTL-limited, scoped) | 4 days | 2.1-2.4 |
 | 2.6 | KAIJU sandbox evaluation gates | 2 days | 2.5 |
 
@@ -1092,18 +1134,18 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
 | 3.1 | Cross-agent prompt injection defense (KAIJU extension) | 3 days | 2.6 |
-| 3.2 | E2E encryption for ACP messages (AES-256-GCM) | 3 days | ΓÇö |
-| 3.3 | Hallucination detection ΓÇö Layer 1 (factual consistency) | 3 days | 1.2 |
-| 3.4 | Hallucination detection ΓÇö Layer 2 (logical coherence) | 2 days | 3.3 |
-| 3.5 | Hallucination detection ΓÇö Layer 3 (cross-agent verification) | 2 days | 3.4 |
-| 3.6 | Terminal/Output Sanitizer (formal PoC ΓåÆ production) | 2 days | ΓÇö |
+| 3.2 | E2E encryption for ACP messages (AES-256-GCM) | 3 days | — |
+| 3.3 | Hallucination detection — Layer 1 (factual consistency) | 3 days | 1.2 |
+| 3.4 | Hallucination detection — Layer 2 (logical coherence) | 2 days | 3.3 |
+| 3.5 | Hallucination detection — Layer 3 (cross-agent verification) | 2 days | 3.4 |
+| 3.6 | Terminal/Output Sanitizer (formal PoC → production) | 2 days | — |
 
 ### Phase 4: Inference Optimization (Weeks 7-8)
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 4.1 | MARS verifier implementation (training-free) | 2 days | ΓÇö |
-| 4.2 | N-gram + Lookahead speculative decoding backend | 3 days | ΓÇö |
+| 4.1 | MARS verifier implementation (training-free) | 2 days | — |
+| 4.2 | N-gram + Lookahead speculative decoding backend | 3 days | — |
 | 4.3 | TWAVE wavefront token expansion | 4 days | 4.1, 4.2 |
 | 4.4 | QWAVE quality-aware verification | 3 days | 4.3 |
 | 4.5 | CHIMERA expert-per-wave routing | 3 days | 4.4 |
@@ -1113,11 +1155,11 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 5.1 | GitHub webhook ΓåÆ Zo routing layer | 2 days | 1.6 |
+| 5.1 | GitHub webhook → Zo routing layer | 2 days | 1.6 |
 | 5.2 | Slack bot identities (@Devin, @Codex, @Kilo, @Sanity, @Pylon, @Q) | 3 days | 5.1 |
 | 5.3 | PR review automation (3-agent parallel review) | 4 days | 5.2 |
 | 5.4 | Research coordination (@Q + Notion AI + Confluence) | 2 days | 5.2 |
-| 5.5 | Incident response flow (GitHub ΓåÆ Jira ΓåÆ Slack) | 2 days | 5.2 |
+| 5.5 | Incident response flow (GitHub → Jira → Slack) | 2 days | 5.2 |
 | 5.6 | Telegram bridge | 2 days | 5.1 |
 | 5.7 | Agent Communication Protocol (ACP) implementation | 3 days | 3.2 |
 
@@ -1129,18 +1171,18 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 | 6.2 | Disaster recovery scenarios (5+) | 3 days | 6.1 |
 | 6.3 | Performance profiling & optimization | 4 days | 6.1 |
 | 6.4 | Documentation unification | 3 days | All above |
-| 6.5 | GitHub repo sync (20MB local ΓåÆ Zo) | 1 day | ΓÇö |
+| 6.5 | GitHub repo sync (20MB local → Zo) | 1 day | — |
 | 6.6 | Platform compatibility certification (Win/Linux/Mac) | 3 days | 6.1 |
 
 ---
 
-## 14. Risk Register
+## 15. Risk Register
 
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|------|-----------|--------|------------|
 | R1 | Docker Gordon quota fully exhausted before Phase 1 migration | High | High | Document all Gordon configs manually; prepare manual Kafka reconfiguration guide |
 | R2 | Cross-agent terminal injection recurrence before PTY isolation deployed | Medium | Critical | Deploy Terminal Sanitizer (Phase 0.1) immediately |
-| R3 | Duplicate kernel code causes merge conflicts between NEXUS main and swarm pack | Medium | Medium | One-directional merge: swarm pack ΓåÆ NEXUS main, then deprecate |
+| R3 | Duplicate kernel code causes merge conflicts between NEXUS main and swarm pack | Medium | Medium | One-directional merge: swarm pack → NEXUS main, then deprecate |
 | R4 | WSL2 GPU passthrough unreliable for inference sandbox | Medium | Medium | Fallback to Docker Desktop Linux containers; no GPU for Windows-local tier |
 | R5 | Zo computer API rate limits for Slack bot network | Medium | Low | Implement local caching + batch posting for non-urgent messages |
 | R6 | HF Sandbox API changes breaking integration | Low | Medium | Abstract HF behind SandboxBackend interface; add OpenShell as primary fallback |
@@ -1148,7 +1190,7 @@ nexusctl config set wsl2.distribution Ubuntu-24.04
 
 ---
 
-## 15. Appendix: Document Index
+## 16. Appendix: Document Index
 
 | Document | Location | Purpose |
 |----------|----------|---------|

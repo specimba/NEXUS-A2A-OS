@@ -21,7 +21,7 @@ import socket
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -46,12 +46,24 @@ class PortRegistry:
     Also performs an active socket check to verify if a port is truly in use.
     """
 
-    # Canonical port assignments (must match coordinator.py PORT_OWNERSHIP)
+    # Canonical port assignments.
+    #
+    # Hard rule: 7352 is the NEXUS Brain API / governance backend. It is not a
+    # ModelRelay, dashboard, proxy, MCP, or experiment port. ModelRelay uses
+    # 7350 for the Node/npm primary relay and 7355 for the Python fallback.
     CANONICAL_PORTS = {
-        7352: "nexus_governance",
+        3001: "next_dashboard",
+        7350: "modelrelay_npm",
+        7352: "brain_api",
         7353: "twave",
         7354: "gross_bridge",
-        7355: "modelrelay_internal",
+        7355: "modelrelay_python",
+        7356: "static_dashboard",
+        7357: "god_mode_proxy",
+        8765: "state_manager_ws",
+        8766: "state_manager_http",
+        11434: "ollama_default",
+        11435: "ollama_guard",
         11436: "nexusclaw_ollama_lane",
     }
 
@@ -185,7 +197,7 @@ class PortRegistry:
                         )
         return mismatches
 
-    def health_check(self) -> Dict[str, any]:
+    def health_check(self) -> Dict[str, Any]:
         """Run a full health check of all registered ports.
 
         Returns a dict with status, conflicts, and in-use verification.

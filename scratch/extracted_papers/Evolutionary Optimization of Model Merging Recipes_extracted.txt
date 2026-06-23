@@ -1,0 +1,218 @@
+
+================ PAGE 1 ================
+Evolutionary Optimization of Model Merging Recipes
+Takuya Akiba, Makoto Shing, Yujin Tang, Qi Sun, David Ha
+Sakana AI
+Tokyo, Japan
+{takiba,mkshing,yujintang,qisun,hadavid}@sakana.ai
+Abstract
+Large language models (LLMs) have become increasingly capable, but their devel-
+opment often requires substantial computational resources. While model merging
+has emerged as a cost-effective promising approach for creating new models
+by combining existing ones, it currently relies on human intuition and domain
+knowledge, limiting its potential. Here, we propose an evolutionary approach
+that overcomes this limitation by automatically discovering effective combinations
+of diverse open-source models, harnessing their collective intelligence without
+requiring extensive additional training data or compute. Our approach operates
+in both parameter space and data flow space, allowing for optimization beyond
+just the weights of the individual models. This approach even facilitates cross-
+domain merging, generating models like a Japanese LLM with Math reasoning
+capabilities. Surprisingly, our Japanese Math LLM achieved state-of-the-art per-
+formance on a variety of established Japanese LLM benchmarks, even surpassing
+models with significantly more parameters, despite not being explicitly trained
+for such tasks. Furthermore, a culturally-aware Japanese VLM generated through
+our approach demonstrates its effectiveness in describing Japanese culture-specific
+content, outperforming previous Japanese VLMs. This work not only contributes
+new state-of-the-art models back to the open-source community, but also introduces
+a new paradigm for automated model composition, paving the way for exploring
+alternative, efficient approaches to foundation model development.
+1 Introduction
+Model merging [ 21, 34], a recent development in the large language model (LLM) community,
+presents a novel paradigm shift. By strategically combining multiple LLMs into a single architecture,
+this exciting development has captured the attention of researchers due to its key advantage: it
+requires no additional training, making it an incredibly cost-effective approach for developing new
+models. This accessibility has fueled a surge in interest and experimentation with model merging.
+The Open LLM Leaderboard [26] is now dominated by merged models, showcasing its potential for
+democratizing foundation model development.
+However, model merging is considered by many to be a form of black art or alchemy, relying on the
+model maker’s intuition and instincts about model selection and merging recipes to create and refine a
+new model that performs well for a particular task. Furthermore, the model maker is often required to
+have some domain knowledge for the various different benchmark tasks. Given the large diversity of
+open models and benchmarks in the community, human intuition can only go so far, and we believe a
+more systematic approach for discovering new model combinations will take things much further.
+We believe evolutionary algorithms will be able to discover more effective model merging solutions,
+and thus provide a path for automating the creation of more capable models. As a step towards this
+direction, in this work, we show that evolution can be employed to discover novel and unintuitive
+ways to merge multiple models to produce new models with a new combined ability. In this work, we
+present a methodology that leverages evolutionary algorithms to facilitate the merging of foundation
+models. Our approach is distinguished by its ability to navigate both parameter space (weights) and
+the data flow space (inference path), proposing a framework that integrates these two dimensions.
+arXiv:2403.13187v2  [cs.NE]  27 Jan 2025
+================ PAGE 2 ================
+This work makes several key contributions to the field of foundation model development:
+1. Automated Model Composition: We introduce Evolutionary Model Merge, a general
+evolutionary method to automatically discover effective combinations of selected models for
+creating new foundation models with user-specified capabilities. This approach harnesses
+the collective intelligence of existing open models, enabling the creation of powerful models
+without the need for extensive training data or compute.
+2. Cross-Domain Merging: We demonstrate that our method can discover novel ways to
+merge models from disparate domains (e.g., non-English language and Math, non-English
+language and Vision), potentially exceeding the capabilities achievable through conventional
+human design strategies.
+3. State-of-the-Art Performance: We showcase the effectiveness of our method by auto-
+matically generating a Japanese LLM with Math reasoning capability and a Japanese
+Vision-Language Model (VLM). Notably, both models achieve state-of-the-art performance
+on various benchmarks, even without explicit optimization for those tasks.
+4. High Efficiency and Surprising Generalizability: We observe that our 7B parameter LLM
+surpasses the performance of some previous 70B parameter Japanese LLMs on benchmark
+datasets, highlighting the high efficiency and surprising generalization capability of our
+approach. We believe this model can serve as a strong general-purpose Japanese LLM.
+5. Culturally-Aware VLM: The generated Japanese VLM achieves top results when tested
+on a domestically-sourced dataset of Japanese image-description pairs, demonstrating its
+ability to handle Japanese culture-specific content.
+We are committed to open science and are excited to open-source our EvoLLM-JP and EvoVLM-JP,
+two state-of-the-art Japanese foundation models, to the community, enabling further research and
+development in the field. Our work challenges the conventional paradigm of expensive model
+development by demonstrating that our evolutionary-based method can produce competitive models
+without relying on gradient-based training. This paves the way for exploring alternative, potentially
+more efficient, approaches to foundation model development.
+1.1 Background and Related Work
+1.1.1 Overview of Model Merging.
+Model merging offers a novel approach to leverage the strengths of multiple pre-trained models. It al-
+lows us to combine task-specific models, each potentially fine-tuned for a particular downstream task,
+into a single unified model. This technique stands in contrast to traditional transfer learning, where a
+pre-trained model is further fine-tuned for a new task. While transfer learning offers advantages like
+improved performance and faster convergence, the resulting models are typically limited to single
+tasks. Model merging, on the other hand, strives to create a versatile and comprehensive model by
+combining the knowledge from multiple pre-trained models, potentially yielding a model capable of
+handling various tasks simultaneously.
+While fine-tuning an existing model involves training an existing model further on a specialized
+dataset, model merging methods work by combining existing models without any additional gradient-
+based training, making it very cost-effective in terms of compute requirements. Many in the machine
+learning community, including researchers, hackers, and hobbyists alike, are using both fine-tuning
+and model-merging to create the best models for their purposes. In fact, this collaborative way of
+developing continually improved models has parallels with the traditional open-source software
+development approach [47] where the trend is for the community to develop foundational machine
+learning models like open source software [45, 46].
+A simple method of merging multiple models is to average the weights of multiple models fine-
+tuned from the same base initial model. This model soup approach [61] demonstrated significant
+improvements on relatively large image processing and image classification models. The work pointed
+to similarity between weighted model averaging leading to a flat local minima. Theoretical [17, 31, 32,
+44] and empirical studies dating back from the 1990s [24, 25] demonstrated that flatter local optima
+generalize better to out-of-distribution shifts. More recent work [14, 41] examined the theoretical
+properties and practical implications of weight averaging applied to larger generative models.
+2
+================ PAGE 3 ================
+Linear weight averaging is performed as follows. Let θ1, θ2 ∈ Rd represent the weight vectors of two
+distinct models, where d is the dimension of the weight space. The merged model’s weights, denoted
+as θnew, are computed using the following equation: θnew = λθ1 + (1 − λ)θ2. Here, λ ∈ [0, 1] is a
+weighting parameter that determines the relative contribution of each model to the final merged model.
+By adjusting λ, practitioners can control the balance between the two original models’ characteristics
+in the resulting merged model.
+Linear weight averaging not only works well for image processing and classification models, but is
+also effective for image generation models such as latent diffusion models. The release of Stable
+Diffusion [50] led to a variety of specialist fine-tunes of the model for a variety of different styles,
+from photorealism, to anime, to realistic painting styles. Popular open-source WebUIs [10] enabled
+practitioners to experiment with merging different models using linear or spherical linear interpolation
+(SLERP) [60] of weight parameters of distinct fine-tuned Stable Diffusion models. This has led to
+the discovery of merged models that combine strengths of specialized models into a single model.
+For some time, the most popular Stable Diffusion models were neither the original base models nor
+the fine-tuned versions, but rather the merged models created by enthusiasts.
+1.1.2 Merging Language Models
+Simple weight interpolation works well for merging image generation models that operate in a
+real valued latent and output space, but to our surprise, they also still work for merging language
+models under the right conditions, but have performance issues [63]. Recently, new methods have
+been proposed to address merging language models specifically. One method, Task Arithmetic [27],
+involves building task vectors by subtracting pre-trained from fine-tuned model weights, enabling
+manipulation through arithmetic operations to steer the merged model’s behavior.
+Task Arithmetic operates as follows. Let θbase ∈ Rd denote the weights of a pre-trained base model.
+For each task k, let θk ∈ Rd represent the weights of a model fine-tuned for that specific task. The task
+vector τk for each task k is defined as the difference between the fine-tuned model weights and the
+base model weights: τk = θk − θbase. The weights of the new, merged model θnew are then computed
+by adding a weighted sum of these task vectors to the base model weights: θnew = θbase + P
+k λkτk
+Here, λk is a scaling parameter that determines the contribution of each task vector to the final merged
+model.
+A key problem of weight interpolation-based methods is that they neglect parameter interference,
+leading to performance degradation. A recent work [63] identifies two key sources of interference:
+redundant parameter values and conflicting parameter signs across models, and proposes a method
+that addresses these issues to achieve improved merging performance. The proposed TIES-Merging
+method addresses information loss in existing merging methods by incorporating three steps: resetting
+minimal parameter changes, resolving sign conflicts, and merging only aligned parameters. The
+trimming of redundant parameter changes in TIES-Merging not only resulted in higher performance
+of merged models, but also achieved better compression for the fine-tuned parameter updates. This
+compression of fine-tuned weight parameter updates is further investigated in ComPEFT [62].
+The three steps of TIES-Merging are implemented as follows. In the first step, minimal parameter
+changes are reset by retaining only the most influential components of each task vector τk and setting
+the rest to zero. This effectively removes redundant or insignificant modifications. The second step
+resolves sign conflicts across models by determining an aggregate sign for each parameter based on
+the overall direction of significant changes across all tasks. This ensures that conflicting updates do
+not cancel each other out. In the final step, only the aligned parameters are merged by selectively
+averaging the values of parameters that agree with the elected sign from the previous step, while
+excluding those that disagree. This selective merging process ensures that the final model incorporates
+only consistent and significant parameter changes from each task-specific model, thereby preserving
+task-relevant information while minimizing interference.
+Another recent work [65] proposes the DARE method, which goes further by zeroing out small dif-
+ferences between the fine-tuned model and the original base model, while amplifying the differences.
+In practice, DARE [ 65] is often used together with Task Arithmetic [ 27] or TIES-Merging [ 63].
+Specifically, DARE operates as follows. It applies a random mask mk ∼ Bernoulli(p) to task vector
+τk, where p is the drop rate, and then rescales the remaining parameters:
+ˆτk = 1
+1 − p ((1 − mk) ⊙ τk) . (1)
+3
+================ PAGE 4 ================
+The resulting sparsified task vector ˆτk is then used to merge models. This task vector can be utilized
+in the aforementioned linear task arithmetic (referred to as DARE-Linear) or TIES (referred to as
+DARE-TIES) methods.
+Model merging is gaining momentum in ML research, and has been applied in areas such as
+multimodal model development [7, 58] and merging experts [7]. It is also becoming popular in both
+the broader image generation and LLM communities, where due to the low barrier to entry, many
+researchers and engineers are continually merging existing models to create new customized models.
+In the image generation domain, model merging techniques became widely accessible to practitioners
+especially after their implementation in open-source toolkits [10]. Similarly, language model merging
+really gained popularity after the implementation of mergekit [21, 34]. This toolkit provides all of the
+popular recipes for merging language models. In addition to simple linear and spherical interpolation,
+advanced recipes such as Task Arithmetic, TIES-Merging, DARE are also implemented, offering
+users the ability to experiment with combining these methods to work with fine-tunes of popular
+base models such as Mistral [28]. With this toolkit, a large number of capable merged models are
+developed by the community, and most of the top models on the Open LLM Leaderboard [26] are
+gradually dominated by merged models produced by the community of language model enthusiasts.
+Mergekit also introduced an additional method, called Frankenmerging which is not based on weight
+merging, but for the user to experiment with trying to stack different layers from multiple models to
+sequentially create a new model. This method has the advantage of not tying the user to one particular
+family of models with a fixed architecture for merging (e.g. Mistral-based models), but potentially
+creating new architectures from merging entirely different models. It is noted that discovering
+new Frankenmerging technique remains a challenge for the community, and requires much more
+trial and error to discover new recipes for this technique. To date, almost everyone uses a similar
+Frankenmerging merge recipe, and there has been very little trial and error to improve upon it. The
+field remains highly under-explored, and we believe this is where evolution can help.
+1.1.3 Connection to Evolutionary Neural Architecture Search
+Model merging holds significant potential and democratizes the model-building process, making
+it accessible to a broad range of participants. However, it heavily relies on intuition and domain
+knowledge. Human intuition, however, has its limits. With the growing diversity of open models and
+tasks, we need a more systematic approach. We believe evolutionary algorithms, inspired by natural
+selection, can unlock more effective merging solutions. These algorithms can explore a vast space
+of possibilities, discovering novel and counter-intuitive combinations that traditional methods and
+human intuition might miss.
+In deep learning, techniques such as Neural Architecture Search (NAS) [66] employed evolutionary
+techniques to discover new architectures [48, 55] that might be non-intuitive for human designers to
+discover. However, NAS-methods consumed significant computational resources given how each
+candidate model architecture needed to be trained. Our approach aims to save compute resources by
+discovering structures that take advantage of existing capabilities of existing Transformer blocks that
+had already consumed considerable resources to train in the first place.
+Pre-trained transformer blocks are akin to neural network components one can choose to mix and
+match using an evolutionary architecture search algorithm. However, unlike NAS, we do not need to
+train the model, and can evaluate the candidates right away. In a sense, our work resonates with the
+goals of earlier works of morphology search such as NEAT [56] and more recent work such as Weight
+Agnostic Neural Networks [18] which evolved neural network structures with certain task-specific
+inductive biases, without the need to train the weight parameters using gradient descent. Similarly,
+this was how NAS methods such as SMASH [ 56] avoided costly inner-loop training through the
+application of a Hypernetwork [22] to estimate the weights of architectural candidates.
+Recent work in language models tried to duplicate the layers of a pre-trained Transformer many
+times [58] as a starting point to pre-train a much larger network, to enable efficient training of much
+larger language models [64]. Similarly, in our approach, we are interested in applying automated
+search methods to discover the effective reuse of existing pre-trained layers.
+In this work, we apply evolution to not only automate the optimization of model merging recipes in
+weight space, confined to a single architecture, but also explore applying evolution to optimize the
+stacking of layers from different models—a more involved approach that has the potential to create
+4

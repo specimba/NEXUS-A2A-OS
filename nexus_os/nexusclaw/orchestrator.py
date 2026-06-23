@@ -235,11 +235,11 @@ class NexusClawOrchestrator:
             }
 
         # Step 2: Check governance - if halted, reject
-        if self.coordinator._halted:
+        if self.coordinator.is_halted:
             return {
                 "task_id": task.task_id,
                 "status": "rejected",
-                "reason": f"coordinator_halted: {self.coordinator._halt_reason}",
+                "reason": f"coordinator_halted: {self.coordinator.halt_reason}",
             }
 
         # Step 3: Route task
@@ -530,7 +530,7 @@ class NexusClawOrchestrator:
     def full_stats(self) -> Dict[str, Any]:
         """Return comprehensive statistics across all subsystems."""
         with self._lock:
-            return {
+            stats = {
                 "orchestrator": self._status.to_dict(),
                 "agent_pool": self.agent_pool.stats(),
                 "task_router": self.task_router.stats(),
@@ -538,6 +538,13 @@ class NexusClawOrchestrator:
                 "brainstorm_engine": self.brainstorm_engine.stats(),
                 "coordinator": self.coordinator.status(),
             }
+            try:
+                from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
+                pipeline = get_wiki_pipeline()
+                stats["wiki"] = pipeline.get_status()
+            except Exception:
+                stats["wiki"] = {"available": False}
+            return stats
 
     # ------------------------------------------------------------------
     # External integration helpers
@@ -585,6 +592,27 @@ class NexusClawOrchestrator:
     # ------------------------------------------------------------------
     # Memory integration helpers
     # ------------------------------------------------------------------
+
+    def wiki_query(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Query the NEXUS knowledge wiki for relevant information.
+
+        Bridges NexusClaw to the Archivist wiki pipeline, enabling
+        evidence-grounded reasoning from accumulated knowledge.
+
+        Args:
+            query: Search query string
+            limit: Maximum number of results
+
+        Returns:
+            List of matching wiki pages with metadata
+        """
+        try:
+            from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
+            pipeline = get_wiki_pipeline()
+            return pipeline.search(query, limit=limit)
+        except Exception as e:
+            logger.warning("Wiki query failed: %s", e)
+            return []
 
     def sync_memory_context(self, agent_id: str, query: str, action: str = "read") -> Any:
         """Build memory context for an agent from the 8-channel memory system."""

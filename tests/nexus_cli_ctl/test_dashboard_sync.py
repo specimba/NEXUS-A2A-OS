@@ -115,3 +115,87 @@ class TestDashboardSyncSingleton:
         sm = MagicMock()
         ds = get_dashboard_sync(state_manager=sm)
         assert ds.sm is sm
+
+
+class TestNextGovernanceRouteContract:
+    def test_governance_get_uses_brain_api_stats_contract(self):
+        route = (ROOT / "src" / "app" / "api" / "governance" / "route.ts").read_text(encoding="utf-8")
+
+        assert "NEXUS_BRAIN_API_URL" in route
+        assert "`${BRAIN_API_BASE}/api/stats`" in route
+        assert "/dashboard/stats" not in route
+
+
+class TestBrainApiDashboardContract:
+    def test_brain_api_contract_has_canonical_ports_and_routes(self):
+        contract = (ROOT / "src" / "lib" / "brain-api" / "contract.ts").read_text(encoding="utf-8")
+        port_doctor = (ROOT / "src" / "app" / "api" / "doctor" / "ports" / "route.ts").read_text(encoding="utf-8")
+
+        assert "http://127.0.0.1:7352" in contract
+        assert "'/health'" in contract
+        assert "'/api/stats'" in contract
+        assert "'/api/providers'" in contract
+        assert "'/api/dashboard/sync'" in contract
+        assert "7350" in port_doctor
+        assert "7352" in port_doctor
+        assert "7355" in port_doctor
+        assert "7356" in port_doctor
+        assert "3001" in port_doctor
+        assert "7352 returned HTML instead of Brain API JSON" in port_doctor
+
+    def test_brain_proxy_mutations_are_disabled_by_default(self):
+        proxy = (ROOT / "src" / "app" / "api" / "brain" / "[...path]" / "route.ts").read_text(encoding="utf-8")
+
+        assert "NEXUS_ENABLE_BRAIN_PROXY_MUTATIONS" in proxy
+        assert "BRAIN_PROXY_MUTATIONS_DISABLED" in proxy
+        assert "NEXUS_BRAIN_API_KEY" in proxy
+
+    def test_settings_route_masks_provider_secrets_and_no_fake_zai_green(self):
+        settings = (ROOT / "src" / "app" / "api" / "settings" / "route.ts").read_text(encoding="utf-8")
+
+        assert "zai_sdk: true" not in settings
+        assert "providerStatus" in settings
+        assert "maskedSettings" in settings
+        assert "maskValue" in settings
+
+    def test_brain_status_tab_is_wired(self):
+        store = (ROOT / "src" / "store" / "nexus-store.ts").read_text(encoding="utf-8")
+        content = (ROOT / "src" / "components" / "nexus" / "tab-content.tsx").read_text(encoding="utf-8")
+        sidebar = (ROOT / "src" / "components" / "nexus" / "sidebar.tsx").read_text(encoding="utf-8")
+
+        assert "'brain-status'" in store
+        assert "BrainStatusTab" in content
+        assert "'brain-status': BrainStatusTab" in content
+        assert "Brain Status" in sidebar
+
+
+class TestPortOwnershipDocs:
+    def test_active_docs_reject_7352_modelrelay_claims(self):
+        active_docs = [
+            ROOT / "AGENTS.md",
+            ROOT / "knowledge.md",
+            ROOT / "01_PROJECT_STATE.md",
+            ROOT / "docs" / "handbook" / "08_PORT_OWNERSHIP_RULESET.md",
+        ]
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in active_docs)
+
+        stale_claims = [
+            "| 7352 | ModelRelay",
+            "7352 | ModelRelay",
+            "7352: ModelRelay primary",
+            "7352: modelrelay",
+        ]
+        for claim in stale_claims:
+            assert claim not in combined
+
+        assert "7352` is Brain API only" in combined or "7352` = Brain API" in combined
+        assert "7350` = Node/npm primary relay" in combined
+        assert "7355` = Python fallback" in combined
+
+    def test_port_ruleset_contains_required_preflight(self):
+        rules = (ROOT / "docs" / "handbook" / "08_PORT_OWNERSHIP_RULESET.md").read_text(encoding="utf-8")
+
+        assert "OBLIGATORY FOR ALL AGENTS" in rules
+        assert "python -m pytest tests/bridge/test_port_registry.py -q" in rules
+        assert "python -m nexus_os.cli.nexusctl dashboard --doctor --json" in rules
+        assert "Any future agent plan, automation, or dashboard patch that mentions `7352 = ModelRelay`" in rules

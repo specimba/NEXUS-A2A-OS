@@ -982,7 +982,7 @@ th {{ background: #161b22; color: #8b949e; text-transform: uppercase; font-size:
 <tr><td>/metrics</td><td>GET</td></tr>
 <tr><td>/router/inspect</td><td>GET</td></tr>
 </table>
-<p style="color:#8b949e">npm modelrelay at <a href="http://localhost:7352" style="color:#58a6ff">localhost:7352</a> &mdash; cloud providers need API keys</p>
+<p style="color:#8b949e">Node/npm ModelRelay primary at <a href="http://localhost:7350" style="color:#58a6ff">localhost:7350</a>; Python relay on <a href="http://localhost:7355" style="color:#58a6ff">localhost:7355</a> &mdash; cloud providers need API keys</p>
 </body></html>""")
 
 

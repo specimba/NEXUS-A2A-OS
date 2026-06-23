@@ -69,8 +69,8 @@ const MOCK_BRIDGE_DATA: BridgeData = {
     {
       id: 'reasoning-1',
       tier: 'reasoning',
-      displayName: 'GLM-4.7 (NIM Free)',
-      actualModel: 'z-ai/glm-4.7',
+      displayName: 'GLM-5.2 (NIM Free)',
+      actualModel: 'z-ai/glm-5.2',
       provider: 'z-ai',
       providerLabel: 'z-ai SDK',
       isFree: true,
@@ -99,7 +99,7 @@ const MOCK_BRIDGE_DATA: BridgeData = {
       latencyMs: 890,
       totalCalls: 1287,
       successRate: 98.1,
-      fallbackModel: 'GLM-4.7 (NIM Free)',
+      fallbackModel: 'GLM-5.2 (NIM Free)',
       fallbackProvider: 'z-ai',
     },
     {
@@ -2500,3 +2500,4 @@ export function GmrTab() {
     </div>
   )
 }
+

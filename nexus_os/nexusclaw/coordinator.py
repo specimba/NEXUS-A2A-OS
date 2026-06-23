@@ -20,10 +20,11 @@ from nexus_os.vault.governed_memory_broker import GovernedMemoryBroker
 
 
 PORT_OWNERSHIP = {
+    7350: "modelrelay_npm",
     7352: "nexus_governance",
     7353: "twave",
     7354: "gross_bridge",
-    7355: "modelrelay_internal",
+    7355: "modelrelay_python",
     11436: "nexusclaw_ollama_lane",
 }
 
@@ -190,6 +191,14 @@ class NexusClawCoordinator:
         )
         self._last_result = result
         return result
+
+    @property
+    def is_halted(self) -> bool:
+        return self._halted
+
+    @property
+    def halt_reason(self) -> str | None:
+        return self._halt_reason
 
     def _require_last_task(self) -> NexusClawTaskEnvelope:
         if self._last_task is None:

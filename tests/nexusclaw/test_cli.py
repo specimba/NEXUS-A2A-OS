@@ -20,7 +20,8 @@ def test_nexusclaw_status_cli_reports_port_policy():
     payload = json.loads(proc.stdout)
     assert payload["command"] == "nexusclaw.status"
     assert payload["port_ownership"]["7352"] == "nexus_governance"
-    assert payload["port_ownership"]["7355"] == "modelrelay_internal"
+    assert payload["port_ownership"]["7355"] == "modelrelay_python"
+    assert payload["port_ownership"]["7350"] == "modelrelay_npm"
     assert payload["config"]["cloud_fallback_enabled"] is False
 
 

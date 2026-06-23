@@ -27,7 +27,7 @@ class TestProviderHealthMonitorInit:
         monitor = ProviderHealthMonitor()
         assert monitor._running is False
         assert monitor._provider_data == {}
-        assert monitor.CHECK_INTERVAL == 60
+        assert monitor.CHECK_INTERVAL == 0
 
     def test_get_status_empty(self):
         monitor = ProviderHealthMonitor()
@@ -147,6 +147,7 @@ class TestProviderHealthMonitorAsync:
     @pytest.mark.asyncio
     async def test_start_stop(self):
         monitor = ProviderHealthMonitor()
+        monitor.CHECK_INTERVAL = 1
         await monitor.start()
         assert monitor._running is True
         await monitor.stop()
@@ -155,13 +156,63 @@ class TestProviderHealthMonitorAsync:
     @pytest.mark.asyncio
     async def test_double_start(self):
         monitor = ProviderHealthMonitor()
+        monitor.CHECK_INTERVAL = 1
         await monitor.start()
         await monitor.start()
         await monitor.stop()
 
+    @pytest.mark.asyncio
+    async def test_start_noops_when_interval_disabled(self):
+        monitor = ProviderHealthMonitor()
+        monitor.CHECK_INTERVAL = 0
+        await monitor.start()
+        assert monitor._running is False
+
+
+    @pytest.mark.asyncio
+    async def test_refresh_relay_updates_existing_provider(self, monkeypatch):
+        payloads = [
+            {"status": "ok", "models_healthy": 1, "discovered_models": 2, "uptime_s": 10},
+            {"status": "ok", "models_healthy": 3, "discovered_models": 4, "uptime_s": 20},
+        ]
+
+        class FakeResponse:
+            status_code = 200
+
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        class FakeClient:
+            def __init__(self, timeout):
+                self.timeout = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def get(self, url):
+                return FakeResponse(payloads.pop(0))
+
+        monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+
+        monitor = ProviderHealthMonitor()
+        await monitor.refresh_relay()
+        assert monitor.get_provider_status("modelrelay_nexus")["models_healthy"] == 1
+
+        await monitor.refresh_relay()
+        status = monitor.get_provider_status("modelrelay_nexus")
+        assert status["models_healthy"] == 3
+        assert status["models_total"] == 4
+        assert status["uptime_s"] == 20
 
 class TestProviderHealthMonitorSingleton:
     def test_get_health_monitor(self):
         a = get_health_monitor()
         b = get_health_monitor()
         assert a is b
+

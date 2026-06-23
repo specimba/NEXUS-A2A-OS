@@ -15,6 +15,8 @@ import {
   Layers, Swords, Brain, Ghost, Radiation, Skull,
 } from 'lucide-react'
 import useSWR from 'swr'
+import { usePanelStatus } from '@/hooks/use-panel-status'
+import { PanelStatus } from '@/components/nexus/panel-status'
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -24,6 +26,10 @@ interface PillarData {
   status: string
   desc: string
   uptime: string
+}
+
+interface SystemOverviewResponse {
+  overview: SystemOverview
 }
 
 interface SystemOverview {
@@ -257,12 +263,14 @@ function MiniHealthTimeline({ data }: { data: Record<string, number | string>[] 
 
 export default function OverviewTab()
   {
-  const { data, error, isLoading, mutate } = useSWR<SystemOverview>('/api/system', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<SystemOverviewResponse>('/api/system', fetcher, {
     refreshInterval: 30_000,
   })
   const { data: agents } = useSWR<AgentData[]>('/api/agents', fetcher, {
     refreshInterval: 60_000,
   })
+  const { getPanel, overall, counts } = usePanelStatus()
+  const overviewPanel = getPanel('overview')
 
   // Destructure overview data (API returns { overview: { pillars, stats, ... } })
   const overview = data?.overview
@@ -292,7 +300,7 @@ export default function OverviewTab()
     setDiagRunning(true)
     setDiagResults([])
     const results: typeof diagResults = []
-    for (const p of data?.pillars || []) {
+    for (const p of overview?.pillars || []) {
       await new Promise(r => setTimeout(r, 150 + Math.random() * 200))
       const jitter = Math.floor(Math.random() * 20) - 10
       const health = Math.min(100, Math.max(0, p.health + jitter))
@@ -302,7 +310,7 @@ export default function OverviewTab()
       setDiagResults([...results])
     }
     setDiagRunning(false)
-  }, [data])
+  }, [overview])
 
   if (isLoading) {
     return (
@@ -351,6 +359,17 @@ export default function OverviewTab()
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <PanelStatus
+            relayed={overviewPanel?.relayed}
+            source={overviewPanel?.source || 'brain-api'}
+            brainApiStatus={overviewPanel?.brainApiStatus || overall}
+            error={overviewPanel?.error}
+            compact
+            className="hidden sm:inline-flex"
+          />
+          <Badge variant="outline" className="hidden lg:inline-flex border-white/10 text-[10px] text-white/45" title="Brain API overall route counts">
+            Brain API overall {overall} · live {counts.LIVE || 0} · degraded {counts.DEGRADED || 0} · offline {counts.OFFLINE || 0}
+          </Badge>
           <Button size="sm" variant="outline" onClick={runDiagnostic} disabled={diagRunning} className="border-purple-500/20 text-purple-300 hover:bg-purple-500/10">
             {diagRunning ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Wrench className="h-3 w-3 mr-1" />}
             Diagnostics

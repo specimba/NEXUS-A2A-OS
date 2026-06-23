@@ -230,11 +230,24 @@ def run_doctor_version(report_only: bool, refresh: bool) -> int:
     return 0
 
 
+def run_doctor_hygiene(report_only: bool) -> int:
+    from nexus_os.monitoring.disk_hygiene import build_hygiene_report
+
+    payload = build_hygiene_report(paths=[], top_file_limit=0, include_system_files=True)
+    payload["command"] = "doctor hygiene"
+    payload["report_only"] = report_only
+    payload["scope"] = "drive_accounting_plus_root_system_files"
+    _json_print(payload)
+    return 0
+
+
 def run_doctor(report_only: bool, topic: str | None, refresh: bool) -> int:
     if topic == "memory":
         return run_doctor_memory(report_only)
     if topic == "version":
         return run_doctor_version(report_only, refresh)
+    if topic == "hygiene":
+        return run_doctor_hygiene(report_only)
 
     # No topic specified — run comprehensive diagnostic
     memory_result = run_doctor_memory(report_only=True)
@@ -520,7 +533,7 @@ def main() -> int:
     subparsers.required = True
     subparsers.add_parser("cycle-check", help="Validate the latest recorded agent cycle")
     doctor = subparsers.add_parser("doctor", help="Report-only system diagnostics")
-    doctor.add_argument("topic", nargs="?", choices=["memory", "version"])
+    doctor.add_argument("topic", nargs="?", choices=["memory", "version", "hygiene"])
     doctor.add_argument("--report-only", action="store_true")
     doctor.add_argument("--refresh", action="store_true", help="Reserved for future explicit ref refresh")
     subparsers.add_parser("status", help="Report current Nexus status")

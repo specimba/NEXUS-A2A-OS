@@ -1,0 +1,4 @@
+version = "1.0.0"
+[allowlist]
+# Placeholder — restore from source when available
+paths = []

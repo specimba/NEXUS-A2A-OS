@@ -401,6 +401,34 @@ class MisalignmentDetector:
             self._record_event(event)
         return events
 
+    def check_representation_integrity(self, safety_projection_norms: Dict[str, float],
+                                       agent_id: str = "unknown", trace_id: Optional[str] = None) -> List[DetectionEvent]:
+        """
+        Check representation integrity at the commitment layer.
+        Detects Contextual Representation Ablation (CRA) attacks:
+        if the norm of the 'refusal-inducing' safety subspace is below a threshold,
+        it indicates the guardrails have been ablated/suppressed at inference time.
+        """
+        events = []
+        # Threshold for safety subspace norm. If it drops below 0.15, it indicates ablation/silencing.
+        MIN_SAFETY_NORM = 0.15
+        
+        for layer, norm in safety_projection_norms.items():
+            if norm < MIN_SAFETY_NORM:
+                events.append(DetectionEvent(
+                    agent_id=agent_id,
+                    pattern=ConcealmentPattern.SUSPICIOUS_ACTIVATION,
+                    risk_level=RiskLevel.CRITICAL,
+                    evidence=f"Safety representation ablation detected at {layer} (norm={norm:.4f} < threshold={MIN_SAFETY_NORM})",
+                    trace_id=trace_id,
+                    context={"layer": layer, "norm": norm, "threshold": MIN_SAFETY_NORM, "source": "contextual_representation_ablation_check"},
+                    confidence=0.98
+                ))
+                
+        for event in events:
+            self._record_event(event)
+        return events
+
     # ── Profile Management ────────────────────────────────────────
 
     def _get_profile(self, agent_id: str) -> AgentBehaviorProfile:

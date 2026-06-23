@@ -57,7 +57,7 @@ Nexus OS is a governed, local-first agent operating system. Python/FastAPI gover
 ### Phase A Emergency Hardening (June 12, 2026)
 - **nexusctl doctor/status restored** — `nexusctl/cli.py`: comprehensive diagnostic with module health checks, timestamped reporting, protected workload awareness. No more `legacy_doctor_entrypoint_not_restored`.
 - **pytest cache_dir fix** — `pyproject.toml`: `cache_dir = ".tmp/pytest_cache"` prevents WinError 5 access denied on Windows by using a project-local temp directory (already gitignored).
-- **PortRegistry** — `nexus_os/bridge/port_registry.py` (165 lines): thread-safe, JSON-backed, active socket checks, canonical port validation (7352/7353/7354/7355/11436), stale registration cleanup, health check reporting. `bridge_server.py` auto-registers port 7354 before binding.
+- **PortRegistry** — `nexus_os/bridge/port_registry.py`: thread-safe, JSON-backed, active socket checks, canonical port validation (`3001`, `7350`, `7352`, `7353`, `7354`, `7355`, `7356`, `7357`, `11434`, `11435`, `11436`), stale registration cleanup, health check reporting. Hard rule: `7352` is Brain API only; ModelRelay uses `7350` primary and `7355` fallback.
 - **SQLite DB Guard timeout** — `timeout=30.0` added to all `sqlite3.connect()` calls in `db/manager.py`, `bridge/server.py`, `monitoring/token_guard.py`. Prevents deadlock under concurrent schema setup.
 
 ### Phase B P1 — CLAW Ecosystem Integration (June 12, 2026)
@@ -210,7 +210,7 @@ The **last active work** (from `session-ses_1e41.md`, 6,186 lines) was:
 
 The **largest completed work items before that:**
 1. v4 stress lab dataset regeneration (536K rows)
-2. v5 frontier dataset generation (181K rows)  
+2. v5 frontier dataset generation (181K rows)
 3. 12 API provider integration
 4. Dashboard 8+1 tab completion
 5. Phase 0 security module
@@ -254,9 +254,11 @@ The **largest completed work items before that:**
 |------|---------|----------|--------|
 | 3000 | WSL Relay | TCP | ONLINE (NOT Next.js) |
 | 3001 | Next.js Dashboard | HTTP | CONFIGURED (reconfigured from 3000) |
-| 7352 | ModelRelay / Nexus API | HTTP | ONLINE — 99 UP, Arena-calibrated scores |
+| 7350 | ModelRelay Node/npm primary | HTTP | `/v1/chat/completions`, provider routing, smart ping |
+| 7352 | NEXUS Brain API / Governance | HTTP | FastAPI governance routes + WS; never ModelRelay |
 | 7353 | TWAVE wrapper | HTTP | `/twave/*` — wrapper-only, HOLD |
 | 7354 | GROSS MCP Bridge | HTTP | ONLINE — 10 tools, SSE transport, read-only |
+| 7355 | ModelRelay Python fallback/internal | HTTP | fallback relay, internal health |
 | 7356 | HTML Dashboard | HTTP | Quality × Health Matrix |
 | 7357 | God Mode Proxy v3 | HTTP | FastAPI, 7 profiles, GLM 5.1 selected |
 | 3003 | WebSocket mini-service | Socket.io | Dashboard socket layer |
@@ -267,9 +269,9 @@ The **largest completed work items before that:**
 
 ### Unified Architecture (3-Layer Cognitive Loop)
 
-**Trust** provides the *governance plane* (what is allowed).  
-**Memory** provides the *data plane* (what is known).  
-**Archivist** provides the *knowledge plane* (what is learned).  
+**Trust** provides the *governance plane* (what is allowed).
+**Memory** provides the *data plane* (what is known).
+**Archivist** provides the *knowledge plane* (what is learned).
 
 ### Key Deliverables
 
@@ -296,6 +298,19 @@ The **largest completed work items before that:**
 - `docs/research/NEXUS_TRUST_FRAMEWORK.md` → `nexus_os/archivist/canonical/NEXUS_TRUST_FRAMEWORK.md`
 - All future high-value docs (≥500 words, structured, novel) auto-cloned to `archivist/canonical/`
 | 11434 | Local Ollama | HTTP | GPU 8GB VRAM, ~35% utilization |
+
+---
+
+## CURRENT STATE (2026-06-18, Grounded)
+
+Added 2026-06-18: Verified facts from recent recovery work.
+
+- Team roster: OpenCode CLI / Kilo CLI / Mimo CLI / Cline CLI / Hermes, all routed through NEXUS ModelRelay (`7350` Node/npm primary, `7355` Python fallback/internal). `7352` is Brain API only.
+- Step 3.7 Flash grounding review artifact added: `docs/research/STEP_3_7_FLASH_GROUNDING_REVIEW_2026-06-18.md`.
+- NEXUSCLAW task files present: `docs/research/NEXUSCLAW_DESIGN.md` and `tasks/pending/2026-06-18-nexusclaw-lane-a-design.task.md`; `nexus_os/claw/` tree also present.
+- Recovery work completed: root files restored (`CONTRIBUTING.md`, `ONBOARDING.md`, `PUBLIC_SHARE_ALLOWLIST.toml`, `NEXT_MOVEMENTS_PLAN.txt`, `PROJECT_GROUNDING_LEDGER.md`, `CLAUDE.md`); team/role map corrected; security test counts: 7 test files present and 403/403 security tests green per `01_PROJECT_STATE.md`.
+- Active blockers: `models/guards/guard_plane_service.py` source path mismatch with the import path in tests; `PUBLIC_SHARE_ALLOWLIST.toml` placeholder still present; `pm2_nexus.json` intentionally skipped per session decision.
+- DWM GPU hog evidence: RTX 4070, internal 240 Hz vs external 74 Hz mismatch, 33+ GPU processes, HAGS disabled; source evidence `ARCHIVIST\dwm_gpu_analysis.md`.
 
 ---
 

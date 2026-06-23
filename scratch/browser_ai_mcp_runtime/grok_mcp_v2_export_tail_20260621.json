@@ -1,0 +1,236 @@
+{
+  "status": "READY",
+  "target": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?REDACTED"
+  },
+  "state": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba",
+    "readyState": "complete",
+    "inputCount": 1,
+    "inputs": [
+      {
+        "index": 0,
+        "tag": "DIV",
+        "role": "textbox",
+        "aria": "Ask Grok anything",
+        "placeholder": null,
+        "text": "\n"
+      }
+    ],
+    "buttons": [
+      {
+        "index": 0,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Copy"
+      },
+      {
+        "index": 1,
+        "tag": "BUTTON",
+        "aria": "Wrap",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 2,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Copy"
+      },
+      {
+        "index": 3,
+        "tag": "BUTTON",
+        "aria": "Edit",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 4,
+        "tag": "BUTTON",
+        "aria": "Copy",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 5,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Thought for 20s"
+      },
+      {
+        "index": 6,
+        "tag": "BUTTON",
+        "aria": "Collapse",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 7,
+        "tag": "BUTTON",
+        "aria": "Wrap",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 8,
+        "tag": "BUTTON",
+        "aria": "Run",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 9,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Copy"
+      },
+      {
+        "index": 10,
+        "tag": "BUTTON",
+        "aria": "Collapse",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 11,
+        "tag": "BUTTON",
+        "aria": "Wrap",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 12,
+        "tag": "BUTTON",
+        "aria": "Run",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 13,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Copy"
+      },
+      {
+        "index": 14,
+        "tag": "BUTTON",
+        "aria": "Wrap",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 15,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Copy"
+      },
+      {
+        "index": 16,
+        "tag": "BUTTON",
+        "aria": "Copy",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 17,
+        "tag": "BUTTON",
+        "aria": "Create share link",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 18,
+        "tag": "BUTTON",
+        "aria": "Like",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 19,
+        "tag": "BUTTON",
+        "aria": "Dislike",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 20,
+        "tag": "BUTTON",
+        "aria": "Regenerate",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 21,
+        "tag": "BUTTON",
+        "aria": "More actions",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 22,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Explore MCP bridge security policies"
+      },
+      {
+        "index": 23,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Investigate browser automation headless mode"
+      },
+      {
+        "index": 24,
+        "tag": "BUTTON",
+        "aria": null,
+        "title": null,
+        "text": "Add missing _sanitize_headers method"
+      },
+      {
+        "index": 25,
+        "tag": "BUTTON",
+        "aria": "Attach",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 26,
+        "tag": "BUTTON",
+        "aria": "Model select",
+        "title": null,
+        "text": "Expert"
+      },
+      {
+        "index": 27,
+        "tag": "BUTTON",
+        "aria": "Dictation (Ctrl+D)",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 28,
+        "tag": "BUTTON",
+        "aria": "Submit",
+        "title": null,
+        "text": ""
+      },
+      {
+        "index": 29,
+        "tag": "BUTTON",
+        "aria": "Close",
+        "title": null,
+        "text": ""
+      }
+    ],
+    "visibleTail": "lse)\n    assert res.status == \"executed\"\n    supervisor.relay.invoke.assert_called_once()\n\n\ndef test_host_blocked_zero_invoke_calls(supervisor):\n    with patch.object(supervisor.relay, \"validate_browser_diagnostic_request\", side_effect=ValueError(\"blocked\")):\n        req = EgressRequest(target=\"https://evil.example.com\", payload={})\n        res = supervisor.execute_governed(req, dry_run=False)\n        assert res.status == \"blocked\"\n        supervisor.relay.invoke.assert_not_called()\n\n\ndef test_method_blocked_zero_invoke_calls(supervisor):\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"write\")\n    with patch.object(supervisor.relay, \"validate_browser_diagnostic_request\", side_effect=ValueError(\"method blocked\")):\n        res = supervisor.execute_governed(req, dry_run=False)\n        assert res.status == \"blocked\"\n        supervisor.relay.invoke.assert_not_called()\n\n\ndef test_auth_cookie_xapikey_headers_stripped(supervisor):\n    dirty = {\"Authorization\": \"Bearer x\", \"Cookie\": \"a=1\", \"X-Api-Key\": \"secret\", \"Accept\": \"json\"}\n    clean = supervisor.relay._sanitize_headers(dirty)\n    assert \"authorization\" not in {k.lower() for k in clean}\n    assert \"cookie\" not in {k.lower() for k in clean}\n    assert \"x-api-key\" not in {k.lower() for k in clean}\n    assert clean.get(\"Accept\") == \"json\"\n\n\ndef test_token_budget_denied_blocks_before_invoke(supervisor):\n    supervisor.token_budget_checker.return_value = False\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={})\n    res = supervisor.execute_governed(req, dry_run=False)\n    assert res.status == \"blocked\"\n    assert \"token_budget\" in res.decision.reason\n    supervisor.relay.invoke.assert_not_called()\n\n\ndef test_approval_required_blocks_before_invoke(supervisor):\n    supervisor.approval_checker.return_value = False\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"write\")\n    res = supervisor.execute_governed(req, dry_run=False)\n    assert res.status == \"require_approval\"\n    supervisor.relay.invoke.assert_not_called()\n\n\ndef test_memory_state_persisted_and_loaded(supervisor):\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={})\n    res1 = supervisor.execute_governed(req, dry_run=True, task_id=\"mem-test-1\")\n    res2 = supervisor.execute_governed(req, dry_run=True, task_id=\"mem-test-1\")\n    assert \"steps\" in res2.memory_state\n    assert len(res2.memory_state[\"steps\"]) >= 1\nVERIFICATION\nPowerShell\npython -m pytest tests/tools/test_governed_egress_supervisor.py -q --tb=short\npython -m pytest tests/tools/test_grok_mcp_server_v2_static.py tests/bridge/test_browser_http_diagnostic.py -q --tb=short\npython -m nexus_os.cli.nexusctl gross-http https://huggingface.co --method HEAD --audit-id gov-supervisor-v1 --operator codex --live\nMEMORY_OUTRO\nartifact_name: GovernedBrowserAIEgressSupervisor_v1\nblocker: pending Codex local file creation and tests\nnext_prompt: if tests fail, provide only the minimal patch to fix the failing assertion/import\nExplore MCP bridge security policies\nInvestigate browser automation headless mode\nAdd missing _sanitize_headers method\n\n\n\n\nExpert\nAttach to message\nDrop here to add files to your message\nThoughts\nThinking about your request\nContinuing NEXUS Grok MCP integration\nDesigning the governed egress supervisor\nDefining the governed egress supervisor\nImplementing the governed egress supervisor\nWriting the governed egress supervisor\nUpgrade to SuperGrok"
+  }
+}

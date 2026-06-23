@@ -1,0 +1,30 @@
+{
+  "source": "cline-account",
+  "version": "org-01KR1V8JMDAP2R9BHP20M9G9MJ",
+  "remoteConfig": {
+    "version": "v1",
+    "providerSettings": {
+      "Cline": {}
+    },
+    "telemetryEnabled": true,
+    "kanbanEnabled": false,
+    "mcpMarketplaceEnabled": true,
+    "yoloModeAllowed": true,
+    "openTelemetryEnabled": false,
+    "openTelemetryOtlpInsecure": false,
+    "enterpriseTelemetry": {
+      "promptUploading": {}
+    }
+  },
+  "metadata": {
+    "paths": {
+      "pluginName": "enterprise",
+      "pluginPath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise",
+      "workflowsPath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise\\workflows",
+      "skillsPath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise\\skills",
+      "bundleCachePath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise\\cache\\bundle.json",
+      "manifestPath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise\\managed.json",
+      "rulesFilePath": "C:\\Users\\speci.000\\Documents\\NEXUS\\.cline\\enterprise\\rules.md"
+    }
+  }
+}

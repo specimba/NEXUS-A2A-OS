@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 const MODELS = [
   // Reasoning tier
-  { id: 'glm-4-7-nim', name: 'GLM-4.7', provider: 'z-ai', tier: 'reasoning', contextWindow: 128000, isFree: true, health: 'healthy', latencyMs: 12 },
+  { id: 'glm-5-2', name: 'GLM-5.2', provider: 'z-ai', tier: 'reasoning', contextWindow: 128000, isFree: true, health: 'healthy', latencyMs: 12 },
   { id: 'deepseek-r1-free', name: 'DeepSeek R1 Free', provider: 'openrouter', tier: 'reasoning', contextWindow: 64000, isFree: true, health: 'healthy', latencyMs: 180 },
   { id: 'qwen3-coder', name: 'Qwen3 Coder', provider: 'openrouter', tier: 'reasoning', contextWindow: 128000, isFree: true, health: 'healthy', latencyMs: 195 },
   { id: 'trinity-large', name: 'Trinity Large', provider: 'openrouter', tier: 'reasoning', contextWindow: 96000, isFree: true, health: 'healthy', latencyMs: 210 },
@@ -34,3 +34,4 @@ const MODELS = [
 export async function GET() {
   return NextResponse.json({ models: MODELS, total: MODELS.length })
 }
+

@@ -940,6 +940,17 @@ def create_app(
             )
         return payload
 
+    @app.post("/api/grok-control/events")
+    async def grok_control_events(request: Request):
+        from nexus_os.bridge.grok_control import validate_grok_control_event
+
+        client_host = request.client.host if request.client else ""
+        if client_host not in {"127.0.0.1", "::1", "testclient"}:
+            return JSONResponse(content={"accepted": False, "reason": "localhost_only"}, status_code=403)
+        body = await request.json()
+        decision = validate_grok_control_event(body)
+        return JSONResponse(content=decision.to_dict(), status_code=200 if decision.accepted else 422)
+
     @app.post("/skills/propose")
     async def skills_propose(request: Request):
         if governance is None:

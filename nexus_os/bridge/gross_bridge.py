@@ -82,6 +82,7 @@ class GrossMCPBridge:
         self,
         bridge_url: Optional[str] = None,
         trust_threshold: float = GOVERNANCE_TOOLS_TRUST_THRESHOLD,
+        privilege_policy: Optional[Any] = None,
     ) -> None:
         config = MCPConnectionConfig(
             bridge_url=bridge_url or DEFAULT_GROSS_URL,
@@ -91,6 +92,15 @@ class GrossMCPBridge:
         self._client = GovernedMCPClient(config)
         self._agent_id = GROSS_AGENT_ID
         self._registered = False
+        try:
+            from nexus_os.bridge.intern_discovery import InternDiscoveryClient
+            self._intern_client = InternDiscoveryClient()
+        except ImportError:
+            self._intern_client = None
+
+        from nexus_os.governor.privilege_control import ProgentPrivilegeControl
+        self._privilege_control = ProgentPrivilegeControl(privilege_policy)
+        self._custom_policy_provided = privilege_policy is not None
 
     # ── Properties ─────────────────────────────────────────────────
 
@@ -132,10 +142,25 @@ class GrossMCPBridge:
 
         # Discover tools
         tools = self._client.list_tools()
+        if self._intern_client:
+            try:
+                scp_tools = self._intern_client.discover_scp_tools()
+                for tool in scp_tools:
+                    self._client._tools[tool.name] = tool
+                tools = self._client.list_tools()
+                logger.info("Mounted %d SCP tools from Intern Discovery", len(scp_tools))
+            except Exception as e:
+                logger.error("Failed to mount SCP tools from Intern Discovery: %s", e)
         logger.info(
             "GROSS MCP bridge connected: %d tools discovered at %s",
             len(tools), self._client.config.bridge_url,
         )
+
+        # If no custom policy was provided, populate default policy allowing all discovered tools
+        if not self._custom_policy_provided:
+            for tool in tools:
+                if tool.name not in self._privilege_control.policy.allowed_tools:
+                    self._privilege_control.policy.allowed_tools[tool.name] = {}
 
         # Register with governor if provided
         if governor is not None:
@@ -216,6 +241,35 @@ class GrossMCPBridge:
         Returns:
             MCPCallResult with result or rejection.
         """
+        # Progent privilege control check
+        args_dict = arguments or {}
+        if not self._privilege_control.check_call(name, args_dict):
+            logger.warning("GROSS Bridge: Tool call '%s' blocked by Progent privilege control", name)
+            return MCPCallResult(
+                tool=name,
+                blocked=True,
+                reason=f"Blocked by Progent privilege control: tool or arguments violation",
+            )
+
+        # Route scientific SCP tools via InternDiscoveryClient
+        if self._intern_client and name in self._intern_client._scp_tools:
+            tool = self._intern_client._scp_tools[name]
+            if (
+                trust_score is not None
+                and tool.governance_level in ("high", "critical")
+                and trust_score < self._client.config.trust_threshold
+            ):
+                return MCPCallResult(
+                    tool=name,
+                    blocked=True,
+                    reason=(
+                        f"Trust gate blocked: trust={trust_score:.1f} < "
+                        f"threshold={self._client.config.trust_threshold} for "
+                        f"governance tool '{name}'"
+                    ),
+                )
+            return self._intern_client.call_scp_tool(name, arguments or {})
+
         return self._client.call_tool(name, arguments or {}, trust_score=trust_score)
 
     # ── Health ─────────────────────────────────────────────────────

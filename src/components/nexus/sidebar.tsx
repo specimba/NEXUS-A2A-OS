@@ -19,6 +19,7 @@ import {
   Network,
   FileCode2,
   Brain,
+  Activity,
   Swords,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -54,6 +55,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'kpi', label: 'KPI Dashboard', icon: <Target className="h-4 w-4" /> },
   { id: 'dashboards', label: 'My Dashboards', icon: <LayoutGrid className="h-4 w-4" /> },
   { id: 'mcp', label: 'MCP Hub', icon: <Network className="h-4 w-4" />, badge: 'NEW' },
+  { id: 'brain-status', label: 'Brain Status', icon: <Activity className="h-4 w-4" />, badge: 'DOC' },
   { id: 'config', label: 'Config', icon: <FileCode2 className="h-4 w-4" /> },
 ]
 

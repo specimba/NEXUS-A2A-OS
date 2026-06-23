@@ -17,6 +17,7 @@ import { RateLimitTab } from './tabs/rate-limit-tab'
 import { KpiTab } from './tabs/kpi-tab'
 import { DashboardsTab } from './tabs/dashboards-tab'
 import { McpHubTab } from './tabs/mcp-hub-tab'
+import { BrainStatusTab } from './tabs/brain-status-tab'
 import { ConfigTab } from './tabs/config-tab'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -35,6 +36,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   kpi: KpiTab,
   dashboards: DashboardsTab,
   mcp: McpHubTab,
+  'brain-status': BrainStatusTab,
   config: ConfigTab,
 }
 

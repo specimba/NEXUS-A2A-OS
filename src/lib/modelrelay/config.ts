@@ -27,7 +27,7 @@ export interface ProviderConfig {
 export const PROVIDERS: Record<string, ProviderConfig> = {
   zai: {
     id: 'zai',
-    name: 'Z-AI (GLM-4.7)',
+    name: 'Z-AI (GLM-5.2)',
     provider: 'zai',
     baseUrl: 'https://api.z.ai',
     chatPath: '/v1/chat/completions',
@@ -42,7 +42,7 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     priority: 1,
     isFree: true,
     isLocal: false,
-    models: ['glm-4-7', 'glm-5'],
+    models: ['glm-5.2'],
     envKey: 'ZAI_API_KEY',
   },
   nvidia: {
@@ -360,12 +360,12 @@ export const INTENT_KEYWORDS: Record<IntentCategory, string[]> = {
 // ─── Fallback Chains ─────────────────────────────────────────────────────
 
 export const FALLBACK_CHAINS: Record<string, string[]> = {
-  code: ['zai/glm-4-7', 'nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
-  reasoning: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'openrouter/google/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
-  research: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
+  code: ['zai/glm-5.2', 'nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
+  reasoning: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/google/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
+  research: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
   speed: ['groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b', 'groq/mixtral-8x7b-32768'],
-  general: ['zai/glm-4-7', 'openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
-  security: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
+  general: ['zai/glm-5.2', 'openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
+  security: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
 }
 
 // ─── Model Registry ──────────────────────────────────────────────────────
@@ -389,8 +389,7 @@ export interface ModelInfo {
 
 export const MODELS: ModelInfo[] = [
   // ── Z-AI (Primary) ────────────────────────────────────────────────
-  { modelId: 'zai/glm-4-7', provider: 'zai', name: 'GLM-4.7', tier: 95, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 250, supportsVision: true, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  { modelId: 'zai/glm-5', provider: 'zai', name: 'GLM-5', tier: 99, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 300, supportsVision: true, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'zai/glm-5.2', provider: 'zai', name: 'GLM-5.2', tier: 99, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 300, supportsVision: true, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   // ── NVIDIA NIM ─────────────────────────────────────────────────────
   { modelId: 'nvidia/nemotron-4-340b-instruct', provider: 'nvidia', name: 'Nemotron-4 340B', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   { modelId: 'nvidia/llama-3.1-405b-instruct', provider: 'nvidia', name: 'Llama 3.1 405B', tier: 88, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 220, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },

@@ -147,7 +147,7 @@ class ArchivistFitter:
         lines.append("")
         lines.append("## Sources")
         lines.append("")
-        for i, r in enumerate(records[:10], 1):  # Top 10 sources
+        for i, r in enumerate(records[:10], 1):
             title = r.import_record.title or Path(r.import_record.file_path).name
             lines.append(f"{i}. **{title}**")
             lines.append(f"   - Type: {r.import_record.file_type.value}")
@@ -160,8 +160,19 @@ class ArchivistFitter:
         lines.append("")
         lines.append("## Key Findings")
         lines.append("")
-        # Placeholder for LLM-generated synthesis (future work)
-        lines.append("*Synthesis pending: structured summary of key findings across sources.*")
+        lines.append("*Auto-summary from source metadata (LLM synthesis pending):*")
+        lines.append("")
+        for tag in sorted(tags):
+            count = sum(1 for r in records if tag in r.topic_tags)
+            lines.append(f"- **{tag}**: {count} source(s) address this topic")
+        lines.append("")
+        lines.append("### Source Quality Distribution")
+        high_quality = sum(1 for r in records if r.quality_score >= 0.7)
+        med_quality = sum(1 for r in records if 0.5 <= r.quality_score < 0.7)
+        low_quality = sum(1 for r in records if r.quality_score < 0.5)
+        lines.append(f"- High quality (>=0.7): {high_quality}")
+        lines.append(f"- Medium quality (0.5-0.7): {med_quality}")
+        lines.append(f"- Low quality (<0.5): {low_quality}")
         lines.append("")
         lines.append("## Relevance to NEXUS")
         lines.append("")
@@ -210,6 +221,7 @@ class ArchivistFitter:
 
     def save_dossier(self, dossier: Dossier) -> Path:
         """Save dossier to wiki output directory."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         filename = f"dossier_{dossier.topic}.md"
         # Sanitize filename
         filename = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)

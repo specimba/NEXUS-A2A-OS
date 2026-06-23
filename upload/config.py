@@ -151,6 +151,25 @@ PROVIDERS = {
         "is_free": True,
         "is_local": False,
     },
+    "longcat": {
+        "name": "LongCat 2.0 Preview",
+        "provider": "longcat",
+        "base_url": "https://api.longcat.chat/openai/v1",
+        "chat_path": "/chat/completions",
+        "models_path": "/models",
+        "auth_type": "bearer",
+        "quota_type": "tokens",
+        "quota_remaining": "beta_quota",
+        "quota_reset": None,
+        "cost_per_1m": 0.0,
+        "latency_ms": 1000,
+        "status": "up",
+        "tier": 94,
+        "priority": 9,
+        "is_free": True,
+        "is_local": False,
+        "models": ["LongCat-2.0-Preview"],
+    },
 }
 
 # ─── Routing Defaults ──────────────────────────────────────────────────────
@@ -207,8 +226,8 @@ INTENT_TO_DOMAIN = {
 
 FALLBACK_CHAINS = {
     "code": ["osman-coder", "qwen2.5-coder:7b", "Codestral", "deepseek-chat"],
-    "reasoning": ["osman-reasoning", "qwen3:8b", "Qwen3-80B-Thinking", "intern-s2-preview"],
-    "research": ["GLM-5", "Kimi-K2.5", "Nemotron-3-Super"],
+    "reasoning": ["osman-reasoning", "qwen3:8b", "Qwen3-80B-Thinking", "intern-s2-preview", "LongCat-2.0-Preview"],
+    "research": ["GLM-5", "Kimi-K2.5", "Nemotron-3-Super", "LongCat-2.0-Preview"],
     "fast": ["osman-fast", "Bonsai-4B", "locooperator"],
     "security": ["Trinity-Large-Preview", "MiniMax-M2.5", "GLM-5"],
     "general": ["osman-agent", "qwen3.5:4b", "llama3.3-nemotron-super"],
@@ -232,3 +251,4 @@ if not LOGGER.handlers:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s"))
     LOGGER.addHandler(handler)
+

@@ -13,6 +13,7 @@ Usage:
 Dependencies: None (stdlib only)
 """
 
+import logging
 import os
 import sys
 import json
@@ -20,6 +21,9 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
+from typing import Optional
+
+logger = logging.getLogger("nexus_os.archivist")
 
 # Fast cryptographic hashing — blake3 is 10x faster than SHA-256
 try:
@@ -52,22 +56,25 @@ EXCLUDE_PATTERNS = ['__pycache__', '.git', 'node_modules', 'archive', '.nexus_pi
 def now_iso() -> str:
     return datetime.now().isoformat()
 
-def file_hash(path: Path) -> str:
+def file_hash(path: Path) -> Optional[str]:
     """Fast fingerprint using size + mtime (not full hash for speed).
     
     For cryptographic integrity checks, use file_hash_blake3() instead.
+    
+    Returns None on error (e.g. file not found or stat failure).
     """
     try:
         stat = path.stat()
         return f"{stat.st_size}-{stat.st_mtime}"
     except Exception:
-        return 'error'
+        return None
 
-def file_hash_blake3(path: Path, max_size_mb: int = 100) -> str:
+def file_hash_blake3(path: Path, max_size_mb: int = 100) -> Optional[str]:
     """Cryptographic hash using blake3 (10x faster than SHA-256).
     
     Skips files larger than max_size_mb for performance.
     Returns '' for oversized files.
+    Returns None on error.
     """
     try:
         size = path.stat().st_size
@@ -85,12 +92,12 @@ def file_hash_blake3(path: Path, max_size_mb: int = 100) -> str:
         
         return hasher.hexdigest()
     except Exception:
-        return 'error'
+        return None
 
 def should_exclude(path: Path) -> bool:
-    name = path.name.lower()
     for pat in EXCLUDE_PATTERNS:
-        if pat.lower() in name:
+        pat_lower = pat.lower()
+        if any(part.lower() == pat_lower for part in Path(path).parts):
             return True
     return False
 
@@ -124,12 +131,25 @@ def scan_directory(dir_path: Path, max_depth: int = 3, max_size_mb: int = 100) -
                     })
                     count += 1
                     if count % 500 == 0:
-                        print(f"    ... scanned {count} files")
-                except Exception:
-                    pass
+                        logger.debug("Scanned %d files", count)
+                except Exception as e:
+                    logger.debug("Failed to stat %s: %s", fpath, e)
     except Exception as e:
-        print(f"Warning: Error scanning {dir_path}: {e}")
+        logger.warning("Error scanning %s: %s", dir_path, e)
     return files
+
+CATEGORIZE_TO_FILETYPE = {
+    "paper": "PAPER",
+    "log": "LOG",
+    "code": "CODE",
+    "config": "CONFIG",
+    "documentation": "MARKDOWN",
+    "plan": "MARKDOWN",
+    "report": "LOG",
+    "text": "LOG",
+    "archive": "UNKNOWN",
+    "other": "UNKNOWN",
+}
 
 def categorize_file(path: str) -> str:
     """Categorize file by extension and name."""

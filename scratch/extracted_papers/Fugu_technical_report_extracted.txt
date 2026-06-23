@@ -1,0 +1,259 @@
+
+================ PAGE 1 ================
+2026-6-22
+Sakana Fugu Technical Report
+Fugu Team, Sakana AI1
+The capabilities of frontier Large Language Models (LLMs) continue to advance, with different providers
+increasingly specializing in distinct domains. This raises a natural next objective: how to combine the
+individual specializations of various LLMs into a collectively intelligent system. To this end, we report the
+development of Sakana Fugu, a family of orchestrator models that harness and amplify the capabilities
+of an LLM agent team. Fugu models are themselves language models trained to understand user queries
+and dynamically devise agentic scaffolds to solve them. Through these adaptive scaffolds, Fugu accesses
+performance beyond any individual LLM agent, achieving state-of-the-art results compared to other
+publicly accessible models across a range of challenging tasks, including SWE-Bench Pro, Terminal Bench,
+LiveCodeBench, GPQA-Diamond, Humanity’s Last Exam, and CharXiv Reasoning. We release two models:
+Fugu, which balances performance with latency for everyday use, andFugu-Ultra, which prioritizes
+answer quality on the hardest problems. We describe our training paradigm, which encompasses
+large-scale fine-tuning, evolutionary algorithms, and reinforcement learning approaches, along with the
+infrastructure and core design principles that turn these methods into a production system. We hope
+this report encourages further research into multi-agent systems and dynamic, query-adaptive agentic
+scaffolds as a path toward the next frontier of AI capabilities, accessed through collective intelligence.
+https://sakana.ai/fugu
+1. Introduction
+Fugu Ultra Fugu Fable 5 Gemini 3.1
+Pro
+GPT 5.5 Opus 4.860
+70
+80
+90Score
+Terminal Bench 2.1
+82.1
+80.2 80.4
+70.3
+78.2
+74.6
+Fugu Ultra Fugu Mythos
+Preview
+Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+CharXiv Reasoning
+86.6
+85.1 86.1
+83.3 84.1 84.2
+Fugu Ultra Fugu Mythos
+Preview
+Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+GPQA-D
+95.5 95.5 94.6 94.3 93.6
+92.0
+Fugu Ultra Fugu Fable 5 Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+LiveCodeBench
+93.2 92.9
+89.8
+88.5
+85.3
+87.8
+Fugu Ultra Fugu Fable 5 Gemini 3.1
+Pro
+GPT 5.5 Opus 4.840
+50
+60
+70
+80Score
+SciCode
+58.7
+60.1 60.2
+58.9
+56.1
+53.5
+Fugu Ultra Fugu Fable 5 Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+SWEBench Pro
+73.7
+59.0
+80.0
+54.2
+58.6
+69.2
+Fugu Ultra Fugu Fable 5 Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+Humanity's Last Exam (text)
+50.0
+48.5
+53.3
+44.7 44.3
+45.7
+Fugu Ultra Fugu Mythos
+Preview
+Gemini 3.1
+Pro
+GPT 5.5 Opus 4.8
+CTI-REALM
+69.4
+67.5 68.5
+56.0
+67.3
+69.6
+Figure 1 | Performance comparison ofFugu,Fugu-Ultra, and baseline frontier models across
+a suite of coding, reasoning, scientific, and agentic benchmarks. All scores other than Fugu’s are
+reported by the model providers. For Fable 5 and Mythos Preview, we report the max of the two if
+both scores are available on the same benchmark. Neither of them is in Fugu’s agent pool as they are
+not publicly accessible.
+Frontier Large Language Models (LLMs) now approach or match expert-level performance across
+1Please cite this work as "Sakana AI (2026)". Full authorship and contributions appear at the end of the document.
+================ PAGE 2 ================
+Sakana Fugu Technical Report
+a wide range of domains (Anthropic, 2026a; Luong and Lockhart, 2025; Nori et al., 2025; OpenAI,
+2026b; Patwardhan et al., 2025). For example, Gemini-3-Deep-Think recently achieved gold-medal
+performance at the International Mathematical Olympiad (Luong and Lockhart, 2025), GPT-5.5
+disproved an 80-year-old Erdős conjecture in combinatorial geometry (OpenAI, 2026b), and Claude-
+Mythos uncovered numerous zero-day vulnerabilities in OpenBSD and FreeBSD (Carlini et al., 2026).
+Yet as frontier capabilities advance, we also observe increasingly differentiated model specializations
+at multiple levels of granularity. At the domain level, past GPT-series models often displayed state-of-
+the-art performance on mathematical reasoning tasks (Glazer et al., 2024; OpenAI, 2026b), while
+Opus-series models have specialized in software engineering and cybersecurity (Carlini et al., 2026;
+Jimenez et al., 2024). Within a single domain, the differences can be even more fine-grained: in
+competitive coding, Gemini-3.1-Pro can be particularly effective at directly implementing known
+algorithms, while GPT-series models can often excel at planning and combining multiple algorithmic
+ideas to solve the hardest problems (Zheng et al., 2026). These observations suggest that the next
+frontier may not be achieved by any single model alone, but by systems that can identify, combine,
+and amplify the complementary strengths of many models. A system that can engineer software
+like the strongest coding model, reason mathematically like the strongest theorem-proving model,
+and dynamically decide when each specialization is needed would provide a natural path toward
+expanding frontier performance through collective intelligence.
+At the same time, recent improvements in LLM performance have been driven not only by advances
+in the underlying models but also by agentic scaffolds that treat the LLM as one component within a
+larger system (Hu et al., 2025). Such scaffolds augment autoregressive generation with structured
+prompting (Madaan et al., 2023; Wei et al., 2022; Yao et al., 2022), external tool use and function
+calling (Qu et al., 2025; Schick et al., 2024), environment feedback, and memory management
+(Zhang et al., 2025). This is especially visible in software engineering, where Claude Code and other
+modern agentic scaffolds can shape the model’s interaction trajectory, supply continuous environment
+feedback, and turn raw model capability into an iterative agentic workflow (Anthropic, 2026d). These
+developments suggest that capability should be understood not only as a property of the model, but
+also as a property of the scaffold through which the model acts.
+The growing range of language models with diverse capabilities and the impact of domain-specific
+agentic scaffolds motivate the development of systems that can orchestrate collective intelligence:
+dynamically choosing which models to involve, how they should communicate, use tools and interact
+with the environment, and when their outputs should be synthesized. We view this kind of model
+orchestration as a new complementary scaling axis beyond ever larger and expensive language models.
+If successful, this direction could make frontier-level capability more efficient, more modular, and
+more broadly accessible.
+In this technical report, we detail the development of Sakana Fugu, our system harnessing the benefits
+of collective intelligence to realize this vision. Sakana Fugu is a family of language models trained
+to adaptively and dynamically orchestrate a team of more powerful frontier agent workers. In our
+initial release, we make two variants available to the public, targeting different operating points.
+Fuguis optimized for speed, selecting a single worker per input so that its latency is comparable to a
+direct call to a frontier model, while still routing each query to the most capable agent for that input.
+Despite this efficiency,Fugumatches and in many cases surpasses best-in-class performance across
+tasks.Fugu-Ultrais optimized for performance, composing workflows of multiple agents per input.
+It therefore trades additional latency for higher quality and is intended for the most complex tasks
+that benefit from combining multiple specializations. Figure 1 compares Sakana Fugu with frontier
+models on popular benchmarks. Our Fugu models surpass publicly accessible frontier models and are
+shoulder-to-shoulder with Fable 5 and Mythos Preview in various rigorous engineering, scientific, and
+reasoning benchmarks while delivering frontier capability without the risk of export controls. See
+2
+================ PAGE 3 ================
+Sakana Fugu Technical Report
+section 4 for more results.
+Beyond raw performance, we believe learned orchestration carries broader implications. If capability
+can be amplified by composing existing models rather than only by training larger ones, then progress
+in AI need not depend solely on access to the largest training runs. Orchestration offers a more
+modular and accessible path, in which improvements arise from how models are selected, coordinated,
+and combined, and in which newly released models can be incorporated into the worker pool as
+they appear. This composability also gives users meaningful control over the system. For example,
+agent pools can be configured to favor particular providers, exclude specific models, or respect data,
+privacy, and compliance constraints, without retraining. More speculatively, treating orchestration as
+a first-class scaling axis may have economic and geopolitical consequences, distributing the benefits
+of frontier AI more broadly across organizations and regions rather than concentrating them in those
+able to train the largest models. We offer Fugu as a first step in this direction, and hope it encourages
+further research into collective intelligence as a path toward the next frontier of AI capabilities.
+2. Related Work
+LLM Collective Intelligence. Collective intelligence studies how groups of relatively limited individ-
+uals can, through interaction, produce behavior that exceeds the capability of any single member
+(Ha and Tang, 2022; Jiang et al., 2025). This perspective has recently become increasingly relevant
+for LLMs, as frontier models from different providers exhibit complementary strengths and weak-
+nesses. A growing body of work therefore studies how to coordinate groups of LLM agents through
+communication protocols, voting mechanisms, routing policies, and learned collaboration structures
+(Chen et al., 2024; Dang et al., 2025; Du et al., 2023; Guha et al., 2024; Wang et al., 2025; Yue et al.,
+2025; Zhuge et al., 2024). Recent multi-agent LLM systems often rely on hand-designed collaboration
+patterns: for example, Du et al. (2023) and Wang et al. (2025) orchestrate multiple agents across
+successive discussion or reasoning rounds, using fixed interaction structures to improve final answers.
+Other works move toward learned or adaptive coordination. Guha et al. (2024) and Yue et al. (2025)
+learn representations that map queries to suitable agents or topologies, Zhuge et al. (2024) treats
+collaboration as a learnable graph, and Chen et al. (2024) learns a router that directs each query to a
+single best-matched agent.
+Sakana Fugu follows this line of work in treating intelligence as an emergent property of coordinated
+model collectives. However, our goal differs from that of many prior multi-agent systems in two
+respects. First, rather than exposing a multi-agent workflow that users must design, tune, or operate,
+Sakana Fugu presents the collective as a single model interface. Second, rather than relying solely on
+fixedcommunicationpatternsorsingle-steprouting, Fugumodelsarethemselvestrainedorchestrators
+that can adaptively decide how to use an agent pool for each query. In this sense, Sakana Fugu aims
+to make collective intelligence not only a research paradigm for studying LLM collaboration, but also
+a practical model interface for accessing complementary model capabilities.
+Agentic Scaffolds. To elevate LLMs from autoregressive chatbots into action-taking agents, a large
+body of work has developed agentic scaffolds that elicit reasoning, planning, reflection, and tool use
+from an underlying model. A first line of work shapes the model’s reasoning through prompting and
+decoding strategies, including chain-of-thought prompting (Wei et al., 2022), self-consistency (Wang
+et al., 2022), and structured search over reasoning paths such as Tree of Thoughts (Yao et al., 2023).
+A second line interleaves reasoning with acting, allowing the model to plan, call tools, and incorporate
+observations: ReAct couples reasoning traces with actions (Yao et al., 2022), while Toolformer and
+subsequent work equip models with external tools and function calling (Qu et al., 2025; Schick et al.,
+2024). A third line adds feedback and iteration, where models critique and revise their own outputs
+through self-reflection (Madaan et al., 2023; Shinn et al., 2023) or by incorporating signals from an
+3
+================ PAGE 4 ================
+Sakana Fugu Technical Report
+external environment. Together with growing support for long-horizon memory (Zhang et al., 2025),
+these components transform a static model into a capable agent.
+These ideas have also been consolidated into production harnesses that wrap frontier models in
+rich interactive environments. In software engineering, for example, systems such as Claude Code
+and Codex manage repository context, tool use, code execution, editing loops, and environment
+feedback, often contributing substantially to end-to-end performance beyond the raw model call itself
+(Anthropic, 2026d; OpenAI, 2026c). These systems demonstrate that the practical capability of an
+LLM depends critically on the scaffold through which it interacts with the task environment. However,
+such harnesses are typically designed for a specific class of tasks and expose the scaffold as an external
+system around the model. Sakana Fugu takes a different approach, in which the scaffold is generated
+by a trained orchestrator at inference time. Rather than applying a fixed interaction pattern or relying
+on a task-specific harness, Fugu dynamically decides how to reason about each request, which frontier
+agents to involve, how they should communicate, and how their outputs should be synthesized into a
+final answer.
+Model Merging. Another line of work studies how to combine the capabilities of multiple models
+through model merging. At the parameter level, early approaches use static recipes such as weight
+averaging, model soups, or task-balanced interpolation to integrate capabilities across domains with
+minimal additional computation (Goddard et al., 2024). More recent work introduces optimization-
+basedmerging, forexampleevolutionarysearchover“mergingrecipes”showingthatlearnedstrategies
+can outperform hand-designed ones and yield stronger generalization (Akiba et al., 2025). Other
+methods improve the reliability of parameter-space fusion by resolving task conflicts, sparsifying
+parameter updates, or preserving directions important to individual models (Yadav et al., 2023; Yu
+et al., 2024). However, because parameter-space merging operates directly on weights, it requires
+access to model parameters and typically assumes architectural or representational compatibility. This
+confines its applicability largely to open-source checkpoints and makes it unsuitable for composing
+the closed-source frontier models that currently define much of the state of the art.
+A complementary family of methods composes models in the data-flow or representation space.
+Instead of averaging all weights, these approaches stitch layers, mix blocks, route hidden states, or
+construct hybrid architectures from existing components (Akiba et al., 2025; Bansal et al., 2021).
+Such methods relax some constraints of full parameter merging and can combine capabilities at a
+more modular level, but they still generally require internal access to model activations, layers, or
+architectures. They therefore cannot be generally applied to heterogeneous API-only systems, where
+models may differ in architecture, provider, context interface, latency, cost, and availability.
+Sakana Fugu can be viewed as a macro-level analogue of model merging. Rather than merging
+weights or stitching layers, it composes model capabilities at the behavioral level, treating frontier
+models as black-box agents and learning how to route, coordinate, verify, and synthesize their outputs.
+In this sense, Fugu performs a form of functional model composition wherein it aims to preserve and
+amplify the complementary specializations of different models without requiring parameter access or
+architectural compatibility. This macro-level perspective allows Fugu to incorporate closed-source
+frontier models, heterogeneous providers, and user-specific constraints, while still pursuing the central
+goal of model merging so that it combines multiple specialized models into a stronger collective
+system.
+3. Sakana Fugu
+Sakana Fugu is a family of learned orchestrators that expose a multi-agent system through a single
+model interface. Given a user query, a Fugu model constructs an agentic scaffold over a pool of frontier
+LLMworkers, decidingwhichworkerstoinvolve, whatinstructionsorrolestoassign, howintermediate
+4

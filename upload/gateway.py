@@ -177,6 +177,15 @@ class ModelRelayGateway:
                 resolved_key = resolve_intern_ai_key(lane)
                 key_val = resolved_key.value or ""
                 headers["Authorization"] = f"Bearer {key_val}"
+        elif provider == "longcat":
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                lane = plan.get("provider_lane")
+                from upload.longcat_lanes import resolve_longcat_key
+                resolved_key = resolve_longcat_key(lane)
+                key_val = resolved_key.value or ""
+                headers["Authorization"] = f"Bearer {key_val}"
         
         # Build request
         url = f"{base_url}{chat_path}"
@@ -226,11 +235,16 @@ class ModelRelayGateway:
                     "raw": data,
                 }
             else:
-                return {
+                error = f"HTTP {response.status_code}: {response.text[:200]}"
+                result = {
                     "success": False,
-                    "error": f"HTTP {response.status_code}: {response.text[:200]}",
+                    "error": error,
                     "latency_ms": latency_ms,
                 }
+                if response.status_code == 429:
+                    result["retry_after"] = response.headers.get("Retry-After")
+                    result["quota_signal"] = "rate_limited"
+                return result
                 
         except Exception as e:
             return {
@@ -319,3 +333,5 @@ class ModelRelayGateway:
             },
             "providers_available": len(self.provider_manager.get_available_providers()),
         }
+
+

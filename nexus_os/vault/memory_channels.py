@@ -74,9 +74,10 @@ VALID_LANES = {
 @dataclass
 class ChannelRecord:
     """A record for a specific memory channel."""
-    channel: MemoryChannel
-    agent_id: str
-    content: str
+    record_id: str = field(default_factory=lambda: f"cr-{__import__('uuid').uuid4().hex[:12]}")
+    channel: MemoryChannel = MemoryChannel.SENSORY
+    agent_id: str = ""
+    content: str = ""
     lane: str = "general"  # For TRUST channel - lane-scoped
     
     # For EPISODIC channel (merged from EVENT + FAILURE_PATTERN)
@@ -190,6 +191,8 @@ class MemoryChannelManager:
     - COLD (1000s): SEMANTIC, PROCEDURAL, META
     """
     
+    MAX_RECORDS_PER_CHANNEL = 500
+    
     def __init__(self):
         # In-memory buffers (used for real-time queries)
         # Format: {agent_id: {channel: [records]}}
@@ -224,6 +227,14 @@ class MemoryChannelManager:
             return False
         return True
     
+    def _maybe_prune(self, agent_id: str, channel: MemoryChannel):
+        """Auto-prune channel buffer if it exceeds limit."""
+        buf = self._buffers[agent_id][channel]
+        if channel == MemoryChannel.WORKING:
+            return
+        if len(buf) > self.MAX_RECORDS_PER_CHANNEL:
+            self._buffers[agent_id][channel] = buf[-self.MAX_RECORDS_PER_CHANNEL:]
+    
     # ── SENSORY Channel (0) ─────────────────────────────────────
     
     def append_sensory(
@@ -250,6 +261,7 @@ class MemoryChannelManager:
             trace_id=trace_id,
         )
         self._buffers[agent_id][MemoryChannel.SENSORY].append(record)
+        self._maybe_prune(agent_id, MemoryChannel.SENSORY)
         logger.debug(f"SENSORY: {agent_id} → compressed={compression_ratio:.2f}")
         return record
     
@@ -312,6 +324,7 @@ class MemoryChannelManager:
             project_id=project_id,
         )
         self._buffers[agent_id][MemoryChannel.EPISODIC].append(record)
+        self._maybe_prune(agent_id, MemoryChannel.EPISODIC)
         
         # Update capability if successful
         if outcome == "success":
@@ -730,11 +743,20 @@ class MemoryChannelManager:
         """Get consolidation statistics for a channel."""
         return self._consolidation_stats[channel]
     
-    def clear_buffer(self, agent_id: str):
-        """Clear buffer for agent (after persistence to DB)."""
+    def clear_buffer(self, agent_id: str) -> Dict[str, list]:
+        """Clear buffer for agent (after persistence to DB).
+        
+        Returns:
+            Dict mapping channel name to list of cleared records.
+        """
+        cleared: Dict[str, list] = {}
         if agent_id in self._buffers:
             for channel in MemoryChannel:
-                self._buffers[agent_id][channel].clear()  # type: ignore
+                buf = self._buffers[agent_id][channel]
+                if buf:
+                    cleared[channel.value] = list(buf)
+                buf.clear()  # type: ignore
+        return cleared
     
     def get_execution_path(self, channel: MemoryChannel) -> ExecutionPath:
         """Map channel to execution path (HOT/WARM/COLD)."""

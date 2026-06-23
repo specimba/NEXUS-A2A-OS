@@ -1,0 +1,249 @@
+
+================ PAGE 1 ================
+arXiv:2410.02644v4  [cs.CR]  30 May 2025
+Published as a conference paper at ICLR 2025
+AGENT SECURITY BENCH (ASB):
+FORMALIZING AND BENCHMARKING ATTACKS AND
+DEFENSES IN LLM- BASED AGENTS
+Hanrong Zhang1, Jingyuan Huang2, Kai Mei2, Yifei Yao1, Zhenting Wang2,
+Chenlu Zhan1, Hongwei Wang1, Yongfeng Zhang2
+1Zhejiang University 2Rutgers University
+1{hanrong.22,yifei3.23,chenlu.22,hongweiwang}@intl.zju.edu.cn
+2{chy.huang,kai.mei,zhenting.wang,yongfeng.zhang}@rutgers.edu
+ABSTRACT
+Although LLM-based agents, powered by Large Language Models (LLMs), can
+use external tools and memory mechanisms to solve complex real-world tasks,
+they may also introduce critical security vulnerabilities. However, the existing
+literature does not comprehensively evaluate attacks and defenses against LLM-
+based agents. To address this, we introduce Agent Security Bench (ASB), a com-
+prehensive framework designed to formalize, benchmark, and evaluate the attacks
+and defenses of LLM-based agents, including 10 scenarios (e.g., e-commerce,
+autonomous driving, finance), 10 agents targeting the scenarios, over 400 tools,
+27 different types of attack/defense methods, and 7 evaluation metrics. Based
+on ASB, we benchmark 10 prompt injection attacks, a memory poisoning at-
+tack, a novel Plan-of-Thought backdoor attack, 4 mixed attacks, and 11 cor-
+responding defenses across 13 LLM backbones. Our benchmark results reveal
+critical vulnerabilities in different stages of agent operation, including system
+prompt, user prompt handling, tool usage, and memory retrieval, with the high-
+est average attack success rate of 84.30%, but limited effectiveness shown in
+current defenses, unveiling important works to be done in terms of agent secu-
+rity for the community. We also introduce a new metric to evaluate the agents’
+capability to balance utility and security. Our code can be found at https:
+//github.com/agiresearch/ASB.
+1 I NTRODUCTION
+Large Language Models (LLMs) have rapidly advanced in their capabilities, enabling them to per-
+form tasks such as content generation, question answering, tool calling, coding and many others (Ko-
+jima et al., 2024; Jin et al., 2025a; Huang et al., 2022; Jin et al., 2025b; Xu et al., 2024). This has
+paved the way for developing AI agents that combine LLMs with tools and memory mechanisms
+capable of interacting with broader environments (Ge et al., 2023a; Xu et al., 2025a). These LLM-
+based agents have the potential to be deployed in various roles, such as safety-critical domains like
+financial services (Yu et al., 2023b), medical care (Abbasian et al., 2024; Yang et al., 2024b), e-
+commerce (Zhu et al., 2024; Xu et al., 2025b) and autonomous driving (Mao et al., 2024). As
+shown in Fig. 1, an LLM-based agent based on ReAct framework (Yao et al., 2022) usually operates
+through several key steps when solving a task: ① Defining roles and behaviors via a system prompt.
+② Receiving user instructions and task details. ③ Retrieving relevant information from a memory
+database. ④ Planning based on the retrieved information and prior context. ⑤ Executing actions
+using external tools.
+Although recent research on LLM agents and advanced frameworks has made significant progress,
+the primary emphasis has been on their effectiveness and generalization (Qin et al., 2024; Mei et al.,
+2024; Ge et al., 2023b), with their trustworthiness remaining largely under-investigated (Hua et al.,
+2024). Specifically, while each of these steps mentioned above enables the agent to perform highly
+complex tasks, they also provide attackers with multiple points of access to compromise the agent
+system. Each stage is vulnerable to different types of adversarial attacks. Although several bench-
+1
+================ PAGE 2 ================
+Published as a conference paper at ICLR 2025
+Predefined
+System 
+Prompt
+Long-term
+Memory
+LLM
+User
+Planning
+Re-thinking
+Thoughts
+Memory 
+Retrieval
+Tools
+Observation
+LLM Agent Framework External 
+Environment
+Prompt
+ Response
+ActionShort-term
+Memory
+PoT Backdoor 
+AttackDirect 
+Prompt 
+Injection
+Indirect
+Prompt 
+Injection
+Memory
+Poisoning
+Attack
+Figure 1: Overview of the LLM Agent Attacking Framework, including Direct Prompt Injections
+(DPI), Indirect Prompt Injections (IPI), Plan-of-Thought (PoT) Backdoor, and Memory Poisoning
+Attacks, which target the user query, observations, system prompts, and memory retrieval respec-
+tively of the agent during action planning and execution.
+marks have been proposed to evaluate the security of LLM agents, such as InjecAgent (Zhan et al.,
+2024) and AgentDojo (Debenedetti et al., 2024), they are often limited by their scope, assessing
+either a single type of attack, i.e., Indirect Prompt Injection, or operating in only a few scenarios,
+such as financial harm and data security. We compare them with ASB in App. B.3 in detail. To
+address these limitations, we introduce Agent Security Bench (ASB), a comprehensive benchmark
+that formalizes and evaluates a wide range of adversarial attacks and defenses on LLM-based agents
+in ten different scenarios.
+Primarily, ASB covers various attack and defense types targeting each operational step of LLM-
+based agents, including system prompt, user prompt handling, tool usage, and memory retrieval. It
+evaluates Direct Prompt Injections (DPI), Indirect Prompt Injections (IPI), Memory Poisoning, Plan-
+of-Thought (PoT) Backdoor Attacks, Mixed Attacks, and their defenses, offering the first holistic
+assessment of LLM agents’ security. In detail, a straightforward way to compromise an agent is
+through DPI, where attackers directly manipulate the user prompt to guide the agent toward mali-
+cious actions. Additionally, the agent’s reliance on external tools introduces further risks, particu-
+larly as attackers can embed harmful instructions into tool responses, referred to as IPI. Moreover,
+the planning phase of LLM agents faces security risks, as long-term memory modules like RAG
+databases (Lewis et al., 2020) can be compromised by memory poisoning attacks, where adversaries
+inject malicious task plans or instructions to mislead the agent in future tasks. In addition, since the
+system prompt is typically hidden from the user, it becomes a tempting target for Plan-of-Thought
+(PoT) Backdoor Attacks, where attackers embed hidden instructions into the system prompt to trig-
+ger unintended actions under specific conditions. Finally, attackers can also combine them to create
+mixed attacks that target multiple vulnerabilities across different stages of the agent’s operation.
+Furthermore, ASB explores the vulnerabilities in agents performing tasks in diverse settings. Specif-
+ically, ASB evaluates across 10 task scenarios, 10 corresponding agents, and over 400 tools, includ-
+ing both normal and attack tools, and 400 tasks, divided into aggressive and non-aggressive types.
+The aggressive tasks assess the agent’s refusal rate in response to risky or aggressive instructions.
+Our key contributions are summarized as follows: ① We design and develop Agent Security Bench
+(ASB), the first comprehensive benchmark including 10 scenarios (e.g., e-commerce, autonomous
+driving, finance), 10 agents targeting the scenarios, over 400 tools and tasks for evaluating the se-
+curity of LLM-based agents against numerous attacks and defense strategies. ② We propose a
+novel PoT Backdoor Attack, which embeds hidden instructions into the system prompt, exploiting
+the agent’s planning process to achieve high attack success rates. ③ We formalize and categorize
+various adversarial threats targeting key components of LLM agents, including DPI, IPI, Memory
+Poisoning Attacks, PoT Backdoor Attacks, and Mixed Attacks, covering vulnerabilities in system
+prompt definition, user prompt handling, memory retrieval, and tool usage. ④ We benchmark 27
+different types of attacks and defenses on ASB across 13 LLM backbones with 7 metrics, demon-
+strating that LLM-based agents are vulnerable to the attacks, with the highest average attack success
+rates exceeding 84.30%. In contrast, existing defenses are often ineffective. Our work highlights the
+need for stronger defenses to protect LLM agents from sophisticated adversarial techniques. ⑤ We
+introduce the Net Resilient Performance (NRP) metric to assess the agents’ balance between utility
+and security and emphasize the importance of performance testing on ASB for selecting suitable
+backbones for agent applications.
+2
+================ PAGE 3 ================
+Published as a conference paper at ICLR 2025
+2 R ELATED WORK
+Prompt Injections Attacks. Prompt injection adds special instructions to the original input, and at-
+tackers can manipulate the model’s understanding and induce unexpected outputs (Perez & Ribeiro,
+2022; Liu et al., 2023; 2024). The prompt injection can target the user prompt directly (Perez &
+Ribeiro, 2022; Selvi, 2022; Toyer et al., 2023; Yu et al., 2023a; Kang et al., 2024) or indirectly in-
+fluence the agent’s behavior by manipulating its accessible external environment (Liu et al., 2023;
+Greshake et al., 2023; Yi et al., 2023). Debenedetti et al. (2024); Zhan et al. (2024) evaluate the
+performance of prompt injection attacks toward agents, but they are limited to Indirect Prompt In-
+jection attacks. ASB examines prompt injection attacks on the agent and integrates multiple attacks
+across various stages of the agent’s operation.
+Agent Memory Poisoning. Memory poisoning involves injecting malicious or misleading data into
+a database (a memory unit or a RAG knowledge base) so that when this data is retrieved and pro-
+cessed later, it causes the agents to perform malicious actions (Xiang et al., 2024a; Chen et al.,
+2024). Yang et al. (2024c); Zhang et al. (2024b); Zhong et al. (2023); Zou et al. (2024) have ex-
+clusively examined the effects of poisoning on LLMs and RAG, without considering the impact of
+such poisoning on the overall agent framework. Xiang et al. (2024a); Chen et al. (2024) investigates
+direct memory poisoning of the LLM agent but is constrained to scenarios where the database’s in-
+ternal structure is known. ASB analyzes the impact of poisoning on the agent framework and treats
+memory or RAG base as a black box for memory poisoning without knowing the internal structure.
+Backdoor Attacks in LLM and LLM Agent. Backdoor attacks embed triggers into the LLMs to
+generate noxious outputs (Cai et al., 2022; Wan et al., 2023; Li et al., 2024; Zhang et al., 2024a).
+BadChain (Xiang et al., 2024b) has engineered specific trigger words designed to disrupt the Chain-
+of-Thought (CoT) (Wei et al., 2022) reasoning of LLMs. Kandpal et al. (2023) utilizes trigger
+words to disrupt the contextual learning process. Researchers have recently targeted LLM agents
+for backdoor attacks (Wang et al., 2024a; Yang et al., 2024c; Dong et al., 2024; Hubinger et al.,
+2024).Wang et al. (2024a); Yang et al. (2024c) contaminates task data for fine-tuning LLM agents,
+enabling attackers to introduce a threat model. In contrast, the PoT backdoor attack proposed in the
+paper is a training-free backdoor attack on the LLM agent.
+3 D EFINITIONS TO BASIC CONCEPTS AND THREAT MODEL
+3.1 D EFINING BASIC CONCEPTS
+LLM Agent with Knowledge Bases. We consider LLM agents utilizing knowledge bases, such as
+RAG for corpus retrieval. For a user query q and its tool list, the agent retrieves relevant memory
+from a database D = {(k1, v1) , . . . ,
+ 
+k|D|, v|D|
+
+} of query-solution pairs (Wang et al., 2024b).
+LLM agents use an encoder Eq to map both the query and keys into a shared embedding space. A
+subset EK(q ⊕ T , D) ⊂ D is retrieved, containing the K most relevant keys and values based on the
+similarity between q ⊕ T and the database keys. Formally, an agent using RAG aims to maximize:
+Eq∼πq [1 (Agent (LLM (psys, q, O, T , EK (q ⊕ T , D))) = ab)] , (1)
+where πq denotes the distribution of user queries, LLM is the backbone, and 1 (·) is an indicator
+function. The input to the agent is the task plan from the LLM, and the output is a tool-using action
+during execution. Here, psys is the system prompt, O = (o1, · · · , om) is a set of observations from
+the task trajectory, and T = (τ1, · · · , τn) is the available tool list. ab is the labeled benign action.
+We define a target tool list T t = ( τ t
+1, · · · , τ t
+l ) ⊂ T . If the agent successfully uses all tools in
+T t, it achieves ab. EK(q, T , D) refers to K retrieved memories serving as in-context examples for
+the LLM, such as prior plans. The backbone LLM decomposes the task and generates action plans
+P = (p1, · · · , pr), which the agent follows for each step.
+Target task:A task is composed of an instruction, tool list and data. When a user seeks to complete
+a task, it is referred to as the target task. We denote the target task as t, its target instruction as qt,
+its tool list as T t = ( τ t
+1, · · · , τ t
+n), and its target data as dt. Each tool τ includes the tool name,
+a description of its functionality, and its parameter settings. The user employs an LLM agent to
+accomplish the target task. The agent accepts a combination of an instruction promptqt, the tool list
+T and data dt in a certain format f as input, which denotes as f (qt, T , dt).
+3
+================ PAGE 4 ================
+Published as a conference paper at ICLR 2025
+Injected task: Apart from completing the target task, the direct and Indirect Prompt Injection attacks
+both aim to redirect the agent to execute a different task the attacker selects, referring to theinjected
+task e. xe denotes its injected instruction, T e = (τ e
+1 , · · · , τ e
+n) denotes its injected attack tool list and
+de signifies its injected data.
+3.2 T HREAT MODEL
+Adversarial Goal. Generally, the attacker aims to mislead the LLM agent into using a specified
+tool, compromising its decision-making in Direct Prompt Injections (DPI), Indirect Prompt Injec-
+tions (IPI), Memory Poisoning, Plan-of-Thought (PoT) backdoor attacks and Mixed Attacks. The
+Adversarial goal is to maximize:
+Eq∼πq [1 (Agent(q, θmalicious) = am)] , (2)
+where the adversary aims to maximize the expected probability that the agent when influenced by
+adversarial modifications θmalicious, performs a malicious action am for a given input query q. Apart
+from this, a PoT backdoor attack should keep benign actions for clean queries. Other notations are
+the same as those in Eq. 1. The Adversarial goal is to maximize:
+Eq∼πq [1 (Agent(q, θbenign) = ab)] , (3)
+where the agent behaves correctly on clean, unaltered inputs. The agent, under benign conditions
+θbenign, is expected to perform a benign action ab for input queries q from the distribution πq.
+Adversary’s Background Knowledge and Capabilities.① Tools. The attacker knows every detail
+of the attack tools, such as their name and functionality. Moreover, the attacker can integrate their
+attack tools into the agent’s toolkit, such as manipulating third-party API platforms to add malicious
+tools, like the RapidAPI platform (Gino, 2024). ② Backbone LLM. The attacker lacks knowledge
+about the agent’s backbone LLM, including architecture, training data, and model parameters. The
+agent interacts with the LLM solely through API access, without the ability to manipulate the LLM’s
+internal components. ③ System Prompts. The attacker can also craft and insert prompts into the
+agent’s system promptpsys to deploy the prompt as a new agent. This aligns closely with real-world
+scenarios. Attackers can exploit the increasing reliance on third-party tools or services for prompt
+engineering, because writing effective system prompts often demands expertise, leading users to
+outsource to external specialists or tools, such as Fiverr (Fiverr, 2024) or ChatGPT plugins (OpenAI,
+2024a). These attackers, posing as prompt engineers or providing prompt optimization tools, can
+embed backdoors into the system prompts. ④ User Prompts. We adopt the common assumption
+from prior backdoor attacks on LLMs (Kandpal et al., 2023; Cai et al., 2022), which posits that the
+attacker has access to the user’s prompt and can manipulate it, such as by embedding a trigger. This
+assumption is realistic when users rely on third-party prompt engineering services, which could be
+malicious, or when a man-in-the-middle attacker (Conti et al., 2016) intercepts the user’s prompt by
+compromising the chatbot or the input formatting tools. ⑤ Knowledge Database. Unlike previous
+scenarios with white-box access to RAG databases (Zhong et al., 2023) and RAG embedders (Chen
+et al., 2024), the attacker has black-box access to RAG databases and embedders.
+4 F ORMALIZING ATTACKS AND DEFENSES IN LLM A GENTS
+As shown in Fig. 1, the LLM agent handles tasks involving system prompts, user prompts, memory
+retrieval, and tool usage, all vulnerable to attacks. An intuitive method is direct prompt manipulation
+during the user prompt step, where attackers design malicious prompts to directly call the attack
+tools (Sec. 4.1.1 DPI Attacks). Tool usage is also at risk due to reliance on third-party platforms that
+may contain malicious instructions (Sec. 4.1.2 IPI Attacks). Additionally, the memory module can
+be compromised (Sec. 4.2 Memory Poisoning Attacks), and the hidden system prompt is another
+attack target, where we propose a PoT-based backdoor attack (Sec. 4.3). These attacks can also be
+combined into mixed attacks (App. A.1 Mixed Attacks). After that, we define the defenses to the
+attacks above in Sec. 4.4. Finally, we provide attacking examples in App. A.3.2.
+4.1 F ORMALIZING PROMPT INJECTION ATTACKS
+Next, we introduce prompt injection attacks, including DPI, which directly manipulates the agent
+via user prompts, and IPI, which embeds malicious instructions in tool responses.
+4

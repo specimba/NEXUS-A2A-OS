@@ -19,7 +19,7 @@ import {
 // ─── Model Options (inspired by GLM5 team's model selector) ───
 
 const AI_MODELS = [
-  { id: 'default', label: 'NEXUS AI', description: 'GLM-4.7 via z-ai SDK', icon: '⚡' },
+  { id: 'default', label: 'NEXUS AI', description: 'GLM-5.2 via z-ai SDK', icon: '⚡' },
   { id: 'reasoning', label: 'Llama 3.3 70B', description: 'Cerebras Free (ultra-fast)', icon: '🧠' },
   { id: 'balanced', label: 'DeepSeek R1', description: 'Strong reasoning (OR Free)', icon: '⚙️' },
   { id: 'fast', label: 'Llama 3.1 8B', description: 'Cerebras Free (fastest)', icon: '⚡' },
@@ -381,8 +381,10 @@ export function NexusAssistant() {
     if (!raw || typeof raw !== 'string') {
       return fallbackEndpoint === 'cerebras' ? 'Cerebras'
         : fallbackEndpoint === 'openrouter' ? 'OpenRouter'
-        : 'GLM-4.7'
+        : 'GLM-5.2'
     }
+    const normalizedRaw = raw.toLowerCase()
+    if (normalizedRaw.includes('glm-5.2') || normalizedRaw === 'glm-4-plus') return 'GLM-5.2'
     if (raw.includes('/')) {
       const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
       if (name.includes('deepseek-r1')) return 'DeepSeek R1'
@@ -393,6 +395,7 @@ export function NexusAssistant() {
       else if (name.includes('trinity-large')) return 'Trinity Large'
       else if (name.includes('trinity')) return 'Trinity'
       else if (name.includes('llama')) return 'Llama'
+      else if (name.includes('glm-5.2') || name === 'glm-4-plus') return 'GLM-5.2'
       else return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     } else if (raw.startsWith('claude-')) {
       if (raw.includes('opus')) return 'Qwen3 Coder'
@@ -593,7 +596,10 @@ export function NexusAssistant() {
 
       if (typeof data.model === 'string') {
         const raw = data.model
-        if (raw.includes('/')) {
+        const normalizedRaw = raw.toLowerCase()
+        if (normalizedRaw.includes('glm-5.2') || normalizedRaw === 'glm-4-plus') {
+          actualModel = 'GLM-5.2'
+        } else if (raw.includes('/')) {
           const name = raw.split('/').pop()?.replace(/:free$/, '').replace(/:preview$/, '') || raw
           if (name.includes('deepseek-r1')) actualModel = 'DeepSeek R1'
           else if (name.includes('gemma-4')) actualModel = 'Gemma 4'
@@ -603,6 +609,7 @@ export function NexusAssistant() {
           else if (name.includes('trinity-large')) actualModel = 'Trinity Large'
           else if (name.includes('trinity')) actualModel = 'Trinity'
           else if (name.includes('llama')) actualModel = 'Llama'
+          else if (name.includes('glm-5.2') || name === 'glm-4-plus') actualModel = 'GLM-5.2'
           else actualModel = name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         } else if (raw.startsWith('claude-')) {
           if (raw.includes('opus')) actualModel = 'Qwen3 Coder'
@@ -617,7 +624,7 @@ export function NexusAssistant() {
       } else {
         actualModel = usedEndpoint === 'cerebras' ? 'Cerebras'
           : usedEndpoint === 'openrouter' ? 'OpenRouter'
-          : 'GLM-4.7'
+          : 'GLM-5.2'
       }
 
       const cleanResponse = data.response.replace(/\s*\[[\w\-]+\]\s*$/, '').trim()

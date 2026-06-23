@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const INTENT_MAP: Record<string, { intent: string; strategy: string; primaryModel: string; provider: string; fallbackChain: string[] }> = {
-  code: { intent: 'code', strategy: 'code-optimized', primaryModel: 'qwen3-coder', provider: 'openrouter', fallbackChain: ['glm-4-7-nim', 'llama3.3-70b'] },
-  reasoning: { intent: 'reasoning', strategy: 'quality-first', primaryModel: 'deepseek-r1-free', provider: 'openrouter', fallbackChain: ['glm-4-7-nim', 'trinity-large'] },
+  code: { intent: 'code', strategy: 'code-optimized', primaryModel: 'qwen3-coder', provider: 'openrouter', fallbackChain: ['glm-5-2', 'llama3.3-70b'] },
+  reasoning: { intent: 'reasoning', strategy: 'quality-first', primaryModel: 'deepseek-r1-free', provider: 'openrouter', fallbackChain: ['glm-5-2', 'trinity-large'] },
   chat: { intent: 'chat', strategy: 'balanced', primaryModel: 'llama4-maverick', provider: 'openrouter', fallbackChain: ['gemma-3-27b', 'mistral-small'] },
   fast: { intent: 'fast', strategy: 'speed-first', primaryModel: 'llama3.1-8b-groq', provider: 'groq', fallbackChain: ['qwen3-8b-cerebras', 'gemma2-9b-groq'] },
-  analysis: { intent: 'analysis', strategy: 'quality-first', primaryModel: 'deepseek-r1-free', provider: 'openrouter', fallbackChain: ['glm-4-7-nim', 'llama3.3-70b'] },
+  analysis: { intent: 'analysis', strategy: 'quality-first', primaryModel: 'deepseek-r1-free', provider: 'openrouter', fallbackChain: ['glm-5-2', 'llama3.3-70b'] },
   creative: { intent: 'creative', strategy: 'balanced', primaryModel: 'gemma-3-27b', provider: 'openrouter', fallbackChain: ['llama4-maverick', 'mistral-small'] },
-  default: { intent: 'general', strategy: 'balanced', primaryModel: 'llama4-maverick', provider: 'openrouter', fallbackChain: ['glm-4-7-nim', 'llama3.3-70b'] },
+  default: { intent: 'general', strategy: 'balanced', primaryModel: 'llama4-maverick', provider: 'openrouter', fallbackChain: ['glm-5-2', 'llama3.3-70b'] },
 }
 
 function classifyIntent(prompt: string): string {
@@ -47,3 +47,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Routing failed' }, { status: 500 })
   }
 }
+

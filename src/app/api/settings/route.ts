@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+const PROVIDER_KEYS: Record<string, string[]> = {
+  openrouter: ['OPENROUTER_API_KEY'],
+  openai: ['OPENAI_API_KEY'],
+  cerebras: ['CEREBRAS_API_KEY'],
+  jina: ['JINA_API_KEY'],
+  kilocode: ['KILOCODE_API_KEY'],
+  zai: ['ZAI_API_KEY', 'ZAI_SDK_KEY'],
+  brain: ['NEXUS_BRAIN_API_KEY'],
+}
+
+function maskValue(value: string | undefined): string | null {
+  if (!value) return null
+  if (value.length <= 8) return 'set'
+  return `${value.slice(0, 4)}...${value.slice(-4)}`
+}
+
+function hasEnv(keys: string[]) {
+  return keys.some((key) => !!process.env[key])
+}
+
+function envMasked(keys: string[]) {
+  const found = keys.map((key) => process.env[key]).find(Boolean)
+  return maskValue(found)
+}
+
+function dbMasked(settings: Record<string, string>, keys: string[]) {
+  const found = keys.map((key) => settings[key]).find(Boolean)
+  return maskValue(found)
+}
+
 export async function GET() {
   try {
     const configs = await db.systemConfig.findMany()
@@ -9,19 +39,37 @@ export async function GET() {
       settings[c.key] = c.value
     }
 
-    const configured = !!(settings['OPENROUTER_API_KEY'] || settings['ZAI_SDK_KEY'])
+    const providerStatus = Object.fromEntries(
+      Object.entries(PROVIDER_KEYS).map(([provider, keys]) => {
+        const env = hasEnv(keys)
+        const stored = keys.some((key) => !!settings[key])
+        return [
+          provider,
+          {
+            env,
+            db: stored,
+            configured: env || stored,
+            masked: envMasked(keys) || dbMasked(settings, keys),
+          },
+        ]
+      })
+    )
+    const providers = Object.fromEntries(
+      Object.entries(providerStatus).map(([provider, status]) => [
+        provider === 'zai' ? 'zai_sdk' : provider,
+        status.configured,
+      ])
+    )
+    const maskedSettings = Object.fromEntries(
+      Object.entries(settings).map(([key, value]) => [key, key.toUpperCase().includes('KEY') ? maskValue(value) : value])
+    )
+    const configured = Object.values(providerStatus).some((status) => status.configured)
 
     return NextResponse.json({
-      settings,
+      settings: maskedSettings,
       configured,
-      providers: {
-        openrouter: !!settings['OPENROUTER_API_KEY'],
-        openai: !!settings['OPENAI_API_KEY'],
-        cerebras: !!settings['CEREBRAS_API_KEY'],
-        jina: !!settings['JINA_API_KEY'],
-        kilocode: !!settings['KILOCODE_API_KEY'],
-        zai_sdk: true,
-      }
+      providers,
+      providerStatus,
     })
   } catch (error) {
     console.error('Settings GET error:', error)

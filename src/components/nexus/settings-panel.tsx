@@ -46,7 +46,7 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [compactMode, setCompactMode] = useState(false)
-  const [defaultModel, setDefaultModel] = useState('glm-4-7-nim')
+  const [defaultModel, setDefaultModel] = useState('glm-5-2')
   const [maxTokens, setMaxTokens] = useState('100000')
   const [language, setLanguage] = useState('en')
 
@@ -190,7 +190,7 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="glm-4-7-nim">GLM-4.7 (z-ai)</SelectItem>
+                    <SelectItem value="glm-5-2">GLM-5.2 (z-ai)</SelectItem>
                     <SelectItem value="deepseek-r1-or">DeepSeek R1 (OpenRouter)</SelectItem>
                     <SelectItem value="llama-3.3-70b-cerebras">Llama 3.3 70B (Cerebras)</SelectItem>
                     <SelectItem value="llama-3.3-70b-groq">Llama 3.3 70B (Groq)</SelectItem>
@@ -285,3 +285,4 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
     </Sheet>
   )
 }
+

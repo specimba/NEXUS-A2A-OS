@@ -1,0 +1,45 @@
+{
+  "id": "private-block-test",
+  "created_at": "2026-06-21T14:32:06.412252Z",
+  "status": "completed",
+  "history": [
+    {
+      "state": "submitted",
+      "ts": "2026-06-21T14:32:06.412294Z"
+    },
+    {
+      "state": "working",
+      "ts": "2026-06-21T14:32:06.412310Z"
+    },
+    {
+      "state": "completed",
+      "ts": "2026-06-21T14:32:06.420106Z"
+    }
+  ],
+  "payload": {
+    "skill_id": "browser_http_diagnostic",
+    "text": "",
+    "params": {
+      "url": "https://127.0.0.1:7354/health",
+      "method": "HEAD",
+      "message": {
+        "parts": [
+          {
+            "type": "text",
+            "text": ""
+          }
+        ]
+      },
+      "operator": "codex",
+      "skill_id": "browser_http_diagnostic",
+      "audit_id": "private-block-test",
+      "id": "private-block-test"
+    }
+  },
+  "result": {
+    "kind": "text",
+    "text": "{\n  \"error\": \"Private, localhost, link-local, and multicast targets are blocked\",\n  \"status_code\": null,\n  \"final_url\": \"https://127.0.0.1:7354/health\",\n  \"content_type\": null,\n  \"response_length_bytes\": null,\n  \"body_sha256\": null,\n  \"safe_preview\": null,\n  \"access_result\": \"error\",\n  \"side_effects_enabled\": false,\n  \"policy\": {\n    \"allowed_hosts\": [\n      \"arxiv.org\",\n      \"cdn-lfs.huggingface.co\",\n      \"files.grok.com\",\n      \"files.pythonhosted.org\",\n      \"github.com\",\n      \"grok.com\",\n      \"hf.co\",\n      \"huggingface.co\",\n      \"modelcontextprotocol.io\",\n      \"pypi.org\",\n      \"raw.githubusercontent.com\"\n    ],\n    \"allowed_methods\": [\n      \"GET\",\n      \"HEAD\"\n    ],\n    \"max_body_bytes\": 1048576,\n    \"timeout_seconds\": 15.0,\n    \"safe_preview_limit\": 1024,\n    \"private_targets_blocked\": true,\n    \"redirects_followed\": false,\n    \"sensitive_headers_stripped\": true\n  }\n}"
+  },
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\a2a_tasks\\\\private-block-test.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\a2a_tasks\\private-block-test.json"
+}

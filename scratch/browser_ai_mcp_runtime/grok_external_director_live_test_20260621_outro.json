@@ -1,0 +1,29 @@
+{
+  "run_id": "grok-external-director-live-test-20260621",
+  "source_id": "grok-project-nexus",
+  "cdp_port": 9224,
+  "bridge": {
+    "url": "http://127.0.0.1:7354/health",
+    "status": "ok",
+    "version": "2.2.0-nexus-hardened",
+    "mcp_tool_count": 22
+  },
+  "prompt_file": "tools/browser_ai_supervisor/prompts/grok_external_director_live_test_20260621.md",
+  "context_capture": {
+    "full_probe": "scratch/browser_ai_mcp_runtime/grok_external_director_live_test_20260621.json",
+    "full_probe_status": "timeout_runtime_evaluate",
+    "small_probe": "scratch/browser_ai_mcp_runtime/grok_external_director_live_test_small_20260621.json",
+    "small_probe_status": "ready"
+  },
+  "action": "CONTINUE_SENT_AND_ARTIFACT_CAPTURED",
+  "artifact_name": "GrokDirectorCycleContract_v1",
+  "artifact_quality": "usable_contract_but_requires_codex_tightening",
+  "observed_gaps": [
+    "health failure needs BLOCKED_SETUP vs retryable distinction",
+    "bridge audit calls need exact tool/action mapping",
+    "provider gating needs cooldown and no-provider unchanged path",
+    "state machine should avoid provider calls on unchanged visible fingerprint"
+  ],
+  "local_verification_status": "grok_live_path_verified_prompt_submitted_response_captured",
+  "next_action": "implement local director tests from contract plus stricter no-provider-on-unchanged and cooldown behavior"
+}

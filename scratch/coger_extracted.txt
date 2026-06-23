@@ -1,0 +1,298 @@
+--- Page 1 ---
+Preprint
+BEYONDFAST ANDSLOW: COGNITIVE-INSPIREDEL-
+ASTICREASONING FORLARGELANGUAGEMODELS
+Jinwu Hu1 2∗ Dongjin Yang1∗ Langyu Bian1∗ Zhiquan Wen1∗ Yufeng Wang1 3
+Yaofo Chen1 Yuanqing Li2 Bin Xiao4 Mingkui Tan1†
+1South China University of Technology,2Pazhou Laboratory, 3Peng Cheng Laboratory,
+4Chongqing University of Posts and Telecommunications
+ABSTRACT
+Large language models (LLMs) have demonstrated impressive performance
+across various language tasks. However, existing LLM reasoning strategies
+mainly rely on the LLM itself with fast or slow mode (like o1 thinking) and
+thus struggle to balance reasoning efficiency and accuracy across queries of vary-
+ing difficulties. In this paper, we proposeCognitive-InspiredElasticReasoning
+(CogER), a framework inspired by human hierarchical reasoning that dynami-
+cally selects the most suitable reasoning strategy for each query. Specifically,
+CogER first assesses the complexity of incoming queries and assigns them to one
+of several predefined levels, each corresponding to a tailored processing strategy,
+thereby addressing the challenge of unobservable query difficulty. To achieve au-
+tomatic strategy selection, we model the process as a Markov Decision Process
+and train a CogER-Agent using reinforcement learning. The agent is guided by
+a reward function that balances solution quality and computational cost, ensur-
+ing resource-efficient reasoning. Moreover, for queries requiring external tools,
+we introduce Cognitive Tool-Assisted Reasoning, which enables the LLM to au-
+tonomously invoke external tools within its chain-of-thought. Extensive exper-
+iments demonstrate that CogER outperforms state-of-the-art Test-Time scaling
+methods, achieving at least a 13% relative improvement in average exact match
+on In-Domain tasks and an 8% relative gain on Out-of-Domain tasks.
+1 INTRODUCTION
+Large language models (LLMs), such as ChatGPT (OpenAI, 2023) and DeepSeek (DeepSeek-AI,
+2025), have achieved impressive results on many tasks, including multi-turn dialogue (Stark et al.,
+2024) and embodied intelligence (Mu et al., 2023). However, as model size and the number of infer-
+ence tokens increase, the computational resources required for inference grow substantially, creating
+a major bottleneck for real-world applications. Meanwhile, user queries vary widely in complexity,
+from straightforward fact-based questions to multi-hop reasoning tasks, and in some cases, even
+require external tool invocation. This diversity makes traditional LLM reasoning approaches, rooted
+in the dual-process theory of fast (System 1) and slow (System 2) thinking, face critical limitations
+in handling all types of queries efficiently and effectively (Li et al., 2025). Consequently, it is crucial
+to dynamically allocate reasoning strategies based on query complexity in practical applications.
+Unfortunately, existing LLMs typically apply a uniform reasoning process regardless of query com-
+plexity (Aggarwal & Welleck, 2025). This one-size-fits-all reasoning strategy risks either wasting
+computation on trivial inputs or inadequately handling more demanding queries. Achieving flexi-
+ble and efficient reasoning requires addressing two key challenges: 1)Unforeseen query difficulty:
+The true complexity of an incoming query is often not observable in advance, making it difficult to
+allocate computational resources dynamically and appropriately. 2)Cost–quality trade-off: Larger
+language models generally yield higher accuracy but incur substantially greater compute costs, forc-
+ing a careful balance between performance and efficiency along the Pareto frontier.
+∗Equal contribution. Email: fhujinwu@gmail.com
+†Corresponding author. Email: mingkuitan@scut.edu.cn
+1
+arXiv:2512.15089v2  [cs.AI]  20 Jan 2026--- Page 2 ---
+Preprint
+Recently, several attempts (Jiang et al., 2023; Dong et al., 2024; Du et al., 2024; Ong et al., 2025;
+Yang et al., 2025b) have been proposed to tailor reasoning strategies to downstream task demands,
+which can be broadly divided into the following categories: 1)LLM ensemble methods(Jiang et al.,
+2023; Dong et al., 2024; Du et al., 2024) often combine outputs from multiple candidate models to
+boost accuracy. However, each input must typically be processed by all models in the ensemble,
+leading to substantial computational overhead. 2)Test-time scaling methods(Muennighoff et al.,
+2025; Yang et al., 2025b; Snell et al., 2024; Aggarwal & Welleck, 2025)adapt reasoning costs based
+on the estimated difficulty of inputs, for instance by adjusting the length of chain-of-thought (CoT)
+reasoning or employing early-exit mechanisms. While more efficient, these methods often struggle
+to assess difficulty accurately for all queries and lack adaptive mechanisms for invoking external
+tools. As a result, they fall short in handling complex tasks requiring access to additional knowledge
+sources, limiting their flexibility and extensibility in real-world applications.
+To address these limitations, we propose theCognitive-InspiredElasticReasoning (CogER) frame-
+work for efficient scaling of language model reasoning. This framework dynamically selects the
+most suitable processing mode for each query based on its complexity. Specifically, inspired by
+Bloom’s Taxonomy(Bloom et al., 1956), we first categorize incoming queries into four complexity
+levels (L1 −L 4), each associated with a tailored reasoning strategy, thereby mitigating the challenge
+of unforeseen query difficulty. Then, we model the strategy selection process as a Markov Decision
+Process (MDP), in which a CogER-Agent chooses one of four actions (No Think, Think, Extend,
+or Delegate) to process each query, based on the predicted complexity level. To guide the train-
+ing of this agent, we design a reward function that explicitly balances computational cost against
+output quality, ensuring that each query receives only the computational resources commensurate
+with its complexity. Finally, forL 4 queries that require external knowledge, we introduce Cognitive
+Tool-Assisted Reasoning (CoTool), enabling the LLM to autonomously invoke external tools at ap-
+propriate points within its chain-of-thought, enabling flexible and knowledge-augmented reasoning.
+Main novelty and contributions. 1)We proposeCognitive-InspiredElasticReasoning (CogER),
+which dynamically selects the most appropriate processing mode for each query. It classifies incom-
+ing queries into four complexity levels, formulates reasoning strategy selection as an MDP, and intro-
+duces a novel reward function to train a CogER-Agent that dynamically selects the optimal strategy
+under constrained computational budgets.2)We introduceCoTool, which enables the model to
+autonomously decide when and how to invoke external tools during complex reasoning, seamlessly
+integrating API calls within its CoT, and we provide theRSTKit toolkitto facilitate this process.3)
+Extensive experiments demonstrate that, compared to SOTA TTS methods, CogER achieves at least
+a 13% relative improvement in averageEMon ID tasks and an 8% relative gain on OOD tasks.
+2 RELATEDWORK
+Large language models (LLMs) ensemble methods(Chen et al., 2025a) aim to combine multiple
+models to leverage their complementary strengths. Existing approaches can be categorized into three
+paradigms based on integration timing: ensemble-before-inference, ensemble-during-inference, and
+ensemble-after-inference. Ensemble-before-inference methods (Lu et al., 2024a; Ding et al., 2024;
+Srivatsa et al., 2024; Lu et al., 2024b) first apply a routing mechanism, either pretrained on custom
+data or trained on the fly, to dispatch each query to the most suitable, specialized model, thereby
+enabling more cost-efficient inference. Ensemble-during-inference methods (Huang et al., 2024; Xu
+et al., 2025b; Park et al., 2025) combine outputs from multiple models at different levels of granular-
+ity, including the token level, span level, and reasoning-step level, and then merge the resulting text
+segments back into the decoding context to iteratively refine the output. Ensemble-after-inference
+methods (Park et al., 2025; Hu et al., 2025; Du et al., 2024) generate complete responses inde-
+pendently from each candidate LLM and then consolidate them via ranking, majority voting, or
+fitness scoring to select the highest-quality output for final delivery. In contrast, our CogER learns a
+lightweight policy network to dispatch each query to a single, optimal inference action,No Think,
+Think,Extend,Delegate, within an MDP, thereby enabling fine-grained per-query adaptation.
+Test-Time Scaling (TTS) methodsoptimize computational resource allocation during inference
+through adaptive reasoning depth control. Muennighoff et al. (2025) propose budget forcing, a tech-
+nique to regulate the computation of test time by prematurely stopping the CoT of the model or
+extending it by repeated insertion of the token ‘wait’ when the model attempts to terminate gener-
+2--- Page 3 ---
+Preprint
+ation. Aggarwal & Welleck (2025) propose LCPO, a straightforward reinforcement learning (RL)
+approach designed to maximize accuracy while respecting user-specified length constraints. Yang
+et al. (2025b) propose Thinking-Optimal Scaling, which trains the model on seed examples with
+varied response lengths to learn appropriate reasoning efforts and then self-improves by selecting
+the shortest correct responses on new tasks. In contrast to TTS methods that only adjust reason-
+ing depth based on coarse difficulty estimates, CogER selects among diverse reasoning modes and
+seamlessly integrates external tool usage, achieving more versatile resource allocation.
+3 PROBLEMSTATEMENT ANDMOTIVATION
+Given a set of user queriesX={x 1, . . . , xK}, we seek to process each queryx i with a reason-
+ing strategy that minimizes computational cost while maximizing solution quality. Specifically, for
+eachx i, we select reasoning actionsa i ∈ A={No Think,Think,Extend,Delegate}, where
+No Thinkuses a lightweight LLM to produce an immediate answer;Thinkinvokes internal multi-
+step reasoning within a moderately sized LLM;Extendperforms test-time scaling by engaging a
+Large Reasoning Model (LRM) to generate a longer chain of thought;Delegateinvokes parame-
+terized external tools (e.g., search engines, calculator) to obtain intermediate information, which is
+seamlessly incorporated into the model’s reasoning process to produce the final output. Each action
+a∈ Aincurs a computational costC(a)and achieves an expected solution qualityα(a). Our ob-
+jective is to learn a policyπmapping each queryx i to exactly one reasoning action to minimize the
+combined cost–accuracy loss:
+min
+π
+KX
+i=1
+h
+C
+ 
+π(xi)
+
+−
+ 
+π(xi)
+i
+.(1)
+Motivation. In real-world applications, user questions exhibit a wide range of complexity. For
+example, some queries can be answered in a single step, whereas others require deep, multi-step
+reasoning or integration of external information sources. However, existing LLMs apply the same
+reasoning procedure to every query with a high computational cost, which may lead towasted re-
+sources on simple queries and poor performance on complex ones(Sui et al., 2025; Hu et al., 2025).
+To address this issue, we provide per-query adaptivity by selecting the most appropriate processing
+mode for each question. Simple lookups invoke a lightweight model to generate an immediate an-
+swer. Moderately difficult queries trigger internal reasoning within a medium-sized model. Harder
+queries use a large reasoning model to produce an extended chain of thought. Finally, queries be-
+yond the model’s standalone capabilities call external tools or APIs and incorporate their outputs.
+This dynamic selection mechanism reduces overall cost while preserving or improving accuracy,
+enabling efficient and scalable reasoning across diverse workloads.
+4 COGNITIVE-INSPIREDELASTICREASONING FORLLMS
+In this paper, we propose theCognitive-InspiredElasticReasoning (CogER) for efficient scaling
+of language model reasoning, which dynamically selects the most appropriate processing mode for
+each query. The overall framework is in Figure 1. Given an input query, the CogER-Agent selects
+a complexity level (L1 −L 4) and routes it to the corresponding reasoning strategy, including direct
+answering, light to multi-step reasoning, and Cognitive Tool-Assisted Reasoning (c.f.Sec. 4.4).
+4.1 QUERYCOMPLEXITYCLASSIFICATION
+To efficiently allocate reasoning strategies based on the diverse computational requirements of dif-
+ferent queries, we draw inspiration fromBloom’s Taxonomy(Bloom et al., 1956) to classify queries
+by their cognitive demand. Specifically, we define four levels of query complexity, denoted asL 1,
+L2,L 3, andL 4, with each level representing an increasing degree of reasoning depth and computa-
+tional demand, as illustrated in Figure 1(a). The details of each level are as follows:
+•L 1: Prompt Answering.Queries with simple, unambiguous structure that require no reasoning
+and can be answered directly (e.g., “2 + 2 =?”). [Corresponds to Bloom’s “Remember” level.]
+3--- Page 4 ---
+Preprint
+L1: No Think
+L2: Think with CoT
+L3: Extend with LRM
+Input Query
+Find a positive 
+integer that is 
+divisible by 14…
+Final 
+Answer
+CogER-Agent
+Routing
+Format
+Reward
+Accuracy
+Reward
+Hierarchical-Aware 
+Reward
+Reward Calculation
+GRPO
+Training
+Rollout Selection
+L4: Delegate with our CoTool
+(a) Query complexity levels (b) Overview of the Cognitive-Inspired Elastic Reasoning
+Level 1Level 2
+Level 3 Level 4
+Prompt 
+Answering
+CoT
+Reasoning
+Deep 
+Reasoning
+Tool-Enhanced 
+Deep Reasoning
+Figure 1: (a) Query complexity levels. (b) Overview of the CogER. Given an input query, the
+CogER-Agent selects a complexity level (L 1 −L 4) and routes it to the corresponding reasoning
+strategy, including direct answering, light to multi-step reasoning, and Cognitive Tool-Assisted Rea-
+soning. The CogER-Agent is trained via GRPO with a composite reward that combines Format
+RewardR format, Accuracy RewardR accuracy, and Hierarchical-Aware RewardR hierarchy.
+•L 2: CoT Reasoning.Queries that demand basic comprehension and simple reasoning (e.g.,
+“How many minutes are in 3.5 hours?”). [Corresponds to Bloom’s “Understand/Apply” levels.]
+•L 3: Deep Reasoning.Queries requiring multi-hop Reasoning, analysis, or evidence weighing
+(e.g., “Analyze the trends in data table”). [Corresponds to Bloom’s “Analyze/Evaluate” levels.]
+•L 4: Tool-Enhanced Deep Reasoning.Queries that require creative synthesis of information to
+generate novel solutions (e.g., “Formulate a proof strategy for the Collatz conjecture.”). [Corre-
+sponds to Bloom’s “Create” level.]
+This classification facilitates a principled allocation of computational resources: lower-complexity
+queries (e.g.,L 1 andL 2) can be handled by lightweight reasoning modules, while higher-complexity
+queries (e.g.,L 3 andL 4) may demand more sophisticated reasoning techniques or assistance from
+external tools. By tailoring the reasoning strategy to the cognitive complexity of each query, the
+system can achieve more efficient use of computational resources and improved overall performance.
+4.2 COGNITIVE-INSPIREDELASTICREASONING ASMARKOVDECISIONPROCESS
+We seek to design a CogER-Agent that dynamically selects reasoning strategies based on the com-
+plexity of each query, optimizing the balance between computational cost and solution quality. Dy-
+namic reasoning over diverse queries naturally constitutes a sequential decision-making problem
+under uncertainty: the agent must choose among multiple reasoning operations step by step to bal-
+ance resource expenditure with answer accuracy. Such a process aligns perfectly with the Markov
+Decision Process (MDP) (van Otterlo & Wiering, 2012), which seeks a policy that maximizes ex-
+pected cumulative utility. Therefore, we model it as a MDP:<S,A,T,R, π >. The state space of
+the environment isSand the action space of the agent isA. At time stept, the agent takes the state
+st ∈ Sas input and performs an actiona t ∈ Athrough the policy networkπ:S × A →[0,1]. The
+environment changes to the next states t+1 =T(s t, at)according to the transition functionTand
+a rewardr t =R(s t, at)is received with reward functionR. The MDP is as follows:
+StatesSis a set of states which describe the environment. At time stept, the state can be represented
+ass t = [x, y 1:t−1, Li], wherexdenotes the input query,y 1:t−1 represents the natural language
+output at time steps1throught−1, andL i ∈L={L 1, L2, L3, L4}denotes the inferred task
+complexity level corresponding to the query. Note that the complexity levelLi may not be presented
+at every time stept, as the model may infer this level based on the context or internal reasoning.
+ActionsAis a set of actions that the agent can take to process the query. Each action cor-
+responds to a different reasoning strategy based on the complexity of the query. The action
+space includes both the vocabulary space, from which the model generates tokens, and prede-
+fined reasoning strategies for different complexity levels. Specifically, the action space consists
+of:A={No Think,Think,Extend,Delegate,V}, whereVrepresents the vocabulary of possible
+words or tokens the model can generate as part of its reasoning, and the other actions are strategies
+the agent can apply based on the query’s complexity.
+4--- Page 5 ---
+Preprint
+RewardsR(S,A)is the reward function. In this setting, the reward can be considered as a com-
+posite signal that rewards correctly formatted strategy outputs and incentivizes high accuracy with
+minimal resource consumption. The details of the reward function are given in the Sec. 4.3.
+Policyπ θ(a|s) :A × S →[0,1]describes the behaviors of the agent. The agent takes the current
+states t as input and outputs a probability distribution for each possible actiona t ∈ A:
+π(a t =i|s t;θ) = exp (fθ (st)i)
+PN
+j=1 exp
+
+fθ (st)j
+ ,(2)
+wheref θ (st)is the output vector of the policy with inputs t, andidenotes the index of the action.
+CogER Rollout.To enable the agent to generate reasoning trajectories and select appropriate rea-
+soning strategies autonomously, we adopt a dedicated system prompt (c.f.App. B.1) to guide the
+thinking of the model during rollout. This prompt instructs the model to wrap each incoming query
+with special tokens, such as<question level>and</question level>to explicitly mark
+its complexity. Once the level is identified, the agent proceeds as follows:
+•L 1-level:No Think. Return the answer immediately with no reasoning.
+•L 2-level:Think. Apply a chain-of-thought strategy (Wei et al., 2022b) using a moderately sized
+LLM to produce a concise reasoning trail.
+•L 3-level:Extend. Produce an extended chain-of-thought with a large reasoning model.
+•L 4-level:Delegate. Invoke external tools via our CoTool (c.f.Sec. 4.4) to support reasoning.
+By dynamically adjusting its strategy according to the query complexity, the CogER-Agent can
+achieve a better trade-off between computation overhead and reasoning performance.
+4.3 REWARDFUNCTIONDESIGN
+In our MDP, we define the reward as a composite of three components: Format Reward, Accu-
+racy Reward, and Hierarchical-Aware Reward. These components encourage the agent to generate
+formatted level tags correctly, achieve high answer accuracy, and avoid unnecessary use of overly
+complex strategies. Formally, the rewardR(S,A)is defined as follows:
+R(S,A) =R format(S,A) +R accuracy(S,A) +R hierarchy(S,A),(3)
+whereR format(·)is Format Reward,R accuracy(·)is Accuracy Reward, andR hierarchy(·)is
+Hierarchical-Aware Reward.
+Format RewardR format.The Format Reward encourages the agent to generate outputs with
+the correct structural format, specifically ensuring the inclusion of a properly placed task-level tag
+(i.e.,<question level>Li</question level>) that corresponds to the query’s complexity
+level, which can be formulated as follows:
+Rformat(S,A) =
++1,if all required fields appear and are in the correct order
+0,otherwise .(4)
+Accuracy RewardR accuracy.The Accuracy Reward encourages the agent to produce correct an-
+swers by assigning a positive reward only when the predicted result matches the expected outcome:
+Raccuracy(S,A) =
++1,if the final answer is correct
+0,otherwise .(5)
+Hierarchical-Aware RewardR hierarchy.The Hierarchical-Aware Reward encourages the agent
+to solve queries with the simplest sufficient strategy, thereby avoiding unnecessary computational
+overhead. Specifically, the reward assigns a base credit for using each reasoning level and penalizes
+the use of unnecessarily complex strategies when a simpler level suffices. The reward is defined as:
+Rhierarchy(S,A) =b(L min(S))−δ(L min(S), L(S)),(6)
+whereL(S)denotes the selected reasoning level, andL min(S)is the minimal level required to solve
+the given query. The base creditb(L(S)increases linearly with the reasoning level:
+b(Lmin(S)) = 0.5·(L min(S)−1), L min(S)∈ {1,2,3,4}.(7)
+5

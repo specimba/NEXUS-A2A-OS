@@ -6,7 +6,7 @@
  * Routes requests to the best available model based on tier, health, and latency.
  *
  * Providers:
- *   z-ai        → z-ai-web-dev-sdk (GLM-4.7)
+ *   z-ai        → z-ai-web-dev-sdk (GLM-5.2)
  *   openrouter  → OpenRouter API with key rotation (free models)
  */
 
@@ -66,15 +66,42 @@ export interface RequestOptimizationResult {
   reason?: string
 }
 
+export interface ZAIModelEchoReconciliation {
+  requestedModel: string
+  providerResponseModel?: string
+  apiModel: string
+}
+
+export function reconcileZAIModelEcho(
+  requestedModel: string,
+  providerResponseModel?: string
+): ZAIModelEchoReconciliation {
+  const normalizedRequested = requestedModel.trim()
+  const echoedModel = providerResponseModel?.trim()
+  const isGlm5xRequest = /^glm-5(?:\.|-|$)/i.test(normalizedRequested)
+
+  // z-ai currently echoes the legacy alias `glm-4-plus` for GLM-5.x requests.
+  // Keep the raw echo for diagnostics, but display the requested GLM-5.x model.
+  const apiModel = isGlm5xRequest && echoedModel === 'glm-4-plus'
+    ? normalizedRequested
+    : (echoedModel || normalizedRequested)
+
+  return {
+    requestedModel: normalizedRequested,
+    providerResponseModel: echoedModel,
+    apiModel,
+  }
+}
+
 // ── Model Route Definitions (HONEST LABELING) ─────────────────────────
 
 const MODEL_ROUTES: ModelRoute[] = [
   // ── Reasoning Tier ──
   {
-    id: 'glm-4-7-nim',
+    id: 'glm-5-2',
     tier: 'reasoning',
-    displayName: 'GLM-4.7 (NIM Free)',
-    actualModel: 'z-ai/glm-4.7',
+    displayName: 'GLM-5.2 (z-ai)',
+    actualModel: 'z-ai/glm-5.2',
     provider: 'z-ai',
     providerLabel: 'z-ai SDK',
     isFree: true,
@@ -1168,8 +1195,9 @@ async function callZAI(
       content: m.content,
     })),
   ]
-
+  const requestedModel = 'glm-5.2'
   const completion = await zai.chat.completions.create({
+    model: requestedModel,
     messages: apiMessages,
     thinking: { type: 'disabled' },
   })
@@ -1178,6 +1206,11 @@ async function callZAI(
 
   if (!content) {
     throw new Error('Empty response from z-ai SDK')
+  }
+
+  const modelEcho = reconcileZAIModelEcho(requestedModel, (completion as any).model as string | undefined)
+  if (modelEcho.providerResponseModel && modelEcho.providerResponseModel !== modelEcho.apiModel) {
+    console.debug('z-ai model echo reconciled', modelEcho)
   }
 
   return content
@@ -1409,7 +1442,7 @@ export function getProviderStatus(provider: string): ProviderStatus {
   }
 
   const label = provider === 'z-ai'
-    ? 'z-ai SDK (GLM-4.7)'
+    ? 'z-ai SDK (GLM-5.2)'
     : provider === 'openrouter'
       ? 'OpenRouter Free Tier'
       : provider === 'cerebras'
@@ -1526,3 +1559,4 @@ export async function healthCheckProvider(provider: string): Promise<{
     }
   }
 }
+

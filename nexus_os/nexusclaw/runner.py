@@ -13,6 +13,7 @@ from nexus_os.nexusclaw.coordinator import NexusClawCoordinator
 from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope
 from nexus_os.nexusclaw.messaging import NEXUSCLAWMessagingHub, MessageResult
 from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
+from nexus_os.nexusclaw.runtime_security import sanitize_agent_output
 
 logger = logging.getLogger("nexusclaw.runner")
 

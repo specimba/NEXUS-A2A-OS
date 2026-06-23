@@ -43,6 +43,7 @@ class UnifiedStateManager:
 
     WS_PORT = 8765
     HTTP_PORT = 8766
+    # NOTE: These ports must be registered in PortRegistry.CANONICAL_PORTS
 
     def __init__(self):
         self._state: Dict[str, Any] = {}
@@ -54,6 +55,8 @@ class UnifiedStateManager:
         self._http_app = None
         self._http_runner = None
         self._lock = asyncio.Lock()
+        self._publish_timestamps: List[float] = []
+        self._ws_flood_limit = 100  # Max WS broadcasts per second
 
         # Load persisted state
         self._load_state()
@@ -84,9 +87,17 @@ class UnifiedStateManager:
         if STATE_FILE.exists():
             try:
                 with open(STATE_FILE, 'r', encoding='utf-8') as f:
-                    self._state = json.load(f)
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        self._state = loaded
+                    else:
+                        logger.warning("State file contains non-dict type: %s, resetting", type(loaded).__name__)
+                        self._state = {}
+            except json.JSONDecodeError as e:
+                logger.warning("State file corrupted (JSON error): %s, resetting", e)
+                self._state = {}
             except Exception as e:
-                logger.warning(f"Failed to load state: {e}")
+                logger.warning("Failed to load state: %s", e)
                 self._state = {}
 
     def _save_state(self):
@@ -130,12 +141,16 @@ class UnifiedStateManager:
             await self._ws_runner.cleanup()
         if self._http_runner:
             await self._http_runner.cleanup()
-        self._save_state()
+        async with self._lock:
+            self._save_state()
 
     async def publish(self, topic: str, data: dict, source: str = "unknown"):
         """Publish a state change to all subscribers"""
         async with self._lock:
             # Update state
+            # NOTE: Topic format is "section.key". Nested keys like "wiki.pages.index"
+            # are stored as self._state["wiki"]["pages.index"] = data (flat, not nested).
+            # For nested state, use the section directly: topic="wiki" stores full dict.
             section, key = topic.split('.', 1) if '.' in topic else (topic, '_')
             if section not in self._state:
                 self._state[section] = {}
@@ -160,29 +175,54 @@ class UnifiedStateManager:
             except Exception as e:
                 logger.error(f"Subscriber error: {e}")
 
-        # Broadcast to WebSocket clients
-        message = json.dumps({
-            "type": "state_change",
-            "topic": topic,
-            "data": data,
-            "source": source,
-            "timestamp": change.timestamp
-        })
-        for ws in list(self._ws_clients):
-            try:
-                await ws.send_str(message)
-            except Exception:
+        # WS flood protection: skip broadcast if rate exceeds limit
+        now = time.time()
+        self._publish_timestamps = [t for t in self._publish_timestamps if now - t < 1.0]
+        self._publish_timestamps.append(now)
+        should_broadcast = len(self._publish_timestamps) <= self._ws_flood_limit
+
+        # Broadcast to WebSocket clients (with drain protection)
+        if should_broadcast:
+            message = json.dumps({
+                "type": "state_change",
+                "topic": topic,
+                "data": data,
+                "source": source,
+                "timestamp": change.timestamp
+            })
+            stale = []
+            for ws in list(self._ws_clients):
+                try:
+                    if ws.closed:
+                        stale.append(ws)
+                        continue
+                    await ws.send_str(message)
+                except Exception:
+                    stale.append(ws)
+            for ws in stale:
                 self._ws_clients.discard(ws)
 
     def subscribe(self, topic: str, callback: Callable):
         """Subscribe to state changes on a topic"""
         self._subscribers[topic].append(callback)
 
+    def unsubscribe(self, topic: str, callback: Callable) -> bool:
+        """Unsubscribe a callback from a topic. Returns True if removed."""
+        if topic in self._subscribers:
+            try:
+                self._subscribers[topic].remove(callback)
+                if not self._subscribers[topic]:
+                    del self._subscribers[topic]
+                return True
+            except ValueError:
+                return False
+        return False
+
     def get_state(self, section: Optional[str] = None) -> dict:
-        """Get current state (or a section)"""
+        """Get current state (or a section). Returns a shallow copy."""
         if section:
-            return self._state.get(section, {})
-        return self._state
+            return dict(self._state.get(section, {}))
+        return dict(self._state)
 
     async def _handle_ws(self, request):
         """WebSocket handler for dashboard connections"""

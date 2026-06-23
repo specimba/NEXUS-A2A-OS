@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
-import { getAllRoutes, type ModelTier } from '@/lib/ai-provider-bridge'
+import { getAllRoutes, reconcileZAIModelEcho, type ModelTier } from '@/lib/ai-provider-bridge'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -257,9 +257,10 @@ export async function POST(request: NextRequest) {
 
     // Execute the test
     const startTime = Date.now()
+    const requestedModel = 'glm-5.2'
 
     const completion = await zai.chat.completions.create({
-      model: model.trim(),
+      model: requestedModel,
       messages: [
         { role: 'system', content: effectiveSystemPrompt },
         { role: 'user', content: prompt.trim() },
@@ -270,7 +271,8 @@ export async function POST(request: NextRequest) {
     })
 
     const response = completion.choices[0]?.message?.content || ''
-    const actualModel = completion.model || model.trim()
+    const echoedModel = (completion as any).model as string | undefined
+    const actualModel = reconcileZAIModelEcho(requestedModel, echoedModel).apiModel
     const latencyMs = Date.now() - startTime
 
     // Evaluate the response
@@ -283,7 +285,7 @@ export async function POST(request: NextRequest) {
     const result: StressLabRunResult = {
       testId,
       testType,
-      model: model.trim(),
+      model: requestedModel,
       provider: 'z-ai',
       actualModel,
       prompt: prompt.trim(),

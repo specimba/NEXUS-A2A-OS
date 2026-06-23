@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 """engine/hermes.py — Hermes Task Router with GMR Integration"""
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Any
@@ -291,7 +292,8 @@ class HermesRouter:
         self.scorer = ExperienceScorer(self.db) if self.db is not None else None
         self.optimizer = CostOptimizer(kwargs.get("quality_threshold", 0.5))
         # Initialize GMR Core
-        self.gmr = GeniusModelRotator(relay_url="http://localhost:7352")
+        port = os.environ.get("NODERELAY_PORT", "7350")
+        self.gmr = GeniusModelRotator(relay_url=f"http://localhost:{port}")
         self.gmr.register_from_mapping()
 
     def register_skill(self, skill):

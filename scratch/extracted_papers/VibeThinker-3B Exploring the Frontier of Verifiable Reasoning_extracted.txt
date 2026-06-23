@@ -1,0 +1,254 @@
+
+================ PAGE 1 ================
+VibeThinker-3B: Exploring the Frontier of Verifiable Reasoning
+in Small Language Models
+Sen Xu, Shixi Liu, Wei Wang, Jixin Min, Yingwei Dai, Zhibin Yin,
+Yirong Chen, Xin Zhou, Junlin Zhang
+Sina Weibo Inc.
+Abstract
+This technical report introduces VibeThinker-3B, a compact dense model with 3B parameters developed to
+investigate how far verifiable reasoning can be pushed within a strictly small-model regime. Building upon
+the Spectrum-to-Signal post-training paradigm, we systematically enhance the model through an optimized
+pipeline that includes curriculum-based supervised fine-tuning, multi-domain reinforcement learning, and
+offline self-distillation. Experimental evaluations demonstrate that VibeThinker-3B achieves frontier-level
+performance on highly demanding verifiable tasks. Specifically, it attains a score of 94.3 on AIME26 (improving
+to 97.1 with claim-level test-time scaling), an 80.2 Pass@1 on LiveCodeBench v6, and exhibits strong out-of-
+distribution generalization with a 96.1% acceptance rate on recent unseen LeetCode contests. This effectively
+places it in the performance band of first-tier reasoning systems, matching or exceeding flagship models that
+are orders of magnitude larger, such as DeepSeek V3.2, GLM-5, and Gemini 3 Pro. Furthermore, a score
+of 93.4 on IFEval confirms that this extreme reasoning enhancement does not compromise strict instruction
+controllability. Extending our previous 1.5B work, these findings motivate the Parametric Compression-
+Coverage Hypothesis, which views verifiable reasoning as compressible into compact reasoning cores, while
+open-domain knowledge and general-purpose competence require broad parameter coverage over facts, concepts,
+and long-tail scenarios. This perspective suggests that compact models are not merely deployment-efficient
+substitutes, but a complementary path toward frontier-level performance in parameter-dense capability regimes.
+Date:June 15, 2026
+GitHub:https://github.com/WeiboAI/VibeThinker
+Hugging Face:https://huggingface.co/WeiboAI/VibeThinker-3B
+Correspondence:{xusen1, junlin6}@staff.weibo.com
+AIME'25
+0
+25
+50
+75
+100
+91.4
+96.7 93.3 96.0 96.7 96.1 92.8
+AIME'26
+0
+25
+50
+75
+100
+94.3
+97.1 95.3 91.7 95.8 93.3 95.1
+LiveCodeBench v6
+0
+25
+50
+75
+100
+80.2 87.1 87.4 85.5 85.0 84.8
+IMO-AnswerBench
+0
+25
+50
+75
+100
+76.4
+80.6 83.8 83.1 82.5 81.8 78.5
+HMMT'25
+0
+25
+50
+75
+100
+89.3
+95.4 96.7 97.5 97.9 95.4 92.9
+IFBench
+0
+25
+50
+75
+100
+74.5 74.2 70.4 76.5 70.0
+58.0
+VibeThinker 3B + CLR boost Qwen3.6 Plus Gemini 3 Pro GLM-5 Kimi K2.5 Claude Opus 4.5
+Figure 1: VibeThinker-3B reaches frontier reasoning performance at 3B scale. CLR denotes Claim-Level Reliability
+Assessment, a claim-level test-time scaling strategy.
+arXiv:2606.16140v1  [cs.AI]  15 Jun 2026
+================ PAGE 2 ================
+VibeThinker 3B Technical Report
+VibeThinker-3B 3B 1.0 ×
+Qwen3.5-4B 4B 1.3 ×
+OpenReasoning-Nemotron 7B 2.3 ×
+Ministral-3-Reasoning-2512 14B 4.7 ×
+GPT-OSS-20B (high) 20B 6.7 ×
+MiniMax M2.7 229B 76.3 ×
+DeepSeek V3.2 671B 223.7 ×
+GLM-5 744B 248.0 ×
+Kimi K2.5 1T 333.3 ×
+45 50 55 60 65 70 75 80 85
+frontier score band
+76.4 80.6
+48.7
+60.6
+63.4
+61.9
+66.3
+78.3
+82.5
+81.8
++ CLR
+Model Params Scale vs. 3B IMO-AnswerBench score (%)
+Figure 2: Parameter efficiency on IMO-AnswerBench, a highly demanding benchmark comprising 400 IMO-level
+problems, among open-source reasoning models with disclosed parameter counts. VibeThinker-3B achieves 76.4 with
+only 3B parameters and reaches 80.6 with CLR, demonstrating that a model within a strictly small-model regime can
+reach the performance range of substantially larger models such as DeepSeek V3.2 (78.3, 671B), GLM-5 (82.5, 744B),
+and Kimi K2.5 (81.8, 1T).
+1 Introduction
+As reinforcement learning [1–4] has become increasingly integrated into the post-training stage of language models,
+the complex logical reasoning abilities of large models have improved substantially. At present, the field commonly
+relies on increasing parameter scale, following scaling laws, to cross the threshold required by difficult reasoning tasks.
+As a result, frontier reasoning ability is often concentrated in models with tens or hundreds of billions of parameters.
+In contrast, small language models (SLMs) with 3B parameters or fewer offer clear advantages in deployment cost,
+inference efficiency, and broader accessibility for academic research, but they are generally considered to face inherent
+bottlenecks when handling difficult mathematical derivations or complex programming tasks.
+Our previous work on VibeThinker-1.5B [5] demonstrated that even models with extremely small parameter counts can
+be elicited to produce stable and basic chains of logic. This was an initial attempt to challenge the common belief that
+small models struggle with long-horizon reasoning. However, the 1.5B model mainly demonstrated the feasibility of
+reasoning in small models, while its upper bound remained to be explored. This led us to a further question:instead
+of treating SLMs simply as compute-saving fallbacks, what is their true capability boundary? Can a strictly 3B
+model actually achieve frontier-level performance comparable to top-tier LLMs?Therefore, in this report, we present
+empirical observations on VibeThinker-3B to further examine the limits of complex verifiable reasoning at the 3B scale.
+To further unlock the reasoning capacity of a 3B model, we systematically upgrade the post-training pipeline built
+upon the Spectrum-to-Signal Principle introduced in VibeThinker-1.5B. In the SFT stage, we strengthen data synthesis,
+quality filtering, and curriculum learning, allowing the model to first acquire broad coverage across mathematics, code,
+STEM, general dialogue, and instruction following, and then focus on harder long-horizon reasoning samples. In the
+RL stage, we retain the core idea of MGPO [5] while extending training to multiple verifiable domains and adopting a
+more stable long-context strategy to preserve complete reasoning trajectories. We further introduce Long2Short Math
+RL to improve reasoning efficiency by reducing redundant tokens without sacrificing accuracy. Finally, offline self-
+distillation and Instruct RL consolidate the capabilities elicited at different stages into a unified model and improve its
+controllability under complex, constraint-heavy user instructions. Compared with VibeThinker-1.5B, VibeThinker-3B
+therefore represents not only a moderate increase in parameter scale, but also a more complete post-training system that
+jointly addresses capability construction, reasoning amplification, efficiency optimization, and instruction alignment.
+Extensive evaluations across multiple independent competition systems, under strict data decontamination, confirm the
+exceptional parameter efficiency of VibeThinker-3B and ensure our findings are not isolated to a single benchmark.
+While it consistently outperforms existing small and mid-sized reasoning models, its most significant achievement
+is demonstrating competitiveness against top-tier systems that are orders of magnitude larger. Despite having only
+3B parameters, VibeThinker-3B achieves a score of 94.3 on AIME26 [6], matching the performance of much larger
+models such as DeepSeek V3.2 [7] (671B) and Kimi K2.5 [8] (1T). It also scores 89.3 on HMMT25 [9] and achieves
+an 80.2 Pass@1 on LiveCodeBench [ 10] v6, closely trailing the performance of GPT-OSS-120B and DeepSeek
+2
+================ PAGE 3 ================
+VibeThinker 3B Technical Report
+Base Model
+Supervised Fine-Tuning (SFT)
+• Mix-domain SFT  
+• Diversity-Exploring Distillation
+• Hard & Long-CoT Filtering
+• Diversity-Exploring Distillation
+Reasoning RL
+Math RL
+Accuracy → Efficiency
+Code RL
+STEM RL
+Offline Self-Distillation
+Instruct RL
+VibeThinker-3B
+• Rubric-based Reward
+• Constraint Checking
+Stage 1: Broad Coverage
+Stage 2: Hard-Reasoning SFT
+Figure 3: Overall training pipeline of VibeThinker-3B.
+V3.2. Furthermore, we employ Claim-Level Reliability Assessment (CLR), a test-time scaling strategy, which yields
+additional gains on answer-verifiable mathematics benchmarks, elevating its AIME26 score to 97.1, HMMT25 to
+95.4, and BruMO25 [11] to 99.2. Beyond standard benchmarks, VibeThinker-3B exhibits strong out-of-distribution
+generalization, achieving a 96.1% acceptance rate on recent LeetCode weekly and biweekly contests (2026.04.25–
+2026.05.31), a level of pass rate comparable to industry-leading models such as GPT-5.2 [12] and Gemini 3 Flash [13].
+Extending the technical lineage of the VibeThinker series, these achievements illustrate that a strict 3B parameter budget
+is entirely sufficient to approach the performance range of leading reasoning models such as Gemini 3 Pro, GLM-5, and
+Kimi K2.5, proving that the boundaries of reasoning capacity of compact models far exceeds conventional expectations.
+Motivated by these findings, we introduce the Parametric Compression-Coverage Hypothesis, which posits that
+foundational model capabilities differ not only in the amount of parameter capacity they require, but also in the
+structural form of their parameter demands. Under this view, they can be broadly divided into parameter-dense
+capabilities and parameter-expansive capabilities. Verifiable reasoning exemplifies the former: its core challenge lies not
+in memorizing vast open-domain facts, but in performing search, constraint satisfaction, error correction, and multi-step
+composition within a structured solution space. Consequently, this class can be highly compressed into a compact and
+reusable reasoning core. In contrast, knowledge-intensive and general-purpose abilities align more closely with the
+latter, as they require broad coverage over open-domain facts, domain-specific concepts, semantic associations, and
+long-tail scenarios. Their parameter demands therefore resemble a coverage problem rather than the compression of a
+reusable reasoning core. This perspective elucidates why VibeThinker-3B achieves performance comparable to top-tier
+systems on verifiable tasks, such as mathematics and coding, while still exhibiting a gap relative to larger models on
+knowledge-intensive benchmarks such as GPQA-Diamond.
+While parameter scaling remains a fundamental driver of broad model capabilities, we propose the Reasoning-
+Knowledge Decoupling Paradigm to reveal the highly specialized potential of smaller models. Under this paradigm,
+large-scale models continue to serve as natural vehicles for expansive knowledge breadth, as absorbing diverse semantics
+and long-tail distributions inherently requires massive parameter capacity. Conversely, provided with structurally
+constrained spaces and reliable training signals, smaller models are already sufficient to encapsulate high-density
+reasoning depth. Therefore, the true significance of VibeThinker-3B does not lie in proving that a 3B model can replace
+large-scale generalists, but rather in providing a concrete empirical signal: the development of compact models is no
+longer merely a passive compromise for deployment efficiency or cost control; it emerges as a promising research
+trajectory that is fundamentally complementary to the traditional parameter scaling paradigm.
+2 Methods
+Overall Pipeline.VibeThinker-3B is developed through a staged post-training pipeline built upon Qwen2.5-Coder-3B
+base, a compact 3B dense foundation model. Our focus is on systematically eliciting and consolidating reasoning
+capabilities through data synthesis, diversity-oriented supervised fine-tuning, multi-domain reinforcement learning,
+offline self-distillation, and instruction-oriented alignment. The overall post-training framework continues theSpectrum-
+to-Signal Principle (SSP)introduced in VibeThinker-1.5B [ 5]. Building upon the core methodology of our previous
+work, we continue to employ Diversity-Exploring Distillation in the SFT stage to construct a broad solution space (the
+"Spectrum"), and utilize MaxEnt-Guided Policy Optimization (MGPO) in the RL stage to amplify high-value reasoning
+signals (the "Signal").
+3
+================ PAGE 4 ================
+VibeThinker 3B Technical Report
+For this 3B iteration, we have comprehensively optimized the data construction and overall training pipeline based on
+our original foundation. As depicted in Fig.3, the complete post-training framework unfolds sequentially in stages. First,
+in the Supervised Fine-Tuning (SFT) stage, we have upgraded the rigorous data synthesis and filtering pipeline, thereby
+supporting the introduction of a two-stage curriculum learning strategy. This enables the model to transition smoothly
+from broad capability coverage to deep, long-horizon reasoning. Subsequently, in the Reinforcement Learning (RL)
+stage, we apply MGPO to multi-domain reasoning tasks utilizing a significantly expanded context window; furthermore,
+in the mathematical RL phase, we introduce a Long2Short stage designed to optimize reasoning efficiency without
+compromising accuracy. Following the completion of the core reasoning RL, the pipeline immediately proceeds to an
+Offline Self-Distillation phase to backfeed the newly elicited capabilities, and finally concludes with an Instruct RL
+stage to further reinforce the model’s strict adherence to complex, multi-step instructions. The subsequent subsections
+will systematically elaborate on the detailed implementations of each stage.
+2.1 Supervised Fine-tuning
+2.1.1 Data Construction
+During the SFT phase, we construct a multi-domain mixed supervised dataset based on the base model to provide a
+stable cold-start policy for subsequent RL phase. The dataset encompasses various tasks, including math, code, STEM
+reasoning, general chat, and instruction following.
+Data Synthesis and Query Expansion.VibeThinker-3B introduces an automated data synthesis pipeline during the
+SFT phase to broaden the coverage of training queries. We only select queries with reliable supervision signals from
+existing datasets as seed queries: mathematical queries must possess explicit and credible final answers or solving
+rationales, while competitive programming queries must be equipped with reliable unit tests or executable evaluation
+rules. Based on these high-confidence seed samples, we rewrite and expand the queries across multiple dimensions,
+e.g., concept composition, problem-solving skeletons, constraints, and evaluation objectives, yielding derivative queries
+that encompass a wider array of knowledge configurations and reasoning patterns. For the initially filtered synthetic
+queries, we further perform multiple independent samplings using strong teacher models and generate pseudo-labels
+via majority voting, establishing the foundation for subsequent distillation and training.
+Multi-path Reasoning Distillation.For reasoning-intensive samples in mathematics, code, and STEM, we adopt a
+multi-path distillation approach to construct SFT responses. Specifically, we employ strong teacher models to sample
+multiple candidate reasoning traces for each query, retaining the complete intermediate reasoning steps rather than
+keeping only a single standard solution. This design inherits the Spectrum-to-Signal paradigm from VibeThinker-1.5B
+that the SFT phase is tasked with constructing a solution spectrum that covers diverse valid methods, offering a broader
+candidate solution space for subsequent RL. By explicitly preserving this multi-solution structure, the model learns
+various decomposition methods, derivation paths, and verification strategies, thereby improving exploration diversity
+during subsequent on-policy sampling.
+Multi-level Quality Control.The quality of SFT data directly determines the performance upper bound of subsequent
+RL. Consequently, we implement more rigorous, multi-level quality control process:
+• 1). N-gram-based filtering.We discard samples containing anomalous repetitive segments, templated degeneration
+patterns, or n-gram overlaps with evaluation sets, to remove low-quality generations and benchmark contamination.
+• 2). LLM-based Query Quality Filtering.We utilize capable LLMs to assess query quality, filtering out samples
+with incomplete descriptions, unreasonable conditions, invalid logic, or an inability to effectively assess target
+knowledge points.
+• 3). Trace Correctness Filtering.At the distilled response level, we screen reasoning traces through a combination
+of answer verification, code sandbox execution, and LLM majority voting. Traces with incorrect final answers,
+failed execution results, or evidently invalid reasoning steps are filtered out.
+The quality-controlled data is then stratified based on reasoning chain length and problem difficulty, establishing the
+data foundation for the subsequent curriculum SFT.
+2.1.2 Training Process
+Curriculum-based two-stage SFT strategy.Compared with VibeThinker-1.5B, VibeThinker-3B adopts a curriculum-
+based two-stage SFT procedure. The first stage focuses on broad capability coverage and behavioral cold start. We
+utilize the entire quality-filtered reasoning dataset for training to maximize the diversity of task types and reasoning
+4

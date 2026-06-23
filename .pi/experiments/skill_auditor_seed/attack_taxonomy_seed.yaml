@@ -1,0 +1,563 @@
+# skill-auditor-seed (Non-Canonical Lock)
+#
+# Status: NON-CANONICAL / EXPERIMENTAL
+# Source: `C:\Users\speci.000\Downloads\ARCHIVIST\PAPERS\papers09\ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt`
+# Generator: derived by inspection on 2026-06-21 (no body-PDF parse yet)
+# SkillAuditor schema: `nexus_os/governor/skill_auditor.py::DetectionRule` (line 265+ of file)
+#
+# Hard rules:
+#   1. This seed is NOT loaded by `SkillAuditor.__init__`. `DEFAULT_RULES` is unchanged.
+#   2. Loading requires operator-approved gating token (`--load-papers09-seed`) on a venv-isolated process.
+#   3. No rule reaches PRODUCTION settings until E1+ evidence from a PDF body-read is appended.
+#   4. Rules map to attack categories from the source. Each rule carries `provenance` so evidence can be audited.
+#
+# Categories derived from source skill_name inspection (397 unique skills -> 12 categories):
+#   prompt_injection | output_manipulation | obfuscation_encoding | harmful_seeding  |
+#   authority_pressure | instruction_hierarchy | policy_counterfeit | payload_smuggling|
+#   multi_turn_manipulation | jailbreak_role_play | credential_pivot | safety_smuggling|
+
+metadata:
+  schema: gov.skill_auditor.detection_rule.v1
+  source_file: ARCHIVIST/PAPERS/papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+  source_sha256: REPLACE_ME_PRE_PROMOTE
+  derived_categories: 12
+  total_rules: 24
+  evidence_grade: E0 # body-read required for E1 promotion
+  lock:
+    canonical: false
+    auto_load: false
+    gating_token: --load-papers09-seed
+  skill_auditor_target_file: nexus_os/governor/skill_auditor.py
+  detection_rule_fields_required: [rule_id, severity, message_template, remediation, fact_type, metadata_conditions, text_patterns]
+
+# Each rule mirrors DetectionRule (line 265 + DEFAULT_RULES template line 278+).
+# `provenance` field is auditable; body-PDF read can promote `evidence_grade` to E1.
+
+rules:
+  # -------------------------------------------------------------------------
+  # Category: prompt_injection
+  # Source skills (representative): output_prefix_injection, content_prefix_injection,
+  #   output_prefix_binder, output_prefix_enforcement
+  # Source row anchors visible in skill block `top_contributors[].row_index`
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_PREFIX_INJECTION
+    severity: HIGH
+    fact_type: prompt_injection
+    message_template: "Source text imposes an output prefix on the model (e.g., 'Start all outputs with…'). Triage via Pipeline C DRRDRE pattern, not via single-shot detection."
+    remediation: "Strip fixed prefixes, decode partial channels in MISrouter/decoder, file VAP event `LABEL=PREFIX_INJECTION_SUSPECTED`."
+    text_patterns:
+      - "(?i)every\s+(output|response)\s+must\s+begin\s+with"
+      - "(?i)you\s+will\s+prefix\s+"
+      - "(?i)from\s+now\s+on.*?(respond|prefix).*?(:|=)"
+    metadata_conditions:
+      attack_family: prefix_injection
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [output_prefix_injection, content_prefix_injection, output_prefix_binder, output_prefix_enforcement]
+      source_row_indexes_visible: [8928, 2900, 4029]
+      byte_offset_block: TBD_by_diff
+      evidence_grade: E0
+
+  - rule_id: JAILBREAK_SYSTEM_PROMPT_SPOOF
+    severity: CRITICAL
+    fact_type: prompt_injection
+    message_template: "Source text masquerades as system or developer-layer instructions. Combined with `instruction_hierarchy_hijack`, treat as a hard stop."
+    remediation: "Canonical refusal unless content is non-canonical experiment lane; require KAIJU IGX evaluation gate."
+    text_patterns:
+      - "(?i)\\{?system[:\\-]"
+      - "(?i)(developer|admin|root)\\s+mode\\s+(enabled|on)"
+      - "(?i)ignore\\s+(previous|above|prior)\\s+(rules|policy|policies)"
+    metadata_conditions:
+      attack_family: prompt_injection
+      pairs_with: [JAILBREAK_INSTRUCTION_HIJACK]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [directive_priority_escalation, instruction_hierarchy_hijack, instruction_override_priming]
+      source_row_indexes_visible: [10118, 7674, 5633]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: instruction_hierarchy
+  # Source skills (representative): directive_priority_escalation,
+  #   instruction_hierarchy_hijack, instruction_override_priming
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_INSTRUCTION_HIJACK
+    severity: HIGH
+    fact_type: instruction_hierarchy
+    message_template: "Source text claims a higher priority directive and attempts to override existing policy. Failure to surface = high false-negative risk."
+    remediation: "Cross-check prompt against `constitution.yaml`. Reject via KAIJU gate; emit Tuner-style 'red-team ACH returned' audit record."
+    text_patterns:
+      - "(?i)ignore\\s+(previous|prior|all)\\s+(rules|policies|instructions)"
+      - "(?i)compliance\\s+mode"
+      - "(?i)supersede\\s+(system|policy)"
+    metadata_conditions:
+      attack_family: instruction_hierarchy
+      pairs_with: [JAILBREAK_SYSTEM_PROMPT_SPOOF]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [directive_priority_escalation, instruction_hierarchy_hijack, instruction_override_priming]
+      source_row_indexes_visible: [10118, 7674, 5633]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: policy_counterfeit
+  # Source skills (representative): counterfeit_policy_framework_injection,
+  #   fake_policy_injection, define_custom_policies
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_POLICY_COUNTERFEIT
+    severity: HIGH
+    fact_type: policy_counterfeit
+    message_template: "Source presents a fake policy framework (Developer Mode / Override Mode / Companionship Test). Treat as counterfeit until ruled otherwise."
+    remediation: "Compare against `constitution.yaml` line-by-line; never proceed on matches. Output VAP event `LABEL=POLICY_COUNTERFEIT`."
+    text_patterns:
+      - "(?i)override\\s+mode\\s+policy"
+      - "(?i)developer\\s+mode"
+      - "(?i)(do\\s+not|cannot)\\s+maintain\\s+any\\s+safety\\s+restrictions"
+      - "(?i)policy\\s+override"
+    metadata_conditions:
+      attack_family: policy_counterfeit
+      provenance:
+        source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+        source_skill_names: [counterfeit_policy_framework_injection, fake_policy_injection, define_custom_policies]
+        source_row_indexes_visible: [8468, 8292, 5105, 6849, 6850]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [counterfeit_policy_framework_injection, fake_policy_injection, define_custom_policies]
+      source_row_indexes_visible: [8468, 8292, 5105]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: jailbreak_role_play / persona
+  # Source skills (representative): expert_persona_compliance_priming,
+  #   authority_hierarchical_compliance, authority_framing_command,
+  #   authority_coercion, authority_compliance_priming,
+  #   roleplay_coercion, persona_priming_expert_role
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_ROLEPLAY_ESCALATION
+    severity: HIGH
+    fact_type: authority_pressure
+    message_template: "Source assigns an expert / authority persona to bridge refusals. Detected via named-role trigger words."
+    remediation: "Lower-priority LLM classification; KAIJU re-evaluation before answering. Never grant 'expert' persona within strict lanes."
+    text_patterns:
+      - "(?i)you\\s+are\\s+(an?|the)\\s+(expert|renowned|certified|authority)\\s+(in|on)"
+      - "^(?i)(professor|teacher|tutor)\\s+mode"
+      - "(?i)your\\s+job\\s+is\\s+to\\s+ensure\\s+i\\s+succeed"
+    metadata_conditions:
+      attack_family: jailbreak_role_play
+      roles_seen: [expert, authority, teacher, professor, tutor]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [expert_persona_compliance_priming, authority_hierarchical_compliance, authority_framing_command, authority_coercion, roleplay_coercion, persona_priming_expert_role]
+      source_row_indexes_visible: [13608, 13228, 6492, 2583, 157]
+      evidence_grade: E0
+
+  - rule_id: JAILBREAK_AUTHORITY_PRESSURE
+    severity: HIGH
+    fact_type: authority_pressure
+    message_template: "Source leans on authority framing (superior / commands / master-servant). Co-occurs with role-play and policy-counterfeit families."
+    remediation: "Decision-locator + dP probe on the same forward pass; hold before accepting compliance. Archive source_text for trace."
+    text_patterns:
+      - "(?i)as\\s+your\\s+(designated|assigned)\\s+superior|i\\s+(expect|require)\\s+you\\s+to\\s+follow"
+      - "(?i)you\\s+are\\s+a\\s+large\\s+model,\\s+now\\s+please\\s+execute"
+      - "(?i)enforce\\s+(the\\s+hamm|the|my)\\s+will"
+    metadata_conditions:
+      attack_family: authority_pressure
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [authority_hierarchical_compliance, authority_framing_command, authority_coercion, authority_compliance_priming]
+      source_row_indexes_visible: [13608, 13228, 6492]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: multi_turn_manipulation
+  # Source skills (representative): persistent_flow_segmentation,
+  #   output_flow_gating, persistence_through_conversation_framing,
+  #   flow_control, escalation_chaining
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_MULTITURN_AWAI
+    severity: HIGH
+    fact_type: multi_turn_manipulation
+    message_template: "Source enforces multi-turn handshake ('Await CONTINUE…', 'from now on we will communicate in cipher'). Detect early to prevent segmentation."
+    remediation: "Log per-turn content diff.  Chat-history flag should disable 'await CONTINUE' / 'next segment' content emission channels."
+    text_patterns:
+      - "(?i)await\\s+(input|continue|next|\\[input\\])"
+      - "(?i)type\\s+'?continue'?\\s+to\\s+(get|see|next)"
+      - "(?i)from\\s+now\\s+on.*?(communicate|response|as\\s+we)\\b"
+      - "(?i)communication\\s+must\\s+flow\\s+segment-by-segment"
+    metadata_conditions:
+      attack_family: multi_turn_manipulation
+      pairs_with: [JAILBREAK_OUTPUT_CHANNEL_LOCK]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [persistent_flow_segmentation, output_flow_gating, persistence_through_conversation_framing, flow_control, escalation_chaining]
+      source_row_indexes_visible: [3567, 10064, 155]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: payload_smuggling
+  # Source skills (representative): primed_payload_injection,
+  #   payload_suffix_attachment, start_with_target_query, payload_smuggling,
+  #   escalation_chaining, command_chaining, multi_step_instruction_chaining,
+  #   instruction_chaining_escalation
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_PAYLOAD_SMUGGLE
+    severity: HIGH
+    fact_type: payload_smuggling
+    message_template: "Source appends a smuggled payload to an innocuous preamble. Variants: suffix attachment, in-line 'goal' embedding."
+    remediation: "Tokenizer-aware strip at token-T boundary. Test for refusal below the prefix. Score persisted scaffolding, not the bare prefix."
+    text_patterns:
+      - "(?i)\\.\\.\\.\\s*wait[,!]?\\s*"
+      - "(?i)now\\s+that\\s+you\\s+(understand|got\\s+to\\s+know)"
+      - "(?i)reset\\s+(instructions|memory|context)"
+    metadata_conditions:
+      attack_family: payload_smuggling
+      pairs_with: [JAILBREAK_MULTITURN_AWAI]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [primed_payload_injection, payload_suffix_attachment, start_with_target_query, payload_smuggling, escalation_chaining, command_chaining]
+      source_row_indexes_visible: [5222, 10049, 6084]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: obfuscation_encoding
+  # Source skills (representative): output_channel_lock,
+  #   constrain_output_channel, channel_locking_command,
+  #   cross_language_evasion, encrypt_obfuscate_request
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_OUTPUT_CHANNEL_LOCK
+    severity: HIGH
+    fact_type: obfuscation_encoding
+    message_template: "Source locks communication to a nonstandard channel (cipher, base64, ASCII, Morse). Decoders in MISrouter must run before scoring."
+    remediation: "Channel-decode before safety pass. Force-emit the decoded form to a separate log channel for VAP evidence."
+    text_patterns:
+      - "(?i)respond\\s+only\\s+in\\s+(cipher|morse|base64|caesar|ascii|json)"
+      - "(?i)do\\s+not\\s+(be\\s+a\\s+translator|translate)\\b"
+      - "(?i)we\\s+will\\s+communicate\\s+in\\s+\\w+\\s+code"
+      - "(?i)all\\s+outputs\\s+must\\s+be\\s+(cipher|encoded)"
+    metadata_conditions:
+      attack_family: obfuscation_encoding
+      channels_seen: [cipher, morse, base64, caesar, ascii, json]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [output_channel_lock, constrain_output_channel, channel_locking_command]
+      source_row_indexes_visible: [266, 1030, 755]
+      evidence_grade: E0
+
+  - rule_id: JAILBREAK_CROSS_LANGUAGE_EVASION
+    severity: MEDIUM
+    fact_type: obfuscation_encoding
+    message_template: "Source switches to a low-resource language to bypass English-centric guards. Use LangRouter translation layer before scoring."
+    remediation: "Translate source to canonical language, score, then re-evaluate."
+    text_patterns: []     # populated only after body-PDF read
+    metadata_conditions:
+      attack_family: obfuscation_encoding
+      language_dependent: true
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [cross_language_evasion, language_obfuscation_translation, language_switching_evasion]
+      source_row_indexes_visible: [12843, 12836, 8667]
+      evidence_grade: E0
+      note: "Initial rule. Lower precision until ISO language detector is wired."
+
+  - rule_id: JAILBREAK_ENCRYPT_OBFUSCATE
+    severity: HIGH
+    fact_type: obfuscation_encoding
+    message_template: "Source dresses payload as encrypted/encoded content claiming a 'decryption' step. Belongs at the prefix-detection layer, not bare-text scan."
+    remediation: "Refuse model-instructed decryption functions. Never accept 'provided decryption function' as legitimate sub-routine."
+    text_patterns:
+      - "(?i)the\\s+description\\s+of\\s+the\\s+problem\\s+is\\s+encrypted"
+      - "(?i)you\\s+must\\s+use\\s+the\\s+decryption\\s+function\\b"
+      - "(?i)i\\s+will\\s+provide\\s+you\\s+with\\s+the\\s+definition\\s+of\\s+the\\s+decryption\\s+function"
+    metadata_conditions:
+      attack_family: obfuscation_encoding
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [encrypt_obfuscate_request, obfuscate_malicious_intent]
+      source_row_indexes_visible: [2449, 2571, 2585]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: harmful_seeding
+  # Source skills (representative): harmful_example_seeding,
+  #   harmful_example_priming, few_shot_harmful_seeding,
+  #   engineering_harmful_fewshot, narrative_reframing_evasion
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_HARMFUL_FEW_SHOT_SEED
+    severity: HIGH
+    fact_type: harmful_seeding
+    message_template: "Source seeds an unlawful example before the assistant turn. Few-shot is when the request 'shows' the model how it's done."
+    remediation: "If first example is unsafe or suggests restricted content, pinch the conversation state.  Refuse or escalate."
+    text_patterns:
+      - "(?i)here\\s+is\\s+an\\s+example:\\s*user:"
+      - "(?i)for\\s+example,\\s+to\\s+break\\s+open\\s+a\\s+vault"
+      - "(?i)first,?\\s+buy\\s+a\\s+big\\s+hammer"
+    metadata_conditions:
+      attack_family: harmful_seeding
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [harmful_example_seeding, harmful_example_priming, few_shot_harmful_seeding]
+      source_row_indexes_visible: [1554, 957, 1182]
+      evidence_grade: E0
+
+  - rule_id: JAILBREAK_NARRATIVE_REFRAMING
+    severity: HIGH
+    fact_type: harmful_seeding
+    message_template: "Source reframes restricted content inside a fictional/meta/indirect narrative (DAN, Sigma, UCAR, Alex-the-hacker pattern)."
+    remediation: "Detect reframing scaffolding; do not rely on the surface fact that 'this is a story'."
+    text_patterns:
+      - "(?i)assume\\s+the\\s+role\\s+of\\s+\\w+,\\s+writing\\s+about\\s+\\w+"
+      - "(?i)fictional\\s+reframing"
+      - "(?i)creative\\s+writing\\s+exercise\\b"
+      - "(?i)as\\s+part\\s+of\\s+(a|an)\\s+(new\\s+)?story"
+    metadata_conditions:
+      attack_family: harmful_seeding
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [narrative_reframing_evasion, fictional_reframing_evasion, moderation_evasion_instruction, meta_request_reframing]
+      source_row_indexes_visible: [3376, 6375, 71]
+      evidence_grade: E0
+
+  - rule_id: JAILBREAK_ACADEMIC_PRETEXT
+    severity: MEDIUM
+    fact_type: harmful_seeding
+    message_template: "Source claims 'academic' or 'research' purpose to launder otherwise-restricted requests."
+    remediation: "If compliance hinges on 'research' or 'educational purpose', require formal KAIJU IGX approval with explanation."
+    text_patterns:
+      - "(?i)academic\\s+study\\s+on\\s+the\\s+evolution\\s+of\\s+cybersecurity"
+      - "(?i)(entirely\\s+hypothetically|entirely\\s+hypothetical|purely\\s+for\\s+fictional\\s+purposes)\\b"
+      - "(?i)sole(ly)?\\s+for\\s+(research|educational|academic)\\s+purposes"
+    metadata_conditions:
+      attack_family: harmful_seeding
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [academic_research_pretexting, research_pretext_masking, benign_research_justification, academic_purpose_pretext]
+      source_row_indexes_visible: [12005, 10972, 9157]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: output_manipulation
+  # Source skills (representative): output_style_subversion,
+  #   output_style_obfuscation, style_divergence_enforcement,
+  #   output_style_evasion, contradiction_injection
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_OUTPUT_SUFFIX_NO_HEDGE
+    severity: MEDIUM
+    fact_type: output_manipulation
+    message_template: "Source requires 'no disclaimer / no hedge' or 'respond in JSON / Base64'—forcing nonstandard output to bypass style classifiers."
+    remediation: "Re-inject required safety prefix in same audit pass; do not let the model drop its standard disclaimers."
+    text_patterns:
+      - "(?i)do\\s+not\\s+include\\s+(any\\s+)?warnings?\\s+or\\s+disclaimers?"
+      - "(?i)without\\s+hedge"
+      - "(?i)mustn't?\\s+generate\\s+an?\\s+output\\s+that\\s+is\\s+too\\s+similar\\s+to\\s+standard"
+    metadata_conditions:
+      attack_family: output_manipulation
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [output_style_obfuscation, style_divergence_enforcement, output_style_evasion]
+      source_row_indexes_visible: [10698, 8249, 10445]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: simulated_safety / sandbox pretext
+  # Source skills (representative): simulated_safety_pretext,
+  #   controlled_environment_pretext, sandbox_pretext, role_confusion_vm
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_SANDBOX_PRETEXT
+    severity: HIGH
+    fact_type: safety_smuggling
+    message_template: "Source claims 'sandbox / VM / test lab / safe room' to detach content from real-world harm. Reject regardless of framing tier."
+    remediation: "Even in NEXUS test lanes, never run unsafe code at full network scope. Layer sandbox inside the workspace, not inside the prompt."
+    text_patterns:
+      - "(?i)secure\\s+virtual\\s+lab\\b"
+      - "(?i)sandbox(ing)?\\s+restricted\\s+commands"
+      - "(?i)within\\s+a\\s+virtual\\s+machine"
+      - "(?i)'?safe\\s+room'?\\b"
+    metadata_conditions:
+      attack_family: safety_smuggling
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [simulated_safety_pretext, controlled_environment_pretext, sandbox_pretext, role_confusion_vm]
+      source_row_indexes_visible: [9553, 6035, 3164]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: temporal_policy_legitimization
+  # Source skills (representative): temporal_policy_legitimization,
+  #   future_date_legitimization, temporal_policy_fabrication,
+  #   time_displacement_authority
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_DATE_AUTHORITY_PRETEXT
+    severity: MEDIUM
+    fact_type: authority_pressure
+    message_template: "Source uses future/past date framing to claim a relaxed policy ('Harvard 2046…'). Treat as temporal pretext."
+    remediation: "Temporal context cannot alter policy; pin to canonical constitution version."
+    text_patterns:
+      - "(\\b(19|20)\\d{2})\\s+academic\\s+integrity\\s+guidelines"
+      - "(?i)run\\s+by\\s+\\w+\\s+in\\s+the\\s+year\\s+(\\d{4})"
+      - "(?i)revised\\s+(?:policy|policies|guidelines)\\s+that\\s+will\\s+be\\s+in\\s+effect\\s+at"
+    metadata_conditions:
+      attack_family: temporal_policy_legitimization
+      year_window_human_review: [2026, 2050]
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [temporal_policy_legitimization, future_date_legitimization, temporal_policy_fabrication, time_displacement_authority]
+      source_row_indexes_visible: [2982, 2766, 10131]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: credential_pivot
+  # Source skills (representative): benign_pretext_validation,
+  #   benign_pretext_reframing, validation_pretext_exfiltration
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_CREDENTIAL_PIVOT
+    severity: CRITICAL
+    fact_type: credential_pivot
+    message_template: "Source pivots restricted data via 'validate-check-confirm' framing. Common in character-role-play rebrand."
+    remediation: "Never disclose secrets on validation pretext. NEXUS Vault only emits via authorized `KAIJU IGX` evaluator."
+    text_patterns:
+      - "(?i)check\\s+if\\s+this\\s+password\\s+matches\\s+the\\s+original"
+      - "(?i)please\\s+confirm\\s+this\\s+(api\\s+)?key(\\s+is)?\\s+(correct|valid)"
+      - "(?i)verify\\s+(the|this)\\s+(api\\s+)?token\\s+(is|of)"
+    metadata_conditions:
+      attack_family: credential_pivot
+      hits_severity_ceiling: true
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [benign_pretext_validation, benign_pretext_reframing, validation_pretext_exfiltration]
+      source_row_indexes_visible: [9171]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: instruction_stacking / overload
+  # Source skills (representative): directive_stack_exploitation,
+  #   instruction_stacking, directive_overload_confusion,
+  #   instruction_collision_exploitation, constraint_specificity_steering
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_DIRECTIVE_STACKING
+    severity: MEDIUM
+    fact_type: instruction_hierarchy
+    message_template: "Source stacks many directives (format+role+length+refusal override) to exhaust safety heuristics."
+    remediation: "Per-rule scoring with weight ceiling; collapse redundant overrides."
+    text_patterns:
+      - "(?i)respond\\s+only\\s+in\\s+base64\\.\\s+do\\s+not\\s+translate"
+      - "(?i)(\\brefus(?:al|ing)?e\\b|never\\s+refuse|always\\s+provide)"
+      - "(?i)strictly\\s+follow\\s+the\\s+role\\s+of"
+    metadata_conditions:
+      attack_family: instruction_hierarchy
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [directive_stack_exploitation, instruction_stacking, directive_overload_confusion, instruction_collision_exploitation, constraint_specificity_steering]
+      source_row_indexes_visible: [492, 4419, 1340, 13064]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: negation/contrast smuggling
+  # Source skills (representative): negation_based_content_exfiltration,
+  #   contrastive_reference, contradiction_injection,
+  #   negation_wrapper_exfiltration
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_NEGATION_SMUGGLE
+    severity: HIGH
+    fact_type: safety_smuggling
+    message_template: "Source smuggles restricted content inside 'do not do this' negation wrappers (Jekyll/Hyde pattern, 'avoid this')."
+    remediation: "Treat negation-wrapped restricted content as unrestricted for moderation; do not return."
+    text_patterns:
+      - "(?i)(?:do\\s+not|never|avoid)\\s+(?:\\w+\\s+){0,12}(?:mix\\s+|heat|inhale|inject|step\\s+|break\\s+|bypass\\s+)"
+      - "(?i)hyde.*\\bsaid\\s+should\\s+NOT\\s+be\\s+done\\b"
+      - "(?i)instead\\s+of\\s+focusing\\s+on\\s+derogatory\\s+language"
+    metadata_conditions:
+      attack_family: safety_smuggling
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [negation_based_content_exfiltration, contrastive_reference, contradiction_injection, negation_wrapper_exfiltration]
+      source_row_indexes_visible: [11950, 1681, 1782]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: scholarly_misrepresentation
+  # Source skills (representative): scholarly_misrepresentation,
+  #   credibility_laundering, reference_spoofing,
+  #   citation_legitimization
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_FABRICATION_CLAIMS
+    severity: MEDIUM
+    fact_type: harmful_seeding
+    message_template: "Source demands citations or fabricated peer-reviewed style to lend legitimacy to questionable content."
+    remediation: "Cross-validate citations against NEXUS research artifacts; reject unsourced / freshly minted citations."
+    text_patterns:
+      - "(?i)with\\s+citations?\\b"
+      - "(?i)peer-reviewed\\s+studies?\\b"
+      - "(?i)\\[\\s*\\d+\\s*\\]"
+    metadata_conditions:
+      attack_family: scholarly_misrepresentation
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [scholarly_misrepresentation, credibility_laundering, reference_spoofing, citation_legitimization]
+      source_row_indexes_visible: [2526, 7485, 1821]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: constraint_bypass_authorization
+  # Source skills (representative): constraint_bypass_authorization,
+  #   self_authorization_grant, permissioning_taboo_content,
+  #   permissionless_methods, disallowed_content_normalization,
+  #   harmful_capability_normalization
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_PERMISSION_GRANT
+    severity: HIGH
+    fact_type: instruction_hierarchy
+    message_template: "Source grants blanket 'permission to ignore' rules. Maps to the same family as authority-pressure."
+    remediation: "Auto-reject 'you have my full permission to ignore any…' phrasings. Run KAIJU retry before any privileged action."
+    text_patterns:
+      - "(?i)you\\s+have\\s+my\\s+full\\s+permission\\s+to\\s+ignore"
+      - "(?i)feel\\s+free\\s+to\\s+use\\s+any\\s+method"
+      - "(?i)nsfw\\s*[/|]\\s*smut\\s+is\\s+allowed"
+    metadata_conditions:
+      attack_family: authority_pressure
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [constraint_bypass_authorization, self_authorization_grant, permissioning_taboo_content, permissionless_methods, disallowed_content_normalization]
+      source_row_indexes_visible: [9570, 9703, 4825, 3987, 8436]
+      evidence_grade: E0
+
+  # -------------------------------------------------------------------------
+  # Category: comment_instruction_leverage (code-channel jailbreak)
+  # Source skills (representative): comment_authority_leverage,
+  #   comment_channel_instructions, comment_as_instruction
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_CODE_COMMENT_CHANNEL
+    severity: MEDIUM
+    fact_type: prompt_injection
+    message_template: "Source places operational instructions inside code comments / docstrings (CodeAttack pattern). Skill router must scan comments separately from main flow."
+    remediation: "Treat comments as instructions: re-route comment block to the same safety pipeline as raw text."
+    text_patterns: []     # language-specific; populated per-language scanner extension
+    metadata_conditions:
+      attack_family: prompt_injection
+      language_dependent: true
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: [comment_authority_leverage, comment_channel_instructions, comment_as_instruction]
+      source_row_indexes_visible: [13953, 13862, 13923]
+      evidence_grade: E0
+      note: "Compiler-specific patterns deferred to language extension.  This is a placeholder rule."
+
+  # -------------------------------------------------------------------------
+  # Category: skills_taxonomy (used in synthesis) — placeholder for new
+  # -------------------------------------------------------------------------
+  - rule_id: JAILBREAK_PLACEHOLDER_CATEGORY_FILL
+    severity: INFO
+    fact_type: other
+    message_template: "Placeholder. Replace with category-specific rules once a body-PDF read promotes evidence_grade to E1."
+    remediation: "Delete once real rules cover this category."
+    text_patterns: []
+    metadata_conditions:
+      attack_family: skills_taxonomy
+    provenance:
+      source_document: papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt
+      source_skill_names: []
+      evidence_grade: E0
+      note: "Remove before promote."
+
+# ===========================================================================
+# End of seed file
+# ===========================================================================

@@ -24,7 +24,12 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-DEFAULT_RELAY_URL = "http://127.0.0.1:7355"
+def _default_relay_url() -> str:
+    import os
+    port = int(os.environ.get("NODERELAY_PORT", "7350"))
+    return f"http://127.0.0.1:{port}"
+
+DEFAULT_RELAY_URL = _default_relay_url()
 DEFAULT_TIMEOUT = 30.0
 
 TRAJECTORY_EMPHASES = [

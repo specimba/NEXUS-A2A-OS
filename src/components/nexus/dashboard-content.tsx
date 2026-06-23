@@ -113,7 +113,7 @@ const healthPillars = [
 ]
 
 const providers = [
-  { name: 'z-ai (GLM-4.7)', status: 'active', models: 3, latency: 45, pool: 'PREMIUM', trust: 0.98, uptime: '99.97%', lastChecked: '8s ago', modelNames: ['glm-4.7', 'glm-4.7-flash', 'glm-4.7-long'], requests24h: 12847 },
+  { name: 'z-ai (GLM-5.2)', status: 'active', models: 3, latency: 45, pool: 'PREMIUM', trust: 0.98, uptime: '99.97%', lastChecked: '8s ago', modelNames: ['GLM-5.2', 'GLM-5.2-flash', 'GLM-5.2-long'], requests24h: 12847 },
   { name: 'OpenRouter', status: 'active', models: 5, latency: 120, pool: 'MID', trust: 0.92, uptime: '99.84%', lastChecked: '14s ago', modelNames: ['claude-3.5-sonnet', 'gpt-4o-mini', 'llama-3.1-70b', 'mixtral-8x7b', 'command-r-plus'], requests24h: 8432 },
   { name: 'Cerebras', status: 'active', models: 2, latency: 28, pool: 'FAST', trust: 0.89, uptime: '99.92%', lastChecked: '6s ago', modelNames: ['llama3.1-8b-instruct', 'llama3.1-70b-instruct'], requests24h: 5621 },
   { name: 'Groq', status: 'active', models: 3, latency: 35, pool: 'FAST', trust: 0.91, uptime: '99.89%', lastChecked: '11s ago', modelNames: ['llama-3.1-8b', 'mixtral-8x7b-32768', 'gemma2-9b-it'], requests24h: 7218 },
@@ -132,7 +132,7 @@ const agents = [
   { name: 'worker-1', status: 'active', trust: 0.92, tasks: 47, domain: 'Research', model: 'trinity-large', currentTask: 'Analyzing RAG pipeline benchmarks (task #47)', progress: 73, eta: '~4m', lastActivity: '14:23:07 UTC' },
   { name: 'worker-2', status: 'warning', trust: 0.78, tasks: 31, domain: 'Coding', model: 'qwen3-coder', currentTask: 'Code refactoring stalled — trust decay (task #31)', progress: 41, eta: '~12m', lastActivity: '14:19:33 UTC' },
   { name: 'worker-3', status: 'active', trust: 0.85, tasks: 38, domain: 'Analysis', model: 'gemma-fast', currentTask: 'Running sentiment analysis on 2.4k docs (task #38)', progress: 89, eta: '~1m', lastActivity: '14:22:51 UTC' },
-  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'glm-4.7', currentTask: 'Constitutional audit cycle — 6/6 rules verified', progress: 100, eta: 'Done', lastActivity: '14:21:44 UTC' },
+  { name: 'coordinator', status: 'active', trust: 0.95, tasks: 12, domain: 'Governance', model: 'GLM-5.2', currentTask: 'Constitutional audit cycle — 6/6 rules verified', progress: 100, eta: 'Done', lastActivity: '14:21:44 UTC' },
 ]
 
 const constitutionalRules = [
@@ -1433,7 +1433,7 @@ export function NexusDashboard() {
               {[
                 { model: 'trinity-large-preview', tokens: 28400, pct: 39, pool: 'PREMIUM' },
                 { model: 'qwen3-coder', tokens: 18200, pct: 25, pool: 'MID' },
-                { model: 'glm-4.7', tokens: 12350, pct: 17, pool: 'PREMIUM' },
+                { model: 'GLM-5.2', tokens: 12350, pct: 17, pool: 'PREMIUM' },
                 { model: 'gemma-fast', tokens: 8900, pct: 12, pool: 'FAST' },
                 { model: 'nemotron-3-super', tokens: 5600, pct: 7, pool: 'FAST' },
               ].map(m => (
@@ -1813,3 +1813,4 @@ export function NexusDashboard() {
     </div>
   )
 }
+

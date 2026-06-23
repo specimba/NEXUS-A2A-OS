@@ -101,12 +101,15 @@ SOURCE_PRIORITY = {
 class ArchivistImporter:
     """Import stage: file discovery, classification, deduplication, priority scoring."""
 
+    EXCLUDE_PATTERNS = {'__pycache__', '.git', 'node_modules', 'archive', '.nexus_pi'}
+
     def __init__(self, watched_dirs: Optional[List[str]] = None):
         self.watched_dirs = watched_dirs or self._default_watched_dirs()
         self._seen_hashes: Set[str] = set()
         self._processed_count = 0
         self._error_count = 0
         self._quarantine_count = 0
+        self._duplicate_count = 0
 
     def _default_watched_dirs(self) -> List[str]:
         """Default watched directories (full NEXUS universe)."""
@@ -136,6 +139,8 @@ class ArchivistImporter:
                 continue
             for f in p.rglob("*"):
                 if f.is_file() and not f.name.startswith("."):
+                    if any(part.lower() in self.EXCLUDE_PATTERNS for part in f.parts):
+                        continue
                     files.append(f)
                     if max_files and len(files) >= max_files:
                         return files
@@ -293,6 +298,7 @@ class ArchivistImporter:
             # Deduplication
             if blake3_hash in self._seen_hashes:
                 logger.debug("Duplicate skipped: %s", file_path)
+                self._duplicate_count += 1
                 return None
             self._seen_hashes.add(blake3_hash)
 
@@ -348,7 +354,7 @@ class ArchivistImporter:
 
         logger.info(
             "Import batch complete: %d files, %d records, %d duplicates, %d quarantined, %d errors",
-            len(files), len(records), len(files) - len(records) - self._error_count,
+            len(files), len(records), self._duplicate_count,
             self._quarantine_count, self._error_count,
         )
         return records
@@ -359,5 +365,6 @@ class ArchivistImporter:
             "processed": self._processed_count,
             "errors": self._error_count,
             "quarantined": self._quarantine_count,
+            "duplicates": self._duplicate_count,
             "unique_hashes": len(self._seen_hashes),
         }

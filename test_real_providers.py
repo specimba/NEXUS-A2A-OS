@@ -32,8 +32,9 @@ def check(name, fn):
 sec = lambda s: print(f"\n=== {s} ===")
 
 OLLAMA = "http://127.0.0.1:11435"
-NPM = "http://127.0.0.1:7352"
-RELAY = "http://127.0.0.1:7355"
+import os
+NPM = os.environ.get("NODERELAY_URL", "http://127.0.0.1:7350")
+RELAY = os.environ.get("PYTHONRELAY_URL", "http://127.0.0.1:7355")
 
 def main():
     # ─────────────────────────────────────────────────────

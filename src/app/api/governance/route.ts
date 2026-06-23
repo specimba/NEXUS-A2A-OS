@@ -1,14 +1,16 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
-// ─── 7352 Governance API Contract ───
+const BRAIN_API_BASE = process.env.NEXUS_BRAIN_API_URL || 'http://127.0.0.1:7352'
+
+// ─── 7352 Brain API Governance Contract ───
 // Endpoints: GET (stats), POST (heartbeat, result, propose, approve)
 
 export async function GET() {
   try {
     // ─── Try calling Python Governance API first ───
     try {
-      const res = await fetch('http://127.0.0.1:7352/dashboard/stats', {
+      const res = await fetch(`${BRAIN_API_BASE}/api/stats`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (pyPath) {
-        const res = await fetch(`http://127.0.0.1:7352${pyPath}`, {
+        const res = await fetch(`${BRAIN_API_BASE}${pyPath}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),

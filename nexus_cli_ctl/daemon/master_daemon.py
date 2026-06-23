@@ -19,7 +19,7 @@ import signal
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 # Add project root to path
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -54,7 +54,7 @@ class NEXUSMasterDaemon:
 
     def __init__(self):
         self.running = False
-        self.services: Dict[str, any] = {}
+        self.services: Dict[str, Any] = {}
         self._tasks: List[asyncio.Task] = []
 
     async def start(self):
@@ -176,6 +176,8 @@ class NEXUSMasterDaemon:
             await self.services["wiki_pipeline"].stop()
         if "messaging" in self.services:
             await self.services["messaging"].stop()
+        if "dashboard_sync" in self.services:
+            await self.services["dashboard_sync"].stop()
         if "brain_api_server" in self.services:
             self.services["brain_api_server"].should_exit = True
 
@@ -186,10 +188,10 @@ class NEXUSMasterDaemon:
         """Start Brain API as a uvicorn subprocess"""
         try:
             import uvicorn
-            from nexus_os.api.brain_api import app
+            from nexus_os.api.brain_api import brain_app
 
             config = uvicorn.Config(
-                app,
+                brain_app,
                 host="0.0.0.0",
                 port=7352,
                 log_level="warning",

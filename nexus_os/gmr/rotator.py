@@ -199,7 +199,7 @@ class GeniusModelRotator:
     def __init__(
         self,
         token_guard=None,
-        relay_url: str = "http://localhost:7355/api/models",
+        relay_url: str = "",
         config: Optional[Dict] = None,
     ):
         self.token_guard = token_guard

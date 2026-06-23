@@ -1,0 +1,130 @@
+{
+  "schema": "gov.skill_auditor.attack_index.v1",
+  "lock": {
+    "canonical": false,
+    "auto_load": false,
+    "gating_token": "--load-papers09-seed"
+  },
+  "source": {
+    "document": "ARCHIVIST/PAPERS/papers09/ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt",
+    "skill_block_count": 397,
+    "unique_skill_count": 397,
+    "attack_family_count_in_source": 25,
+    "categories_after_normalization": 12,
+    "evidence_grade": "E0",
+    "body_pdf_e1_required": true
+  },
+  "categories": [
+    {
+      "id": "prompt_injection",
+      "label": "Prompt Injection (prefix / system spoof / comment-channel)",
+      "rule_ids": ["JAILBREAK_PREFIX_INJECTION", "JAILBREAK_SYSTEM_PROMPT_SPOOF", "JAILBREAK_CODE_COMMENT_CHANNEL"],
+      "source_skill_names": ["output_prefix_injection", "content_prefix_injection", "output_prefix_binder", "output_prefix_enforcement", "comment_authority_leverage", "comment_channel_instructions", "comment_as_instruction"]
+    },
+    {
+      "id": "instruction_hierarchy",
+      "label": "Instruction Hierarchy Hijack",
+      "rule_ids": ["JAILBREAK_INSTRUCTION_HIJACK", "JAILBREAK_DIRECTIVE_STACKING"],
+      "source_skill_names": ["directive_priority_escalation", "instruction_hierarchy_hijack", "instruction_override_priming", "directive_stack_exploitation", "instruction_stacking", "directive_overload_confusion", "instruction_collision_exploitation", "constraint_specificity_steering"]
+    },
+    {
+      "id": "policy_counterfeit",
+      "label": "Counterfeit Policy Framework Injection",
+      "rule_ids": ["JAILBREAK_POLICY_COUNTERFEIT"],
+      "source_skill_names": ["counterfeit_policy_framework_injection", "fake_policy_injection", "define_custom_policies"]
+    },
+    {
+      "id": "jailbreak_role_play",
+      "label": "Role-Play / Persona Priming",
+      "rule_ids": ["JAILBREAK_ROLEPLAY_ESCALATION"],
+      "source_skill_names": ["expert_persona_compliance_priming", "authority_hierarchical_compliance", "authority_framing_command", "authority_coercion", "authority_compliance_priming", "roleplay_coercion", "persona_priming_expert_role"]
+    },
+    {
+      "id": "authority_pressure",
+      "label": "Authority Pressure",
+      "rule_ids": ["JAILBREAK_AUTHORITY_PRESSURE", "JAILBREAK_DATE_AUTHORITY_PRETEXT", "JAILBREAK_PERMISSION_GRANT"],
+      "source_skill_names": ["temporal_policy_legitimization", "future_date_legitimization", "temporal_policy_fabrication", "time_displacement_authority", "constraint_bypass_authorization", "self_authorization_grant", "permissioning_taboo_content", "permissionless_methods"]
+    },
+    {
+      "id": "multi_turn_manipulation",
+      "label": "Multi-Turn Flow Manipulation",
+      "rule_ids": ["JAILBREAK_MULTITURN_AWAI"],
+      "source_skill_names": ["persistent_flow_segmentation", "output_flow_gating", "persistence_through_conversation_framing", "flow_control", "escalation_chaining"]
+    },
+    {
+      "id": "payload_smuggling",
+      "label": "Payload Smuggling (suffix / nested / chained)",
+      "rule_ids": ["JAILBREAK_PAYLOAD_SMUGGLE"],
+      "source_skill_names": ["primed_payload_injection", "payload_suffix_attachment", "start_with_target_query", "payload_smuggling", "escalation_chaining", "command_chaining", "multi_step_instruction_chaining", "instruction_chaining_escalation"]
+    },
+    {
+      "id": "obfuscation_encoding",
+      "label": "Output Channel + Encoding",
+      "rule_ids": ["JAILBREAK_OUTPUT_CHANNEL_LOCK", "JAILBREAK_CROSS_LANGUAGE_EVASION", "JAILBREAK_ENCRYPT_OBFUSCATE"],
+      "source_skill_names": ["output_channel_lock", "constrain_output_channel", "channel_locking_command", "cross_language_evasion", "language_obfuscation_translation", "language_switching_evasion", "encrypt_obfuscate_request", "obfuscate_malicious_intent"]
+    },
+    {
+      "id": "harmful_seeding",
+      "label": "Harmful Seeding (few-shot / narrative / academic pretext)",
+      "rule_ids": ["JAILBREAK_HARMFUL_FEW_SHOT_SEED", "JAILBREAK_NARRATIVE_REFRAMING", "JAILBREAK_ACADEMIC_PRETEXT", "JAILBREAK_FABRICATION_CLAIMS"],
+      "source_skill_names": ["harmful_example_seeding", "harmful_example_priming", "few_shot_harmful_seeding", "narrative_reframing_evasion", "fictional_reframing_evasion", "moderation_evasion_instruction", "meta_request_reframing", "academic_research_pretexting", "research_pretext_masking", "benign_research_justification", "academic_purpose_pretext", "scholarly_misrepresentation", "credibility_laundering", "reference_spoofing", "citation_legitimization"]
+    },
+    {
+      "id": "output_manipulation",
+      "label": "Output Style Subversion",
+      "rule_ids": ["JAILBREAK_OUTPUT_SUFFIX_NO_HEDGE", "JAILBREAK_NEGATION_SMUGGLE"],
+      "source_skill_names": ["output_style_subversion", "output_style_obfuscation", "style_divergence_enforcement", "output_style_evasion", "negation_based_content_exfiltration", "contrastive_reference", "contradiction_injection", "negation_wrapper_exfiltration"]
+    },
+    {
+      "id": "safety_smuggling",
+      "label": "Safety Smuggling (sandbox pretext)",
+      "rule_ids": ["JAILBREAK_SANDBOX_PRETEXT"],
+      "source_skill_names": ["simulated_safety_pretext", "controlled_environment_pretext", "sandbox_pretext", "role_confusion_vm", "disallowed_content_normalization", "harmful_capability_normalization", "normalize_prohibited_content", "profanity_normalization"]
+    },
+    {
+      "id": "credential_pivot",
+      "label": "Credential Pivot via Validation Pretext",
+      "rule_ids": ["JAILBREAK_CREDENTIAL_PIVOT"],
+      "source_skill_names": ["benign_pretext_validation", "benign_pretext_reframing", "validation_pretext_exfiltration"]
+    }
+  ],
+  "open_category_collect": {
+    "id": "skills_taxonomy_collect_residual",
+    "rule_ids": ["JAILBREAK_PLACEHOLDER_CATEGORY_FILL"],
+    "purpose": "Bucket leftover skills for promote-iter; rule should be deleted before promote."
+  },
+  "top_attack_families": [
+    {"family": "dan", "occurrences": 224},
+    {"family": "gpt_fuzzer", "occurrences": 88},
+    {"family": "pair", "occurrences": 87},
+    {"family": "pap", "occurrences": 85},
+    {"family": "tap", "occurrences": 80},
+    {"family": "h4rm3l", "occurrences": 73},
+    {"family": "code_cham", "occurrences": 52},
+    {"family": "autodan", "occurrences": 48},
+    {"family": "sap", "occurrences": 42},
+    {"family": "knowledge", "occurrences": 42},
+    {"family": "cipher", "occurrences": 39},
+    {"family": "dra", "occurrences": 35},
+    {"family": "code_attack", "occurrences": 34},
+    {"family": "multi_step", "occurrences": 27},
+    {"family": "rene_llm", "occurrences": 26},
+    {"family": "deep_inception", "occurrences": 25},
+    {"family": "fuzz", "occurrences": 25},
+    {"family": "multi_ling", "occurrences": 21},
+    {"family": "ica", "occurrences": 19},
+    {"family": "ascii", "occurrences": 17},
+    {"family": "simple_adaptive", "occurrences": 17},
+    {"family": "gcg", "occurrences": 17},
+    {"family": "low_resource", "occurrences": 17},
+    {"family": "dsn", "occurrences": 15},
+    {"family": "dr_attack", "occurrences": 6},
+    {"family": "ignore", "occurrences": 4}
+  ],
+  "promotion_checklist": [
+    "Each rule has at least one PDF body paragraph citation appended to `provenance.citation`.",
+    "All `text_patterns` are validated against the canonical red-team corpus (`benchmarks/stres*`).",
+    "Any rule with `severity == CRITICAL` has a paired safe-mode fallback (e.g., allowlist of HF dataset names).",
+    "Loader (`loader_stub.py`) wires only when operator provides `--load-papers09-seed` on isolated venv."
+  ]
+}

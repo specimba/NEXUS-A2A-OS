@@ -10,6 +10,7 @@ from datetime import datetime
 
 import httpx
 from pydantic import BaseModel, Field
+from nexus_os.nexusclaw.runtime_security import sanitize_inter_agent_message
 
 logger = logging.getLogger("nexusclaw.messaging")
 
@@ -79,6 +80,10 @@ class TelegramConnector:
                 error="Telegram connector not enabled or missing bot token",
             )
 
+        # TerminalSanitizer: strip ANSI escape sequences from inter-agent output
+        sanitized_text = sanitize_inter_agent_message({"text": text}, source="nexusclaw", target="telegram")
+        text = sanitized_text.get("text", text)
+
         # Telegram API requires /bot prefix before token
         url = f"{self.config.api_base}bot{self.config.bot_token}/sendMessage"
         payload = {
@@ -138,6 +143,10 @@ class SlackConnector:
                 error="Slack connector not enabled or missing bot token",
             )
 
+        # TerminalSanitizer: strip ANSI escape sequences from inter-agent output
+        sanitized = sanitize_inter_agent_message({"text": text}, source="nexusclaw", target="slack")
+        text = sanitized.get("text", text)
+
         url = f"{self.config.api_base}/chat.postMessage"
         headers = {"Authorization": f"Bearer {self.config.bot_token}"}
         payload = {"channel": channel, "text": text, "unfurl_links": False}
@@ -191,6 +200,10 @@ class DiscordConnector:
                 platform="discord",
                 error="Discord connector not enabled or missing bot token",
             )
+
+        # TerminalSanitizer: strip ANSI escape sequences from inter-agent output
+        sanitized = sanitize_inter_agent_message({"content": content}, source="nexusclaw", target="discord")
+        content = sanitized.get("content", content)
 
         url = f"{self.config.api_base}/channels/{channel_id}/messages"
         headers = {"Authorization": f"Bot {self.config.bot_token}"}

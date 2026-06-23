@@ -78,4 +78,28 @@ COMMIT after:
 
 TAG: v3.0.0-beta (current)
 
+===============================================================================
+2026-06-18 RECOVERY ARTIFACTS
+===============================================================================
+
+Root restored files:
+  - CONTRIBUTING.md
+  - ONBOARDING.md
+  - PUBLIC_SHARE_ALLOWLIST.toml
+  - NEXT_MOVEMENTS_PLAN.txt
+  - PROJECT_GROUNDING_LEDGER.md
+  - CLAUDE.md
+
+Security docs:
+  - docs/security/GROSS_ERNIE_EXFIL_CLOSURE_2026-06-18.md
+
+Design docs:
+  - docs/research/NEXUSCLAW_DESIGN.md
+  - tasks/pending/2026-06-18-nexusclaw-lane-a-design.task.md
+
+Known gaps (active blockers):
+  - models/guards/guard_plane_service.py import path mismatch with tests
+  - PUBLIC_SHARE_ALLOWLIST.toml placeholder still present
+  - pm2_nexus.json intentionally skipped per session decision
+
 ================================================================================

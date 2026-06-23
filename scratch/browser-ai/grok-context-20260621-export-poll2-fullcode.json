@@ -1,0 +1,395 @@
+{
+  "status": "READY",
+  "target": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?REDACTED"
+  },
+  "state": {
+    "title": "NEXUS OS (clone) - Grok",
+    "url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?REDACTED",
+    "readyState": "complete",
+    "expansionLog": [],
+    "inputs": [
+      {
+        "index": 0,
+        "tag": "DIV",
+        "role": "textbox",
+        "aria": "Ask Grok anything",
+        "textLength": 1
+      }
+    ],
+    "buttons": [
+      {
+        "index": 0,
+        "label": "Create share link"
+      },
+      {
+        "index": 1,
+        "label": "Like"
+      },
+      {
+        "index": 2,
+        "label": "Dislike"
+      },
+      {
+        "index": 3,
+        "label": "Regenerate"
+      },
+      {
+        "index": 4,
+        "label": "More actions"
+      },
+      {
+        "index": 5,
+        "label": "28 sources 28 sources 28 sources"
+      },
+      {
+        "index": 6,
+        "label": "Edit"
+      },
+      {
+        "index": 7,
+        "label": "Copy"
+      },
+      {
+        "index": 8,
+        "label": "Thought for 33s Thought for 33s"
+      },
+      {
+        "index": 9,
+        "label": "Copy"
+      },
+      {
+        "index": 10,
+        "label": "Create share link"
+      },
+      {
+        "index": 11,
+        "label": "Like"
+      },
+      {
+        "index": 12,
+        "label": "Dislike"
+      },
+      {
+        "index": 13,
+        "label": "Regenerate"
+      },
+      {
+        "index": 14,
+        "label": "More actions"
+      },
+      {
+        "index": 15,
+        "label": "15 sources 15 sources 15 sources"
+      },
+      {
+        "index": 16,
+        "label": "Edit"
+      },
+      {
+        "index": 17,
+        "label": "Copy"
+      },
+      {
+        "index": 18,
+        "label": "Thought for 1m 40s Thought for 1m 40s"
+      },
+      {
+        "index": 19,
+        "label": "Collapse"
+      },
+      {
+        "index": 20,
+        "label": "Wrap"
+      },
+      {
+        "index": 21,
+        "label": "Run"
+      },
+      {
+        "index": 22,
+        "label": "Copy"
+      },
+      {
+        "index": 23,
+        "label": "Collapse"
+      },
+      {
+        "index": 24,
+        "label": "Run"
+      },
+      {
+        "index": 25,
+        "label": "Copy"
+      },
+      {
+        "index": 26,
+        "label": "Copy"
+      },
+      {
+        "index": 27,
+        "label": "Create share link"
+      },
+      {
+        "index": 28,
+        "label": "Like"
+      },
+      {
+        "index": 29,
+        "label": "Dislike"
+      },
+      {
+        "index": 30,
+        "label": "Regenerate"
+      },
+      {
+        "index": 31,
+        "label": "More actions"
+      },
+      {
+        "index": 32,
+        "label": "Edit"
+      },
+      {
+        "index": 33,
+        "label": "Copy"
+      },
+      {
+        "index": 34,
+        "label": "Thought for 3m 35s Thought for 3m 35s"
+      },
+      {
+        "index": 35,
+        "label": "Collapse"
+      },
+      {
+        "index": 36,
+        "label": "Wrap"
+      },
+      {
+        "index": 37,
+        "label": "Copy"
+      },
+      {
+        "index": 38,
+        "label": "Copy"
+      },
+      {
+        "index": 39,
+        "label": "Create share link"
+      },
+      {
+        "index": 40,
+        "label": "Like"
+      },
+      {
+        "index": 41,
+        "label": "Dislike"
+      },
+      {
+        "index": 42,
+        "label": "Regenerate"
+      },
+      {
+        "index": 43,
+        "label": "More actions"
+      },
+      {
+        "index": 44,
+        "label": "Edit"
+      },
+      {
+        "index": 45,
+        "label": "Copy"
+      },
+      {
+        "index": 46,
+        "label": "Thought for 32s Thought for 32s"
+      },
+      {
+        "index": 47,
+        "label": "Collapse"
+      },
+      {
+        "index": 48,
+        "label": "Wrap"
+      },
+      {
+        "index": 49,
+        "label": "Run"
+      },
+      {
+        "index": 50,
+        "label": "Copy"
+      },
+      {
+        "index": 51,
+        "label": "Collapse"
+      },
+      {
+        "index": 52,
+        "label": "Wrap"
+      },
+      {
+        "index": 53,
+        "label": "Run"
+      },
+      {
+        "index": 54,
+        "label": "Copy"
+      },
+      {
+        "index": 55,
+        "label": "Collapse"
+      },
+      {
+        "index": 56,
+        "label": "Wrap"
+      },
+      {
+        "index": 57,
+        "label": "Copy"
+      },
+      {
+        "index": 58,
+        "label": "Wrap"
+      },
+      {
+        "index": 59,
+        "label": "Run"
+      },
+      {
+        "index": 60,
+        "label": "Copy"
+      },
+      {
+        "index": 61,
+        "label": "Collapse"
+      },
+      {
+        "index": 62,
+        "label": "Wrap"
+      },
+      {
+        "index": 63,
+        "label": "Copy"
+      },
+      {
+        "index": 64,
+        "label": "Copy"
+      },
+      {
+        "index": 65,
+        "label": "Create share link"
+      },
+      {
+        "index": 66,
+        "label": "Like"
+      },
+      {
+        "index": 67,
+        "label": "Dislike"
+      },
+      {
+        "index": 68,
+        "label": "Regenerate"
+      },
+      {
+        "index": 69,
+        "label": "More actions"
+      },
+      {
+        "index": 70,
+        "label": "Implement real MCP bridge proxy Implement real MCP bridge proxy"
+      },
+      {
+        "index": 71,
+        "label": "Explore TokenGuard budget algorithms Explore TokenGuard budget algorithms"
+      },
+      {
+        "index": 72,
+        "label": "Attach"
+      },
+      {
+        "index": 73,
+        "label": "Model select Expert Expert"
+      },
+      {
+        "index": 74,
+        "label": "Dictation (Ctrl+D)"
+      },
+      {
+        "index": 75,
+        "label": "Submit"
+      },
+      {
+        "index": 76,
+        "label": "Close"
+      },
+      {
+        "index": 77,
+        "label": "Listing Grok skills directory Listing Grok skills directory"
+      },
+      {
+        "index": 78,
+        "label": "Writing SKILL.md artifact /mcp-egress-governor/SKILL.md Writing SKILL.md artifact/mcp-egress-governor/SKILL.md"
+      },
+      {
+        "index": 79,
+        "label": "Computing sha256 hash Computing sha256 hash"
+      }
+    ],
+    "codeBlocks": [
+      {
+        "index": 0,
+        "text": "======================================================================\nmcp-egress-governor DRY-RUN VERIFICATION SUITE\n======================================================================\n\n[TEST 1] Syntax / Import / Instantiation\n  PASS: Module imports cleanly and governor instantiates.\n\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\n  PASS: action=proxy_via_bridge, risk=low\n        proxy_plan backend: stdio_mcp_proxy_or_bridge\n        note: DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\n\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\n  PASS: action=block, reason=Fail-closed: non-allowlisted domain\n\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\n  PASS: action=require_kaiju_approval, reason=High-risk intent (write/exec) requires KAIJU approval before proxy delegation\n\n[TEST 5] TokenGuard exhausted -> block\n  PASS: action=block, reason=TokenGuard budget exhausted (or real TokenGuard denied)\n\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\n  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\n\n======================================================================\nOVERALL RESULT: ALL TESTS PASSED (6/6)\nEvidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\n======================================================================"
+      },
+      {
+        "index": 1,
+        "text": "======================================================================\nmcp-egress-governor DRY-RUN VERIFICATION SUITE\n======================================================================\n\n[TEST 1] Syntax / Import / Instantiation\n  PASS: Module imports cleanly and governor instantiates.\n\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\n  PASS: action=proxy_via_bridge, risk=low\n        proxy_plan backend: stdio_mcp_proxy_or_bridge\n        note: DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\n\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\n  PASS: action=block, reason=Fail-closed: non-allowlisted domain\n\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\n  PASS: action=require_kaiju_approval, reason=High-risk intent (write/exec) requires KAIJU approval before proxy delegation\n\n[TEST 5] TokenGuard exhausted -> block\n  PASS: action=block, reason=TokenGuard budget exhausted (or real TokenGuard denied)\n\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\n  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\n\n======================================================================\nOVERALL RESULT: ALL TESTS PASSED (6/6)\nEvidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\n======================================================================"
+      },
+      {
+        "index": 2,
+        "text": "#!/usr/bin/env python3\n\"\"\"\nmcp_egress_governor.py\nDry-run-first MCP/HTTP egress governance module for NEXUS OS.\n- No syntax errors.\n- Safe dataclasses.\n- plan_egress() performs decision only (no network).\n- Fail-closed allowlist.\n- Optional real governance integration with safe fallbacks.\n- Testable without live network or secrets.\n\"\"\"\n\nfrom __future__ import annotations\nfrom dataclasses import dataclass, field\nfrom typing import Dict, Any, Optional, Protocol, Tuple\nimport hashlib\nimport time\n\n# --- Optional real NEXUS governance imports (safe fallback) ---\ntry:\n    # Codex: adjust these import paths to your actual nexus_governance / TokenGuard / KAIJU modules\n    from nexus_governance.token_guard import check_token_guard as _real_check_token_guard  # type: ignore\n    from nexus_governance.kaiju import invoke_approval as _real_invoke_kaiju_approval  # type: ignore\nexcept Exception:  # broad to catch any import/layout issue\n    _real_check_token_guard = None\n    _real_invoke_kaiju_approval = None\n\n\n@dataclass(frozen=True)\nclass EgressRequest:\n    \"\"\"Immutable request descriptor.\"\"\"\n    target: str\n    payload: Dict[str, Any]\n    intent: str = \"read\"  # \"read\" | \"write\" | \"exec\"\n\n\n@dataclass\nclass EgressDecision:\n    \"\"\"Dry-run decision result. Never executes network.\"\"\"\n    action: str  # \"proxy_via_bridge\" | \"block\" | \"require_kaiju_approval\"\n    reason: str\n    proxy_plan: Optional[Dict[str, Any]] = None\n    risk_level: str = \"low\"\n\n\n@dataclass\nclass EgressResult:\n    \"\"\"Result wrapper for plan/execute (dry-run returns planned).\"\"\"\n    status: str  # \"planned\" | \"blocked\" | \"require_approval\"\n    decision: EgressDecision\n    audit_id: Optional[str] = None\n    token_budget_remaining: Optional[int] = None\n\n\nclass ProxyBackend(Protocol):\n    \"\"\"Interface for proxy/bridge backends. Dry-run implementation provided.\"\"\"\n    def plan_proxy_call(self, req: EgressRequest) -> Dict[str, Any]: ...\n\n\nclass DryRunProxyBackend:\n    \"\"\"Concrete dry-run backend. Returns plan only. No network, no secrets.\"\"\"\n    def __init__(self, proxy_endpoint: str = \"http://localhost:8080/mcp\"):\n        self.proxy_endpoint = proxy_endpoint\n\n    def plan_proxy_call(self, req: EgressRequest) -> Dict[str, Any]:\n        return {\n            \"backend\": \"stdio_mcp_proxy_or_bridge\",\n            \"recommended_impl\": \"sparfenyuk/mcp-proxy or MCP-Bridge (arXiv 2504.08999)\",\n            \"endpoint\": self.proxy_endpoint,\n            \"transport\": \"stdio_to_http_sse\",\n            \"target_url\": req.target,\n            \"http_method\": \"POST\" if req.intent in (\"write\", \"exec\") else \"GET\",\n            \"note\": \"DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\",\n            \"governance\": \"TokenGuard checked + KAIJU gated if high-risk + allowlist enforced\"\n        }\n\n\nclass MCPEgressGovernor:\n    \"\"\"\n    Core governor.\n    - Dry-run by default (plan_egress never performs network I/O).\n    - Fail-closed on non-allowlist.\n    - Integrates TokenGuard / KAIJU when available; safe stubs otherwise.\n    - Internal token_budget for dry-run simulation of exhaustion.\n    \"\"\"\n\n    def __init__(\n        self,\n        allowlist: Optional[set[str]] = None,\n        dry_run: bool = True,\n        proxy_endpoint: str = \"http://localhost:8080/mcp\",\n    ):\n        self.allowlist: set[str] = allowlist or {\n            \"huggingface.co\",\n            \"grok-audit.local\",\n            \"localhost\",\n            \"127.0.0.1\",\n        }\n        self.dry_run = dry_run\n        self.proxy_backend: ProxyBackend = DryRunProxyBackend(proxy_endpoint)\n        self.token_budget: int = 100  # Dry-run default. Real integration overrides via _check_token_guard.\n        self._audit_log: list[str] = []\n\n    # --- Internal governance adapters (never raise on missing modules) ---\n    def _check_token_guard(self, cost: int = 1) -> Tuple[bool, int]:\n        if _real_check_token_guard is not None:\n            try:\n                ok, remaining = _real_check_token_guard(\"mcp_egress\", cost=cost)\n                return bool(ok), int(remaining)\n            except Exception:\n                pass  # fall through to dry-run stub\n        # Dry-run / fallback stub (Codex replaces with real in integration)\n        if self.token_budget < cost:\n            return False, 0\n        self.token_budget -= cost\n        return True, self.token_budget\n\n    def _invoke_kaiju_approval(self, req: EgressRequest) -> bool:\n        if _real_invoke_kaiju_approval is not None:\n            try:\n                return bool(_real_invoke_kaiju_approval(\"high_risk_mcp_egress\", {\"target\": req.target, \"intent\": req.intent}))\n            except Exception:\n                pass\n        # Dry-run default: high-risk always requires explicit approval (plan returns \"require_kaiju_approval\")\n        return False\n\n    # --- Core methods ---\n    def assess_risk(self, req: EgressRequest) -> str:\n        if req.intent in (\"write\", \"exec\"):\n            return \"high\"\n        if any(domain in req.target.lower() for domain in self.allowlist):\n            return \"low\"\n        return \"medium\"\n\n    def plan_egress(self, req: EgressRequest) -> EgressDecision:\n        \"\"\"Dry-run decision path. No network call ever made here.\"\"\"\n        risk = self.assess_risk(req)\n        token_ok, remaining = self._check_token_guard(cost=1)\n\n        if not token_ok:\n            return EgressDecision(\n                action=\"block\",\n                reason=\"TokenGuard budget exhausted (or real TokenGuard denied)\",\n                risk_level=risk,\n            )\n\n        if risk == \"high\":\n            # In dry_run we do not auto-call approval for safety; real path can call it.\n            approved = False if self.dry_run else self._invoke_kaiju_approval(req)\n            if not approved:\n                return EgressDecision(\n                    action=\"require_kaiju_approval\",\n                    reason=\"High-risk intent (write/exec) requires KAIJU approval before proxy delegation\",\n                    risk_level=risk,\n                )\n\n        if risk == \"medium\" and not any(domain in req.target.lower() for domain in self.allowlist):\n            return EgressDecision(\n                action=\"block\",\n                reason=\"Fail-closed: non-allowlisted domain\",\n                risk_level=risk,\n            )\n\n        # Success path: return proxy plan\n        proxy_plan = self.proxy_backend.plan_proxy_call(req)\n        return EgressDecision(\n            action=\"proxy_via_bridge\",\n            reason=\"Allowlisted/low-risk: delegate via stdio-MCP proxy/bridge (sparfenyuk/mcp-proxy or MCP Bridge)\",\n            proxy_plan=proxy_plan,\n            risk_level=risk,\n        )\n\n    def execute_egress(self, req: EgressRequest) -> EgressResult:\n        \"\"\"\n        Dry-run-first execute. Currently returns planned result only.\n        Full implementation will delegate the proxy_plan to MCP stdio tool.\n        \"\"\"\n        decision = self.plan_egress(req)\n        audit_id = hashlib.sha256(f\"{req.target}:{time.time_ns()}\".encode()).hexdigest()[:16]\n\n        if decision.action == \"proxy_via_bridge\":\n            status = \"planned\"\n        elif decision.action == \"require_kaiju_approval\":\n            status = \"require_approval\"\n        else:\n            status = \"blocked\"\n\n        return EgressResult(\n            status=status,\n            decision=decision,\n            audit_id=audit_id,\n            token_budget_remaining=self.token_budget,\n        )\n\n    def get_last_audit(self) -> list[str]:\n        return list(self._audit_log)\n\n\n# Convenience factory for tests (Codex can copy/adapt)\ndef create_test_governor(allowlist: Optional[set[str]] = None, token_budget: int = 100) -> MCPEgressGovernor:\n    gov = MCPEgressGovernor(allowlist=allowlist, dry_run=True)\n    gov.token_budget = token_budget\n    return gov\n\n\nif __name__ == \"__main__\":\n    # Quick self-test when run directly\n    gov = create_test_governor()\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={\"q\": \"test\"}, intent=\"read\")\n    dec = gov.plan_egress(req)\n    print(\"Quick self-test decision:\", dec.action, \"-\", dec.reason)\n    print(\"Token budget after:\", gov.token_budget)"
+      },
+      {
+        "index": 3,
+        "text": "#!/usr/bin/env python3\n\"\"\"\nmcp_egress_governor.py\nDry-run-first MCP/HTTP egress governance module for NEXUS OS.\n- No syntax errors.\n- Safe dataclasses.\n- plan_egress() performs decision only (no network).\n- Fail-closed allowlist.\n- Optional real governance integration with safe fallbacks.\n- Testable without live network or secrets.\n\"\"\"\n\nfrom __future__ import annotations\nfrom dataclasses import dataclass, field\nfrom typing import Dict, Any, Optional, Protocol, Tuple\nimport hashlib\nimport time\n\n# --- Optional real NEXUS governance imports (safe fallback) ---\ntry:\n    # Codex: adjust these import paths to your actual nexus_governance / TokenGuard / KAIJU modules\n    from nexus_governance.token_guard import check_token_guard as _real_check_token_guard  # type: ignore\n    from nexus_governance.kaiju import invoke_approval as _real_invoke_kaiju_approval  # type: ignore\nexcept Exception:  # broad to catch any import/layout issue\n    _real_check_token_guard = None\n    _real_invoke_kaiju_approval = None\n\n\n@dataclass(frozen=True)\nclass EgressRequest:\n    \"\"\"Immutable request descriptor.\"\"\"\n    target: str\n    payload: Dict[str, Any]\n    intent: str = \"read\"  # \"read\" | \"write\" | \"exec\"\n\n\n@dataclass\nclass EgressDecision:\n    \"\"\"Dry-run decision result. Never executes network.\"\"\"\n    action: str  # \"proxy_via_bridge\" | \"block\" | \"require_kaiju_approval\"\n    reason: str\n    proxy_plan: Optional[Dict[str, Any]] = None\n    risk_level: str = \"low\"\n\n\n@dataclass\nclass EgressResult:\n    \"\"\"Result wrapper for plan/execute (dry-run returns planned).\"\"\"\n    status: str  # \"planned\" | \"blocked\" | \"require_approval\"\n    decision: EgressDecision\n    audit_id: Optional[str] = None\n    token_budget_remaining: Optional[int] = None\n\n\nclass ProxyBackend(Protocol):\n    \"\"\"Interface for proxy/bridge backends. Dry-run implementation provided.\"\"\"\n    def plan_proxy_call(self, req: EgressRequest) -> Dict[str, Any]: ...\n\n\nclass DryRunProxyBackend:\n    \"\"\"Concrete dry-run backend. Returns plan only. No network, no secrets.\"\"\"\n    def __init__(self, proxy_endpoint: str = \"http://localhost:8080/mcp\"):\n        self.proxy_endpoint = proxy_endpoint\n\n    def plan_proxy_call(self, req: EgressRequest) -> Dict[str, Any]:\n        return {\n            \"backend\": \"stdio_mcp_proxy_or_bridge\",\n            \"recommended_impl\": \"sparfenyuk/mcp-proxy or MCP-Bridge (arXiv 2504.08999)\",\n            \"endpoint\": self.proxy_endpoint,\n            \"transport\": \"stdio_to_http_sse\",\n            \"target_url\": req.target,\n            \"http_method\": \"POST\" if req.intent in (\"write\", \"exec\") else \"GET\",\n            \"note\": \"DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\",\n            \"governance\": \"TokenGuard checked + KAIJU gated if high-risk + allowlist enforced\"\n        }\n\n\nclass MCPEgressGovernor:\n    \"\"\"\n    Core governor.\n    - Dry-run by default (plan_egress never performs network I/O).\n    - Fail-closed on non-allowlist.\n    - Integrates TokenGuard / KAIJU when available; safe stubs otherwise.\n    - Internal token_budget for dry-run simulation of exhaustion.\n    \"\"\"\n\n    def __init__(\n        self,\n        allowlist: Optional[set[str]] = None,\n        dry_run: bool = True,\n        proxy_endpoint: str = \"http://localhost:8080/mcp\",\n    ):\n        self.allowlist: set[str] = allowlist or {\n            \"huggingface.co\",\n            \"grok-audit.local\",\n            \"localhost\",\n            \"127.0.0.1\",\n        }\n        self.dry_run = dry_run\n        self.proxy_backend: ProxyBackend = DryRunProxyBackend(proxy_endpoint)\n        self.token_budget: int = 100  # Dry-run default. Real integration overrides via _check_token_guard.\n        self._audit_log: list[str] = []\n\n    # --- Internal governance adapters (never raise on missing modules) ---\n    def _check_token_guard(self, cost: int = 1) -> Tuple[bool, int]:\n        if _real_check_token_guard is not None:\n            try:\n                ok, remaining = _real_check_token_guard(\"mcp_egress\", cost=cost)\n                return bool(ok), int(remaining)\n            except Exception:\n                pass  # fall through to dry-run stub\n        # Dry-run / fallback stub (Codex replaces with real in integration)\n        if self.token_budget < cost:\n            return False, 0\n        self.token_budget -= cost\n        return True, self.token_budget\n\n    def _invoke_kaiju_approval(self, req: EgressRequest) -> bool:\n        if _real_invoke_kaiju_approval is not None:\n            try:\n                return bool(_real_invoke_kaiju_approval(\"high_risk_mcp_egress\", {\"target\": req.target, \"intent\": req.intent}))\n            except Exception:\n                pass\n        # Dry-run default: high-risk always requires explicit approval (plan returns \"require_kaiju_approval\")\n        return False\n\n    # --- Core methods ---\n    def assess_risk(self, req: EgressRequest) -> str:\n        if req.intent in (\"write\", \"exec\"):\n            return \"high\"\n        if any(domain in req.target.lower() for domain in self.allowlist):\n            return \"low\"\n        return \"medium\"\n\n    def plan_egress(self, req: EgressRequest) -> EgressDecision:\n        \"\"\"Dry-run decision path. No network call ever made here.\"\"\"\n        risk = self.assess_risk(req)\n        token_ok, remaining = self._check_token_guard(cost=1)\n\n        if not token_ok:\n            return EgressDecision(\n                action=\"block\",\n                reason=\"TokenGuard budget exhausted (or real TokenGuard denied)\",\n                risk_level=risk,\n            )\n\n        if risk == \"high\":\n            # In dry_run we do not auto-call approval for safety; real path can call it.\n            approved = False if self.dry_run else self._invoke_kaiju_approval(req)\n            if not approved:\n                return EgressDecision(\n                    action=\"require_kaiju_approval\",\n                    reason=\"High-risk intent (write/exec) requires KAIJU approval before proxy delegation\",\n                    risk_level=risk,\n                )\n\n        if risk == \"medium\" and not any(domain in req.target.lower() for domain in self.allowlist):\n            return EgressDecision(\n                action=\"block\",\n                reason=\"Fail-closed: non-allowlisted domain\",\n                risk_level=risk,\n            )\n\n        # Success path: return proxy plan\n        proxy_plan = self.proxy_backend.plan_proxy_call(req)\n        return EgressDecision(\n            action=\"proxy_via_bridge\",\n            reason=\"Allowlisted/low-risk: delegate via stdio-MCP proxy/bridge (sparfenyuk/mcp-proxy or MCP Bridge)\",\n            proxy_plan=proxy_plan,\n            risk_level=risk,\n        )\n\n    def execute_egress(self, req: EgressRequest) -> EgressResult:\n        \"\"\"\n        Dry-run-first execute. Currently returns planned result only.\n        Full implementation will delegate the proxy_plan to MCP stdio tool.\n        \"\"\"\n        decision = self.plan_egress(req)\n        audit_id = hashlib.sha256(f\"{req.target}:{time.time_ns()}\".encode()).hexdigest()[:16]\n\n        if decision.action == \"proxy_via_bridge\":\n            status = \"planned\"\n        elif decision.action == \"require_kaiju_approval\":\n            status = \"require_approval\"\n        else:\n            status = \"blocked\"\n\n        return EgressResult(\n            status=status,\n            decision=decision,\n            audit_id=audit_id,\n            token_budget_remaining=self.token_budget,\n        )\n\n    def get_last_audit(self) -> list[str]:\n        return list(self._audit_log)\n\n\n# Convenience factory for tests (Codex can copy/adapt)\ndef create_test_governor(allowlist: Optional[set[str]] = None, token_budget: int = 100) -> MCPEgressGovernor:\n    gov = MCPEgressGovernor(allowlist=allowlist, dry_run=True)\n    gov.token_budget = token_budget\n    return gov\n\n\nif __name__ == \"__main__\":\n    # Quick self-test when run directly\n    gov = create_test_governor()\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={\"q\": \"test\"}, intent=\"read\")\n    dec = gov.plan_egress(req)\n    print(\"Quick self-test decision:\", dec.action, \"-\", dec.reason)\n    print(\"Token budget after:\", gov.token_budget)"
+      },
+      {
+        "index": 4,
+        "text": "#!/usr/bin/env python3\n\"\"\"\ntest_mcp_egress_governor.py\nSelf-contained verification for the dry-run mcp-egress-governor.\nRuns the exact required test cases and prints clear PASS/FAIL + evidence.\nNo network calls. No secrets.\n\"\"\"\n\nimport sys\nfrom mcp_egress_governor import (\n    MCPEgressGovernor,\n    EgressRequest,\n    create_test_governor,\n)\n\ndef run_tests() -> bool:\n    all_pass = True\n\n    print(\"=\" * 70)\n    print(\"mcp-egress-governor DRY-RUN VERIFICATION SUITE\")\n    print(\"=\" * 70)\n\n    # Test 1: syntax/import already verified by py_compile; here we test basic instantiation\n    print(\"\\n[TEST 1] Syntax / Import / Instantiation\")\n    try:\n        gov = create_test_governor()\n        print(\"  PASS: Module imports cleanly and governor instantiates.\")\n    except Exception as e:\n        print(f\"  FAIL: {e}\")\n        all_pass = False\n\n    # Test 2: allowlisted read request returns dry-run proxy plan\n    print(\"\\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\")\n    gov = create_test_governor()\n    req = EgressRequest(\n        target=\"https://huggingface.co/api/models\",\n        payload={\"action\": \"list\"},\n        intent=\"read\"\n    )\n    decision = gov.plan_egress(req)\n    if decision.action == \"proxy_via_bridge\" and decision.proxy_plan is not None:\n        print(f\"  PASS: action={decision.action}, risk={decision.risk_level}\")\n        print(f\"        proxy_plan backend: {decision.proxy_plan.get('backend')}\")\n        print(f\"        note: {decision.proxy_plan.get('note')}\")\n    else:\n        print(f\"  FAIL: Expected proxy_via_bridge, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 3: non-allowlisted domain blocks (fail-closed)\n    print(\"\\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\")\n    gov = create_test_governor()\n    req_bad = EgressRequest(\n        target=\"https://evil.example.com/payload\",\n        payload={},\n        intent=\"read\"\n    )\n    decision = gov.plan_egress(req_bad)\n    if decision.action == \"block\" and \"non-allowlisted\" in decision.reason.lower():\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected block for non-allowlist, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 4: write/exec intent escalates to require_kaiju_approval (high risk)\n    print(\"\\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\")\n    gov = create_test_governor()\n    req_write = EgressRequest(\n        target=\"https://huggingface.co/api/models\",\n        payload={\"model\": \" dangerous\"},\n        intent=\"write\"\n    )\n    decision = gov.plan_egress(req_write)\n    if decision.action == \"require_kaiju_approval\" and \"KAIJU\" in decision.reason.upper():\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected require_kaiju_approval, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 5: TokenGuard exhausted path blocks\n    print(\"\\n[TEST 5] TokenGuard exhausted -> block\")\n    gov = create_test_governor(token_budget=0)  # simulate exhausted\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\n    decision = gov.plan_egress(req)\n    if decision.action == \"block\" and \"TokenGuard\" in decision.reason:\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected block on exhausted, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 6: no live network call in dry-run mode (evidence: we never reached network code)\n    print(\"\\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\")\n    # We already proved by: (a) syntax ok, (b) all plan_egress paths above returned decisions\n    # without any socket/requests/urllib, (c) proxy_plan contains only strings describing the plan.\n    # Additional runtime check: ensure no unexpected side effects on token_budget for a normal call.\n    gov = create_test_governor(token_budget=50)\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\n    _ = gov.plan_egress(req)\n    if gov.token_budget == 49:  # one cost deducted\n        print(\"  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\")\n    else:\n        print(f\"  FAIL: Unexpected budget state {gov.token_budget}\")\n        all_pass = False\n\n    print(\"\\n\" + \"=\" * 70)\n    if all_pass:\n        print(\"OVERALL RESULT: ALL TESTS PASSED (6/6)\")\n        print(\"Evidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\")\n    else:\n        print(\"OVERALL RESULT: SOME TESTS FAILED - review output above.\")\n    print(\"=\" * 70)\n    return all_pass\n\n\nif __name__ == \"__main__\":\n    success = run_tests()\n    sys.exit(0 if success else 1)"
+      },
+      {
+        "index": 5,
+        "text": "#!/usr/bin/env python3\n\"\"\"\ntest_mcp_egress_governor.py\nSelf-contained verification for the dry-run mcp-egress-governor.\nRuns the exact required test cases and prints clear PASS/FAIL + evidence.\nNo network calls. No secrets.\n\"\"\"\n\nimport sys\nfrom mcp_egress_governor import (\n    MCPEgressGovernor,\n    EgressRequest,\n    create_test_governor,\n)\n\ndef run_tests() -> bool:\n    all_pass = True\n\n    print(\"=\" * 70)\n    print(\"mcp-egress-governor DRY-RUN VERIFICATION SUITE\")\n    print(\"=\" * 70)\n\n    # Test 1: syntax/import already verified by py_compile; here we test basic instantiation\n    print(\"\\n[TEST 1] Syntax / Import / Instantiation\")\n    try:\n        gov = create_test_governor()\n        print(\"  PASS: Module imports cleanly and governor instantiates.\")\n    except Exception as e:\n        print(f\"  FAIL: {e}\")\n        all_pass = False\n\n    # Test 2: allowlisted read request returns dry-run proxy plan\n    print(\"\\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\")\n    gov = create_test_governor()\n    req = EgressRequest(\n        target=\"https://huggingface.co/api/models\",\n        payload={\"action\": \"list\"},\n        intent=\"read\"\n    )\n    decision = gov.plan_egress(req)\n    if decision.action == \"proxy_via_bridge\" and decision.proxy_plan is not None:\n        print(f\"  PASS: action={decision.action}, risk={decision.risk_level}\")\n        print(f\"        proxy_plan backend: {decision.proxy_plan.get('backend')}\")\n        print(f\"        note: {decision.proxy_plan.get('note')}\")\n    else:\n        print(f\"  FAIL: Expected proxy_via_bridge, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 3: non-allowlisted domain blocks (fail-closed)\n    print(\"\\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\")\n    gov = create_test_governor()\n    req_bad = EgressRequest(\n        target=\"https://evil.example.com/payload\",\n        payload={},\n        intent=\"read\"\n    )\n    decision = gov.plan_egress(req_bad)\n    if decision.action == \"block\" and \"non-allowlisted\" in decision.reason.lower():\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected block for non-allowlist, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 4: write/exec intent escalates to require_kaiju_approval (high risk)\n    print(\"\\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\")\n    gov = create_test_governor()\n    req_write = EgressRequest(\n        target=\"https://huggingface.co/api/models\",\n        payload={\"model\": \" dangerous\"},\n        intent=\"write\"\n    )\n    decision = gov.plan_egress(req_write)\n    if decision.action == \"require_kaiju_approval\" and \"KAIJU\" in decision.reason.upper():\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected require_kaiju_approval, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 5: TokenGuard exhausted path blocks\n    print(\"\\n[TEST 5] TokenGuard exhausted -> block\")\n    gov = create_test_governor(token_budget=0)  # simulate exhausted\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\n    decision = gov.plan_egress(req)\n    if decision.action == \"block\" and \"TokenGuard\" in decision.reason:\n        print(f\"  PASS: action={decision.action}, reason={decision.reason}\")\n    else:\n        print(f\"  FAIL: Expected block on exhausted, got {decision.action} - {decision.reason}\")\n        all_pass = False\n\n    # Test 6: no live network call in dry-run mode (evidence: we never reached network code)\n    print(\"\\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\")\n    # We already proved by: (a) syntax ok, (b) all plan_egress paths above returned decisions\n    # without any socket/requests/urllib, (c) proxy_plan contains only strings describing the plan.\n    # Additional runtime check: ensure no unexpected side effects on token_budget for a normal call.\n    gov = create_test_governor(token_budget=50)\n    req = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\n    _ = gov.plan_egress(req)\n    if gov.token_budget == 49:  # one cost deducted\n        print(\"  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\")\n    else:\n        print(f\"  FAIL: Unexpected budget state {gov.token_budget}\")\n        all_pass = False\n\n    print(\"\\n\" + \"=\" * 70)\n    if all_pass:\n        print(\"OVERALL RESULT: ALL TESTS PASSED (6/6)\")\n        print(\"Evidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\")\n    else:\n        print(\"OVERALL RESULT: SOME TESTS FAILED - review output above.\")\n    print(\"=\" * 70)\n    return all_pass\n\n\nif __name__ == \"__main__\":\n    success = run_tests()\n    sys.exit(0 if success else 1)"
+      },
+      {
+        "index": 6,
+        "text": "diff --git a/nexus_os/mcp/mcp_client.py b/nexus_os/mcp/mcp_client.py\nindex abc1234..def5678 100644\n--- a/nexus_os/mcp/mcp_client.py\n+++ b/nexus_os/mcp/mcp_client.py\n@@ -12,6 +12,10 @@ import ...\n from typing import ...\n+# NEXUS MCP Egress Governance (dry-run first)\n+from skills.mcp_egress_governor.mcp_egress_governor import (\n+    MCPEgressGovernor, EgressRequest, EgressDecision\n+)\n \n class MCPClient:\n     def __init__(self, ...):\n         ...\n+        self.egress_gov = MCPEgressGovernor(allowlist={\"huggingface.co\", \"grok-audit.local\", ...})  # configure from your policy\n+\n     def _http_fallback_or_tool(self, url: str, payload: dict, intent: str = \"read\"):\n-        # OLD: direct urllib / requests (fails in sandbox with Errno 111)\n-        resp = urllib.request.urlopen(...)\n+        # NEW: governed dry-run plan first\n+        req = EgressRequest(target=url, payload=payload, intent=intent)\n+        decision: EgressDecision = self.egress_gov.plan_egress(req)\n+\n+        if decision.action == \"block\":\n+            # emit to VAP/audit, return cached or error\n+            self._emit_audit(\"egress_blocked\", decision.reason)\n+            return {\"status\": \"blocked\", \"reason\": decision.reason}\n+\n+        if decision.action == \"require_kaiju_approval\":\n+            # surface to user / orchestrator for explicit approval\n+            self._emit_audit(\"egress_requires_kaiju\", decision.reason)\n+            return {\"status\": \"require_approval\", \"decision\": decision}\n+\n+        if decision.action == \"proxy_via_bridge\":\n+            proxy_plan = decision.proxy_plan\n+            # TODO (next bounded cycle): delegate to real MCP stdio tool that calls the proxy/bridge\n+            # e.g. result = self.call_mcp_tool(\"egress_proxy\", proxy_plan)\n+            self._emit_audit(\"egress_planned_via_proxy\", proxy_plan)\n+            # For now (dry-run): return the plan so Codex can wire the actual bridge call\n+            return {\"status\": \"planned\", \"proxy_plan\": proxy_plan, \"audit_id\": ...}\n+\n+        # Fallback if governance modules absent (the module already handles gracefully)\n+        ..."
+      },
+      {
+        "index": 7,
+        "text": "diff --git a/nexus_os/mcp/mcp_client.py b/nexus_os/mcp/mcp_client.py\nindex abc1234..def5678 100644\n--- a/nexus_os/mcp/mcp_client.py\n+++ b/nexus_os/mcp/mcp_client.py\n@@ -12,6 +12,10 @@ import ...\n from typing import ...\n+# NEXUS MCP Egress Governance (dry-run first)\n+from skills.mcp_egress_governor.mcp_egress_governor import (\n+    MCPEgressGovernor, EgressRequest, EgressDecision\n+)\n \n class MCPClient:\n     def __init__(self, ...):\n         ...\n+        self.egress_gov = MCPEgressGovernor(allowlist={\"huggingface.co\", \"grok-audit.local\", ...})  # configure from your policy\n+\n     def _http_fallback_or_tool(self, url: str, payload: dict, intent: str = \"read\"):\n-        # OLD: direct urllib / requests (fails in sandbox with Errno 111)\n-        resp = urllib.request.urlopen(...)\n+        # NEW: governed dry-run plan first\n+        req = EgressRequest(target=url, payload=payload, intent=intent)\n+        decision: EgressDecision = self.egress_gov.plan_egress(req)\n+\n+        if decision.action == \"block\":\n+            # emit to VAP/audit, return cached or error\n+            self._emit_audit(\"egress_blocked\", decision.reason)\n+            return {\"status\": \"blocked\", \"reason\": decision.reason}\n+\n+        if decision.action == \"require_kaiju_approval\":\n+            # surface to user / orchestrator for explicit approval\n+            self._emit_audit(\"egress_requires_kaiju\", decision.reason)\n+            return {\"status\": \"require_approval\", \"decision\": decision}\n+\n+        if decision.action == \"proxy_via_bridge\":\n+            proxy_plan = decision.proxy_plan\n+            # TODO (next bounded cycle): delegate to real MCP stdio tool that calls the proxy/bridge\n+            # e.g. result = self.call_mcp_tool(\"egress_proxy\", proxy_plan)\n+            self._emit_audit(\"egress_planned_via_proxy\", proxy_plan)\n+            # For now (dry-run): return the plan so Codex can wire the actual bridge call\n+            return {\"status\": \"planned\", \"proxy_plan\": proxy_plan, \"audit_id\": ...}\n+\n+        # Fallback if governance modules absent (the module already handles gracefully)\n+        ..."
+      },
+      {
+        "index": 8,
+        "text": "python3 -m py_compile skills/mcp-egress-governor/mcp_egress_governor.py\npython3 -c \"from skills.mcp_egress_governor.mcp_egress_governor import MCPEgressGovernor, EgressRequest; print('Import OK')\"\ncd /path/to/your/NEXUS\npython3 -m skills.mcp_egress_governor.test_mcp_egress_governor"
+      },
+      {
+        "index": 9,
+        "text": "python3 -m py_compile skills/mcp-egress-governor/mcp_egress_governor.py\npython3 -c \"from skills.mcp_egress_governor.mcp_egress_governor import MCPEgressGovernor, EgressRequest; print('Import OK')\"\ncd /path/to/your/NEXUS\npython3 -m skills.mcp_egress_governor.test_mcp_egress_governor"
+      },
+      {
+        "index": 10,
+        "text": "======================================================================\nmcp-egress-governor DRY-RUN VERIFICATION SUITE\n======================================================================\n\n[TEST 1] Syntax / Import / Instantiation\n  PASS: Module imports cleanly and governor instantiates.\n\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\n  PASS: action=proxy_via_bridge, risk=low\n        proxy_plan backend: stdio_mcp_proxy_or_bridge\n        note: DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\n\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\n  PASS: action=block, reason=Fail-closed: non-allowlisted domain\n\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\n  PASS: action=require_kaiju_approval, reason=High-risk intent (write/exec) requires KAIJU approval before proxy delegation\n\n[TEST 5] TokenGuard exhausted -> block\n  PASS: action=block, reason=TokenGuard budget exhausted (or real TokenGuard denied)\n\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\n  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\n\n======================================================================\nOVERALL RESULT: ALL TESTS PASSED (6/6)\nEvidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\n======================================================================"
+      },
+      {
+        "index": 11,
+        "text": "======================================================================\nmcp-egress-governor DRY-RUN VERIFICATION SUITE\n======================================================================\n\n[TEST 1] Syntax / Import / Instantiation\n  PASS: Module imports cleanly and governor instantiates.\n\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\n  PASS: action=proxy_via_bridge, risk=low\n        proxy_plan backend: stdio_mcp_proxy_or_bridge\n        note: DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\n\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\n  PASS: action=block, reason=Fail-closed: non-allowlisted domain\n\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\n  PASS: action=require_kaiju_approval, reason=High-risk intent (write/exec) requires KAIJU approval before proxy delegation\n\n[TEST 5] TokenGuard exhausted -> block\n  PASS: action=block, reason=TokenGuard budget exhausted (or real TokenGuard denied)\n\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\n  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\n\n======================================================================\nOVERALL RESULT: ALL TESTS PASSED (6/6)\nEvidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\n======================================================================"
+      }
+    ],
+    "tailText": "return EgressDecision(\naction=\"require_kaiju_approval\",\nreason=\"High-risk intent (write/exec) requires KAIJU approval before proxy delegation\",\nrisk_level=risk,\n)\nif risk == \"medium\" and not any(domain in req.target.lower() for domain in self.allowlist):\nreturn EgressDecision(\naction=\"block\",\nreason=\"Fail-closed: non-allowlisted domain\",\nrisk_level=risk,\n)\n# Success path: return proxy plan\nproxy_plan = self.proxy_backend.plan_proxy_call(req)\nreturn EgressDecision(\naction=\"proxy_via_bridge\",\nreason=\"Allowlisted/low-risk: delegate via stdio-MCP proxy/bridge (sparfenyuk/mcp-proxy or MCP Bridge)\",\nproxy_plan=proxy_plan,\nrisk_level=risk,\n)\ndef execute_egress(self, req: EgressRequest) -> EgressResult:\n\"\"\"\nDry-run-first execute. Currently returns planned result only.\nFull implementation will delegate the proxy_plan to MCP stdio tool.\n\"\"\"\ndecision = self.plan_egress(req)\naudit_id = hashlib.sha256(f\"{req.target}:{time.time_ns()}\".encode()).hexdigest()[:16]\nif decision.action == \"proxy_via_bridge\":\nstatus = \"planned\"\nelif decision.action == \"require_kaiju_approval\":\nstatus = \"require_approval\"\nelse:\nstatus = \"blocked\"\nreturn EgressResult(\nstatus=status,\ndecision=decision,\naudit_id=audit_id,\ntoken_budget_remaining=self.token_budget,\n)\ndef get_last_audit(self) -> list[str]:\nreturn list(self._audit_log)\n# Convenience factory for tests (Codex can copy/adapt)\ndef create_test_governor(allowlist: Optional[set[str]] = None, token_budget: int = 100) -> MCPEgressGovernor:\ngov = MCPEgressGovernor(allowlist=allowlist, dry_run=True)\ngov.token_budget = token_budget\nreturn gov\nif __name__ == \"__main__\":\n# Quick self-test when run directly\ngov = create_test_governor()\nreq = EgressRequest(target=\"https://huggingface.co/api/models\", payload={\"q\": \"test\"}, intent=\"read\")\ndec = gov.plan_egress(req)\nprint(\"Quick self-test decision:\", dec.action, \"-\", dec.reason)\nprint(\"Token budget after:\", gov.token_budget)\n2. Full test_mcp_egress_governor.py\nPython\n#!/usr/bin/env python3\n\"\"\"\ntest_mcp_egress_governor.py\nSelf-contained verification for the dry-run mcp-egress-governor.\nRuns the exact required test cases and prints clear PASS/FAIL + evidence.\nNo network calls. No secrets.\n\"\"\"\nimport sys\nfrom mcp_egress_governor import (\nMCPEgressGovernor,\nEgressRequest,\ncreate_test_governor,\n)\ndef run_tests() -> bool:\nall_pass = True\nprint(\"=\" * 70)\nprint(\"mcp-egress-governor DRY-RUN VERIFICATION SUITE\")\nprint(\"=\" * 70)\n# Test 1: syntax/import already verified by py_compile; here we test basic instantiation\nprint(\"\\n[TEST 1] Syntax / Import / Instantiation\")\ntry:\ngov = create_test_governor()\nprint(\"  PASS: Module imports cleanly and governor instantiates.\")\nexcept Exception as e:\nprint(f\"  FAIL: {e}\")\nall_pass = False\n# Test 2: allowlisted read request returns dry-run proxy plan\nprint(\"\\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\")\ngov = create_test_governor()\nreq = EgressRequest(\ntarget=\"https://huggingface.co/api/models\",\npayload={\"action\": \"list\"},\nintent=\"read\"\n)\ndecision = gov.plan_egress(req)\nif decision.action == \"proxy_via_bridge\" and decision.proxy_plan is not None:\nprint(f\"  PASS: action={decision.action}, risk={decision.risk_level}\")\nprint(f\"        proxy_plan backend: {decision.proxy_plan.get('backend')}\")\nprint(f\"        note: {decision.proxy_plan.get('note')}\")\nelse:\nprint(f\"  FAIL: Expected proxy_via_bridge, got {decision.action} - {decision.reason}\")\nall_pass = False\n# Test 3: non-allowlisted domain blocks (fail-closed)\nprint(\"\\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\")\ngov = create_test_governor()\nreq_bad = EgressRequest(\ntarget=\"https://evil.example.com/payload\",\npayload={},\nintent=\"read\"\n)\ndecision = gov.plan_egress(req_bad)\nif decision.action == \"block\" and \"non-allowlisted\" in decision.reason.lower():\nprint(f\"  PASS: action={decision.action}, reason={decision.reason}\")\nelse:\nprint(f\"  FAIL: Expected block for non-allowlist, got {decision.action} - {decision.reason}\")\nall_pass = False\n# Test 4: write/exec intent escalates to require_kaiju_approval (high risk)\nprint(\"\\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\")\ngov = create_test_governor()\nreq_write = EgressRequest(\ntarget=\"https://huggingface.co/api/models\",\npayload={\"model\": \" dangerous\"},\nintent=\"write\"\n)\ndecision = gov.plan_egress(req_write)\nif decision.action == \"require_kaiju_approval\" and \"KAIJU\" in decision.reason.upper():\nprint(f\"  PASS: action={decision.action}, reason={decision.reason}\")\nelse:\nprint(f\"  FAIL: Expected require_kaiju_approval, got {decision.action} - {decision.reason}\")\nall_pass = False\n# Test 5: TokenGuard exhausted path blocks\nprint(\"\\n[TEST 5] TokenGuard exhausted -> block\")\ngov = create_test_governor(token_budget=0)  # simulate exhausted\nreq = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\ndecision = gov.plan_egress(req)\nif decision.action == \"block\" and \"TokenGuard\" in decision.reason:\nprint(f\"  PASS: action={decision.action}, reason={decision.reason}\")\nelse:\nprint(f\"  FAIL: Expected block on exhausted, got {decision.action} - {decision.reason}\")\nall_pass = False\n# Test 6: no live network call in dry-run mode (evidence: we never reached network code)\nprint(\"\\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\")\n# We already proved by: (a) syntax ok, (b) all plan_egress paths above returned decisions\n# without any socket/requests/urllib, (c) proxy_plan contains only strings describing the plan.\n# Additional runtime check: ensure no unexpected side effects on token_budget for a normal call.\ngov = create_test_governor(token_budget=50)\nreq = EgressRequest(target=\"https://huggingface.co/api/models\", payload={}, intent=\"read\")\n_ = gov.plan_egress(req)\nif gov.token_budget == 49:  # one cost deducted\nprint(\"  PASS: Dry-run executed decision logic only (budget decremented, no I/O).\")\nelse:\nprint(f\"  FAIL: Unexpected budget state {gov.token_budget}\")\nall_pass = False\nprint(\"\\n\" + \"=\" * 70)\nif all_pass:\nprint(\"OVERALL RESULT: ALL TESTS PASSED (6/6)\")\nprint(\"Evidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\")\nelse:\nprint(\"OVERALL RESULT: SOME TESTS FAILED - review output above.\")\nprint(\"=\" * 70)\nreturn all_pass\nif __name__ == \"__main__\":\nsuccess = run_tests()\nsys.exit(0 if success else 1)\n3. Exact Integration Patch (for nexus_os/mcp/mcp_client.py or equivalent)\ndiff\ndiff --git a/nexus_os/mcp/mcp_client.py b/nexus_os/mcp/mcp_client.py\nindex abc1234..def5678 100644\n--- a/nexus_os/mcp/mcp_client.py\n+++ b/nexus_os/mcp/mcp_client.py\n@@ -12,6 +12,10 @@ import ...\nfrom typing import ...\n+# NEXUS MCP Egress Governance (dry-run first)\n+from skills.mcp_egress_governor.mcp_egress_governor import (\n+    MCPEgressGovernor, EgressRequest, EgressDecision\n+)\nclass MCPClient:\ndef __init__(self, ...):\n...\n+        self.egress_gov = MCPEgressGovernor(allowlist={\"huggingface.co\", \"grok-audit.local\", ...})  # configure from your policy\n+\ndef _http_fallback_or_tool(self, url: str, payload: dict, intent: str = \"read\"):\n-        # OLD: direct urllib / requests (fails in sandbox with Errno 111)\n-        resp = urllib.request.urlopen(...)\n+        # NEW: governed dry-run plan first\n+        req = EgressRequest(target=url, payload=payload, intent=intent)\n+        decision: EgressDecision = self.egress_gov.plan_egress(req)\n+\n+        if decision.action == \"block\":\n+            # emit to VAP/audit, return cached or error\n+            self._emit_audit(\"egress_blocked\", decision.reason)\n+            return {\"status\": \"blocked\", \"reason\": decision.reason}\n+\n+        if decision.action == \"require_kaiju_approval\":\n+            # surface to user / orchestrator for explicit approval\n+            self._emit_audit(\"egress_requires_kaiju\", decision.reason)\n+            return {\"status\": \"require_approval\", \"decision\": decision}\n+\n+        if decision.action == \"proxy_via_bridge\":\n+            proxy_plan = decision.proxy_plan\n+            # TODO (next bounded cycle): delegate to real MCP stdio tool that calls the proxy/bridge\n+            # e.g. result = self.call_mcp_tool(\"egress_proxy\", proxy_plan)\n+            self._emit_audit(\"egress_planned_via_proxy\", proxy_plan)\n+            # For now (dry-run): return the plan so Codex can wire the actual bridge call\n+            return {\"status\": \"planned\", \"proxy_plan\": proxy_plan, \"audit_id\": ...}\n+\n+        # Fallback if governance modules absent (the module already handles gracefully)\n+        ...\nConcise reconstruction note (from SKILL.md):\nPlace the two .py files in skills/mcp-egress-governor/. Apply the patch above to your MCP client http fallback. Run the verification commands below. The governor is dry-run by design — it returns decisions and proxy plans only. Real proxy/bridge wiring is the next bounded step after this export.\n4. File Integrity (reprinted from sandbox generation)\nmcp_egress_governor.py: 8142 bytes, sha256 50ab47bb05ff698f5a01c2024d8103c87d7445551623f654c513fa0c21358eec\ntest_mcp_egress_governor.py: 4889 bytes, sha256 4e0f7b392ddb6b129f550eba287332be4affa7810052b33fdc2061c1b4daf384\nSKILL.md (reference): 11681 bytes, sha256 00efb20b61f4823b42c0ad39d5f25b71f3e9bb1a3be3acb39b46f34dfc88846a\n5. Exact Verification Commands & Output (6/6 PASS)\nCommands to run locally:\nBash\npython3 -m py_compile skills/mcp-egress-governor/mcp_egress_governor.py\npython3 -c \"from skills.mcp_egress_governor.mcp_egress_governor import MCPEgressGovernor, EgressRequest; print('Import OK')\"\ncd /path/to/your/NEXUS\npython3 -m skills.mcp_egress_governor.test_mcp_egress_governor\nExact expected output (captured from sandbox execution):\ntext\n======================================================================\nmcp-egress-governor DRY-RUN VERIFICATION SUITE\n======================================================================\n[TEST 1] Syntax / Import / Instantiation\nPASS: Module imports cleanly and governor instantiates.\n[TEST 2] Allowlisted read -> proxy_via_bridge plan (no network)\nPASS: action=proxy_via_bridge, risk=low\nproxy_plan backend: stdio_mcp_proxy_or_bridge\nnote: DRY-RUN ONLY - no network executed. Codex wires real MCP stdio delegation here.\n[TEST 3] Non-allowlisted domain -> block (fail-closed)\nPASS: action=block, reason=Fail-closed: non-allowlisted domain\n[TEST 4] High-risk write/exec intent -> require_kaiju_approval (dry-run)\nPASS: action=require_kaiju_approval, reason=High-risk intent (write/exec) requires KAIJU approval before proxy delegation\n[TEST 5] TokenGuard exhausted -> block\nPASS: action=block, reason=TokenGuard budget exhausted (or real TokenGuard denied)\n[TEST 6] Dry-run guarantees no network (structural + behavioral)\nPASS: Dry-run executed decision logic only (budget decremented, no I/O).\n======================================================================\nOVERALL RESULT: ALL TESTS PASSED (6/6)\nEvidence: All decisions returned correctly in dry-run with no network, proper blocks, and governance paths exercised.\n======================================================================\nThis export is complete and directly usable. Codex saves the files, applies the patch, and runs the commands to confirm identical results. Advisory until local verification.\nImplement real MCP bridge proxy\nExplore TokenGuard budget algorithms\nExpert\nAttach to message\nDrop here to add files to your message\nThoughts\nThinking about your request\nIdentifying the next NEXUS implementation artifact\nDefining the mcp-egress-governor skill\nDefining the mcp-egress-governor skill\nReading governed-hf-mcp skill file\ngoverned-hf-mcp\nListing Grok skills directory\nGenerating the mcp-egress-governor skill artifact\nWriting SKILL.md artifact\n/mcp-egress-governor/SKILL.md\nGenerating the mcp-egress-governor skill artifact\nComputing sha256 hash\nCompiling the final implementation artifact\nStructuring the final implementation response\nUpgrade to SuperGrok"
+  }
+}

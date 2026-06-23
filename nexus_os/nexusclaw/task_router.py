@@ -27,6 +27,10 @@ from nexus_os.nexusclaw.agent_pool import AgentPool, AgentRecord, AgentStatus, g
 from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope, RiskLevel
 from nexus_os.nexusclaw.worklog import WorklogSystem, get_worklog
 from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
+from nexus_os.nexusclaw.runtime_security import (
+    sanitize_agent_output,
+    sanitize_inter_agent_message,
+)
 
 logger = logging.getLogger("nexusclaw.task_router")
 

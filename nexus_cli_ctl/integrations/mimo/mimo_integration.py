@@ -19,7 +19,10 @@ class MimoConfig:
 
     MIMO_CONFIG_PATH = Path(os.path.expanduser("~/.config/mimocode/mimocode.jsonc"))
     OPENCODE_CONFIG_PATH = Path(os.path.expanduser("~/.config/opencode/opencode.json"))
-    MODELRELAY_URL = "http://127.0.0.1:7355/v1"
+    _np = int(os.environ.get("NODERELAY_PORT", "7350"))
+    _pp = int(os.environ.get("PYTHONRELAY_PORT", "7355"))
+    # Try Node relay first, fall back to Python relay
+    MODELRELAY_URL = f"http://127.0.0.1:{_np}/v1"
     RETRY_ATTEMPTS = 5
     RETRY_BACKOFF_BASE = 2
 

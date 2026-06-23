@@ -43,6 +43,7 @@ class QuotaGuard:
         "together": {"type": "free_tier"},
         "deepseek": {"type": "free_tier"},
         "internai": {"requests_per_day": 43200, "type": "requests"},
+        "longcat": {"requests_per_day": 200, "type": "tokens"},
     }
 
     def __init__(self):

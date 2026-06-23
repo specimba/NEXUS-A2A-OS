@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * Body: {
  *   messages: { role: string, content: string }[],
- *   model?: string  // model route ID (e.g., 'glm-4-7-nim', 'deepseek-r1-or')
+ *   model?: string  // model route ID (e.g., 'glm-5-2', 'deepseek-r1-or')
  * }
  *
  * Query params:
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     let tier: string = 'balanced'
     if (model) {
       const modelToTier: Record<string, string> = {
-        'glm-4-7-nim': 'reasoning',
+        'glm-5-2': 'reasoning',
         'deepseek-r1-or': 'reasoning',
         'llama-3.3-70b-groq': 'reasoning',
         'llama-3.3-70b-cerebras': 'reasoning',
@@ -119,3 +119,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+

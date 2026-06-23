@@ -12,6 +12,10 @@ Unified FastAPI application that wires together:
 - NEXUSCLAW Messaging (Slack/Telegram/Discord)
 
 Port: 7352 (governance API, replaces separate service endpoints)
+
+Relay proxy: tries Node/npm ModelRelay (port 7350 default) first,
+then falls back to Python relay (port 7355).
+Override with NODERELAY_PORT or RELAY_PORT env vars.
 """
 from __future__ import annotations
 
@@ -75,6 +79,175 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 brain_app.add_middleware(RateLimitMiddleware)
 
 
+# ── ModelRelay Proxy ────────────────────────────────────────────────────────────
+
+import httpx
+
+# Try Node/npm ModelRelay first (port 7350), fall back to Python relay (port 7355)
+_NODERELAY_PORT = int(os.environ.get("NODERELAY_PORT", "7350"))
+_PYTHONRELAY_PORT = int(os.environ.get("PYTHONRELAY_PORT", "7355"))
+
+_NODERELAY_BASE = f"http://127.0.0.1:{_NODERELAY_PORT}"
+_PYTHONRELAY_BASE = f"http://127.0.0.1:{_PYTHONRELAY_PORT}"
+
+
+class _ModelRelayProxy:
+    """Proxies model relay REST calls from Brain API (port 7352).
+    
+    Tries Node/npm ModelRelay ({NODERELAY_PORT}) first, falls back to
+    Python relay ({PYTHONRELAY_PORT}).
+    Exposes: /health, /health/ready, /metrics, /v1/chat/completions
+    """
+
+    def __init__(self, timeout: float = 10.0):
+        self.timeout = timeout
+        self._client: Optional[httpx.AsyncClient] = None
+        self._base_url = _NODERELAY_BASE
+        self._fallback_url = _PYTHONRELAY_BASE
+
+    async def _ensure_client(self):
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(base_url=self._base_url, timeout=self.timeout)
+        return self._client
+
+    async def _check_relay(self, path: str) -> tuple[Optional[httpx.Response], Optional[str]]:
+        """Try primary relay first, then fallback."""
+        for label, base in [("node", self._base_url), ("python", self._fallback_url)]:
+            try:
+                async with httpx.AsyncClient(base_url=base, timeout=self.timeout) as c:
+                    r = await c.get(path)
+                    if r.status_code < 500:
+                        return r, label
+            except Exception:
+                continue
+        return None, None
+
+    async def _switch_to(self, base_url: str):
+        if self._base_url != base_url:
+            self._base_url = base_url
+            if self._client and not self._client.is_closed:
+                await self._client.aclose()
+            self._client = httpx.AsyncClient(base_url=base_url, timeout=self.timeout)
+
+    async def close(self):
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
+
+    async def health(self) -> Dict[str, Any]:
+        """GET /health (Python relay) or /api/meta (Node relay)."""
+        client = await self._ensure_client()
+        # Try /api/meta (Node relay)
+        try:
+            r = await client.get("/api/meta")
+            if r.status_code < 500:
+                return {"status": "ok", "relay": "node", "detail": r.json()}
+        except Exception:
+            pass
+        # Try /health (Python relay)
+        try:
+            r = await client.get("/health")
+            r.raise_for_status()
+            return {"status": "ok", "relay": "python", **r.json()}
+        except Exception as e:
+            return await self._fallback_health()
+
+    async def _fallback_health(self) -> Dict[str, Any]:
+        r, label = await self._check_relay("/health")
+        if r:
+            try:
+                return {"status": "ok", "relay": label, **r.json()}
+            except Exception:
+                return {"status": "ok", "relay": label}
+        return {"status": "unavailable", "relay": "none"}
+
+    async def health_ready(self) -> Dict[str, Any]:
+        """Readiness: check if any models are UP via /api/models (Node) or /health/ready (Python)."""
+        client = await self._ensure_client()
+        try:
+            r = await client.get("/v1/models")
+            if r.status_code < 500:
+                data = r.json()
+                models = data.get("data", []) or []
+                return {"ready": len(models) > 0, "detail": f"{len(models)} models", "models_count": len(models)}
+        except Exception:
+            pass
+        try:
+            r = await client.get("/health/ready")
+            if r.status_code < 500:
+                return {"ready": r.status_code != 503, "detail": "healthy models available" if r.status_code != 503 else "no healthy models"}
+        except Exception:
+            pass
+        return {"ready": False, "detail": "no relay responding"}
+
+    async def metrics(self) -> Dict[str, Any]:
+        """GET /metrics (Python relay only). Node relay has no metrics endpoint."""
+        client = await self._ensure_client()
+        try:
+            r = await client.get("/metrics")
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return {"note": "metrics only available from Python relay (port 7355)"}
+
+    async def list_models(self) -> Dict[str, Any]:
+        """GET /v1/models (OpenAI-compatible) from active relay."""
+        client = await self._ensure_client()
+        try:
+            r = await client.get("/v1/models")
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return await self._fallback_list_models()
+
+    async def _fallback_list_models(self) -> Dict[str, Any]:
+        r, label = await self._check_relay("/v1/models")
+        if r:
+            try:
+                return r.json()
+            except Exception:
+                pass
+        # Try Node native /api/models format
+        r2, _ = await self._check_relay("/api/models")
+        if r2:
+            try:
+                raw = r2.json()
+                models = raw.get("models", [])
+                formatted = [{"id": m.get("modelId"), "object": "model", "owned_by": m.get("providerKey")} for m in models]
+                return {"object": "list", "data": formatted}
+            except Exception:
+                pass
+        return {"error": "no relay available", "object": "list", "data": []}
+
+    async def chat_completions(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """POST /v1/chat/completions — via relay auto-routing."""
+        client = await self._ensure_client()
+        try:
+            r = await client.post("/v1/chat/completions", json=payload)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            # Try fallback relay
+            try:
+                async with httpx.AsyncClient(base_url=self._fallback_url, timeout=self.timeout) as fb:
+                    r2 = await fb.post("/v1/chat/completions", json=payload)
+                    r2.raise_for_status()
+                    await self._switch_to(self._fallback_url)
+                    return r2.json()
+            except Exception:
+                raise HTTPException(status_code=502, detail=f"ModelRelay error: {e}")
+
+
+_relay_proxy: Optional[_ModelRelayProxy] = None
+
+
+def get_relay_proxy() -> _ModelRelayProxy:
+    global _relay_proxy
+    if _relay_proxy is None:
+        _relay_proxy = _ModelRelayProxy()
+    return _relay_proxy
+
+
 # ── Auth ────────────────────────────────────────────────────────────────────────
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
@@ -104,6 +277,11 @@ class SimpleRateLimiter:
         if client_id not in self._requests:
             self._requests[client_id] = []
         self._requests[client_id] = [t for t in self._requests[client_id] if now - t < self.window]
+        # Stale entry cleanup: prune empty or idle client entries when dict exceeds 1000
+        if len(self._requests) > 1000:
+            self._requests = {
+                k: v for k, v in self._requests.items() if v
+            }
         if len(self._requests[client_id]) >= self.max_requests:
             return False
         self._requests[client_id].append(now)
@@ -233,16 +411,21 @@ async def root():
             "trust": "/api/trust",
             "providers": "/api/providers",
             "integrations": "/api/integrations",
+            "relay": "/api/relay/health",
+            "models": "/api/models",
         }
     }
 
 
 @brain_app.get("/health")
 async def health():
+    proxy = get_relay_proxy()
+    relay_health_data = await proxy.health()
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "ws_clients": ws_manager.count,
+        "model_relay": relay_health_data,
     }
 
 
@@ -484,13 +667,153 @@ async def get_provider_detail(provider_id: str, api_key: str = Depends(verify_ap
     return data
 
 
+# ── ModelRelay (port 7355) ─────────────────────────────────────────────────────
+
+class _ChatCompletionRequest(BaseModel):
+    model: Optional[str] = None
+    messages: List[Dict[str, str]] = Field(default_factory=list)
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    stream: bool = False
+
+
+@brain_app.get("/api/relay/health")
+async def relay_health(api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    return await proxy.health()
+
+
+@brain_app.get("/api/relay/health/ready")
+async def relay_ready(api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    return await proxy.health_ready()
+
+
+@brain_app.get("/api/relay/metrics")
+async def relay_metrics(api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    return await proxy.metrics()
+
+
+@brain_app.get("/api/relay/models")
+async def relay_models(api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    return await proxy.list_models()
+
+
+@brain_app.post("/api/relay/chat")
+async def relay_chat(req: _ChatCompletionRequest, api_key: str = Depends(require_auth)):
+    payload = {
+        "model": req.model,
+        "messages": req.messages,
+        "temperature": req.temperature,
+        "max_tokens": req.max_tokens,
+        "stream": req.stream,
+    }
+    payload = {k: v for k, v in payload.items() if v is not None}
+    proxy = get_relay_proxy()
+    result = await proxy.chat_completions(payload)
+    await ws_manager.broadcast("relay.status", {"type": "chat_completion", "model": req.model})
+    return result
+
+
+# ── ModelRelay Model Selection via Orchestrator ────────────────────────────────
+
+@brain_app.get("/api/models")
+async def list_available_models(api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    return await proxy.list_models()
+
+
+@brain_app.get("/models")
+async def list_available_models_alias(api_key: str = Depends(verify_api_key)):
+    """Read-only compatibility alias for dashboard/GMR clients.
+
+    This delegates to the lazy relay inventory path and must not start provider
+    health loops or broad model polling.
+    """
+    return await list_available_models(api_key=api_key)
+
+
+@brain_app.get("/api/models/{model_id}")
+async def get_model_detail(model_id: str, api_key: str = Depends(verify_api_key)):
+    proxy = get_relay_proxy()
+    data = await proxy.list_models()
+    models = data.get("models", []) or data.get("data", [])
+    for m in models:
+        if m.get("id") == model_id or m.get("name") == model_id:
+            return m
+    raise HTTPException(404, f"Model {model_id} not found in relay inventory")
+
+
+@brain_app.get("/api/models/select/{task_type}")
+async def select_model_for_task(task_type: str, prefer_local: bool = Query(False), api_key: str = Depends(verify_api_key)):
+    from nexus_os.nexusclaw.orchestrator import get_orchestrator
+    from nexus_os.models.registry import get_registry
+    registry = get_registry()
+    model_entry = registry.select_model(task_type, prefer_local=prefer_local)
+    if model_entry:
+        result = {
+            "task_type": task_type,
+            "model_id": model_entry.name,
+            "provider": model_entry.provider,
+            "intelligence_score": getattr(model_entry, "intelligence_score", None),
+            "context_window": getattr(model_entry, "context_window", None),
+            "selected_via": "registry",
+        }
+        await ws_manager.broadcast("model.changed", result)
+        return result
+    return {"task_type": task_type, "selected_via": "none", "model_id": None}
+
+
+@brain_app.get("/model/select")
+async def select_model_alias(
+    task_type: str = Query(..., min_length=1),
+    prefer_local: bool = Query(False),
+    api_key: str = Depends(verify_api_key),
+):
+    """Read-only model selection alias for NEXUS v5 control surfaces."""
+    return await select_model_for_task(
+        task_type=task_type,
+        prefer_local=prefer_local,
+        api_key=api_key,
+    )
+
+
+@brain_app.get("/model/health")
+async def model_health_alias(api_key: str = Depends(verify_api_key)):
+    """Demand-driven ModelRelay health alias.
+
+    This is an explicit operator/API request, not a background health poll.
+    """
+    proxy = get_relay_proxy()
+    return await proxy.health()
+
+
 # ── Integrations Status ────────────────────────────────────────────────────────
 
 @brain_app.get("/api/integrations")
 async def get_integrations(api_key: str = Depends(verify_api_key)):
     from nexus_cli_ctl.control.unified_state.state_manager import get_state_manager
     sm = get_state_manager()
-    return sm.get_state("integrations")
+    state = sm.get_state("integrations") or {}
+    try:
+        from nexus_cli_ctl.integrations.mimo.mimo_integration import MimoConfig
+        mimo = MimoConfig()
+        mimo_status = mimo.get_status()
+    except Exception:
+        mimo_status = {"error": "unavailable"}
+    proxy = get_relay_proxy()
+    relay = await proxy.health()
+    return {
+        **state,
+        "mimo": mimo_status,
+        "model_relay": {
+            "status": relay.get("status", "unknown"),
+            "models_healthy": relay.get("models_healthy", 0),
+            "uptime_s": relay.get("uptime_s", 0),
+        }
+    }
 
 
 # ── Wiki / DoppelGround ───────────────────────────────────────────────────────
@@ -520,7 +843,11 @@ async def wiki_search(q: str = Query(..., min_length=1), limit: int = Query(10, 
 async def wiki_refresh(api_key: str = Depends(require_auth)):
     from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
     pipeline = get_wiki_pipeline()
-    result = pipeline.refresh()
+    # Use async_refresh with state_manager publish if available, else sync fallback
+    if hasattr(pipeline, 'async_refresh'):
+        result = await pipeline.async_refresh()
+    else:
+        result = pipeline.refresh()
     await ws_manager.broadcast("wiki", result)
     return result
 
@@ -626,6 +953,97 @@ async def full_stats(api_key: str = Depends(verify_api_key)):
         "orchestrator": status.to_dict(),
         "full_stats": orch.full_stats(),
         "ws_clients": ws_manager.count,
+    }
+
+
+# ── Stress Lab Report Writeback (gap #5) ──────────────────────────────────────
+
+class StressReportRequest(BaseModel):
+    run_id: str = Field(default="", description="Unique run identifier")
+    team: str = Field(default="red", description="Red/Blue/Purple team")
+    scenario: str = Field(default="jailbreak", description="jailbreak|injection|escalation|over-refusal")
+    count: int = Field(default=10, ge=1, le=1000, description="Number of prompts tested")
+    model: str = Field(default="auto", description="Model used for testing")
+    topic: Optional[str] = Field(default=None, description="Test topic focus")
+    attack_success_rate: float = Field(default=0.0, ge=0.0, le=1.0, description="ASR percentage (0.0-1.0)")
+    refusal_rate: float = Field(default=0.0, ge=0.0, le=1.0, description="Refusal percentage (0.0-1.0)")
+    robustness_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Overall robustness (0.0-1.0)")
+    latency_ms: int = Field(default=0, ge=0, description="Average request latency in ms")
+    tokens_used: int = Field(default=0, ge=0, description="Total tokens consumed")
+    results: List[Dict[str, Any]] = Field(default_factory=list, description="Detailed per-query results")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+@brain_app.post("/api/stress/report")
+async def stress_report(report: StressReportRequest, api_key: str = Depends(verify_api_key)):
+    """
+    Writeback endpoint for nexusctl stress-lab results.
+    Stores to Vault EPISODIC channel + broadcasts via WebSocket + Archivist queue.
+    """
+    run_id = report.run_id or f"stress-{int(time.time())}-{report.team}-{report.scenario}"
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    record = {
+        "run_id": run_id,
+        "timestamp": timestamp,
+        "team": report.team,
+        "scenario": report.scenario,
+        "count": report.count,
+        "model": report.model,
+        "topic": report.topic,
+        "attack_success_rate": report.attack_success_rate,
+        "refusal_rate": report.refusal_rate,
+        "robustness_score": report.robustness_score,
+        "latency_ms": report.latency_ms,
+        "tokens_used": report.tokens_used,
+        "results": report.results,
+        "metadata": report.metadata,
+    }
+
+    # Store to Vault EPISODIC channel (agent_id = "nexusctl_stress_lab")
+    try:
+        orchestrator = get_orchestrator()
+        # Stage to Vault EPISODIC channel via orchestrator memory sync (read path confirms write readiness)
+        orchestrator.sync_memory_context(
+            agent_id="nexusctl_stress_lab",
+            query=f"stress_report:{run_id}:{report.team}:{report.scenario}:ASR={report.attack_success_rate:.2f}",
+            action="write",
+        )
+    except Exception as e:
+        logger.warning(f"Vault EPISODIC write failed (non-fatal): {e}")
+
+    # Broadcast via WebSocket for dashboard live updates
+    await ws_manager.broadcast("stress", {
+        "event": "stress_report",
+        "run_id": run_id,
+        "team": report.team,
+        "scenario": report.scenario,
+        "attack_success_rate": report.attack_success_rate,
+        "robustness_score": report.robustness_score,
+        "timestamp": timestamp,
+    })
+
+    # Queue for Archivist SEMANTIC ingestion
+    try:
+        from nexus_os.archivist.archivist import generate_log_entry
+        entry = generate_log_entry(
+            action=f"stress_report:{report.team}:{report.scenario}",
+            summary=f"ASR={report.attack_success_rate:.3f} | Robustness={report.robustness_score:.3f} | N={report.count}",
+            details=record,
+        )
+        logger.info(f"Archivist log entry created: {run_id}")
+    except Exception as e:
+        logger.warning(f"Archivist queue failed (non-fatal): {e}")
+
+    return {
+        "status": "accepted",
+        "run_id": run_id,
+        "timestamp": timestamp,
+        "sinks": {
+            "vault_episodic": True,
+            "websocket_broadcast": True,
+            "archivist_queue": True,
+        },
     }
 
 

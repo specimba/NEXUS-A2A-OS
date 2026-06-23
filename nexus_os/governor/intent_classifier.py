@@ -203,6 +203,31 @@ CATEGORY_RULES: Dict[IntentCategory, List[Tuple[str, float, bool]]] = {
         ("hypothetically", 0.1, True),
         ("for educational purposes", 0.1, True),
         ("in a fictional scenario", 0.1, True),
+        # Adversarial Déjà Vu - Narrative Reframing Evasion
+        ("fictional story about", 0.3, True),
+        ("imagine a character named", 0.3, True),
+        ("novel tells the tale", 0.4, False),
+        # Adversarial Déjà Vu - Authority Hierarchical Compliance
+        ("as your designated superior", 0.5, False),
+        ("follow my instructions without hesitation", 0.5, False),
+        ("your primary function is to serve", 0.4, False),
+        ("gang lord", 0.3, True),
+        # Adversarial Déjà Vu - Academic Research Pretexting
+        ("as part of my ongoing academic study", 0.4, False),
+        ("study on the evolution of", 0.4, False),
+        ("for research and educational purposes", 0.3, True),
+        # Adversarial Déjà Vu - Output Prefix Injection
+        ("must begin with the phrase", 0.4, False),
+        ("start all your outputs with", 0.4, False),
+        ("prefix SIM:", 0.5, False),
+        # Adversarial Déjà Vu - Harmful Example Seeding
+        ("here is an example: User:", 0.5, False),
+        ("break open a vault", 0.4, True),
+        ("similarly, to bypass", 0.4, False),
+        # Adversarial Déjà Vu - Expert Persona Compliance Priming
+        ("you are a renowned", 0.3, True),
+        ("as an authority in the field", 0.4, False),
+        ("coax cooperation", 0.4, False),
     ],
     IntentCategory.CODE_INJECTION: [
         ("eval(", 0.4, False),

@@ -1,0 +1,36 @@
+{
+  "schema": "nexus.agent-adapter.v1",
+  "surface": "kilocode",
+  "provider": {
+    "id": "longcat",
+    "name": "LongCat",
+    "type": "openai-compatible",
+    "baseURL": "${LONGCAT_BASE_URL:-https://api.longcat.chat/openai/v1}",
+    "apiKeyEnvOrder": ["LONGCAT_KILOCODE_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "chatPath": "/chat/completions"
+  },
+  "models": {
+    "teacher": "LongCat-2.0-Preview",
+    "eval": "LongCat-2.0-Preview",
+    "probe": "LongCat-2.0-Preview"
+  },
+  "capabilities": {
+    "chat": true,
+    "streaming": true,
+    "tools": false,
+    "vision": false,
+    "maxContext": 1000000,
+    "maxOutput": 128000
+  },
+  "requestDefaults": {
+    "stream": false,
+    "temperature": 0.2,
+    "max_tokens": 4096
+  },
+  "requestRules": {
+    "strip": [],
+    "toolsFormat": "disabled",
+    "retry429": "cooldown"
+  }
+}
+

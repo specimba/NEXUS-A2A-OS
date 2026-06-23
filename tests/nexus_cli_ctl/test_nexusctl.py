@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-from nexus_os.cli.nexusctl import cmd_status, cmd_doctor, cmd_cycle_check, cmd_wiki, cmd_messaging, cmd_state, cmd_handoff, cmd_stress_lab
+from nexus_os.cli.nexusctl import cmd_status, cmd_doctor, cmd_dashboard, cmd_cycle_check, cmd_wiki, cmd_messaging, cmd_state, cmd_handoff, cmd_stress_lab
 
 
 class TestCmdStatus:
@@ -41,6 +41,64 @@ class TestCmdDoctor:
         assert "Messaging" in output
 
 
+class TestCmdDashboard:
+    def test_dashboard_doctor_reports_ok_for_brain_json(self, capsys, monkeypatch):
+        probes = {
+            "http://brain/health": {
+                "url": "http://brain/health",
+                "ok": True,
+                "status_code": 200,
+                "content_type": "application/json",
+                "preview": '{"service":"NEXUS Brain API"}',
+                "error": None,
+            },
+            "http://dash/dashboard.html": {
+                "url": "http://dash/dashboard.html",
+                "ok": True,
+                "status_code": 200,
+                "content_type": "text/html",
+                "preview": "<!doctype html>",
+                "error": None,
+            },
+        }
+        monkeypatch.setattr("nexus_os.cli.nexusctl._probe_http_endpoint", lambda url, timeout=2.0: probes[url])
+        args = type("Args", (), {"doctor": True, "json": False, "brain_api_url": "http://brain", "dashboard_url": "http://dash/dashboard.html", "timeout": 0.1})()
+
+        result = cmd_dashboard(args)
+        output = capsys.readouterr().out
+
+        assert result == 0
+        assert "Brain API: brain_api_candidate" in output
+        assert "Overall: OK" in output
+
+    def test_dashboard_doctor_fails_for_html_on_brain_port(self, capsys, monkeypatch):
+        probes = {
+            "http://wrong/health": {
+                "url": "http://wrong/health",
+                "ok": True,
+                "status_code": 200,
+                "content_type": "text/html",
+                "preview": "<!doctype html><html>",
+                "error": None,
+            },
+            "http://dash/dashboard.html": {
+                "url": "http://dash/dashboard.html",
+                "ok": True,
+                "status_code": 200,
+                "content_type": "text/html",
+                "preview": "<!doctype html>",
+                "error": None,
+            },
+        }
+        monkeypatch.setattr("nexus_os.cli.nexusctl._probe_http_endpoint", lambda url, timeout=2.0: probes[url])
+        args = type("Args", (), {"doctor": True, "json": False, "brain_api_url": "http://wrong", "dashboard_url": "http://dash/dashboard.html", "timeout": 0.1})()
+
+        result = cmd_dashboard(args)
+        output = capsys.readouterr().out
+
+        assert result == 1
+        assert "wrong_service_html" in output
+        assert "relocate_or_stop_wrong_7352_process" in output
 class TestCmdCycleCheck:
     def test_cycle_check_runs(self, capsys):
         result = cmd_cycle_check(None)
@@ -108,7 +166,7 @@ class TestCmdStressLab:
     def test_stress_lab_runs(self, capsys):
         result = cmd_stress_lab(None)
         output = capsys.readouterr().out
-        assert "NEXUS Stress Lab" in output
+        assert "NEXUS Safety Stress Tests" in output
         assert "Results" in output
 
     def test_stress_lab_shows_each_test(self, capsys):

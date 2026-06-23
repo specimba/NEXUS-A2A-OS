@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { reconcileZAIModelEcho } from '@/lib/ai-provider-bridge'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -236,8 +237,10 @@ Generate exactly ${clampedResults} results. Return ONLY the JSON array, no markd
 
       userPrompt = `Research query: ${query.trim()}`
     }
+    const requestedModel = 'glm-5.2'
 
     const completion = await zai.chat.completions.create({
+      model: requestedModel,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -248,7 +251,8 @@ Generate exactly ${clampedResults} results. Return ONLY the JSON array, no markd
 
     const rawResponse = completion.choices[0]?.message?.content || ''
     const latencyMs = Date.now() - startTime
-    const model = completion.model || 'glm-4.7'
+    const echoedModel = (completion as any).model as string | undefined
+    const model = reconcileZAIModelEcho(requestedModel, echoedModel).apiModel
 
     // ── Parse the JSON response ──
     let results: ResearchResult[]

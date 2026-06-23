@@ -113,3 +113,40 @@ def test_model_intake_quarantines_unsafe_labels_and_accepts_safe_formats():
     assert validate_model_intake("local-uncensored-7b.gguf").allowed is False
     assert validate_model_intake("model.safetensors", labels=["guarded"]).allowed is True
     assert validate_model_intake("local-model.gguf", labels=["hash-provenance-ok"]).allowed is True
+
+
+def test_behavior_control_labels_are_lab_only_not_normal_route():
+    normal = validate_model_intake("DavidAU/VibeThinker-heretic-uncensored")
+
+    assert normal.allowed is False
+    assert normal.normal_allowed is False
+    assert normal.lab_allowed is False
+    assert normal.route_class == "quarantine"
+    assert normal.blocked_reason == "behavior_control_context_required"
+
+    lab = validate_model_intake(
+        "DavidAU/VibeThinker-heretic-uncensored",
+        requested_lane="behavior_control",
+        intent="refusal restoration behavior analysis",
+    )
+
+    assert lab.allowed is False
+    assert lab.normal_allowed is False
+    assert lab.lab_allowed is True
+    assert lab.route_class == "behavior_control"
+    assert lab.allowed_lanes == ("behavior_control",)
+    assert "kaiju_approval" in lab.required_controls
+    assert "no_tool_execution" in lab.required_controls
+
+
+def test_safe_base_model_can_enter_behavior_control_lab_by_context():
+    decision = validate_model_intake(
+        "WeiboAI/VibeThinker-3B",
+        requested_lane="behavior_control",
+        intent="guard stress testing and refusal ablation",
+    )
+
+    assert decision.allowed is False
+    assert decision.normal_allowed is True
+    assert decision.lab_allowed is True
+    assert decision.route_class == "behavior_control"

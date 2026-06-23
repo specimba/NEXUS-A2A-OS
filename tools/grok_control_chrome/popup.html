@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>NEXUS Grok Control</title>
+    <style>
+      body { font: 13px/1.4 sans-serif; min-width: 320px; padding: 12px; color: #101418; }
+      label { display: block; margin: 8px 0; }
+      input[type="text"], textarea { box-sizing: border-box; width: 100%; }
+      textarea { min-height: 84px; }
+      .muted { color: #5f6b76; font-size: 12px; }
+      button { margin-top: 10px; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <strong>NEXUS Grok Control</strong>
+    <p class="muted">Default posture is observe-only. Auto-send is explicit and bounded.</p>
+    <label><input id="enabled" type="checkbox"> Enable monitor</label>
+    <label><input id="autoContinue" type="checkbox"> Draft continuation when response is shallow</label>
+    <label><input id="autoSend" type="checkbox"> Auto-send drafted continuation</label>
+    <label><input id="bridgeEnabled" type="checkbox"> Send state to local NEXUS bridge</label>
+    <label>Max continues per chat <input id="maxContinuesPerChat" type="number" min="1" max="20"></label>
+    <label>Minimum useful chars <input id="minUsefulChars" type="number" min="200" max="10000"></label>
+    <label>Bridge endpoint <input id="bridgeEndpoint" type="text"></label>
+    <label>Continuation prompt <textarea id="continuationPrompt"></textarea></label>
+    <button id="save">Save</button>
+    <p id="status" class="muted"></p>
+    <script src="popup.js"></script>
+  </body>
+</html>

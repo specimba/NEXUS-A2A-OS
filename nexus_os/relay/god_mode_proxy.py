@@ -31,9 +31,17 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-MODELRELAY_URL = "http://127.0.0.1:7352"
+# Node/npm ModelRelay (primary, port 7350), Python relay fallback (port 7355)
+_NODERELAY_PORT = int(__import__("os").environ.get("NODERELAY_PORT", "7350"))
+_PYTHONRELAY_PORT = int(__import__("os").environ.get("PYTHONRELAY_PORT", "7355"))
+
+# Detect which relay is active by trying both
+MODELRELAY_URL = f"http://127.0.0.1:{_NODERELAY_PORT}"
 MODELRELAY_API = f"{MODELRELAY_URL}/api"
 MODELRELAY_CHAT = f"{MODELRELAY_URL}/v1/chat/completions"
+
+# Fallback URL if primary is unreachable
+MODELRELAY_FALLBACK_URL = f"http://127.0.0.1:{_PYTHONRELAY_PORT}"
 
 # Provider budget tiers: higher = more reliable/unlimited
 PROVIDER_TIER = {

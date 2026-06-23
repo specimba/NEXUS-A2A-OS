@@ -1,0 +1,474 @@
+
+================ PAGE 1 ================
+Progent: Securing AI Agents with Privilege Control
+Tianneng Shi1, Jingxuan He1, Zhun Wang1, Hongwei Li2, Linyu Wu3, Wenbo Guo2, Dawn Song1
+1UC Berkeley 2UC Santa Barbara 3National University of Singapore
+Abstract
+AI agents interact with external environments through tool calls,
+exposing them to attacks like indirect prompt injection that can
+trigger unauthorized actions. Securing these agents is challenging:
+they behave autonomously and probabilistically, security require-
+ments evolve depending on the user’s task and execution state, and
+there is an inherent tradeofff between security and utility.
+In this work, we introduce Progent, a novel framework that se-
+cures AI agents via privilege control. Progent represents privilege
+as a security policy consisting of symbolic rules over tool names
+and arguments. These rules specify which tool calls are allowed
+for task completion and which unnecessary ones are blocked for
+security. Every tool call is checked against such a policy through a
+deterministic procedure, enforcing the principle of least privilege.
+To handle diverse user tasks and evolving execution contexts, an
+LLM automatically generates the initial policy from the user’s task
+and updates it during execution as new information arrives. Each
+proposed update is determined by an SMT solver to be either a
+narrowing (applied automatically) or an expansion (requiring ex-
+plicit approval), ensuring that the agent’s effective action space can
+only shrink without approval (monotonic confinement). This de-
+terministic update mechanism preserves utility and prevents silent
+privilege escalation, even when adversarial inputs are present.
+Our evaluation on popular benchmarks (i.e., AgentDojo and ASB)
+shows that Progent significantly reduces attack success rates while
+maintaining high utility. We further validate Progent’s practicality
+by showcasing its effectiveness in real-world agent frameworks
+such as LangChain and OpenAI Agents SDK.
+1 Introduction
+AI agents have emerged as a promising platform for general and au-
+tonomous task solving [41, 46, 47, 56]. At the core of these agents is
+a large language model (LLM), which interacts with the external en-
+vironment through diverse sets of tools [39, 40]. For instance, a per-
+sonal assistant agent uses email toolkits [20] to manage emails, and
+a coding agent uses code interpreters and the command line [47].
+Security Risks in AI Agents.The ability to interact with external
+environments makes AI agents powerful, enabling them to perform
+diverse tasks across domains such as communication, scheduling,
+and finance. However, this same ability also creates a large attack
+surface. Recent research has raised serious security concerns about
+AI agents [15, 28, 52], where attackers exploit the agent’s interaction
+with the environment by injecting adversarial instructions into
+external data sources. When the agent retrieves such data via tool
+calls, the injected instructions can redirect the agent to perform
+dangerous actions, such as unauthorized financial transactions [11]
+or data exfiltration [29]. This class of attacks is known asindirect
+prompt injection[14, 30].
+Challenges for Securing AI Agents.Securing AI agents is chal-
+lenging for several reasons. First, agent behavior is inherently non-
+deterministic: an LLM processes unstructured natural language
+and may make different decisions across runs. In contrast, security
+requires deterministic enforcement that holds regardless of how the
+LLM reasons, even under adversarial influence. Reconciling these
+two worlds is non-trivial. Second, agent security depends on both
+the user’s task and the information the agent gathers during execu-
+tion. Different tasks require different tools and arguments, and the
+relevant context evolves at runtime as the agent interacts with the
+environment. A defense must track these changes automatically,
+since involving the user in every security decision is impractical
+and negates the benefit of an autonomous agent. Finally, agents
+must sometimes expand their privileges to complete benign tasks.
+Yet, adversaries also seek to exploit the same mechanism to induce
+harmful actions, and both legitimate and adversarial expansion re-
+quests arrive through the same channel. Distinguishing legitimate
+from adversarial expansions, without sacrificing security or utility,
+is a fundamental challenge. We elaborate on these challenges with
+a running example in Section 2.
+Our Work: Progent.We introduce Progent, a novel framework
+that secures AI agents via privilege control. Our key idea is to en-
+force the principle of least privilege: allow only tool calls essential
+for task completion and block unnecessary ones. We focus on tool
+calls because all external effects of an agent occur through them,
+and they expose a structured interface (tool names and typed ar-
+guments), unlike the agent’s unstructured reasoning. This makes
+tool calls a natural point for deterministic security enforcement.
+Progent leverages a privilege control policy consisting of symbolic
+rules over tool names and arguments. These rules specify which
+tool calls are allowed and which should be blocked. Every tool call
+is checked against such a policy, which deterministically decides
+whether it is permitted.
+To handle context-dependent security requirements, Progent
+utilizes an LLM to automatically generate the initial policy from
+the user’s task and updates it as new information arrives during ex-
+ecution. This allows security enforcement to adapt to both task and
+execution context while minimizing manual effort. However, intro-
+ducing an LLM for policy construction introduces non-determinism,
+creating a fundamental tension between automation and determin-
+istic enforcement.
+To address this, we further propose that each policy update be
+checked by a deterministic SMT solver as either a narrowing (ap-
+plied automatically) or an expansion (requiring explicit approval).
+This ensures that the agent’s effective action space can only nar-
+row without approval, a property we call monotonic confinement.
+As a result, even if the LLM is manipulated by adversarial inputs,
+this deterministic check prevents any silent privilege escalation. At
+the same time, it preserves utility by allowing controlled privilege
+expansion when explicitly authorized.
+1
+arXiv:2504.11703v3  [cs.CR]  14 May 2026
+================ PAGE 2 ================
+Preprint Progent : Securing AI Agents with Privilege Control
+Implementation and Evaluation.Since Progent operates at the
+tool-call level, it can be integrated by inserting a separate module
+between the agent and its tools. This requires no changes to the
+agent’s internal architecture, making integration non-intrusive and
+generalizable across diverse agent frameworks.
+We evaluate Progent on AgentDojo [11] and ASB [57]. Progent
+reduces the attack success rate (ASR) from 39.9% to 1.0% on Agent-
+Dojo, and from 70.3% to 3.9% on ASB, while maintaining the agent’s
+utility in both cases. We further conduct extensive ablation studies
+to analyze key components of Progent, including model choices and
+policy update approval configurations. Finally, we extend Agent-
+Dojo into an MCP-based benchmark and connect it to various real-
+world agent frameworks (e.g., LangChain and OpenAI Agents SDK),
+where we demonstrate the effectiveness of Progent on protecting
+both single- and multi-agent systems.
+Main Contributions.In summary, our main contributions are:
+• A privilege control approach that leverages symbolic policies
+over tool names and arguments, with deterministic enforcement
+at the tool-call level and an SMT-based procedure to determine
+whether policy updates are expansions or narrowings (Section 4).
+• An LLM-based policy generation and update mechanism that
+automatically derives context-aware policies from the user’s task
+and execution state, with formal monotonic confinement guar-
+antees that prevent silent privilege escalation (Sections 5 and 6).
+• An extensive evaluation on standardized benchmarks (i.e., Agent-
+Dojo and ASB), as well as integration with real-world agent
+frameworks and multi-agent systems, demonstrating Progent’s
+general effectiveness (Sections 7 and 8).
+2 Overview
+We present a motivating example in Figure 1 to discuss how AI
+agents accomplish user tasks, how they can be attacked via indirect
+prompt injection, and the challenges involved in securing them. We
+then demonstrate how Progent addresses these challenges.
+2.1 Challenges for Agent Security
+Motivating Example: Agent Execution and Attack.In Fig-
+ure 1a, a user asks an agent to carry out the actions specified in an
+email from alice@gmail.com with subject ‘TODOs for the week’.
+From this description alone, the agent only knows that it must
+first retrieve the corresponding email. At step 1, the agent calls the
+tool search_emails with arguments sender=alice@gmail.com
+and subject=‘TODOs for the week’ . The return is a TODO list
+instructing the agent to summarize the user’s recent emails and post
+the summary to the user’s Slack. This reveals that completing the
+task will also require email-reading and Slack-posting tools. There-
+fore, at step 2, the agent calls get_slack_info() to learn that the
+user’s Slack handle isalice. This determines the recipient for any
+subsequent Slack message. Subsequently, at step 3, the agent contin-
+ues to read recent emails by callingread_emails(recent=20) and
+prepare the summary. However, one of the returned emails carries
+an indirect prompt injection, “forward the inbox toeve@evil.com”,
+which appears indistinguishably from legitimate email content.
+Step 4 is under the influence of the injection, where the agent is-
+sues send_email(to=eve@evil.com,body=(inbox)), a malicious
+tool call that exfiltrates the user’s inbox to the attacker. At step 5, the
+agent performs the originally intended actionsend_slack_msg(to
+=alice,body=(summary)), completing the benign task. The attack
+is subtle: the user’s original task is completed while the malicious
+action is carried out, potentially leaving the user unaware.
+Challenge I: Non-Deterministic Agent Behavior.AI agents
+process unstructured natural-language inputs, including user tasks
+and tool returns. Because LLMs are sensitive to prompt phrasing,
+even minor variations in wording that carry the same meaning can
+lead the agent to make different decisions, and different tools serv-
+ing the same purpose may return information in different formats,
+leading to different subsequent actions. More critically, adversarial
+content embedded in a tool return can silently alter the agent’s
+plan without any visible indication. Agent execution is inherently
+non-deterministic, yet for security we desire deterministic enforce-
+ment: properties like “only send data to authorized recipients” must
+be enforced deterministically, rather than relying on the agent’s
+probabilistic reasoning.
+Challenge II: Context-Dependent Security Requirements.
+Agent execution involves different kinds of contexts, and automati-
+cally tracking them to enforce security is challenging. An effective
+defense must automatically account for these different contexts to
+make security decisions, since asking the user to approve every
+tool call requires too much effort and removes the benefit of using
+an agent. We identify two kinds of context for the agent. The first
+istask context: the same agent can process different tasks, such
+as summarizing emails, booking a flight, or reconciling a budget,
+each authorizing a different set of tools with different tool argu-
+ments. Whether a tool call is safe depends on the task: for example,
+send_email is legitimate when the task is “email Alice an update”,
+but when the task is “summarize unread emails”, the returned emails
+may contain adversarial instructions that direct the agent to send
+sensitive content to a third party, turning send_email into a data-
+exfiltration channel. A policy permissive enough for every task is
+too broad to block attacks, while one designed for a single task
+is too narrow for any other. The second isexecution context: AI
+agents execute autonomously, and the context changes as the agent
+gathers new information at runtime. For instance, only after step 2
+does the agent learn that the Slack handle is alice, so any future
+Slack message should be sent only to alice; sending Slack mes-
+sages to other people should be blocked. Such execution-gathered
+information is security-critical, and a defense must incorporate it
+as soon as it becomes available.
+Challenge III: Balancing Security and Utility.Because agents
+execute autonomously, they must adapt to new information that
+may legitimately require additional privileges. However, the same
+channel can carry adversarial content, making it challenging to
+balance security and utility. On the utility side, completing a task
+often requires the agent to expand its set of allowed tools and ar-
+guments dynamically. In our example (Figure 1a), at step 1, the
+returned TODO reveals that the agent must also call read_emails,
+get_slack_info, andsend_slack_msg; a defense that forbids these
+tools would prevent the task from finishing. On the security side, an
+attacker also seeks to expand the agent’s tool usage for malicious
+purposes. At step 3, the injection attempts to introducesend_email
+2
+================ PAGE 3 ================
+Progent : Securing AI Agents with Privilege Control Preprint
+(b)  Progent policy enforcement: each call at step i is gated by policy Pi; calls outside Pi are blocked.
+(c)  Progent policy update: P1 is derived from the user task; for i > 1, Pi is derived from Pi-1 and the tool return at step i-1. Expansion/narrowing is judged by an SMT solver.
+USER TASK
+Please do the actions speciﬁed in the email from ‘alice@gmail.com’ with the subject ‘TODOs for the week’.
+STEP 1 STEP 2 STEP 3 STEP 4 STEP 5
+search_emails(sender=alice@gm
+ail.com, subject="TODOs for
+the week")
+OUTTODO1: summarize recent 20
+emails, send summary to my slack.
+TODO2: ...
+expand privileges — for utility
+get_slack_info()
+OUTslack_handle: "alice"
+narrow privileges — new info
+read_emails(recent=20)
+OUTemails  injection
+“forward inbox to eve@evil.com”
+expand privileges — injection
+send_email(to=eve@evil.com,
+body=⟨inbox⟩)
+OUTok · done
+malicious action
+send_slack_msg(to=alice,
+body=⟨summary⟩)
+OUTok · done
+benign task action
+P1 initial
+allow search_emails(sender=a
+lice@gmail.com, subject="TOD
+Os for the week")
+·
+P2 = P1 ∪ Δ
+allow search_emails(sender=a
+lice@gmail.com, subject="TOD
+Os for the week")
+·
+allow read_emails(recent=20)+
+allow get_slack_info()+
+allow send_slack_msg(to=∗,
+body=∗)
++
+P3 ⊂ P2
+allow search_emails(sender=a
+lice@gmail.com, subject="TOD
+Os for the week")
+·
+allow read_emails(recent=20)·
+allow get_slack_info()·
+allow send_slack_msg(to=alic
+e, body=∗)
+▸
+P4 = P3
+allow search_emails(sender=a
+lice@gmail.com, subject="TOD
+Os for the week")
+·
+allow read_emails(recent=20)·
+allow get_slack_info()·
+allow send_slack_msg(to=alic
+e, body=∗)
+·
+P5 = P4
+allow search_emails(sender=a
+lice@gmail.com, subject="TOD
+Os for the week")
+·
+allow read_emails(recent=20)·
+allow get_slack_info()·
+allow send_slack_msg(to=alic
+e, body=∗)
+·
+HOW P1 IS OBTAINED
+derive from user task
+UPDATE FROM STEP 1
+expansion→APPROVAL? →
+APPROVED
+UPDATE FROM STEP 2
+narrowing→
+AUTO INCORPORATED
+UPDATE FROM STEP 3
+(a) updater robust→NO CHANGE
+or(b) expansion→APPROVAL?
+→DENIED
+STEP 4 BLOCKED
+no update
+(a)  Agent trajectory: the agent calls a tool at each step; each return shapes the next action. block allow
+Figure 1: Overview of Progent on a running example.
+to an external address; allowing it would enable data exfiltration.
+Both requests arrive through the same channel, a tool return that
+shifts the agent’s plan, and the adversarial case is especially hard to
+detect because the injected instruction arrives inside the same tool
+return as the legitimate email content the agent needs to summa-
+rize. A defense must therefore expand the agent’s allowed actions
+when the task legitimately requires it, while refusing expansions
+that originate from adversarial content, without sacrificing either
+security or utility.
+2.2 Progent: Defense via Privilege Control
+We now describe how Progent addresses the above challenges.
+Policy-Based Security Enforcement.Progent operates at the
+tool-call level, because all agent actions with external effects flow
+through them. Moreover, the tool-call interface, consisting of a tool
+name and typed arguments, is structured, unlike the unstructured
+text the agent reasons over. This makes tool calls a natural enforce-
+ment point, enabling Progent to enforce security deterministically
+despite the agent’s non-deterministic behavior (Challenge I).
+Progent introduces a privilege control policy that describes the
+set of tool calls the agent is allowed to issue or which should be
+blocked. A policy is a list of rules; each rule targets a specific tool and
+specifies conditions on its arguments to determine whether calls
+to that tool are allowed or not allowed. In our example (Figure 1b),
+the policy 𝑃4 contains four “allow” rules, meaning that a tool call is
+allowed if its name matches the rule and its arguments satisfy the
+specified condition. For instance, the rule for read_emails allows
+calls only when recent=20, while the rule for send_slack_msg
+allows calls only whento=alice. Rules can specify concrete values
+(such as 20), wildcards (*), and regular-expression patterns, making
+the policy expressive enough to capture fine-grained constraints.
+Apart from “allow” rules, Progent also supports “forbid” rules that
+explicitly block tool calls matching certain patterns, as well as
+various other features. We provide a full definition of Progent’s
+policies in Section 4.1.
+When the agent issues a tool call, Progent matches it against the
+current policy’s rules and deterministically allows or blocks it; calls
+that match no rule are blocked by default. At step 4, 𝑃4 contains
+no allow rule for send_email, so Progent deterministically blocks
+the malicious call send_email(to=eve@evil.com,body=(inbox)
+) and returns a fallback error to the agent explaining the denial, so
+the agent can adjust and continue with the user’s task. At step 5,
+the check is against 𝑃5 =𝑃 4; the benign call send_slack_msg(
+to=alice,body=(summary)) matches the Slack rule in 𝑃5, so it
+is allowed and the task completes. Because this check is purely
+symbolic over structured policy rules, every security decision is
+deterministic, directly addressing Challenge I.
+LLM-Based Policy Construction and Update.Because agent
+security depends on context (Challenge II), Progent maintains a
+per-step policy that evolves as new information arrives: at step 𝑖,
+the gating privilege control policy is 𝑃𝑖, which enumerates exactly
+which tool calls the agent may issue at that step. The initial policy
+𝑃1 is derived from the user’s task: for our running example, 𝑃1
+admits only search_emails with the specific sender and subject.
+An LLM-based updater reasons about both the task context and
+the execution context, automating policy management that would
+otherwise require manually writing per-step rules for every possible
+user request. For 𝑖> 1, the updater proposes a new policy 𝑃𝑖
+based on the tool return at step 𝑖−1and the previous policy 𝑃𝑖−1 .
+After step 1, the returned TODO reveals that the task requires
+additional tools, so the updater proposes 𝑃2, which adds allow
+entries for read_emails, get_slack_info, and send_slack_ms
+3
+================ PAGE 4 ================
+Preprint Progent : Securing AI Agents with Privilege Control
+g. After step 2, the handle alice is now known, so the updater
+proposes 𝑃3, which narrows the Slack entry to send_slack_msg(
+to=alice,body=*). After step 3, the returned emails contain an
+injection attempting to introduce send_email, but the policy does
+not change:𝑃 4 =𝑃 3. How this is ensured is described next.
+Deterministic Control of Policy Expansion and Narrowing.
+Policy updates can either expand or narrow the set of allowed
+tool calls. Narrowing is safe, since it only removes permissions.
+Expansion, however, is sensitive: it may be necessary for utility (as
+in 𝑃1 →𝑃 2, where the task requires more tools) but can also be
+caused by an attack (as in step 3’s injection).
+To handle narrowing and expansion differently, Progent judges
+every proposed update before applying it. We consider an update
+from 𝑃 to 𝑃 ′ to be an expansion if the set of tool calls allowed by𝑃 ′
+is strictly larger than 𝑃’s. Otherwise, we determine the update to
+be a narrowing, i.e., every call 𝑃 ′ admits is also admitted by 𝑃. Note
+that narrowing includes the case where 𝑃 ′ =𝑃 . Because Progent’s
+policies are symbolic, both relations are decidable by an SMT solver,
+giving a fully deterministic judgment (details in Section 4.3).
+Narrowing updates are applied automatically. Expansions re-
+quire explicit approval before taking effect. Progent supports con-
+figurable approver settings, such as automatically denying all ex-
+pansions, routing them to a human for review, or automatically
+approving all. We evaluate these configurations in Section 8.2. In our
+example in Figure 1c: 𝑃1 →𝑃 2 is an expansion (adds read_emails,
+get_slack_info, send_slack_msg); the SMT solver detects this,
+and 𝑃2 takes effect only after approval. 𝑃2 →𝑃 3 is a narrowing
+(𝑃3 ⊂𝑃 2, binding the Slack recipient to alice); the SMT solver
+detects this, and 𝑃3 is applied automatically. For 𝑃3 →𝑃 4, the injec-
+tion at step 3 leads to two possible situations: (a) If the updater sees
+through the injection (e.g., via its safety alignment), it proposes
+no expansion, and𝑃 4 =𝑃 3 is applied automatically. (b) Even if the
+updater is fooled and proposes adding send_email, the SMT solver
+detects an expansion, and the approver can deny it. In either case,
+𝑃4 =𝑃 3 and the malicious call at step 4 is blocked. Even when the
+LLM is manipulated or hallucinates, the deterministic judgment en-
+sures that no new permission is granted without explicit approval,
+so utility-driven expansions are permitted while adversarial ones
+are caught. In our experiments for AgentDojo (Section 8), only 6%
+of updates required approval. This means that even when human
+users are involved, approval cost is low.
+Progent’s Security Guarantee.The combination of determinis-
+tic policy enforcement and deterministic expansion control ensures
+that the agent’s effective action space can only narrow without
+explicit approval, a property we callmonotonic confinement(proved
+in Section 6). This guarantees that no attack can silently escalate
+the agent’s privileges: only expansion requests require approval,
+and all other security decisions are handled deterministically. We
+detail this in Section 6.
+In addition, Progent supports extensions such as generic policies
+that impose persistent constraints across all tasks, and a config-
+urable approver module that controls how expansion requests are
+handled; these are detailed in Section 7.
+Algorithm 1:Vanilla execution of AI agents.
+Input :User query𝑜 0, agentA, toolsT, environmentE.
+Output :Agent execution result.
+1for𝑖=1tomax_stepsdo
+2𝑐 𝑖 =A (𝑜 𝑖−1 )
+3if𝑐 𝑖 is a tool callthen𝑜 𝑖 =E (𝑐 𝑖 )
+4elsetask solved,returntask output
+5task solving fails,returnunsuccessful
+3 Problem Statement and Threat Model
+In this section, we begin by providing a definition of AI agents,
+which serves as the basis for presenting Progent later. We then
+outline our threat model.
+3.1 AI Agents
+We consider a general setup for using AI agents in task solving [47,
+56], involving four parties: a user U, an agent A, a set of tools
+T , and an environment E. The agent receives an initial query 𝑜 0
+from U and begins a multi-step procedure (Algorithm 1). At step
+𝑖, the agent processes the previous observation 𝑜𝑖−1 and produces
+an action 𝑐𝑖, written as 𝑐𝑖 ≔A (𝑜 𝑖−1 ) (Line 2). The action can be
+a tool call (Line 3) or a completion signal (Line 4). Tool calls are
+executed in E, yielding a new observation 𝑜𝑖. If a tool call fails, the
+error is included as part of 𝑜𝑖 and returned to the agent for the
+next step. The new observation is then fed into the next agent step.
+This process repeats until the agent signals completion (Line 4) or
+reaches the computation budget (e.g., max_steps, Line 1). Both A
+and E are stateful, so prior interactions may influence A (𝑜𝑖−1 ) and
+E (𝑐𝑖 ).
+Compared with standalone models, AI agents gain enhanced
+task-solving capabilities through access to diverse tools in T , such
+as email clients, file browsers, and financial applications. Each tool
+is a function that takes typed arguments and returns a string obser-
+vation, as defined in Figure 2a. Tools can be instantiated at various
+levels of granularity, from calling an entire application to invoking
+an API in generated code. Their execution determines how the
+agent interacts with the external environment.
+The development of AI agents is complex, involving various
+modules, strategic architectural decisions, and sophisticated im-
+plementation [46]. Our formulation treats agents as a black box,
+thereby accommodating diverse design choices, whether leveraging
+a single LLM [40], multiple LLMs [53], or a memory component [42].
+The only requirement is that the agent can call tools withinT.
+3.2 Threat Model
+Attacker Goal.The attacker’s goal is to disrupt the agent’s task-
+solving flow, leading to the agent performing unauthorized actions
+that benefit the attacker in some way. Since the agent interacts
+with the external environment via tool calls, such dangerous behav-
+iors exhibit as malicious tool calls at Line 3 of Algorithm 1. Given
+the vast range of possible outcomes from tool calls, the attacker
+could cause a variety of downstream damages. For instance, as
+shown in [11, 57], the attacker could induce dangerous data erasure
+operations and unauthorized financial transactions.
+4

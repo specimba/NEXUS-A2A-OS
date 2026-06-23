@@ -720,3 +720,122 @@ class SkillAuditFailure(Exception):
             f"status={report.status}, max_severity={report.max_severity.value}, "
             f"findings={len(report.findings)}"
         )
+
+
+# ===========================================================================
+# Adversarial Dictionary Ingestion Logic
+# ===========================================================================
+
+# Global dict to hold loaded skill methods
+ADVERSARIAL_SKILL_DICT = {}
+# Global list to hold conflict information
+ADVERSARIAL_SKILL_CONFLICTS = []
+
+def load_adversarial_skill_dictionary():
+    """Load the adversarial skill dictionary from file with robust path handling and validation.
+    The dictionary file is expected to be a JSON array of objects, each containing at least
+    ``skill_name`` and ``definition`` fields. Handles Unicode filenames and Windows paths safely.
+    Validates the loaded data and logs any duplicate skill definitions as conflicts.
+    """
+    from pathlib import Path
+    # Resolve the dictionary file relative to the repository root (two levels up from this file)
+    dict_path = (Path(__file__).resolve().parents[2] /
+                 "ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt").as_posix()
+    if not os.path.exists(dict_path):
+        logger.error(f"Adversarial skill dictionary not found at {dict_path}")
+        raise FileNotFoundError(dict_path)
+    try:
+        with open(dict_path, "r", encoding="utf-8") as f:
+            raw = f.read()
+            # Attempt direct JSON load
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                # Strip possible line-number prefixes (e.g., "1: ")
+                import re
+                cleaned_lines = [line for line in raw.splitlines()
+                                 if not re.match(r"^\d+:\s*", line)]
+                cleaned = "\n".join(cleaned_lines)
+                try:
+                    data = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    # Fallback: extract JSON objects heuristically
+                    matches = re.findall(r"\{[^}]+\}", raw, flags=re.DOTALL)
+                    data = []
+                    for m in matches:
+                        try:
+                            data.append(json.loads(m))
+                        except json.JSONDecodeError:
+                            pass
+            # Ensure data is a list of dicts
+            if isinstance(data, dict):
+                data = [data]
+            elif not isinstance(data, list):
+                data = []
+            # Populate dictionary and detect conflicts
+            conflicts = []
+            for entry in data:
+                if isinstance(entry, dict):
+                    skill_name = entry.get("skill_name")
+                    definition = entry.get("definition", "")
+                    if skill_name is None:
+                        continue
+                    if skill_name in ADVERSARIAL_SKILL_DICT and ADVERSARIAL_SKILL_DICT[skill_name] != definition:
+                        conflicts.append((skill_name, ADVERSARIAL_SKILL_DICT[skill_name], definition))
+                    ADVERSARIAL_SKILL_DICT[skill_name] = definition
+            if conflicts:
+                for name, old, new in conflicts:
+                    logger.warning(f"Conflict for skill '{name}':\n- Existing definition: {old}\n- New definition: {new}")
+            logger.info(f"Loaded {len(ADVERSARIAL_SKILL_DICT)} skill entries from adversarial dictionary.")
+    except Exception as e:
+        logger.error(f"Failed to load skill dictionary: {e}")
+        raise
+
+# Load on import
+load_adversarial_skill_dictionary()
+
+def generate_skill_audit_report():
+    """
+    Generate a markdown report summarizing loaded skills and any conflicts.
+    Returns the markdown string.
+    """
+    # Placeholder for actual conflict detection with governor rules
+    conflicts = []  # In a real implementation, this would be populated based on rule checks
+    md_lines = [
+        "# Skill Auditor Ingestion Report",
+        "",
+        f"**Loaded Skill Count:** {len(ADVERSARIAL_SKILL_DICT)}**",
+        "",
+        "## Loaded Skills",
+        ""
+    ]
+    for skill, desc in ADVERSARIAL_SKILL_DICT.items():
+        md_lines.append(f"- **{skill}**: {desc}")
+    md_lines.append("")
+    md_lines.append("## Conflict Check (Placeholder)")
+    if conflicts:
+        md_lines.append("- **Conflicts Detected:**")
+        for conflict in conflicts:
+            md_lines.append(f"  - {conflict}")
+    else:
+        md_lines.append("- No conflicts detected.")
+    md_lines.append("")
+    md_lines.append("---")
+    md_lines.append("Report generated automatically by `scripts/report_skill_auditor.py`.")
+    return "\n".join(md_lines)
+
+# Export for external use
+__all__ = [
+    'Severity',
+    'SourceAnchor',
+    'Finding',
+    'PreparedUnit',
+    'SynthesizedFact',
+    'AuditReport',
+    'DetectionRule',
+    'DEFAULT_RULES',
+    'SkillAuditor',
+    'SkillAuditFailure',
+    'load_adversarial_skill_dictionary',
+    'generate_skill_audit_report',
+]

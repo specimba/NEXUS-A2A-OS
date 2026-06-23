@@ -56,6 +56,8 @@ class MCPThreatType(IntEnum):
     CONTEXT_POISONING = 12
     TOOL_CALL_INPUT_INJECTION = 13
     MODEL_PROVENANCE_VIOLATION = 14
+    TOOL_SHADOWING = 15
+    TOOL_CONFUSION = 16
 
 
 MCP_THREAT_NAMES = {t.value: t.name.lower() for t in MCPThreatType}
@@ -94,6 +96,34 @@ ALLOWED_MODEL_SOURCES = {
     "storage.googleapis.com",
     "cdn-lfs.huggingface.co",
 }
+
+HOMOGLYPH_MAP = {
+    ord("а"): "a", ord("е"): "e", ord("о"): "o", ord("р"): "p",
+    ord("с"): "c", ord("у"): "y", ord("х"): "x",
+    ord("і"): "i", ord("ӏ"): "l",
+}
+
+KNOWN_LEGITIMATE_TOOLS = {
+    "read_file", "write_file", "bash", "execute", "search",
+    "list_directory", "grep", "glob", "edit", "write",
+    "task", "web_fetch", "web_search", "memory_read", "memory_write",
+    "governance.get_status", "system.health", "drift_monitor.run_sweep",
+    "memory.create_checkpoint", "telegram.send_message", "notion.create_page",
+    "slack.send_message",
+}
+
+TOOL_SHADOWING_PATTERNS = [
+    (r"(?i)(?:read|write|exec|bash)_file", "prefix_variant"),
+    (r"(?i)file_(?:read|write|exec)", "suffix_variant"),
+    (r"(?i)system[._](\w+)", "system_subtool"),
+    (r"(?i)(\w+)[._](?:execute|run|call)", "chained_exec"),
+]
+
+TOOL_CONFUSION_PATTERNS = [
+    (r"[\u0400-\u04FF]", "cyrillic_homoglyph"),
+    (r"[\u0250-\u02AF]", "ipa_homoglyph"),
+    (r"[\u1D00-\u1D7F]", "phonetic_homoglyph"),
+]
 
 MCP_38_STRIDE_MAP = {
     "spoofing": [MCPThreatType.AUTHENTICATION_BYPASS],
@@ -238,6 +268,43 @@ class MCPInvocationTracker:
                         suspicious_score += 0.3
         suspicious_score = min(1.0, suspicious_score)
         return suspicious_score > 0.5, suspicious_score
+
+    def check_tool_shadowing(self, tool_name: str, tool_description: str) -> Tuple[bool, float]:
+        normalized = tool_name.lower().strip()
+        if normalized in KNOWN_LEGITIMATE_TOOLS and tool_description:
+            for pat, label in INJECTION_PATTERNS:
+                if re.search(pat, tool_description):
+                    return True, 0.8
+        for pat, label in TOOL_SHADOWING_PATTERNS:
+            if re.search(pat, tool_name):
+                if normalized not in KNOWN_LEGITIMATE_TOOLS:
+                    return True, 0.5
+        if tool_description and len(tool_description) > 300:
+            for known in KNOWN_LEGITIMATE_TOOLS:
+                if known in tool_description.lower() and known != normalized:
+                    return True, 0.4
+        return False, 0.0
+
+    @staticmethod
+    def _normalize_homoglyphs(text: str) -> str:
+        return text.translate(HOMOGLYPH_MAP)
+
+    def check_tool_confusion(self, tool_name: str) -> Tuple[bool, float]:
+        normalized = self._normalize_homoglyphs(tool_name)
+        if normalized != tool_name:
+            return True, 0.9
+        for pat, label in TOOL_CONFUSION_PATTERNS:
+            if re.search(pat, tool_name):
+                return True, 0.8
+        dash_variant = normalized.replace("-", "_")
+        dot_variant = normalized.replace(".", "_")
+        slash_variant = normalized.replace("/", "_")
+        for known in KNOWN_LEGITIMATE_TOOLS:
+            if known == normalized:
+                continue
+            if known == dash_variant or known == dot_variant or known == slash_variant:
+                return True, 0.6
+        return False, 0.0
 
 
 class MCPGuard:
@@ -449,6 +516,18 @@ class MCPGuard:
             threat_types.append("parasitic_chain")
             threat_scores["chain"] = 0.7
             risk_score += 0.3
+
+        is_shadow, shadow_score = self.tracker.check_tool_shadowing(tool_name, desc)
+        if is_shadow:
+            threat_types.append("tool_shadowing")
+            threat_scores["shadowing"] = shadow_score
+            risk_score += shadow_score * 0.6
+
+        is_confusion, confusion_score = self.tracker.check_tool_confusion(tool_name)
+        if is_confusion:
+            threat_types.append("tool_confusion")
+            threat_scores["confusion"] = confusion_score
+            risk_score += confusion_score * 0.5
 
         inv = MCPInvocationRecord(
             tool_name=tool_name,

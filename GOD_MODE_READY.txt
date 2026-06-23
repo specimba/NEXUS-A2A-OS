@@ -2,7 +2,7 @@ NEXUS GOD MODE PROXY — READY
 ================================================================================
 
 Proxy running on:  http://localhost:7357
-ModelRelay on:    http://localhost:7352
+ModelRelay on:    http://localhost:7350
 Dashboard on:      http://localhost:7356/dashboard.html
 
 ROUTING PROFILES (live, auto-rotating as models go up/down):

@@ -17,8 +17,8 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger("nexus.wiki_pipeline")
 
-WIKI_DIR = Path(__file__).resolve().parent.parent.parent / "archivist" / "wiki"
-WIKI_STATE_FILE = Path(__file__).resolve().parent.parent.parent / "archivist" / "wiki_state.json"
+WIKI_DIR = Path(__file__).resolve().parent.parent.parent / "nexus_os" / "archivist" / "wiki"
+WIKI_STATE_FILE = Path(__file__).resolve().parent.parent.parent / "nexus_os" / "archivist" / "wiki_state.json"
 RAW_DIRS = {
     "archivist": Path(r"C:\Users\speci.000\Downloads\ARCHIVIST"),
     "papers": Path(r"C:\Users\speci.000\Downloads\PAPERS"),
@@ -66,18 +66,27 @@ class WikiPipeline:
                 rel_path = md_file.relative_to(WIKI_DIR)
                 slug = str(rel_path.with_suffix("")).replace("\\", "/")
 
-                content = md_file.read_text(encoding="utf-8", errors="replace")[:self.MAX_SNIPPET_LENGTH]
+                try:
+                    full_text = md_file.read_text(encoding="utf-8", errors="replace")
+                    word_count = len(full_text.split())
+                    content = full_text[:self.MAX_SNIPPET_LENGTH]
+                except Exception as e:
+                    logger.debug(f"Failed to read {md_file}: {e}")
+                    content = ""
+                    word_count = 0
+
                 title = self._extract_title(content) or slug
 
-                # GROSS exclusion
-                if any(t in slug.lower() for t in EXCLUDED_TOPICS):
+                # GROSS exclusion — exact segment match, not substring
+                slug_parts = slug.lower().replace("/", " ").replace("-", " ").replace("_", " ").split()
+                if any(t in slug_parts for t in EXCLUDED_TOPICS):
                     continue
 
                 self._wiki_index[slug] = {
                     "slug": slug,
                     "title": title,
                     "path": str(md_file),
-                    "word_count": len(content.split()),
+                    "word_count": word_count,
                     "last_modified": datetime.fromtimestamp(md_file.stat().st_mtime).isoformat(),
                     "snippet": content[:200].strip(),
                 }
@@ -90,8 +99,14 @@ class WikiPipeline:
             try:
                 state = json.loads(WIKI_STATE_FILE.read_text(encoding="utf-8"))
                 self._dossier_count = state.get("dossier_count", 0)
-            except Exception:
-                pass
+                if self._dossier_count == 0:
+                    wiki_output_dir = WIKI_DIR.parent / "wiki_output"
+                    if wiki_output_dir.exists():
+                        self._dossier_count = len(list(wiki_output_dir.glob("dossier_*.md")))
+            except json.JSONDecodeError as e:
+                logger.warning("Wiki state file corrupted (%s), resetting dossier count", e)
+            except Exception as e:
+                logger.warning("Failed to read wiki state file: %s", e)
 
     def _extract_title(self, content: str) -> Optional[str]:
         """Extract title from first H1 or H2 heading"""
@@ -144,20 +159,25 @@ class WikiPipeline:
         entry = self._wiki_index.get(slug)
         if not entry:
             return None
-
+        result = {**entry}
         path = Path(entry["path"])
-        if not path.exists():
-            return entry
-
-        content = path.read_text(encoding="utf-8", errors="replace")
-        return {
-            **entry,
-            "content": content,
-            "word_count": len(content.split()),
-        }
+        if path.exists():
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+                result["content"] = content
+                result["word_count"] = len(content.split())
+                current_mtime = datetime.fromtimestamp(path.stat().st_mtime).isoformat()
+                if current_mtime != entry.get("last_modified"):
+                    result["stale_index"] = True
+            except Exception as e:
+                logger.debug(f"Failed to read page content: {e}")
+                result["content"] = None
+        else:
+            result["content"] = None
+        return result
 
     def list_pages(self) -> List[Dict]:
-        """List all indexed wiki pages"""
+        """List all indexed wiki pages. Note: may be stale if not refreshed."""
         return list(self._wiki_index.values())
 
     def list_sources(self) -> Dict[str, Dict]:
@@ -175,14 +195,24 @@ class WikiPipeline:
                 result[name] = {"path": str(path), "exists": False, "file_count": 0}
         return result
 
-    def refresh(self) -> Dict:
-        """Force rebuild of wiki index"""
+    def refresh(self, on_refresh=None) -> Dict:
+        """Force rebuild of wiki index. Optionally notify state manager."""
         self._build_index()
-        return {
+        result = {
             "pages": self._page_count,
             "dossiers": self._dossier_count,
             "timestamp": datetime.now().isoformat(),
         }
+        if on_refresh:
+            on_refresh(result)
+        return result
+
+    async def async_refresh(self) -> Dict:
+        """Force rebuild of wiki index and propagate to state manager."""
+        result = self.refresh()
+        if self.sm:
+            await self.sm.publish("wiki", result, source="wiki_pipeline")
+        return result
 
     def get_status(self) -> Dict:
         return {
@@ -201,6 +231,8 @@ def get_wiki_pipeline(state_manager=None) -> WikiPipeline:
     global _wiki_pipeline
     if _wiki_pipeline is None:
         _wiki_pipeline = WikiPipeline(state_manager=state_manager)
+    elif state_manager and _wiki_pipeline.sm is None:
+        _wiki_pipeline.sm = state_manager
     return _wiki_pipeline
 
 

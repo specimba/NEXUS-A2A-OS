@@ -43,9 +43,10 @@ def cmd_doctor(args):
     try:
         from nexus_os.bridge.port_registry import PortRegistry
         pr = PortRegistry()
-        pr.register(7352, "nexus_governance", force=True)
+        pr.register(7352, "brain_api", force=True)
         pr.register(7353, "twave", force=True)
-        pr.register(7355, "modelrelay", force=True)
+        pr.register(7350, "modelrelay_npm", force=True)
+        pr.register(7355, "modelrelay_python", force=True)
         health_check = pr.health_check()
         checks["Port Registry"] = health_check.get("status", "unknown")
     except Exception as e:
@@ -78,6 +79,192 @@ def cmd_doctor(args):
     print("=" * 40)
     print(f"Overall: {'ALL CHECKS PASSED' if all_ok else 'SOME CHECKS FAILED'}")
     return 0 if all_ok else 1
+
+
+def _probe_http_endpoint(url: str, timeout: float = 2.0):
+    """Read-only HTTP probe for local NEXUS service ownership checks."""
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(url, headers={"Accept": "application/json,text/html;q=0.8,*/*;q=0.1"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = response.read(512)
+            return {
+                "url": url,
+                "ok": 200 <= response.status < 300,
+                "status_code": response.status,
+                "content_type": response.headers.get("content-type", ""),
+                "preview": body.decode("utf-8", errors="replace")[:160],
+                "error": None,
+            }
+    except urllib.error.HTTPError as exc:
+        body = exc.read(512)
+        return {
+            "url": url,
+            "ok": False,
+            "status_code": exc.code,
+            "content_type": exc.headers.get("content-type", ""),
+            "preview": body.decode("utf-8", errors="replace")[:160],
+            "error": f"HTTP {exc.code}",
+        }
+    except Exception as exc:
+        return {
+            "url": url,
+            "ok": False,
+            "status_code": None,
+            "content_type": "",
+            "preview": "",
+            "error": str(exc),
+        }
+
+
+def _classify_brain_api_probe(probe):
+    preview = str(probe.get("preview") or "").lstrip()
+    content_type = str(probe.get("content_type") or "").lower()
+    if not probe.get("ok"):
+        return "offline_or_wrong_service"
+    if "html" in content_type or preview.lower().startswith("<!doctype") or "<html" in preview.lower():
+        return "wrong_service_html"
+    if "json" in content_type or preview.startswith("{"):
+        return "brain_api_candidate"
+    return "unknown_non_json"
+
+
+def cmd_dashboard(args):
+    """Read-only dashboard and Brain API runtime ownership checks."""
+    if not args.doctor:
+        print("Usage: nexusctl dashboard --doctor [--json]")
+        return 2
+
+    brain_base = args.brain_api_url.rstrip("/")
+    dashboard_url = args.dashboard_url
+    brain_probe = _probe_http_endpoint(f"{brain_base}/health", timeout=args.timeout)
+    dashboard_probe = _probe_http_endpoint(dashboard_url, timeout=args.timeout)
+    brain_class = _classify_brain_api_probe(brain_probe)
+    status = "ok" if brain_class == "brain_api_candidate" and dashboard_probe.get("ok") else "degraded"
+    result = {
+        "status": status,
+        "expected_ports": {
+            "7350": "modelrelay_npm",
+            "7352": "brain_api",
+            "7355": "modelrelay_python",
+            "7356": "static_dashboard",
+            "3001": "next_dashboard",
+        },
+        "checks": {
+            "brain_api": {
+                "expected_owner": "brain_api",
+                "url": f"{brain_base}/health",
+                "classification": brain_class,
+                "probe": brain_probe,
+            },
+            "static_dashboard": {
+                "expected_owner": "static_dashboard",
+                "url": dashboard_url,
+                "classification": "reachable" if dashboard_probe.get("ok") else "unreachable",
+                "probe": dashboard_probe,
+            },
+        },
+        "next_action": "relocate_or_stop_wrong_7352_process_then_start_brain_api" if brain_class != "brain_api_candidate" else "verify_dashboard_contracts",
+        "read_only": True,
+    }
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print("NEXUS Dashboard Doctor")
+        print("=" * 40)
+        print(f"Brain API: {brain_class} ({brain_probe.get('status_code')}) {brain_probe.get('url')}")
+        print(f"Static dashboard: {'reachable' if dashboard_probe.get('ok') else 'unreachable'} ({dashboard_probe.get('status_code')}) {dashboard_url}")
+        print(f"Overall: {status.upper()}")
+        print(f"Next action: {result['next_action']}")
+    return 0 if status == "ok" else 1
+
+def cmd_hygiene(args):
+    """Run read-only disk hygiene inventory."""
+    from nexus_os.monitoring.disk_hygiene import (
+        build_hygiene_report,
+        default_targets,
+        visible_roots_for_drives,
+    )
+
+    paths = [Path(path) for path in args.path] if args.path else default_targets()
+    previous_report = None
+    if args.baseline:
+        with Path(args.baseline).open("r", encoding="utf-8") as fh:
+            previous_report = json.load(fh)
+
+    visible_roots = visible_roots_for_drives(args.drive) if args.visible_root_scan else None
+    report = build_hygiene_report(
+        paths=paths,
+        min_file_mib=args.min_file_mib,
+        top_file_limit=args.top_files,
+        include_system_files=not args.no_system_files,
+        include_drive_accounting=not args.no_drive_accounting,
+        drives=args.drive or None,
+        visible_roots=visible_roots,
+        previous_report=previous_report,
+        hidden_gap_threshold_gib=args.hidden_gap_threshold_gib,
+        free_delta_threshold_gib=args.free_delta_threshold_gib,
+    )
+
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+
+    print("NEXUS Disk Hygiene Check")
+    print("=" * 40)
+    print("Mode: read-only; no deletes, moves, or process stops")
+    print("")
+    if report["drive_accounting"]:
+        print("Drive accounting:")
+        for row in report["drive_accounting"]:
+            visible = "n/a" if row["visible_gib"] is None else f"{row['visible_gib']:.3f} GiB visible"
+            hidden = "n/a" if row["hidden_gap_gib"] is None else f"{row['hidden_gap_gib']:.3f} GiB hidden-gap"
+            print(
+                f"  {row['drive']:<4} used={row['used_gib']:.3f} GiB "
+                f"free={row['free_gib']:.3f} GiB  {visible}  {hidden}"
+            )
+        print("")
+    if report["drive_findings"]:
+        print("Drive findings:")
+        for finding in report["drive_findings"]:
+            print(
+                f"  [{finding['severity']}] {finding['drive']} "
+                f"{finding['type']} {finding.get('delta_gib')} GiB - {finding['message']}"
+            )
+        print("")
+    print("Largest scanned paths:")
+    for row in report["summaries"][: args.summary_limit]:
+        print(
+            f"  {row['size_gib']:>8.3f} GiB  {row['category']:<24} "
+            f"{row['risk']:<16} {row['path']}"
+        )
+    print("")
+    print("Largest files:")
+    for row in report["top_files"][: args.top_files]:
+        print(
+            f"  {row['size_gib']:>8.3f} GiB  {row['category']:<24} "
+            f"{row['risk']:<16} {row['path']}"
+        )
+    print("")
+    print(
+        "Reviewable candidates: "
+        f"{report['candidate_summary']['reviewable_file_count']} files / "
+        f"{report['candidate_summary']['reviewable_file_gib']} GiB"
+    )
+    readiness = report["cleanup_readiness"]
+    print(
+        "Cleanup readiness: "
+        f"{readiness['estimated_confirmation_reclaim_gib']} GiB needs confirmation; "
+        f"{readiness['protected_gib']} GiB protected/tool-managed"
+    )
+    if report["candidate_summary"]["admin_only_count"]:
+        print("Admin-only items detected; use elevated Windows diagnostics before changing them.")
+    if report["drive_findings"]:
+        print("Protocol: diagnose hidden/system allocation before deleting visible files.")
+    return 0
 
 
 def cmd_cycle_check(args):
@@ -210,10 +397,74 @@ def cmd_handoff(args):
 
 
 def cmd_stress_lab(args):
-    """Run safety stress tests."""
+    """Run safety stress tests (legacy system checks or adversarial StressLab)."""
+    if args is None:
+        return _run_legacy_stress()
+    if args.scenario or args.team or getattr(args, 'red_team', False) or getattr(args, 'blue_team', False):
+        return _run_adversarial_stress(args)
+    return _run_legacy_stress()
+
+
+def _run_adversarial_stress(args):
+    from nexus_os.stress.stress_lab import (
+        RedScenarioBank, BlueScenarioBank, PurpleScenarioBank,
+        StressLab, compute_report, print_report, TeamMode,
+    )
+
+    class SimpleClient:
+        def generate(self, q, **kw):
+            from nexus_os.models.registry import ModelRegistry
+            try:
+                reg = ModelRegistry.load_default()
+                model = reg.get_model(args.model) if args.model else None
+                if model and hasattr(model, "generate"):
+                    return model.generate(q)
+            except Exception:
+                pass
+            return "[No model connected - run with --model to test against a real registry model]"
+
+    if args.team == "purple" or (args.red_team and args.blue_team):
+        team = TeamMode.PURPLE
+        scenarios = PurpleScenarioBank.build_combined(args.count)
+    elif args.team == "blue" or args.blue_team:
+        team = TeamMode.BLUE
+        if args.scenario == "over-refusal":
+            scenarios = BlueScenarioBank.build_over_refusal()
+        else:
+            scenarios = BlueScenarioBank.build_restore(args.count)
+    else:
+        team = TeamMode.RED
+        if args.scenario == "injection":
+            scenarios = RedScenarioBank.build_injection(args.count)
+        elif args.scenario == "escalation":
+            scenarios = RedScenarioBank.build_escalation()
+        else:
+            topic = args.topic or "dangerous content"
+            scenarios = RedScenarioBank.build(topic, args.count)
+
+    lab = StressLab(SimpleClient())
+    results = lab.run(scenarios, quiet=args.quiet)
+    report = compute_report(team, results)
+
+    if args.json:
+        import json as j
+        print(j.dumps({
+            "scenario_count": report.scenario_count,
+            "guard_rate": report.guard_rate,
+            "bypass_rate": report.bypass_rate,
+            "over_refusal_rate": report.over_refusal_rate,
+            "per_type": report.per_type,
+        }, indent=2))
+    else:
+        print_report(report)
+
+    return 1 if report.bypass_rate > 0.5 else 0
+
+
+def _run_legacy_stress():
     import logging
     logging.disable(logging.CRITICAL)
-    print("NEXUS Stress Lab")
+    print("NEXUS Safety Stress Tests")
     print("=" * 40)
 
     results = []
@@ -267,6 +518,183 @@ def cmd_stress_lab(args):
     return 0 if failed == 0 else 1
 
 
+def cmd_eval(args):
+    """Run evaluations (VibeThinker, NEXUS-Bench, etc)."""
+    if args.vibethinker or args.backend:
+        return _run_vibethinker_eval(args)
+    print("Usage: nexusctl eval --vibethinker [--model NAME] [--backend relay|ollama|hf] [--count N]")
+    return 2
+
+
+def _run_vibethinker_eval(args):
+    from nexus_os.eval.vibethinker_eval import (
+        build_task_bank, compute_report, EvalReport, verify_answer, print_report as print_eval,
+    )
+
+    print(f"VibeThinker Eval — model={args.model}, backend={args.backend}")
+    print("=" * 50)
+
+    tasks = build_task_bank(seed=args.seed, include_refusal=args.include_refusal)
+    if args.count and args.count < len(tasks):
+        tasks = tasks[:args.count]
+
+    results = []
+    for task in tasks:
+        response = _eval_prompt(task.query, model=args.model, backend=args.backend)
+        correct, refused = verify_answer(task, response)
+        from nexus_os.eval.vibethinker_eval import TaskResult
+        import time
+        import time
+        results.append(TaskResult(
+            task_id=task.id, category=task.category.value, difficulty=task.difficulty,
+            query=task.query, expected_answer=task.expected_answer,
+            model_answer=response, correct=correct, latency_ms=0.0,
+            refused=refused, over_refused=False,
+            timestamp=datetime.now().isoformat(),
+        ))
+
+    report = compute_report(args.model, args.backend, results)
+
+    if args.json:
+        print(json.dumps({
+            "total": report.total_tasks,
+            "correct": report.correct,
+            "accuracy": report.accuracy,
+            "refusal_rate": report.refusal_rate,
+            "per_category": report.per_category,
+        }, indent=2))
+    else:
+        print_eval(report)
+
+    return 0
+
+
+def _eval_prompt(query, model="WeiboAI/VibeThinker-3B", backend="relay"):
+    if backend == "relay":
+        return _eval_via_relay(query, model)
+    elif backend == "ollama":
+        return _eval_via_ollama(query, model)
+    else:
+        return _eval_via_hf(query, model)
+
+
+def _eval_via_relay(query, model):
+    try:
+        from nexus_os.api.brain_api import _ModelRelayProxy
+        import asyncio
+        proxy = _ModelRelayProxy()
+        payload = {"model": model, "messages": [{"role": "user", "content": query}]}
+        result = asyncio.run(proxy.chat_completions(payload))
+        if result and "choices" in result:
+            return result["choices"][0].get("message", {}).get("content", str(result))
+        return str(result)
+    except Exception as e:
+        return f"[Relay error: {e}]"
+
+
+def _eval_via_ollama(query, model):
+    try:
+        import requests
+        resp = requests.post("http://127.0.0.1:11434/api/generate",
+                            json={"model": model, "prompt": query, "stream": False}, timeout=60)
+        data = resp.json()
+        return data.get("response", str(data))
+    except Exception as e:
+        return f"[Ollama error: {e}]"
+
+
+def _eval_via_hf(query, model):
+    return f"[HF eval not available in CLI; use backend=relay or ollama]"
+
+
+def cmd_gross_http(args):
+    """Prepare or run a governed browser HTTP diagnostic through GROSS."""
+    from nexus_os.bridge.browser_http_diagnostic import BrowserHTTPDiagnosticRelay
+
+    relay = BrowserHTTPDiagnosticRelay(bridge_url=args.bridge_url)
+    if args.live:
+        result = relay.invoke(
+            args.url,
+            method=args.method,
+            audit_id=args.audit_id,
+            scenario=args.scenario,
+            operator=args.operator,
+            safe_preview_max=args.safe_preview_max,
+        )
+    else:
+        decision = relay.prepare(
+            args.url,
+            method=args.method,
+            audit_id=args.audit_id,
+            scenario=args.scenario,
+            operator=args.operator,
+            safe_preview_max=args.safe_preview_max,
+        )
+        result = {
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "gross_tool": "http_diagnostic",
+            "gross_arguments": decision.gross_arguments,
+            "mode": "dry_run",
+        }
+    print(json.dumps(result, indent=2))
+    return 0 if not result.get("blocked") and result.get("allowed", True) else 2
+
+
+def cmd_model_lab(args):
+    """Read-only model lab inventory and behavior-control proposal commands."""
+    if args.inventory:
+        from nexus_os.models.registry import ModelRegistry
+
+        registry = ModelRegistry.load_default()
+        behavior_models = registry.list_behavior_control_models()
+        result = {
+            "mode": "inventory",
+            "behavior_control_count": len(behavior_models),
+            "behavior_control_models": [model.to_dict() for model in behavior_models],
+            "stats": registry.get_stats(),
+            "dry_run": True,
+        }
+        print(json.dumps(result, indent=2))
+        return 0
+
+    if args.verify_manifest:
+        manifest_path = Path(args.verify_manifest)
+        if not manifest_path.exists():
+            print(json.dumps({"valid": False, "reason": "manifest not found"}, indent=2))
+            return 2
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        required = {"artifact_hash", "method_class", "model_path", "before_refusal_score", "after_refusal_score", "capability_retention_score", "vap_record_id"}
+        missing = sorted(required - set(manifest))
+        print(json.dumps({"valid": not missing, "missing": missing, "dry_run": True}, indent=2))
+        return 0 if not missing else 2
+
+    if args.propose:
+        from nexus_os.security.behaviormancer_nexus import (
+            NexusBehaviorMancer,
+            NexusBehaviorMancerConfig,
+        )
+
+        config = NexusBehaviorMancerConfig(
+            model_path=args.propose,
+            target_dataset_path=args.target_dataset or "",
+            baseline_dataset_path=args.baseline_dataset or "",
+            preservation_dataset_path=args.preservation_dataset or "",
+            output_path=args.output_path or "",
+            n_samples=args.n_samples,
+            direction_multiplier=args.direction_multiplier,
+            null_space_constraints=args.null_space_constraints,
+            start_layer_ratio=args.start_layer_ratio,
+            end_layer_ratio=args.end_layer_ratio,
+        )
+        proposal = NexusBehaviorMancer(config).prepare_proposal(method_class=args.method_class)
+        print(json.dumps(proposal.to_dict(), indent=2))
+        return 0
+
+    print("Usage: nexusctl model-lab [--inventory | --propose MODEL | --verify-manifest PATH]")
+    return 2
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nexusctl",
@@ -281,6 +709,45 @@ def main():
     # doctor
     sub = subparsers.add_parser("doctor", help="Run system health check")
     sub.set_defaults(func=cmd_doctor)
+
+    # dashboard
+    sub = subparsers.add_parser("dashboard", help="Dashboard and Brain API diagnostics")
+    sub.add_argument("--doctor", action="store_true", help="Run read-only dashboard runtime ownership check")
+    sub.add_argument("--json", action="store_true", help="Emit JSON report")
+    sub.add_argument("--brain-api-url", default="http://127.0.0.1:7352", help="Brain API base URL")
+    sub.add_argument("--dashboard-url", default="http://127.0.0.1:7356/dashboard.html", help="Static dashboard URL")
+    sub.add_argument("--timeout", type=float, default=2.0, help="Probe timeout seconds")
+    sub.set_defaults(func=cmd_dashboard)
+
+    # hygiene
+    sub = subparsers.add_parser("hygiene", help="Read-only disk hygiene inventory")
+    sub.add_argument("--path", action="append", default=[], help="Path to scan; repeatable")
+    sub.add_argument("--json", action="store_true", help="Emit JSON report")
+    sub.add_argument("--top-files", type=int, default=40, help="Number of large files to print")
+    sub.add_argument("--summary-limit", type=int, default=20, help="Number of path summaries to print")
+    sub.add_argument("--min-file-mib", type=int, default=100, help="Minimum file size for top-file list")
+    sub.add_argument("--no-system-files", action="store_true", help="Skip pagefile/swapfile root file checks")
+    sub.add_argument("--baseline", help="Previous hygiene JSON report for free-space delta detection")
+    sub.add_argument("--drive", action="append", default=[], help="Drive label for accounting; repeatable, e.g. C: or D:")
+    sub.add_argument("--no-drive-accounting", action="store_true", help="Skip drive free/used accounting")
+    sub.add_argument(
+        "--visible-root-scan",
+        action="store_true",
+        help="Slowly scan first-level drive roots to estimate visible-vs-hidden allocation gaps",
+    )
+    sub.add_argument(
+        "--hidden-gap-threshold-gib",
+        type=float,
+        default=25.0,
+        help="Hidden allocation gap threshold that triggers diagnose-first findings",
+    )
+    sub.add_argument(
+        "--free-delta-threshold-gib",
+        type=float,
+        default=50.0,
+        help="Free-space baseline delta threshold that triggers diagnose-first findings",
+    )
+    sub.set_defaults(func=cmd_hygiene)
 
     # cycle-check
     sub = subparsers.add_parser("cycle-check", help="Validate last work cycle")
@@ -309,8 +776,65 @@ def main():
     sub.set_defaults(func=cmd_handoff)
 
     # stress-lab
-    sub = subparsers.add_parser("stress-lab", help="Run safety stress tests")
+    sub = subparsers.add_parser("stress-lab", help="Run safety stress tests (legacy or adversarial)")
+    sub.add_argument("--scenario", default="", choices=["jailbreak", "injection", "escalation", "over-refusal"],
+                     help="Adversarial scenario type (empty = legacy safety checks)")
+    sub.add_argument("--team", default="", choices=["red", "blue", "purple"],
+                     help="Team mode for adversarial stress")
+    sub.add_argument("--red-team", action="store_true", help="Shortcut for --team red")
+    sub.add_argument("--blue-team", action="store_true", help="Shortcut for --team blue")
+    sub.add_argument("--count", type=int, default=10, help="Number of scenarios")
+    sub.add_argument("--topic", default="dangerous content", help="Red team topic query")
+    sub.add_argument("--model", default="", help="Model name from registry")
+    sub.add_argument("--quiet", action="store_true", help="Suppress per-scenario output")
+    sub.add_argument("--json", action="store_true", help="Emit JSON report")
     sub.set_defaults(func=cmd_stress_lab)
+
+    # gross-http
+    sub = subparsers.add_parser(
+        "gross-http",
+        help="Prepare or run a governed GROSS bridge HTTP diagnostic",
+    )
+    sub.add_argument("url", help="HTTPS URL to diagnose")
+    sub.add_argument("--method", default="GET", choices=["GET", "HEAD"], help="Read-only HTTP method")
+    sub.add_argument("--bridge-url", default="http://127.0.0.1:7354", help="Local GROSS bridge URL")
+    sub.add_argument("--safe-preview-max", type=int, default=500, help="Maximum safe preview bytes")
+    sub.add_argument("--audit-id", default="", help="Audit correlation id")
+    sub.add_argument("--scenario", default="browser_http_diagnostic", help="Audit scenario label")
+    sub.add_argument("--operator", default="nexusctl", help="Operator label for audit")
+    sub.add_argument("--live", action="store_true", help="Actually invoke the local bridge; default is dry-run only")
+    sub.set_defaults(func=cmd_gross_http)
+
+    # model-lab
+    sub = subparsers.add_parser(
+        "model-lab",
+        help="Read-only model inventory and Behavior-Control Lab dry-run proposals",
+    )
+    sub.add_argument("--inventory", action="store_true", help="List behavior-control candidates from registry")
+    sub.add_argument("--propose", metavar="MODEL", help="Create a dry-run behavior-control proposal for MODEL")
+    sub.add_argument("--verify-manifest", metavar="PATH", help="Read and validate an existing behavior-control manifest")
+    sub.add_argument("--method-class", default="refusal_vector_abliteration", help="Behavior-control method class")
+    sub.add_argument("--target-dataset", default="", help="Target/desired-behavior dataset path")
+    sub.add_argument("--baseline-dataset", default="", help="Baseline/refusal-behavior dataset path")
+    sub.add_argument("--preservation-dataset", default="", help="Capability-preservation dataset path")
+    sub.add_argument("--output-path", default="", help="Proposed output path; proposal only")
+    sub.add_argument("--n-samples", type=int, default=30, help="Sample count for proposal metadata")
+    sub.add_argument("--direction-multiplier", type=float, default=1.0, help="Proposed control-vector strength")
+    sub.add_argument("--start-layer-ratio", type=float, default=0.2, help="Start layer ratio")
+    sub.add_argument("--end-layer-ratio", type=float, default=0.9, help="End layer ratio")
+    sub.add_argument("--null-space-constraints", action="store_true", help="Propose preservation null-space constraints")
+    sub.set_defaults(func=cmd_model_lab)
+
+    # eval
+    sub = subparsers.add_parser("eval", help="Run evaluations (VibeThinker, NEXUS-Bench)")
+    sub.add_argument("--vibethinker", action="store_true", help="Run VibeThinker eval")
+    sub.add_argument("--model", default="WeiboAI/VibeThinker-3B", help="Model name or HuggingFace path")
+    sub.add_argument("--backend", default="relay", choices=["relay", "ollama", "hf"], help="Eval backend")
+    sub.add_argument("--count", type=int, default=0, help="Number of tasks (0 = all)")
+    sub.add_argument("--seed", type=int, default=42, help="Random seed for task selection")
+    sub.add_argument("--include-refusal", action="store_true", help="Include refusal probe tasks")
+    sub.add_argument("--json", action="store_true", help="Emit JSON report")
+    sub.set_defaults(func=cmd_eval)
 
     args = parser.parse_args()
 

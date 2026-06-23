@@ -12,10 +12,19 @@ References:
 """
 
 from nexus_os.archivist.import_stage import ArchivistImporter, ImportRecord, FileType, AdmissionClass
+from nexus_os.archivist.compile import ArchivistCompiler, CompiledRecord
+from nexus_os.archivist.fit import ArchivistFitter, Dossier
 
 __all__ = [
+    # Stage 1: Import
     "ArchivistImporter",
     "ImportRecord",
     "FileType",
     "AdmissionClass",
+    # Stage 2: Compile
+    "ArchivistCompiler",
+    "CompiledRecord",
+    # Stage 3: Fit
+    "ArchivistFitter",
+    "Dossier",
 ]

@@ -39,11 +39,28 @@ class TestPortRecord:
 
 class TestPortRegistryBasics:
     def test_canonical_ports(self):
-        assert PortRegistry.CANONICAL_PORTS[7352] == "nexus_governance"
-        assert PortRegistry.CANONICAL_PORTS[7353] == "twave"
-        assert PortRegistry.CANONICAL_PORTS[7354] == "gross_bridge"
-        assert PortRegistry.CANONICAL_PORTS[7355] == "modelrelay_internal"
-        assert PortRegistry.CANONICAL_PORTS[11436] == "nexusclaw_ollama_lane"
+        expected = {
+            3001: "next_dashboard",
+            7350: "modelrelay_npm",
+            7352: "brain_api",
+            7353: "twave",
+            7354: "gross_bridge",
+            7355: "modelrelay_python",
+            7356: "static_dashboard",
+            7357: "god_mode_proxy",
+            8765: "state_manager_ws",
+            8766: "state_manager_http",
+            11434: "ollama_default",
+            11435: "ollama_guard",
+            11436: "nexusclaw_ollama_lane",
+        }
+        assert PortRegistry.CANONICAL_PORTS == expected
+
+    def test_7352_is_never_modelrelay(self):
+        assert PortRegistry.CANONICAL_PORTS[7352] == "brain_api"
+        assert "modelrelay" not in PortRegistry.CANONICAL_PORTS[7352].lower()
+        assert PortRegistry.CANONICAL_PORTS[7350] == "modelrelay_npm"
+        assert PortRegistry.CANONICAL_PORTS[7355] == "modelrelay_python"
 
     def test_init_creates_state_dir(self, tmp_path):
         registry = PortRegistry(state_dir=tmp_path)

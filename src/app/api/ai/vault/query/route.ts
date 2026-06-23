@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { reconcileZAIModelEcho } from '@/lib/ai-provider-bridge'
 import { db } from '@/lib/db'
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -199,8 +200,10 @@ VAULT CONTEXT:
 ${contextString}`
 
     const startTime = Date.now()
+    const requestedModel = 'glm-5.2'
 
     const completion = await zai.chat.completions.create({
+      model: requestedModel,
       messages: [
         { role: 'assistant', content: systemPrompt },
         { role: 'user', content: query.trim() },
@@ -210,7 +213,8 @@ ${contextString}`
     })
 
     const response = completion.choices[0]?.message?.content || ''
-    const model = completion.model || 'glm-4.7'
+    const echoedModel = (completion as any).model as string | undefined
+    const model = reconcileZAIModelEcho(requestedModel, echoedModel).apiModel
     const latencyMs = Date.now() - startTime
 
     if (!response) {

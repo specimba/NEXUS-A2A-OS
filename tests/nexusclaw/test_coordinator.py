@@ -31,7 +31,8 @@ def test_runtime_config_reserves_ports_and_disables_fallbacks():
     config = NexusClawRuntimeConfig()
 
     assert PORT_OWNERSHIP[7352] == "nexus_governance"
-    assert PORT_OWNERSHIP[7355] == "modelrelay_internal"
+    assert PORT_OWNERSHIP[7355] == "modelrelay_python"
+    assert PORT_OWNERSHIP[7350] == "modelrelay_npm"
     assert config.cloud_fallback_enabled is False
     assert config.background_model_polling_enabled is False
     assert config.remote_stdio_enabled is False
@@ -43,11 +44,11 @@ def test_runtime_config_rejects_cloud_fallback():
         NexusClawRuntimeConfig(cloud_fallback_enabled=True)
 
 
-def test_modelrelay_defaults_are_lazy_and_internal_port():
+def test_modelrelay_defaults_are_lazy_and_node_port():
     assert model_relay.HEALTH_CHECK_INTERVAL_S == 0
     assert model_relay.STARTUP_PORT == 7355
-    assert TelemetryIngest().url == "http://localhost:7355/api/models"
-    assert GeniusModelRotator().telemetry.url == "http://localhost:7355/api/models"
+    assert TelemetryIngest().url == "http://localhost:7350/api/models"
+    assert GeniusModelRotator().telemetry.url == "http://localhost:7350/api/models"
 
 
 def test_propose_and_dispatch_dry_run_result_envelope():

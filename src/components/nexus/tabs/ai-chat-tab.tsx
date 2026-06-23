@@ -28,7 +28,7 @@ interface ChatMessage {
 
 const AI_MODELS = [
   // Reasoning tier
-  { id: 'glm-4-7-nim', name: 'GLM-4.7 (z-ai)', tier: 'reasoning' },
+  { id: 'glm-5-2', name: 'GLM-5.2 (z-ai)', tier: 'reasoning' },
   { id: 'deepseek-r1-or', name: 'DeepSeek R1 (OpenRouter)', tier: 'reasoning' },
   { id: 'nemotron-4-340b-nim', name: 'Nemotron-4 340B (NVIDIA NIM)', tier: 'reasoning' },
   { id: 'llama-3.1-405b-nim', name: 'Llama 3.1 405B (NVIDIA NIM)', tier: 'reasoning' },
@@ -248,7 +248,7 @@ export function AiChatTab() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedModel, setSelectedModel] = useState('glm-4-7-nim')
+  const [selectedModel, setSelectedModel] = useState('glm-5-2')
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [thinkingPhase, setThinkingPhase] = useState<'idle' | 'thinking' | 'responding'>('idle')
@@ -826,3 +826,4 @@ export function AiChatTab() {
     </div>
   )
 }
+

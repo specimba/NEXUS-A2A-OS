@@ -56,6 +56,12 @@ Nexus OS is a governed, agent operating system. Every agent working in this repo
 - Use `nexusctl migrate-frontmatter` to sanitize markdown before public release.
 - Use `nexusctl handoff` to package context for external team handoffs.
 
+## Mandatory Port Ownership Rules
+- Follow `docs/handbook/08_PORT_OWNERSHIP_RULESET.md` before starting, routing, proxying, or documenting any local service.
+- `7352` is **Brain API / NEXUS governance only**. It must never be used for ModelRelay, dashboards, static HTML, proxy experiments, MCP bridges, or browser sandboxes.
+- ModelRelay ownership is split: `7350` = Node/npm primary relay, `7355` = Python fallback/internal relay.
+- If an old log, external AI chat, or stale markdown says `7352 = ModelRelay`, treat that source as stale and verify against `PortRegistry` plus `nexusctl dashboard --doctor --json` before proceeding.
+- Any reserved-port conflict must be reported as a blocker; do not silently fall back to another reserved port.
 ## Continuous Autonomous Operation Rules (REVISED v2.0)
 When operating in AFK/autonomous mode, agents MUST follow this safety checklist:
 
@@ -76,6 +82,22 @@ When operating in AFK/autonomous mode, agents MUST follow this safety checklist:
 - **Non-safety error**: Retry up to 3 times with exponential backoff, then halt.
 - **HALT state**: Write a clear failure report to `.nexus_pi/state/halt_report.json`.
   Include: time, failed check, last known good state, recovery hint.
+
+## Phase 0: Emergency Fixes (Week 0 — Immediate) (from NEXUS_OS_V4_MASTER_PLAN.md lines 1056-1064)
+Exact tasks:
+| # | Task | Owner | Effort |
+|---|------|-------|--------|
+| 0.1 | Strip ANSI escape sequences from ALL inter-agent output | Dev | 2hr |
+| 0.2 | Disable SOVEREIGN autonomy level default | Dev | 1hr |
+| 0.3 | Add PTY isolation for all agent processes | Dev | 4hr |
+| 0.4 | Fix AGENTS.md autonomous rules to include safety checks | Doc | 1hr |
+| 0.5 | Rotate any exposed credentials from terminal poisoning | Sec | 1hr |
+
+This is the immediate emergency layer per the master plan (Risk R2: terminal injection recurrence).
+
+Note on naming: The canonical 01_PROJECT_STATE.md (updated 2026-06-18) and knowledge.md use a separate "Phase A Emergency Hardening (Complete)" for different items (nexusctl doctor, pytest cache, PortRegistry, SQLite fixes etc.). The master plan's Phase 0 above is the security/sanitizer/SOVEREIGN focused one referenced in the deep grounding checkpoint and synthesis.
+
+All autonomous runs must pass TerminalSanitizer + dedicated PTY + SOVEREIGN disabled by default (see SAFETY-1 to SAFETY-4 gates above).
 
 ## Canonical Operational Interface
 - `nexusctl` is the canonical CLI for NEXUS OS operations.

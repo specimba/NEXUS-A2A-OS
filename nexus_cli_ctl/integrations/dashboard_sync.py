@@ -69,7 +69,7 @@ class DashboardSync:
                     resp = await client.get(f"{DASHBOARD_URL}/")
                     self._dashboard_reachable = resp.status_code < 500
                     if self._dashboard_reachable and not self._ws_connected:
-                        await self._connect_ws()
+                        asyncio.create_task(self._connect_ws())
             except Exception:
                 self._dashboard_reachable = False
                 self._ws_connected = False
@@ -77,24 +77,32 @@ class DashboardSync:
 
     async def _connect_ws(self):
         """Attempt WebSocket connection to Brain API for live sync"""
-        try:
-            import websockets
-            async with websockets.connect(BRAIN_API_WS) as ws:
-                self._ws_connected = True
-                await ws.send(json.dumps({
-                    "type": "subscribe",
-                    "topics": list(self.TOPICS),
-                }))
-                logger.info("Dashboard WS connected to Brain API")
+        retry_delay = 1.0
+        max_delay = 60.0
+        while self.running:
+            try:
+                import websockets
+                async with websockets.connect(BRAIN_API_WS) as ws:
+                    self._ws_connected = True
+                    retry_delay = 1.0
+                    await ws.send(json.dumps({
+                        "type": "subscribe",
+                        "topics": list(self.TOPICS),
+                    }))
+                    logger.info("Dashboard WS connected to Brain API")
 
-                while self.running:
-                    msg = await ws.recv()
-                    data = json.loads(msg)
-                    if data.get("type") != "ping":
-                        await self._push_to_dashboard(data)
-        except Exception as e:
-            logger.debug(f"Dashboard WS connection failed: {e}")
-            self._ws_connected = False
+                    while self.running:
+                        msg = await ws.recv()
+                        data = json.loads(msg)
+                        if data.get("type") != "ping":
+                            await self._push_to_dashboard(data)
+            except Exception as e:
+                logger.debug(f"Dashboard WS connection failed: {e}")
+                self._ws_connected = False
+                if not self.running:
+                    break
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_delay)
 
     async def _sync_loop(self):
         """HTTP polling fallback when WS is not connected"""

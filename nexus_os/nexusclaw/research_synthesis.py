@@ -173,3 +173,55 @@ class ResearchIntegrationEngine:
             })
 
         return patterns
+
+    def query_wiki(self, topic: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search the wiki pipeline for pages matching a topic.
+
+        This enables research_synthesis to access the wiki's full corpus
+        (archivist dossiers, source cards) in addition to the hardcoded
+        ARCHIVIST_ROOT file list.
+
+        Args:
+            topic: Search query string.
+            limit: Maximum number of results to return.
+
+        Returns:
+            List of wiki page dicts with 'slug', 'title', 'snippet' keys.
+            Empty list if wiki pipeline is unavailable.
+        """
+        try:
+            from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
+            pipeline = get_wiki_pipeline()
+            results = pipeline.search(topic, limit=limit)
+            return [
+                {
+                    "slug": r.get("slug", ""),
+                    "title": r.get("title", ""),
+                    "snippet": r.get("snippet", "")[:200],
+                }
+                for r in results
+            ]
+        except Exception:
+            return []  # Graceful fallback
+
+    def enrich_findings_from_wiki(self, findings: List[ResearchFinding]) -> List[ResearchFinding]:
+        """Enrich research findings with wiki cross-references.
+
+        For each finding, searches the wiki for related pages and attaches
+        the top result's slug as a cross-reference in the content.
+
+        Args:
+            findings: List of ResearchFinding objects to enrich.
+
+        Returns:
+            The same list with enriched content (wiki references appended).
+        """
+        for finding in findings:
+            try:
+                wiki_results = self.query_wiki(finding.domain, limit=1)
+                if wiki_results:
+                    ref = wiki_results[0]
+                    finding.content += f"\n\n[Wiki ref: {ref['title']} ({ref['slug']})]"
+            except Exception:
+                pass  # Non-critical enrichment; skip on failure
+        return findings

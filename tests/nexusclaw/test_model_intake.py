@@ -74,6 +74,18 @@ class TestNexusClawModelArena:
         assert "astra" in request.labels
         assert "risk_assessment" in request.labels
 
+    def test_behavior_control_request_is_lab_only(self):
+        arena = NexusClawModelArena()
+        request = arena.behavior_control_request("DavidAU/VibeThinker-heretic-uncensored")
+        result = arena.dry_run_task(request)
+
+        assert result["operation"] == "behavior_control"
+        assert result["route_class"] == "behavior_control"
+        assert result["allowed_lanes"] == ["behavior_control"]
+        assert result["security_decision"]["allowed"] is False
+        assert result["security_decision"]["lab_allowed"] is True
+        assert "vap_record" in result["security_decision"]["required_controls"]
+
     def test_dry_run_task_returns_structure(self):
         arena = NexusClawModelArena()
         request = ModelIntakeRequest(
@@ -106,4 +118,5 @@ class TestIntegrateWithCoordinator:
 
         result = integrate_with_coordinator(MockCoordinator(), "uncensored-model.gguf")
         assert result["status"] == "rejected"
-        assert "quarantine" in result["reason"].lower()
+        assert result["route_class"] == "quarantine"
+        assert result["blocked_reason"] == "behavior_control_context_required"

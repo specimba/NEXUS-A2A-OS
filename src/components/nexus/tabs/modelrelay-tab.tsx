@@ -197,8 +197,7 @@ function getMockGatewayStatus(): GatewayStatus {
 
 function getMockModels(): ModelEntry[] {
   return [
-    { modelId: 'zai/glm-4-7', provider: 'zai', name: 'GLM-4.7', tier: 95, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 189, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 95 },
-    { modelId: 'zai/glm-4-flash', provider: 'zai', name: 'GLM-4 Flash', tier: 70, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 120, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 70 },
+    { modelId: 'zai/glm-5.2', provider: 'zai', name: 'GLM-5.2', tier: 99, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 189, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 99 },
     { modelId: 'zai/trinity-large', provider: 'zai', name: 'Trinity Large', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'Z-AI', costPer1mTotal: 0, qualityScore: 90 },
     { modelId: 'openrouter/deepseek-chat-v3-0324', provider: 'openrouter', name: 'DeepSeek Chat V3', tier: 80, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 234, supportsVision: false, supportsFunctionCalling: false, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 82 },
     { modelId: 'openrouter/llama-3.3-70b-instruct', provider: 'openrouter', name: 'Llama 3.3 70B', tier: 78, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 220, supportsVision: false, supportsFunctionCalling: true, isFree: true, isLocal: false, status: 'up', providerName: 'OpenRouter', costPer1mTotal: 0, qualityScore: 78 },
@@ -219,12 +218,12 @@ function getMockModels(): ModelEntry[] {
 function getMockRouteResult(prompt: string, strategy: string): RouteResult {
   const lowerPrompt = prompt.toLowerCase()
   let intent = 'general'
-  let primaryModel = 'zai/glm-4-7'
+  let primaryModel = 'zai/glm-5.2'
   let provider = 'zai'
   let score = 85
 
   if (/code|function|implement|program|debug/.test(lowerPrompt)) {
-    intent = 'code'; primaryModel = 'zai/glm-4-7'; provider = 'zai'; score = 92
+    intent = 'code'; primaryModel = 'zai/glm-5.2'; provider = 'zai'; score = 92
   } else if (/reason|think|analyze|explain|logic/.test(lowerPrompt)) {
     intent = 'reasoning'; primaryModel = 'nvidia/nemotron-4-340b-instruct'; provider = 'nvidia'; score = 88
   } else if (/search|find|research|paper|study/.test(lowerPrompt)) {
@@ -232,7 +231,7 @@ function getMockRouteResult(prompt: string, strategy: string): RouteResult {
   } else if (/fast|quick|speed|urgent|asap/.test(lowerPrompt)) {
     intent = 'speed'; primaryModel = 'groq/llama-3.3-70b-versatile'; provider = 'groq'; score = 94
   } else if (/secure|security|vulnerab|exploit|safe/.test(lowerPrompt)) {
-    intent = 'security'; primaryModel = 'zai/glm-4-7'; provider = 'zai'; score = 86
+    intent = 'security'; primaryModel = 'zai/glm-5.2'; provider = 'zai'; score = 86
   }
 
   const fallbackChains: Record<string, string[]> = {
@@ -761,12 +760,12 @@ function formatUptime(seconds: number): string {
 
 function getStaticChain(intent: string): string[] {
   const chains: Record<string, string[]> = {
-    code: ['zai/glm-4-7', 'nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
-    reasoning: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'openrouter/google/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
-    research: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
+    code: ['zai/glm-5.2', 'nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
+    reasoning: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/google/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
+    research: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
     speed: ['groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b', 'groq/mixtral-8x7b-32768'],
-    security: ['zai/glm-4-7', 'nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
-    general: ['zai/glm-4-7', 'openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
+    security: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
+    general: ['zai/glm-5.2', 'openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
   }
   return chains[intent] || chains.general
 }

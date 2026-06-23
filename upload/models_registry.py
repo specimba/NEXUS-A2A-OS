@@ -283,6 +283,22 @@ class ModelsRegistry:
             is_free=True,
             is_local=False,
         ),
+        # -- LongCat ---------------------------------------------------------
+        ModelInfo(
+            model_id="longcat/LongCat-2.0-Preview",
+            provider="longcat",
+            name="LongCat 2.0 Preview",
+            tier=94,
+            cost_per_1m_input=0.0,
+            cost_per_1m_output=0.0,
+            context_window=1000000,
+            latency_ms_typical=1000,
+            supports_vision=False,
+            supports_function_calling=True,
+            supports_streaming=True,
+            is_free=True,
+            is_local=False,
+        ),
     ]
 
     def __init__(self, custom_models: Optional[List[ModelInfo]] = None):
@@ -325,3 +341,5 @@ class ModelsRegistry:
 
     def all_ids(self) -> List[str]:
         return list(self._models.keys())
+
+

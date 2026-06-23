@@ -32,6 +32,13 @@ TOPIC_KEYWORDS = {
     "governance": {"governance", "policy", "regulation", "compliance", "audit", "cdr", "risk"},
     "multimodal": {"multimodal", "vision", "image", "vlm", "audio", "speech"},
     "agent": {"agent", "autonomous", "tool use", "orchestration", "multi-agent", "mas"},
+    # --- New topics from unified taxonomy (DoppelGround source_kinds + AlphaXiv folders) ---
+    "code": {"code", "implementation", "software", "programming", "sdk", "api", "module", "pipeline"},
+    "spec": {"spec", "specification", "design doc", "architect", "blueprint", "requirements", "srd"},
+    "rules": {"rules", "config", "configuration", "yaml", "policy file", "guardrail"},
+    "role": {"role", "persona", "system prompt", "identity", "operator", "dispatcher"},
+    "dataset": {"dataset", "golden", "benchmark data", "corpus", "evaluation set", "training data"},
+    "rejection": {"rejection", "failure", "failure pattern", "anti-pattern", "negative example", "hallucination"},
 }
 
 
@@ -50,12 +57,34 @@ class CompiledRecord:
     compile_errors: List[str] = field(default_factory=list)
 
 
+@dataclass
+class CompileStats:
+    """Compile stage statistics snapshot."""
+    total: int = 0
+    wiki_admissible: int = 0
+    dossier_topics: int = 0
+    with_arxiv_id: int = 0
+    errors: int = 0
+    backlinks: int = 0
+
+    def to_dict(self) -> Dict[str, int]:
+        return {
+            "total": self.total,
+            "wiki_admissible": self.wiki_admissible,
+            "dossier_topics": self.dossier_topics,
+            "with_arxiv_id": self.with_arxiv_id,
+            "errors": self.errors,
+            "backlinks": self.backlinks,
+        }
+
+
 class ArchivistCompiler:
     """Compile stage: semantic tagging, linking, admission refinement."""
 
     def __init__(self):
         self._dossier_candidates: Dict[str, List[CompiledRecord]] = {}
         self._arxiv_index: Dict[str, CompiledRecord] = {}  # arXiv ID → record
+        self._last_backlinks: int = 0
 
     def tag_topics(self, record: ImportRecord) -> List[str]:
         """Tag record with semantic topics based on title and filename."""
@@ -86,7 +115,10 @@ class ArchivistCompiler:
             with open(record.file_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read(50000)  # Read first 50KB
                 return len(content.split())
-        except Exception:
+        except UnicodeDecodeError:
+            return None  # Expected for binary files
+        except Exception as e:
+            logger.debug("Word count estimation failed for %s: %s", record.file_path, e)
             return None
 
     def assess_quality(self, record: ImportRecord, word_count: Optional[int]) -> float:
@@ -200,7 +232,57 @@ class ArchivistCompiler:
             if i % 100 == 0:
                 logger.info("Compiled %d/%d records", i, len(records))
         logger.info("Compile batch complete: %d records, %d dossier topics", len(compiled), len(self._dossier_candidates))
+        # Retroactively promote early records that missed the dossier threshold
+        self._retroactively_promote_dossiers(compiled)
+        # Build reverse citation links
+        backlinks = self._build_backlinks(compiled)
+        self._last_backlinks = backlinks
         return compiled
+
+    def _retroactively_promote_dossiers(self, compiled: List[CompiledRecord]) -> int:
+        """Retroactively promote early records to DOSSIER admission class.
+
+        The first 2 records per topic are added to _dossier_candidates before
+        refine_admission() can detect the threshold. This method fixes them.
+        Returns count of promoted records.
+        """
+        promoted = 0
+        for topic, candidates in self._dossier_candidates.items():
+            if len(candidates) >= 3:  # Only promote if topic qualifies for dossier
+                for record in candidates:
+                    if record.admission_class != AdmissionClass.DOSSIER:
+                        record.admission_class = AdmissionClass.DOSSIER
+                        promoted += 1
+        if promoted:
+            logger.info("Retroactively promoted %d early records to DOSSIER", promoted)
+        return promoted
+
+    def _build_backlinks(self, compiled: List[CompiledRecord]) -> int:
+        """Construct reverse citation links after all records are compiled.
+
+        Forward links are set by link_citations() during compile_record().
+        This pass adds the reverse: if A.citation_links contains B's arXiv ID,
+        then B gets a backlink to A's arXiv ID.
+
+        Returns the count of backlinks added.
+        """
+        backlinks_added = 0
+        arxiv_to_record: Dict[str, CompiledRecord] = {}
+        for c in compiled:
+            if c.import_record.arxiv_id:
+                arxiv_to_record[c.import_record.arxiv_id] = c
+
+        for c in compiled:
+            for cited_id in c.citation_links:
+                cited_record = arxiv_to_record.get(cited_id)
+                if cited_record and c.import_record.arxiv_id:
+                    if c.import_record.arxiv_id not in cited_record.citation_links:
+                        cited_record.citation_links.append(c.import_record.arxiv_id)
+                        backlinks_added += 1
+
+        if backlinks_added:
+            logger.info("Built %d backlinks across %d compiled records", backlinks_added, len(compiled))
+        return backlinks_added
 
     def get_dossier_candidates(self, topic: str) -> List[CompiledRecord]:
         """Get records assigned to a dossier topic."""
@@ -210,15 +292,16 @@ class ArchivistCompiler:
         """Filter records that meet wiki admission criteria."""
         return [c for c in compiled if c.is_wiki_admissible]
 
-    def get_stats(self, compiled: List[CompiledRecord]) -> Dict[str, int]:
-        """Return compile statistics."""
-        stats = {
-            "total": len(compiled),
-            "wiki_admissible": sum(1 for c in compiled if c.is_wiki_admissible),
-            "dossier_topics": len(self._dossier_candidates),
-            "with_arxiv_id": sum(1 for c in compiled if c.import_record.arxiv_id),
-            "errors": sum(len(c.compile_errors) for c in compiled),
-        }
-        for topic in self._dossier_candidates:
-            stats[f"dossier_{topic}"] = len(self._dossier_candidates[topic])
+    def get_stats(self, compiled: Optional[List[CompiledRecord]] = None) -> CompileStats:
+        """Return compile statistics as typed snapshot."""
+        if compiled is None:
+            compiled = [r for candidates in self._dossier_candidates.values() for r in candidates]
+        stats = CompileStats(
+            total=len(compiled),
+            wiki_admissible=sum(1 for c in compiled if c.is_wiki_admissible),
+            dossier_topics=len(self._dossier_candidates),
+            with_arxiv_id=sum(1 for c in compiled if c.import_record.arxiv_id),
+            errors=sum(len(c.compile_errors) for c in compiled),
+            backlinks=self._last_backlinks,
+        )
         return stats

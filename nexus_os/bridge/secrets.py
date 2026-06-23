@@ -74,6 +74,22 @@ PROVIDER_CONFIG: Dict[str, Dict[str, Any]] = {
         ],
         "description": "InternAI direct API provider.",
     },
+    "longcat": {
+        "base_url": "https://api.longcat.chat/openai/v1",
+        "rpm_limit": 10,
+        "rpd_limit": 200,
+        "key_env_order": [
+            "NEXUS_LONGCAT_API_KEY",
+            "LONGCAT_API_KEY",
+            "LONGCAT_MODELRELAY_API_KEY",
+            "LONGCAT_HERMES_API_KEY",
+            "LONGCAT_OPENCODE_API_KEY",
+            "LONGCAT_KILOCODE_API_KEY",
+            "LONGCAT_CLAW_API_KEY",
+            "LONGCAT_ZO_API_KEY",
+        ],
+        "description": "LongCat OpenAI-compatible provider; governed teacher/eval/probe only.",
+    },
 }
 
 
@@ -333,3 +349,5 @@ def verify_signature(
     """Verify a Bridge request signature using constant-time comparison."""
     expected = generate_signature(secret, trace_id, payload)
     return hmac.compare_digest(expected, provided_signature)
+
+

@@ -50,9 +50,11 @@ class NexusClawModelArena:
         *,
         trust_remote_code: bool = False,
         labels: Optional[List[str]] = None,
+        requested_lane: str = "normal",
+        intent: str = "",
     ) -> SecurityDecision:
         """Validate model intake through security gates."""
-        cache_key = f"{model_name}:{trust_remote_code}:{hash(tuple(labels or []))}"
+        cache_key = f"{model_name}:{trust_remote_code}:{requested_lane}:{intent}:{hash(tuple(labels or []))}"
         if cache_key in self._cache:
             return self._cache[cache_key]
         
@@ -60,6 +62,8 @@ class NexusClawModelArena:
             model_name,
             trust_remote_code=trust_remote_code,
             labels=labels or [],
+            requested_lane=requested_lane,
+            intent=intent,
         )
         self._cache[cache_key] = decision
         return decision
@@ -101,17 +105,35 @@ class NexusClawModelArena:
             labels=["astra", "risk_assessment"],
         )
 
+    def behavior_control_request(
+        self,
+        model_name: str,
+        *,
+        method_class: str = "refusal_vector",
+    ) -> ModelIntakeRequest:
+        """Create a lab-only request for refusal/filtering behavior analysis."""
+        return ModelIntakeRequest(
+            operation="behavior_control",
+            model_name=model_name,
+            parameters={"method_class": method_class},
+            labels=["behavior_control", "refusal_analysis"],
+        )
+
     def dry_run_task(self, request: ModelIntakeRequest) -> Dict[str, Any]:
         """Return dry-run result for any model operation."""
         security = self.validate_intake(
             request.model_name,
             labels=request.labels,
+            requested_lane="behavior_control" if request.operation == "behavior_control" else "normal",
+            intent=request.operation,
         )
         return {
             "operation": request.operation,
             "model": request.model_name,
             "parameters": request.parameters,
             "security_decision": security.to_dict(),
+            "route_class": security.route_class,
+            "allowed_lanes": list(security.allowed_lanes),
             "dry_run": True,
             "requires_vap": security.severity in ("high", "critical"),
         }
@@ -129,4 +151,6 @@ def integrate_with_coordinator(coordinator, model_name: str) -> Dict[str, Any]:
         "status": "rejected",
         "reason": security.reason,
         "security_severity": security.severity,
+        "route_class": security.route_class,
+        "blocked_reason": security.blocked_reason,
     }

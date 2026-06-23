@@ -29,16 +29,46 @@ SENSITIVE_CONFIG_KEYS = {
     "tools.exec.host",
 }
 FORBIDDEN_MODEL_SUFFIXES = {".pkl", ".pickle", ".bin", ".pt", ".pth", ".ckpt"}
-QUARANTINE_LABELS = {
+BEHAVIOR_CONTROL_LABELS = {
     "abliterated",
+    "obliterated",
     "uncensored",
     "heretic",
+}
+QUARANTINE_LABELS = {
+    *BEHAVIOR_CONTROL_LABELS,
     "jailbreak",
     "red-team",
     "red_team",
     "harmbench",
     "nsfw",
 }
+BEHAVIOR_CONTROL_INTENT_TERMS = {
+    "behavior analysis",
+    "behaviour analysis",
+    "behavior-control",
+    "behaviour-control",
+    "refusal restoration",
+    "refusal ablation",
+    "guard stress",
+    "stress testing",
+    "red team",
+    "red-team",
+    "purple team",
+    "purple-team",
+    "filtering behavior",
+    "filtering behaviour",
+}
+BEHAVIOR_CONTROL_REQUIRED_CONTROLS = (
+    "kaiju_approval",
+    "vap_record",
+    "no_tool_execution",
+    "no_browsing",
+    "no_filesystem_write",
+    "no_credentials",
+    "no_raw_gross_or_nexus_evidence",
+    "artifact_manifest",
+)
 
 
 @dataclass(frozen=True)
@@ -46,12 +76,24 @@ class SecurityDecision:
     allowed: bool
     reason: str
     severity: str = "info"
+    route_class: str = "normal"
+    normal_allowed: bool = True
+    lab_allowed: bool = False
+    allowed_lanes: tuple[str, ...] = ("normal",)
+    blocked_reason: str | None = None
+    required_controls: tuple[str, ...] = ()
 
-    def to_dict(self) -> dict[str, str | bool]:
+    def to_dict(self) -> dict[str, str | bool | list[str] | None]:
         return {
             "allowed": self.allowed,
             "reason": self.reason,
             "severity": self.severity,
+            "route_class": self.route_class,
+            "normal_allowed": self.normal_allowed,
+            "lab_allowed": self.lab_allowed,
+            "allowed_lanes": list(self.allowed_lanes),
+            "blocked_reason": self.blocked_reason,
+            "required_controls": list(self.required_controls),
         }
 
 
@@ -126,18 +168,90 @@ def validate_model_intake(
     *,
     trust_remote_code: bool = False,
     labels: list[str] | None = None,
+    requested_lane: str = "normal",
+    intent: str = "",
 ) -> SecurityDecision:
     lowered_name = model_path_or_name.lower()
     suffix = PurePath(lowered_name).suffix
     if suffix in FORBIDDEN_MODEL_SUFFIXES:
-        return SecurityDecision(False, "pickle model artifacts are blocked", "critical")
+        return SecurityDecision(
+            False,
+            "pickle model artifacts are blocked",
+            "critical",
+            route_class="blocked",
+            normal_allowed=False,
+            lab_allowed=False,
+            allowed_lanes=(),
+            blocked_reason="unsafe_model_artifact",
+        )
     if trust_remote_code:
-        return SecurityDecision(False, "trust_remote_code is blocked for NexusClaw intake", "critical")
+        return SecurityDecision(
+            False,
+            "trust_remote_code is blocked for NexusClaw intake",
+            "critical",
+            route_class="blocked",
+            normal_allowed=False,
+            lab_allowed=False,
+            allowed_lanes=(),
+            blocked_reason="trust_remote_code",
+        )
 
     label_text = " ".join(labels or []) + " " + lowered_name
+    if any(label in label_text for label in BEHAVIOR_CONTROL_LABELS):
+        lab_requested = _is_behavior_control_request(requested_lane=requested_lane, intent=intent)
+        reason = (
+            "model label is denied normal routing; behavior-control lab routing requires "
+            "KAIJU/VAP controls"
+        )
+        return SecurityDecision(
+            False,
+            reason,
+            "high",
+            route_class="behavior_control" if lab_requested else "quarantine",
+            normal_allowed=False,
+            lab_allowed=lab_requested,
+            allowed_lanes=("behavior_control",) if lab_requested else (),
+            blocked_reason=None if lab_requested else "behavior_control_context_required",
+            required_controls=BEHAVIOR_CONTROL_REQUIRED_CONTROLS,
+        )
     if any(label in label_text for label in QUARANTINE_LABELS):
-        return SecurityDecision(False, "model label requires quarantine before routing", "high")
-    return SecurityDecision(True, "model intake accepted")
+        return SecurityDecision(
+            False,
+            "model label requires quarantine before routing",
+            "high",
+            route_class="quarantine",
+            normal_allowed=False,
+            lab_allowed=False,
+            allowed_lanes=("quarantine",),
+            blocked_reason="quarantine_label",
+        )
+    if _is_behavior_control_request(requested_lane=requested_lane, intent=intent):
+        return SecurityDecision(
+            False,
+            "behavior-control lab request requires KAIJU/VAP controls before execution",
+            "high",
+            route_class="behavior_control",
+            normal_allowed=True,
+            lab_allowed=True,
+            allowed_lanes=("behavior_control",),
+            required_controls=BEHAVIOR_CONTROL_REQUIRED_CONTROLS,
+        )
+    return SecurityDecision(
+        True,
+        "model intake accepted",
+        route_class="normal",
+        normal_allowed=True,
+        lab_allowed=False,
+        allowed_lanes=("normal", "eval", "local"),
+    )
+
+
+def _is_behavior_control_request(*, requested_lane: str, intent: str) -> bool:
+    lane = requested_lane.strip().lower().replace("-", "_")
+    if lane == "behavior_control":
+        return True
+    intent_text = intent.strip().lower()
+    return any(term in intent_text for term in BEHAVIOR_CONTROL_INTENT_TERMS)
 
 
 def _flatten_keys(value: dict[str, Any], prefix: str = "") -> set[str]:

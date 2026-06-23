@@ -56,7 +56,7 @@ const MOCK_PROVIDERS = [
 ]
 
 const MOCK_MODEL_ROUTES = [
-  { id: 'glm-4-7-nim', tier: 'reasoning', displayName: 'GLM-4.7', actualModel: 'z-ai/glm-4.7', provider: 'z-ai', providerLabel: 'z-ai SDK', isFree: true, health: 'healthy' },
+  { id: 'glm-5-2-zai', tier: 'reasoning', displayName: 'GLM-5.2', actualModel: 'z-ai/glm-5.2', provider: 'z-ai', providerLabel: 'z-ai SDK', isFree: true, health: 'healthy' },
   { id: 'deepseek-r1-free', tier: 'reasoning', displayName: 'DeepSeek R1 Free', actualModel: 'openrouter/deepseek/deepseek-r1:free', provider: 'openrouter', providerLabel: 'OpenRouter Free', isFree: true, health: 'healthy' },
   { id: 'qwen3-coder', tier: 'reasoning', displayName: 'Qwen3 Coder', actualModel: 'openrouter/qwen/qwen3-coder:free', provider: 'openrouter', providerLabel: 'OpenRouter Free', isFree: true, health: 'healthy' },
   { id: 'llama4-maverick', tier: 'balanced', displayName: 'Llama 4 Maverick', actualModel: 'openrouter/meta-llama/llama-4-maverick:free', provider: 'openrouter', providerLabel: 'OpenRouter Free', isFree: true, health: 'healthy' },
