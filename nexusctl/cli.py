@@ -526,6 +526,34 @@ def run_nexusclaw_dispatch_dry_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_models_list(refresh: bool) -> int:
+    """`nexusctl models` — list installed CLIs and current reachability."""
+    from nexusctl.model_sync import fetch_live_state, list_cli_inventory
+    state = fetch_live_state(refresh=refresh)
+    payload = list_cli_inventory(state)
+    _json_print(payload)
+    return 0 if (state.get("god_proxy_alive") or state.get("node_relay_alive")) else 2
+
+
+def run_model_sync(args: argparse.Namespace) -> int:
+    """`nexusctl model-sync` — sync live models/lanes to every CLI."""
+    from nexusctl import model_sync
+    argv: list[str] = []
+    if getattr(args, "refresh", False):
+        argv.append("--refresh")
+    if getattr(args, "dry_run", False):
+        argv.append("--dry-run")
+    only = getattr(args, "only", None)
+    if only:
+        argv.extend(["--only", only])
+    if getattr(args, "install_schedule", False):
+        argv.append("--install-schedule")
+    log = getattr(args, "log", None)
+    if log:
+        argv.extend(["--log", log])
+    return model_sync.main(argv if argv else None)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="nexusctl")
     subparsers = parser.add_subparsers(dest="command")
@@ -585,6 +613,15 @@ def main() -> int:
     dispatch.add_argument("--risk-level", required=True)
     dispatch.add_argument("--capability", action="append", default=[])
     dispatch.add_argument("--evidence-ref", action="append", default=[])
+
+    models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
+    models.add_argument("--refresh", action="store_true", help="Force upstream cache refresh before listing")
+    models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (opencode, kilo, cline, hermes, mimo)")
+    models_sync.add_argument("--refresh", action="store_true", help="Force upstream cache refresh first")
+    models_sync.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    models_sync.add_argument("--only", choices=["opencode", "mimo", "kilo", "cline", "hermes", "nexusctl"], help="Sync only this CLI")
+    models_sync.add_argument("--install-schedule", action="store_true", help="Install 1-hour Windows scheduled task for automatic model sync")
+    models_sync.add_argument("--log", default=None, help="Append JSON log to this path")
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -610,6 +647,10 @@ def main() -> int:
             return run_nexusclaw_status()
         if args.nexusclaw_command == "dispatch-dry-run":
             return run_nexusclaw_dispatch_dry_run(args)
+    if args.command == "models":
+        return run_models_list(args.refresh)
+    if args.command == "model-sync":
+        return run_model_sync(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 

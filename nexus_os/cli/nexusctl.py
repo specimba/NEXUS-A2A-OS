@@ -695,6 +695,39 @@ def cmd_model_lab(args):
     return 2
 
 
+def cmd_models_list(args):
+    """`nexusctl models` — list installed CLIs and current reachability."""
+    from nexusctl.model_sync import fetch_live_state, list_cli_inventory
+
+    state = fetch_live_state(refresh=getattr(args, "refresh", False))
+    if not state["god_proxy_alive"] and not state["node_relay_alive"]:
+        print("WARNING: Neither God Mode Proxy (7357) nor Node ModelRelay (7350) is reachable.")
+        print("Start them:")
+        print("  scripts\\start_node_relay.ps1")
+        print("  python -m nexus_os.relay.god_mode_proxy")
+    payload = list_cli_inventory(state)
+    print(json.dumps(payload, indent=2))
+    return 0 if (state.get("god_proxy_alive") or state.get("node_relay_alive")) else 2
+
+
+def cmd_model_sync(args):
+    """`nexusctl model-sync` — sync models + lanes to all CLIs."""
+    from nexusctl import model_sync
+
+    argv: list[str] = []
+    if getattr(args, "refresh", False):
+        argv.append("--refresh")
+    if getattr(args, "dry_run", False):
+        argv.append("--dry-run")
+    if getattr(args, "only", None):
+        argv.extend(["--only", args.only])
+    if getattr(args, "install_schedule", False):
+        argv.append("--install-schedule")
+    if getattr(args, "log", None):
+        argv.extend(["--log", args.log])
+    return model_sync.main(argv if argv else None)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nexusctl",
@@ -835,6 +868,26 @@ def main():
     sub.add_argument("--include-refusal", action="store_true", help="Include refusal probe tasks")
     sub.add_argument("--json", action="store_true", help="Emit JSON report")
     sub.set_defaults(func=cmd_eval)
+
+    # models — list installed CLIs and current reachability
+    sub = subparsers.add_parser(
+        "models",
+        help="List installed CLIs (opencode, kilo, cline, hermes, mimo) and current model/provider reachability",
+    )
+    sub.add_argument("--refresh", action="store_true", help="Force upstream God Mode Proxy + Node Relay cache refresh before reporting")
+    sub.set_defaults(func=cmd_models_list)
+
+    # model-sync — push live lanes/providers/models to every CLI
+    sub = subparsers.add_parser(
+        "model-sync",
+        help="Sync NEXUS relay providers + auto-routing lanes to all supported CLIs (opencode, kilo, cline, hermes, mimo)",
+    )
+    sub.add_argument("--refresh", action="store_true", help="Force upstream cache refresh first")
+    sub.add_argument("--dry-run", action="store_true", help="Preview without writing any file")
+    sub.add_argument("--only", choices=["opencode", "mimo", "kilo", "cline", "hermes", "nexusctl"], default=None, help="Sync only this CLI")
+    sub.add_argument("--install-schedule", action="store_true", help="Install/update the 1-hour Windows scheduled task for automatic model sync")
+    sub.add_argument("--log", default=None, help="Append JSON log to this path")
+    sub.set_defaults(func=cmd_model_sync)
 
     args = parser.parse_args()
 
