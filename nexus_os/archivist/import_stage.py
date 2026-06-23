@@ -33,6 +33,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from nexus_os.archivist.archivist import CATEGORIZE_TO_FILETYPE, categorize_file
+
 logger = logging.getLogger("nexus_os.archivist.import")
 
 
@@ -152,6 +154,7 @@ class ArchivistImporter:
         ext = file_path.suffix.lower()
         name = file_path.name.lower()
 
+        # Specific local classification first
         if ext == ".pdf":
             return FileType.PAPER
         if ext in {".txt", ".log", ".md"}:
@@ -182,6 +185,16 @@ class ArchivistImporter:
                         return FileType.LOG
             except Exception:
                 pass
+
+        # Fallback to shared categorization mapping
+        cat = categorize_file(str(file_path))
+        if cat in CATEGORIZE_TO_FILETYPE:
+            mapped = CATEGORIZE_TO_FILETYPE[cat]
+            if mapped != "UNKNOWN":
+                try:
+                    return FileType(mapped.lower())
+                except ValueError:
+                    pass
 
         return FileType.UNKNOWN
 
