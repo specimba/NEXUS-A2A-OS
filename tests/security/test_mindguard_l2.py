@@ -62,6 +62,7 @@ class TestMindGuardTAEComputation:
     """Test MindGuardClient._compute_tae for attention energy."""
 
     def test_tae_returns_dict(self):
+        pytest.importorskip("torch")
         import torch
         client = MindGuardClient.__new__(MindGuardClient)
         client.sink_filter_topk = 3
@@ -71,6 +72,7 @@ class TestMindGuardTAEComputation:
         assert isinstance(tae, dict)
 
     def test_tae_empty_decision_returns_empty(self):
+        pytest.importorskip("torch")
         import torch
         client = MindGuardClient.__new__(MindGuardClient)
         client.sink_filter_topk = 3
@@ -80,6 +82,7 @@ class TestMindGuardTAEComputation:
         assert tae == {}
 
     def test_tae_normalized(self):
+        pytest.importorskip("torch")
         import torch
         client = MindGuardClient.__new__(MindGuardClient)
         client.sink_filter_topk = 10

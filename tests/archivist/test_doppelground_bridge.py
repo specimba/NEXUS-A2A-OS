@@ -225,11 +225,17 @@ class TestInferSourceKind:
 
     def test_no_matching_tag_defaults_to_doc(self):
         """Unknown topic tags should default to 'doc'."""
-        record = CompiledRecordStub(topic_tags=["unknown_topic_xyz"])
+        record = CompiledRecordStub(
+            import_record=ImportRecordStub(file_type="unknown"),
+            topic_tags=["unknown_topic_xyz"]
+        )
         assert self.bridge.infer_source_kind(record) == "doc"
 
     def test_empty_tags_defaults_to_doc(self):
-        record = CompiledRecordStub(topic_tags=[])
+        record = CompiledRecordStub(
+            import_record=ImportRecordStub(file_type="unknown"),
+            topic_tags=[]
+        )
         assert self.bridge.infer_source_kind(record) == "doc"
 
 

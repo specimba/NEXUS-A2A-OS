@@ -98,6 +98,10 @@ class TestSessionAccumulator:
 # ======================== LOCAL INFERENCE ENGINE ========================
 
 class TestLocalInferenceEngine:
+    def setup_method(self):
+        pytest.importorskip("torch")
+        pytest.importorskip("transformers")
+
     def test_load_and_classify(self):
         model_dir = os.path.join(
             os.path.dirname(__file__), "..", "models", "meta_orchestrator_agent_guard"
@@ -165,6 +169,8 @@ class TestMetaOrchestratorGuard:
         assert guard.mode == OrchestratorMode.LOCAL_ONLY
 
     def test_classify_request(self):
+        pytest.importorskip("torch")
+        pytest.importorskip("transformers")
         model_dir = os.path.join(
             os.path.dirname(__file__), "..", "models", "meta_orchestrator_agent_guard"
         )
@@ -178,6 +184,8 @@ class TestMetaOrchestratorGuard:
         assert isinstance(result, dict)
 
     def test_analyze_session_benign(self):
+        pytest.importorskip("torch")
+        pytest.importorskip("transformers")
         model_dir = os.path.join(
             os.path.dirname(__file__), "..", "models", "meta_orchestrator_agent_guard"
         )
