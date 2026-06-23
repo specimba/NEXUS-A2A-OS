@@ -717,6 +717,90 @@ async def relay_chat(req: _ChatCompletionRequest, api_key: str = Depends(require
     return result
 
 
+# ── OpenAI-Compatible v1 Endpoints (for Build mode / OpenCode / KiloCode) ──────
+# These allow standard OpenAI-compatible clients to use Brain API (port 7352)
+# directly, instead of requiring the raw /api/relay/chat format.
+
+GOD_MODE_ALIASES_V1 = {
+    "auto-fastest", "auto-smart", "auto-code", "auto-reason", "auto-balanced",
+    "god-smart", "god-mode", "god-fast", "god-code", "god-1m", "god-reason", "auto",
+}
+
+_GOD_MODE_PROXY_URL = f"http://127.0.0.1:{int(os.environ.get('GOD_MODE_PORT', '7357'))}"
+
+
+@brain_app.post("/v1/chat/completions")
+async def v1_chat_completions(request: Request):
+    """OpenAI-compatible chat completions endpoint.
+    
+    Routes god-mode/auto profiles to the God Mode Proxy (port 7357),
+    and direct model names to the Node ModelRelay (port 7350).
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    model = body.get("model", "auto-fastest")
+    
+    # Determine target: God Mode Proxy for profiles, ModelRelay for direct models
+    if model in GOD_MODE_ALIASES_V1:
+        target_url = f"{_GOD_MODE_PROXY_URL}/v1/chat/completions"
+    else:
+        target_url = f"{_NODERELAY_BASE}/v1/chat/completions"
+    
+    # Forward the request with longer timeout for LLM responses
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            resp = await client.post(target_url, json=body)
+            
+            # Forward response headers
+            headers = {}
+            for k, v in resp.headers.items():
+                if k.lower().startswith("x-") or k.lower() == "content-type":
+                    headers[k] = v
+            headers["x-nexus-routed-via"] = "god-mode-proxy" if model in GOD_MODE_ALIASES_V1 else "node-relay"
+            
+            if resp.status_code >= 400:
+                return JSONResponse(
+                    content=resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"error": resp.text},
+                    status_code=resp.status_code,
+                    headers=headers,
+                )
+            
+            return JSONResponse(content=resp.json(), headers=headers)
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail=f"Relay unavailable for model '{model}'. Check that the relay is running.")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Relay error: {str(e)}")
+
+
+@brain_app.get("/v1/models")
+async def v1_models():
+    """OpenAI-compatible model listing endpoint."""
+    proxy = get_relay_proxy()
+    result = await proxy.list_models()
+    
+    # Inject god-mode profiles as virtual models
+    profiles = [
+        {"id": "auto-fastest", "object": "model", "owned_by": "nexus-god-mode", "description": "Fastest available model"},
+        {"id": "auto-smart", "object": "model", "owned_by": "nexus-god-mode", "description": "Highest intelligence model"},
+        {"id": "auto-code", "object": "model", "owned_by": "nexus-god-mode", "description": "Coding-optimized model"},
+        {"id": "auto-reason", "object": "model", "owned_by": "nexus-god-mode", "description": "Reasoning/thinking model"},
+        {"id": "auto-balanced", "object": "model", "owned_by": "nexus-god-mode", "description": "Balanced (quality + speed)"},
+        {"id": "god-smart", "object": "model", "owned_by": "nexus-god-mode", "description": "God Mode: highest intelligence"},
+        {"id": "god-mode", "object": "model", "owned_by": "nexus-god-mode", "description": "God Mode: balanced"},
+        {"id": "god-fast", "object": "model", "owned_by": "nexus-god-mode", "description": "God Mode: lowest latency"},
+        {"id": "god-code", "object": "model", "owned_by": "nexus-god-mode", "description": "God Mode: coding-optimized"},
+        {"id": "god-reason", "object": "model", "owned_by": "nexus-god-mode", "description": "God Mode: reasoning"},
+    ]
+    
+    if isinstance(result, dict) and "data" in result:
+        result["data"] = profiles + result["data"]
+    
+    return result
+
+
 # ── ModelRelay Model Selection via Orchestrator ────────────────────────────────
 
 @brain_app.get("/api/models")

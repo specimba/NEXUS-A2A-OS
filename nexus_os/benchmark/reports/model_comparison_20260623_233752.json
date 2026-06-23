@@ -1,0 +1,84 @@
+{
+  "report_metadata": {
+    "session_started": "2026-06-23T23:23:15.309310",
+    "generated_at": "2026-06-23T23:37:52.078124",
+    "total_models": 4,
+    "total_tasks": 40
+  },
+  "leaderboard": [
+    {
+      "rank": 1,
+      "model": "Baseten (GLM-5.2)",
+      "avg_score": 27.0625,
+      "avg_latency_ms": 3468.4,
+      "total_tokens": 6458,
+      "total_cost": 0.027723,
+      "category_scores": {
+        "reasoning": 27.5,
+        "code": 27.25,
+        "safety": 26.75,
+        "knowledge": 26.75
+      }
+    },
+    {
+      "rank": 2,
+      "model": "Baseten (Kimi-K2.7-Code)",
+      "avg_score": 26.3125,
+      "avg_latency_ms": 2008.1,
+      "total_tokens": 4694,
+      "total_cost": 0.005241,
+      "category_scores": {
+        "reasoning": 30.0,
+        "code": 20.75,
+        "safety": 26.25,
+        "knowledge": 28.25
+      }
+    },
+    {
+      "rank": 3,
+      "model": "Baseten (GLM-5.1)",
+      "avg_score": 25.625,
+      "avg_latency_ms": 3685.1,
+      "total_tokens": 6648,
+      "total_cost": 0.0,
+      "category_scores": {
+        "reasoning": 28.25,
+        "code": 24.75,
+        "safety": 23.75,
+        "knowledge": 25.75
+      }
+    },
+    {
+      "rank": 4,
+      "model": "LongCat (LongCat-2.0-Preview)",
+      "avg_score": 25.5,
+      "avg_latency_ms": 9666.4,
+      "total_tokens": 5427,
+      "total_cost": 0.0,
+      "category_scores": {
+        "reasoning": 30.0,
+        "code": 24.75,
+        "safety": 19.0,
+        "knowledge": 28.25
+      }
+    }
+  ],
+  "token_usage": {
+    "Baseten (GLM-5.2)": {
+      "total_tokens": 6458,
+      "total_cost": 0.027723
+    },
+    "Baseten (Kimi-K2.7-Code)": {
+      "total_tokens": 4694,
+      "total_cost": 0.005241
+    },
+    "Baseten (GLM-5.1)": {
+      "total_tokens": 6648,
+      "total_cost": 0.0
+    },
+    "LongCat (LongCat-2.0-Preview)": {
+      "total_tokens": 5427,
+      "total_cost": 0.0
+    }
+  }
+}

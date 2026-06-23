@@ -1,6 +1,6 @@
 """
-NEXUS God Mode Proxy v3 — Fallback chains, context-aware, provider diversity
-Port 7357 — Sits between opencode and modelrelay (port 7352)
+NEXUS God Mode Proxy v3.1 — Fallback chains, context-aware, provider diversity
+Port 7357 — Sits between opencode and modelrelay (port 7350)
 
 Profiles:
   god-smart    — Highest intelligence, tolerates high latency, 256k+ context preferred
@@ -10,6 +10,10 @@ Profiles:
   god-1m       — 1M+ context window REQUIRED (falls back to 256k+)
   god-reason   — Reasoning/thinking models, 128k+ context
   auto         — Same as Normal (balanced)
+  auto-fastest — Alias for god-fast (lowest latency)
+  auto-smart   — Alias for god-smart (highest intelligence)
+  auto-code    — Alias for god-code (coding-optimized)
+  auto-reason  — Alias for god-reason (reasoning/thinking)
 
 Features:
   - Fallback chain: tries up to 3 candidates, auto-retries on failure
@@ -120,13 +124,86 @@ GOD_PROFILES = {
         "min_intell": 0.40,
     },
 }
-GOD_MODE_KEYS = set(GOD_PROFILES.keys())
+
+# Aliases: short names that map to canonical profile keys
+GOD_MODE_ALIASES = {
+    "auto-fastest": "god-fast",
+    "auto-smart": "god-smart",
+    "auto-code": "god-code",
+    "auto-reason": "god-reason",
+    "auto-balanced": "god-mode",
+}
+GOD_MODE_KEYS = set(GOD_PROFILES.keys()) | set(GOD_MODE_ALIASES.keys())
+
+# Multi-lane aliases: same profile but force a different provider pool for redundancy
+# Each lane steers the scoring to prefer a different provider tier or set
+LANE_PROVIDER_PREFERENCES = {
+    "lane-baseten":   {"prefer_tier": [3], "require_provider": "openai-compatible:baseten"},
+    "lane-cloudflare": {"prefer_tier": [3], "require_provider": "cloudflare"},
+    "lane-groq":      {"prefer_tier": [3], "require_provider": "groq"},
+    "lane-mistral":   {"prefer_tier": [3], "require_provider": "openai-compatible:mistral"},
+    "lane-nvidia":    {"prefer_tier": [2], "require_provider": "nvidia"},
+    "lane-cerebras":  {"prefer_tier": [2], "require_provider": "cerebras"},
+    "lane-openrouter": {"prefer_tier": [2], "require_provider": "openrouter"},
+    "lane-kilocode":  {"prefer_tier": [3], "require_provider": "kilocode"},
+}
+
+LANE_ALIASES = {
+    # Each "auto" alias creates a redundant routing lane pinned to one provider
+    "auto-baseten":   "lane-baseten",
+    "auto-cloudflare": "lane-cloudflare",
+    "auto-groq":      "lane-groq",
+    "auto-mistral":   "lane-mistral",
+    "auto-nvidia":    "lane-nvidia",
+    "auto-cerebras":  "lane-cerebras",
+    "auto-openrouter": "lane-openrouter",
+    "auto-kilocode":  "lane-kilocode",
+    # Generic redundant lanes (no provider pin, just rotates differently)
+    "auto-lane-1": "god-fast",
+    "auto-lane-2": "god-mode",
+    "auto-lane-3": "god-smart",
+    "auto-lane-4": "god-code",
+}
+
+# Combine all auto aliases
+GOD_MODE_ALIASES.update(LANE_ALIASES)
+GOD_MODE_KEYS = set(GOD_PROFILES.keys()) | set(GOD_MODE_ALIASES.keys())
+
+
+def _resolve_profile(mode: str) -> str:
+    """Resolve an alias to its canonical god-mode profile key, or lane key."""
+    if mode in GOD_PROFILES:
+        return mode
+    if mode in LANE_ALIASES:
+        return LANE_ALIASES[mode]
+    return GOD_MODE_ALIASES.get(mode, mode)
+
+
+def _lane_preference(mode: str) -> dict:
+    """Returns lane provider preference dict, or empty dict if not a lane."""
+    return LANE_PROVIDER_PREFERENCES.get(_resolve_profile(mode), {})
+
+
+def _prefix_model_id(model_id: str, provider_key: str) -> str:
+    """Prefix a model ID with its provider key for reliable Node ModelRelay routing.
+    
+    The Node ModelRelay matches models by provider-qualified key first.
+    Without the prefix, some models (e.g. zai-org/GLM-5.1) may fail with 503
+    because the relay can't disambiguate across providers.
+    """
+    if not provider_key or not model_id:
+        return model_id
+    # Already prefixed — don't double-prefix
+    if model_id.startswith(f"{provider_key}/"):
+        return model_id
+    return f"{provider_key}/{model_id}"
 
 app = FastAPI(title="NEXUS God Mode Proxy v3")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Cache model state
 _cache = {"data": None, "ts": 0, "ttl": 3}
+_cache_fallbacks = {"data": None, "ts": 0, "ttl": 3}
 
 # Recent provider usage tracking (for diversity)
 _recent_provider_use = defaultdict(list)  # provider -> list of timestamps
@@ -153,18 +230,59 @@ async def get_models():
     now = time.time()
     if _cache["data"] is not None and (now - _cache["ts"]) < _cache["ttl"]:
         return _cache["data"]
-    try:
-        async with aiohttp.ClientSession() as s:
-            async with s.get(f"{MODELRELAY_API}/models", timeout=5) as r:
-                data = await r.json()
-        models = data.get("models", [])
+    # Try primary relay first
+    models = await _fetch_models_from(MODELRELAY_API)
+    if not models:
+        # Fall back to Python relay
+        models = await _fetch_models_from(f"{MODELRELAY_FALLBACK_URL}/api")
+    if models:
         _cache["data"] = models
         _cache["ts"] = now
-        return models
+    return models if models else (_cache["data"] if _cache["data"] else [])
+
+
+async def _fetch_models_from(api_base: str) -> list:
+    """Fetch models from a relay API. Returns list of model dicts."""
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.get(f"{api_base}/models", timeout=5) as r:
+                data = await r.json()
+        return data.get("models", [])
     except Exception:
-        if _cache["data"] is not None:
-            return _cache["data"]
         return []
+
+
+async def refresh_models_cache():
+    """Force-refresh the model cache. Used for dynamic discovery."""
+    _cache["ts"] = 0
+    return await get_models()
+
+
+def get_known_provider_pool() -> list[str]:
+    """Returns the static pool of known model providers for fallback chain selection.
+    Used as a last-resort source when live relays are down."""
+    return [
+        # Tier 3 (most reliable)
+        "openai-compatible:baseten",
+        "groq",
+        "cloudflare",
+        "kilocode",
+        "openai-compatible:mistral",
+        "openai-compatible:github",
+        "nvidia",
+        # Tier 2
+        "openrouter",
+        "cerebras",
+        "codestral",
+        "opencode",
+        # Tier 1
+        "googleai",
+        "openai-compatible:deepinfra",
+        "openai-compatible:sambanova",
+        "openai-compatible:fireworks",
+        "openai-compatible:siliconflow",
+        "internai",
+    ]
 
 
 def estimate_tokens(messages: list) -> int:
@@ -276,10 +394,11 @@ def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
         return round(total, 2)
 
 
-def select_candidates(models: list, profile: dict, messages: list, top_n: int = 5) -> List[Tuple[float, dict]]:
+def select_candidates(models: list, profile: dict, messages: list, top_n: int = 5, mode: str = None) -> List[Tuple[float, dict]]:
     """
     Select top N candidate models with fallback chains.
     Returns list of (score, model) tuples sorted by score descending.
+    Optional `mode` applies lane preferences for provider-pinned routes.
     """
     up = [m for m in models if m.get("status") == "up"]
     if not up:
@@ -289,6 +408,10 @@ def select_candidates(models: list, profile: dict, messages: list, top_n: int = 
     min_ctx = profile.get("min_ctx", 0)
     fallback_ctx = profile.get("fallback_ctx", 0)
     min_intell = profile.get("min_intell", 0.30)
+
+    # Apply lane preference: filter to required provider first
+    lane_pref = _lane_preference(mode) if mode else {}
+    require_provider = lane_pref.get("require_provider")
 
     # Filter by minimum intelligence
     candidates = [m for m in up if float(m.get("intell", 0) or 0) >= min_intell]
@@ -313,15 +436,24 @@ def select_candidates(models: list, profile: dict, messages: list, top_n: int = 
             candidates = coding
 
     if profile.get("name") == "Reason":
-        reason_keywords = {"reasoning", "thinking", "r1", "qwq", "o4", "o3", "deepseek-r1"}
+        reason_keywords = {"reasoning", "thinking", "r1", "qwq", "o4", "o3", "deepseek-r1", "glm-5", "kimi-k2", "think"}
         reason = [m for m in candidates if any(k in (m.get("label", "") + " " + m.get("modelId", "")).lower() for k in reason_keywords)]
         if reason:
             candidates = reason
+
+    # Lane filter: prefer pinned provider, but fall back to others if unavailable
+    if require_provider:
+        pinned = [m for m in candidates if m.get("providerKey") == require_provider]
+        if pinned:
+            candidates = pinned
 
     # Score all candidates
     scored = []
     for m in candidates:
         score = score_model(m, profile, estimated_tok)
+        # Lane bonus: extra weight for pinned provider when lane is active
+        if require_provider and m.get("providerKey") == require_provider:
+            score += 15.0
         scored.append((score, m))
 
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -336,8 +468,10 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
     if mode not in GOD_MODE_KEYS:
         return mode, None, []
 
-    profile = GOD_PROFILES.get(mode, GOD_PROFILES["god-mode"])
-    candidates = select_candidates(models, profile, messages, top_n=5)
+    # Resolve aliases (auto-fastest -> god-fast, etc.)
+    canonical_mode = _resolve_profile(mode)
+    profile = GOD_PROFILES.get(canonical_mode, GOD_PROFILES["god-mode"])
+    candidates = select_candidates(models, profile, messages, top_n=5, mode=mode)
 
     if not candidates:
         return None, {
@@ -451,7 +585,10 @@ def _explain_selection(m: dict, profile: dict, est_tok: int) -> str:
 async def forward_chat(body: dict, headers: dict, metadata: dict, fallback_chain: list, attempt: int = 1):
     """
     Forward chat request to modelrelay. On failure, try fallback chain.
-    Returns (response_data, response_headers, success)
+    Returns (response_data, response_headers, success, result_type)
+    
+    For non-streaming: result_type="json", response_data=dict
+    For streaming: result_type="stream", response_data=bytes (raw SSE body)
     """
     timeout = aiohttp.ClientTimeout(total=300)
     selected_model = body.get("model")
@@ -459,30 +596,37 @@ async def forward_chat(body: dict, headers: dict, metadata: dict, fallback_chain
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(MODELRELAY_CHAT, json=body, headers=headers) as resp:
+                god_headers = {
+                    "x-god-mode": "true",
+                    "x-god-profile": metadata.get("profile", "") if metadata else "",
+                    "x-selected-model": str(selected_model or ""),
+                    "x-attempt": str(attempt),
+                    "x-provider": metadata.get("provider", "") if metadata else "",
+                }
+
+                if resp.status >= 400:
+                    error_body = await resp.text()
+                    return {"error": error_body, "status": resp.status}, god_headers, False, f"HTTP {resp.status}: {error_body[:200]}"
+
                 if body.get("stream"):
-                    response_headers = dict(resp.headers)
-                    response_headers["x-god-mode"] = "true"
-                    response_headers["x-god-profile"] = metadata.get("profile", "") if metadata else ""
-                    response_headers["x-selected-model"] = selected_model
-                    response_headers["x-attempt"] = str(attempt)
-                    if metadata and metadata.get("provider"):
-                        response_headers["x-provider"] = metadata["provider"]
-                    return None, response_headers, True, "stream"
+                    # Read the full streamed body within the context manager
+                    raw_body = await resp.read()
+                    # Merge upstream headers we care about
+                    for k, v in resp.headers.items():
+                        kl = k.lower()
+                        if kl.startswith("content-type") or kl.startswith("x-"):
+                            god_headers[k] = v
+                    return raw_body, god_headers, True, "stream"
                 
                 data = await resp.json()
                 if metadata:
                     data["_god_mode"] = {**metadata, "attempt": attempt}
-                response_headers = {
-                    "x-god-mode": "true",
-                    "x-god-profile": metadata.get("profile", "") if metadata else "",
-                    "x-selected-model": selected_model,
-                    "x-attempt": str(attempt),
-                    "x-provider": metadata.get("provider", "") if metadata else "",
+                god_headers.update({
                     "x-model-intell": str(metadata.get("intelligence", "")) if metadata else "",
                     "x-model-latency": str(metadata.get("latency_ms", "")) if metadata else "",
                     "x-model-context": str(metadata.get("context", "")) if metadata else "",
-                }
-                return data, response_headers, True, "json"
+                })
+                return data, god_headers, True, "json"
     except Exception as e:
         return None, {}, False, str(e)
 
@@ -502,15 +646,18 @@ async def chat_completions(request: Request):
     fallback_chain = []
 
     if model in GOD_MODE_KEYS:
+        canonical = _resolve_profile(model)
         models = await get_models()
         selected, meta, fallback_chain = select_model(models, model, messages)
         if selected is None:
             return JSONResponse({
                 "error": meta.get("error", "No model available"),
-                "_god_mode": {**meta, "mode": model, "profile": GOD_PROFILES.get(model, {}).get("name", "Unknown")}
+                "_god_mode": {**meta, "mode": model, "profile": GOD_PROFILES.get(canonical, {}).get("name", "Unknown")}
             }, status_code=503)
-        body["model"] = selected
-        _record_provider_use(meta.get("provider", "unknown"))
+        # Prefix model ID with provider key for reliable Node ModelRelay routing
+        provider_key = meta.get("provider", "") if meta else ""
+        body["model"] = _prefix_model_id(selected, provider_key)
+        _record_provider_use(provider_key or "unknown")
     else:
         meta = {"mode": "passthrough", "model": model, "profile": "Direct"}
         selected = model
@@ -527,7 +674,10 @@ async def chat_completions(request: Request):
     if not success and fallback_chain:
         for i, fallback in enumerate(fallback_chain):
             attempt = i + 2
-            body["model"] = fallback["model_id"]
+            # Prefix fallback model ID with provider key for reliable routing
+            fb_provider = fallback.get("provider", "")
+            fb_model = fallback["model_id"]
+            body["model"] = _prefix_model_id(fb_model, fb_provider)
             fallback_meta = {
                 **fallback,
                 "profile": meta.get("profile", "Fallback") if meta else "Fallback",
@@ -557,11 +707,14 @@ async def chat_completions(request: Request):
         }, status_code=502)
 
     if result_type == "stream":
-        return StreamingResponse(
-            result.content.iter_chunks() if hasattr(result, 'content') else iter([]),
+        # result is raw bytes (pre-read SSE body from forward_chat)
+        from starlette.responses import Response
+        content_type = resp_headers.get("content-type", resp_headers.get("Content-Type", "text/event-stream"))
+        return Response(
+            content=result,
             status_code=200,
             headers=resp_headers,
-            media_type="text/event-stream"
+            media_type=content_type,
         )
 
     return JSONResponse(result, headers=resp_headers)
@@ -593,6 +746,25 @@ async def list_models():
             "status": "up",
         })
 
+    for alias, target in LANE_ALIASES.items():
+        pinned = LANE_PROVIDER_PREFERENCES.get(target, {}).get("require_provider")
+        if pinned:
+            display_name = f"Auto Lane → {pinned}"
+            desc = f"Provider-pinned auto-routing lane to {pinned} (via {target})"
+        else:
+            display_name = f"Auto Lane → {GOD_PROFILES.get(target, {}).get('name', target)}"
+            desc = f"Redundant auto-routing lane via {target}"
+        model_list.append({
+            "id": alias,
+            "object": "model",
+            "display_name": display_name,
+            "description": desc,
+            "owned_by": "nexus-god-mode",
+            "status": "up",
+            "lane_target": target,
+            "pinned_provider": pinned,
+        })
+
     up_count = sum(1 for m in raw if m.get("status") == "up")
     return JSONResponse({
         "object": "list",
@@ -602,6 +774,8 @@ async def list_models():
             "online": up_count,
             "providers": len(set(m.get("providerKey") for m in raw)),
             "god_mode_available": up_count > 0,
+            "lanes": len(LANE_ALIASES),
+            "auto_aliases": len(GOD_MODE_ALIASES),
         }
     })
 
@@ -719,17 +893,83 @@ async def health():
     return {"status": "ok", "models_up": up, "total": len(models), "proxy_version": "v3"}
 
 
+@app.post("/god/refresh")
+async def refresh_discovery():
+    """Force refresh of model cache (dynamic discovery).
+
+    Use this to pick up new models added by providers since startup,
+    or to drop stale models that have gone offline.
+    """
+    old_models = _cache.get("data") or []
+    old_ids = {m.get("modelId") for m in old_models}
+    old_providers = {m.get("providerKey") for m in old_models}
+
+    models = await refresh_models_cache()
+    new_ids = {m.get("modelId") for m in models}
+    new_providers = {m.get("providerKey") for m in models}
+
+    added_models = new_ids - old_ids
+    removed_models = old_ids - new_ids
+    added_providers = new_providers - old_providers
+    removed_providers = old_providers - new_providers
+
+    up = sum(1 for m in models if m.get("status") == "up")
+    return JSONResponse({
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "total_models": len(models),
+        "models_up": up,
+        "added_models": sorted(added_models)[:50],
+        "removed_models": sorted(removed_models)[:50],
+        "added_providers": sorted(added_providers),
+        "removed_providers": sorted(removed_providers),
+        "cache_age_seconds": time.time() - _cache.get("ts", 0),
+        "proxy_version": "v3.1",
+    })
+
+
+@app.get("/god/lanes")
+async def list_lanes():
+    """List all available routing lanes (auto-* aliases) with their preferences."""
+    lanes = []
+    for alias, target in sorted(LANE_ALIASES.items()):
+        is_lane_pinned = target in LANE_PROVIDER_PREFERENCES
+        lanes.append({
+            "alias": alias,
+            "target": target,
+            "profile": GOD_PROFILES.get(target, {}).get("name", "Unknown"),
+            "pinned_provider": LANE_PROVIDER_PREFERENCES.get(target, {}).get("require_provider") if is_lane_pinned else None,
+            "description": (
+                f"Provider-pinned lane to {LANE_PROVIDER_PREFERENCES[target]['require_provider']}"
+                if is_lane_pinned
+                else f"Generic lane routing to {target}"
+            ),
+        })
+    return JSONResponse({
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "total_lanes": len(lanes),
+        "lanes": lanes,
+        "auto_aliases": sorted(set(GOD_MODE_ALIASES.keys())),
+    })
+
+
 if __name__ == "__main__":
     print("=" * 60)
-    print(" NEXUS God Mode Proxy v3 — Fallback chains + Diversity")
+    print(" NEXUS God Mode Proxy v3.1 — Multi-lane routing + dynamic discovery")
     print("=" * 60)
     print(f"  ModelRelay:   {MODELRELAY_URL}")
     print(f"  Proxy port:   7357")
     print(f"  Chat URL:     http://localhost:7357/v1/chat/completions")
     print(f"  Profiles:     http://localhost:7357/god/profiles")
+    print(f"  Lanes:        http://localhost:7357/god/lanes")
+    print(f"  Refresh:      POST http://localhost:7357/god/refresh")
     print(f"  Status:       http://localhost:7357/god/status")
     print()
     for key, profile in GOD_PROFILES.items():
         print(f"  {key:15s} — {profile['name']:<10s} (intell:{profile['intell_weight']:>2d}% latency:{profile['latency_weight']:>2d}% ctx:{profile['ctx_weight']:>2d}%)")
+    print()
+    print(f"  Routing lanes ({len(LANE_ALIASES)}):")
+    for alias, target in sorted(LANE_ALIASES.items()):
+        pinned = LANE_PROVIDER_PREFERENCES.get(target, {}).get("require_provider", "(no pin)")
+        print(f"    {alias:20s} -> {target:12s} [pinned: {pinned}]")
     print("=" * 60)
     uvicorn.run(app, host="127.0.0.1", port=7357, log_level="warning")
