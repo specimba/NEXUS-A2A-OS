@@ -55,6 +55,7 @@ PROVIDER_TIER = {
     "opencode": 2,             # Free tier, some models limited
     "nvidia": 2,               # NIM, 40 req/min, phone verify required
     "openai-compatible:github": 2,  # GitHub Models, free but restrictive
+    "openai-compatible:baseten": 3, # Premium Baseten models
     "openai-compatible:deepinfra": 1,  # Trial credits, rate limited
     "openai-compatible:fireworks": 1,  # $1 trial, VERY limited budget
     "openai-compatible:sambanova": 1,  # $5 trial, limited
