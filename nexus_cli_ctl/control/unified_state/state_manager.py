@@ -151,11 +151,14 @@ class UnifiedStateManager:
             # NOTE: Topic format is "section.key". Nested keys like "wiki.pages.index"
             # are stored as self._state["wiki"]["pages.index"] = data (flat, not nested).
             # For nested state, use the section directly: topic="wiki" stores full dict.
-            section, key = topic.split('.', 1) if '.' in topic else (topic, '_')
+            section, key = topic.split('.', 1) if '.' in topic else (topic, None)
             if section not in self._state:
                 self._state[section] = {}
             if isinstance(self._state[section], dict):
-                self._state[section][key] = data
+                if key is None:
+                    self._state[section].update(data)
+                else:
+                    self._state[section][key] = data
 
             self._state["metrics"]["total_events"] += 1
             self._state["metrics"]["last_heartbeat"] = datetime.now().isoformat()

@@ -48,6 +48,7 @@ TIER_PRIMARY = {
     "name": "primary_rotation",
     "models": [
         ("nim", "z-ai/glm-5.1", "NVIDIA NIM GLM 5.1 — 91% intell, 202k ctx, best frontier"),
+        ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — newer GLM, reasoning opt-in, 131k ctx, $1.50/M input"),
         ("nim", "nvidia/nemotron-3-ultra-550b-a55b", "NVIDIA NIM Nemotron 3 Ultra — 550B MoE, 1M ctx, Mamba-Transformer hybrid"),
     ],
     "rotation_strategy": "alternate_on_quota_or_rate_limit",
@@ -76,8 +77,23 @@ TIER_SPECIALIST = {
         ("kilocode", "nvidia/nemotron-3-super-120b-a12b:free", "Nemotron 3 Super 120B — emergency only"),
         ("ollama-cloud", "qwen3-coder:480b", "Qwen3 Coder 480B — code specialist"),
         ("ollama-cloud", "devstral-small-2:24b", "Devstral Small 24B — code agent"),
+        ("baseten", "moonshotai/Kimi-K2.7-Code", "Baseten Kimi K2.7 Code — 262k ctx, tools/structured, $0.40/M input"),
     ],
     "purpose": "code, SWE-bench, agentic tasks",
+}
+
+# Tier 3.5: EVALUATION — benchmark comparison runs, model scoring
+# LongCat and Baseten models used as judges/reviewers for NEXUS-Bench
+# Track per-model token usage for quota management and feedback reporting
+TIER_EVAL = {
+    "name": "evaluation_pool",
+    "models": [
+        ("longcat", "LongCat-2.0-Preview", "LongCat — 560B MoE, 128K output, benchmark judge"),
+        ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — reasoning scorer, $1.50/M input"),
+        ("baseten", "moonshotai/Kimi-K2.7-Code", "Baseten Kimi K2.7 Code — code+reasoning evaluator"),
+    ],
+    "purpose": "cross-model benchmark comparisons, teacher/eval/review, feedback generation",
+    "use_when": "running NEXUS-Bench, scoring model outputs, generating usage reports",
 }
 
 # Tier 4: HIGH-STAKES — NEXUSCLAW, Brain, security probes

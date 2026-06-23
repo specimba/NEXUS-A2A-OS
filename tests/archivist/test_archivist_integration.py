@@ -57,12 +57,12 @@ class TestFullPipeline:
 
         for i in range(5):
             (source_dir / f"trust_scoring_{i}.txt").write_text(
-                "Trust scoring and reputation system with Bayesian updates\n" + "word " * 300,
+                f"Trust scoring({i}) and reputation system with Bayesian updates\n" + "word " * 300,
                 encoding="utf-8",
             )
         for i in range(3):
             (source_dir / f"memory_consolidation_{i}.txt").write_text(
-                "Memory consolidation and episodic retrieval systems\n" + "word " * 300,
+                f"Memory consolidation({i}) and episodic retrieval systems\n" + "word " * 300,
                 encoding="utf-8",
             )
 

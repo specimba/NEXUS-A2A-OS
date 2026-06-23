@@ -104,7 +104,7 @@ def should_exclude(path: Path) -> bool:
 def scan_directory(dir_path: Path, max_depth: int = 3, max_size_mb: int = 100) -> list:
     """Recursively scan directory, return list of file metadata."""
     files = []
-    if not dir_path.exists():
+    if not os.path.isdir(str(dir_path)):
         return files
     count = 0
     try:
@@ -132,7 +132,7 @@ def scan_directory(dir_path: Path, max_depth: int = 3, max_size_mb: int = 100) -
                     count += 1
                     if count % 500 == 0:
                         logger.debug("Scanned %d files", count)
-                except Exception as e:
+                except (PermissionError, OSError) as e:
                     logger.debug("Failed to stat %s: %s", fpath, e)
     except Exception as e:
         logger.warning("Error scanning %s: %s", dir_path, e)
@@ -165,6 +165,8 @@ def categorize_file(path: str) -> str:
             return 'documentation'
         else:
             return 'documentation'
+    elif p.endswith('.log'):
+        return 'log'
     elif p.endswith('.txt'):
         if 'log' in p:
             return 'log'

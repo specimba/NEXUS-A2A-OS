@@ -53,15 +53,20 @@ class ImportRecordStub:
     errors: List[str] = field(default_factory=list)
 
 
-# Patch imports
+# Patch imports — isolate mock to this file only, preserve real module identity
 import sys
+import importlib
+
+# Pre-load real modules so their identities persist in sys.modules
+import nexus_os.archivist.import_stage as _real_import_stage
+_real_compile = importlib.import_module('nexus_os.archivist.compile')
 
 mock_import_stage = MagicMock()
 mock_import_stage.FileType = FileTypeStub
 mock_import_stage.AdmissionClass = AdmissionClassStub
 mock_import_stage.ImportRecord = ImportRecordStub
 
-sys.modules.setdefault('nexus_os.archivist.import_stage', mock_import_stage)
+sys.modules['nexus_os.archivist.import_stage'] = mock_import_stage
 
 from nexus_os.archivist.compile import (
     TOPIC_KEYWORDS,
@@ -69,6 +74,15 @@ from nexus_os.archivist.compile import (
     CompiledRecord,
     CompileStats,
 )
+
+# Restore real modules in sys.modules — do NOT leave stale mock/delete holes
+sys.modules['nexus_os.archivist.import_stage'] = _real_import_stage
+sys.modules['nexus_os.archivist.compile'] = _real_compile
+
+# Use autouse fixture to apply mocks during test execution only
+@pytest.fixture(autouse=True)
+def apply_mocks(monkeypatch):
+    monkeypatch.setitem(sys.modules, 'nexus_os.archivist.import_stage', mock_import_stage)
 
 
 class TestTopicKeywords14:
@@ -185,19 +199,19 @@ class TestBuildBacklinks:
 
 
 class TestGetStatsReturnsCompileStats:
-    """Test that get_stats() returns a CompileStats instance."""
+    """Test that get_stats() returns a dict."""
 
     def setup_method(self):
         self.compiler = ArchivistCompiler()
 
-    def test_returns_compile_stats_type(self):
+    def test_returns_dict(self):
         stats = self.compiler.get_stats()
-        assert isinstance(stats, CompileStats)
+        assert isinstance(stats, dict)
 
-    def test_includes_backlinks_field(self):
+    def test_includes_backlinks_key(self):
         stats = self.compiler.get_stats()
-        assert hasattr(stats, 'backlinks')
-        assert stats.backlinks == 0  # No compile_batch called yet
+        assert 'backlinks' in stats
+        assert stats['backlinks'] == 0  # No compile_batch called yet
 
 
 class TestTagTopics14:

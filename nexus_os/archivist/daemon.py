@@ -240,6 +240,7 @@ class ArchivistDaemon:
         if self._running:
             logger.warning("Daemon already running")
             return
+        self._running = True
         self._thread = threading.Thread(target=self.run_continuous, name="archivist-daemon", daemon=True)
         self._thread.start()
         logger.info("ARCHIVIST daemon thread started")

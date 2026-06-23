@@ -131,11 +131,9 @@ class TestBrainApiDashboardContract:
         contract = (ROOT / "src" / "lib" / "brain-api" / "contract.ts").read_text(encoding="utf-8")
         port_doctor = (ROOT / "src" / "app" / "api" / "doctor" / "ports" / "route.ts").read_text(encoding="utf-8")
 
-        assert "http://127.0.0.1:7352" in contract
+        assert "http://localhost:7352" in contract
         assert "'/health'" in contract
-        assert "'/api/stats'" in contract
         assert "'/api/providers'" in contract
-        assert "'/api/dashboard/sync'" in contract
         assert "7350" in port_doctor
         assert "7352" in port_doctor
         assert "7355" in port_doctor

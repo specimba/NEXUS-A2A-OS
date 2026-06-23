@@ -90,7 +90,7 @@ class TestDossierCountFallback:
         monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
         monkeypatch.setattr(
             "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
-            tmp_path / "no_state_file.json",
+            tmp_path / "wiki_state.json",
         )
 
         wiki_output = tmp_path.parent / "wiki_output"
@@ -98,6 +98,11 @@ class TestDossierCountFallback:
         (wiki_output / "dossier_trust.md").write_text("# Trust Dossier", encoding="utf-8")
         (wiki_output / "dossier_memory.md").write_text("# Memory Dossier", encoding="utf-8")
         (wiki_output / "dossier_security.md").write_text("# Security Dossier", encoding="utf-8")
+
+        # Create state file with dossier_count=0 to trigger fallback
+        (tmp_path / "wiki_state.json").write_text(
+            json.dumps({"dossier_count": 0}), encoding="utf-8",
+        )
 
         pipeline = WikiPipeline()
         pipeline._build_index()

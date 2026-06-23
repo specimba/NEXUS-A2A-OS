@@ -92,7 +92,7 @@ class TestWikiStateSync:
                 
         wp._wiki_index = {"test": {"path": "test.md", "mtime": 1000.0}}
         
-        with patch.object(wp, '_read_file_content', return_value="# Updated Content"):
+        with patch('pathlib.Path.read_text', return_value="# Updated Content"):
             with patch('pathlib.Path.stat') as mock_stat:
                 mock_stat.return_value = MagicMock(st_mtime=2000.0)
                 with patch('pathlib.Path.exists', return_value=True):
@@ -253,7 +253,7 @@ class TestCompileBatchEndToEnd:
             assert compiler._last_backlinks == 0
             
             stats = compiler.get_stats()
-            assert stats.backlinks == 0
+            assert stats["backlinks"] == 0
 
 
 # =============================================================================

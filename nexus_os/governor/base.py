@@ -78,7 +78,7 @@ class NexusGovernor:
         self.db = db
         self.kaiju = kaiju or KaijuAuthorizer()
         self.compliance_engine = compliance_engine
-        self._cva_verifier = _CVAVerifier() if enable_cva else None
+        self._cva_verifier = _CVAVerifier(db) if enable_cva else None
         self.token_guard = token_guard or TokenGuard()
         self.trust_kernel = trust_kernel
         self._budget_warning_threshold = 0.75   # 75% → warn via VAP context
@@ -361,26 +361,128 @@ class NexusGovernor:
         return self.kaiju.resolve_hold(trace_id, decision)
 
 
+import json
+import yaml
+from pathlib import Path
+
+import json
+import yaml
+from pathlib import Path
+
+import json
+import yaml
+import fnmatch
+from pathlib import Path
+
 class _CVAVerifier:
     """
-    Core Value Alignment verifier (stub).
+    Core Value Alignment verifier.
 
-    In production, this checks agent traits against project-defined
-    value constraints (e.g., "no destructive actions without approval").
-    The stub allows all actions by default — real implementation
-    would query the agent_registry and project_config tables.
+    Checks agent traits against project-defined value constraints
+    and constitution rules (prohibited actions, risk rules).
     """
+
+    def __init__(self, db: DatabaseManager):
+        self.db = db
+        self.constitution_path = Path(__file__).parent / "constitution.yaml"
+        self.constitution = self._load_constitution()
+
+    def _load_constitution(self) -> Dict[str, Any]:
+        try:
+            if self.constitution_path.exists():
+                with open(self.constitution_path, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+        except Exception as e:
+            logger.error("CVA: Failed to load constitution.yaml: %s", e)
+        return {}
 
     def verify_alignment(
         self, agent_id: str, action: str, context: Dict[str, Any]
     ) -> tuple:
         """
-        Check if the agent's traits align with the action type.
+        Check if the agent's traits align with the action type and constraints.
 
         Returns:
             (is_aligned: bool, reason: str)
         """
-        # Stub: all actions pass CVA verification.
-        # Production: query agent_registry.traits, compare with
-        # project_config.value_constraints, check action compatibility.
+        # 1. Prohibited Actions Check
+        prohibited = self.constitution.get("prohibited_actions", [])
+        action_lower = action.lower()
+        for pattern in prohibited:
+            pat_lower = pattern.lower()
+            if fnmatch.fnmatch(action_lower, pat_lower) or pat_lower in action_lower:
+                return False, f"Action matches prohibited pattern '{pattern}'"
+
+        # 2. Retrieve Agent Traits from Database
+        traits = []
+        
+        # Default traits for admin/system to prevent bootstrap lockouts
+        if agent_id in ("admin", "system", "supervisor"):
+            traits = ["admin", "authority", "supervisor", "trusted_contributor"]
+        else:
+            try:
+                conn = self.db.get_connection()
+                row = None
+                if hasattr(conn, "cursor"):
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT traits, capabilities FROM agent_registry WHERE agent_id = ?", (agent_id,))
+                    row = cursor.fetchone()
+                else:
+                    # Fallback for simple/mock DB adapters
+                    res = conn.execute("SELECT traits, capabilities FROM agent_registry WHERE agent_id = ?", (agent_id,))
+                    row = res.fetchone() if hasattr(res, "fetchone") else None
+                    
+                if row:
+                    traits_raw, caps_raw = row[0], row[1]
+                    if traits_raw:
+                        traits_raw = traits_raw.strip()
+                        if traits_raw.startswith("[") and traits_raw.endswith("]"):
+                            try:
+                                traits = json.loads(traits_raw)
+                            except Exception:
+                                traits = [t.strip() for t in traits_raw[1:-1].split(",") if t.strip()]
+                        else:
+                            traits = [t.strip() for t in traits_raw.split(",") if t.strip()]
+                    elif caps_raw:
+                        try:
+                            caps = json.loads(caps_raw)
+                            if isinstance(caps, dict):
+                                traits = caps.get("traits", [])
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.error("CVA: Error fetching traits for agent %s: %s", agent_id, e)
+
+        # Ensure traits is a list
+        if not isinstance(traits, list):
+            traits = [traits] if traits else []
+
+        traits_lower = [str(t).lower() for t in traits]
+
+        # 3. Trait-to-Risk Mapping Verification
+        risk_rules = self.constitution.get("risk_rules", [])
+        risk_level = "LOW"
+        for rule in risk_rules:
+            patterns = [p.strip().lower() for p in rule.get("pattern", "").split(",") if p.strip()]
+            for pat in patterns:
+                if fnmatch.fnmatch(action_lower, pat) or pat in action_lower:
+                    current_risk = rule.get("risk", "LOW")
+                    if current_risk == "CRITICAL":
+                        risk_level = "CRITICAL"
+                    elif current_risk == "HIGH" and risk_level != "CRITICAL":
+                        risk_level = "HIGH"
+                    elif current_risk == "MEDIUM" and risk_level not in ("HIGH", "CRITICAL"):
+                        risk_level = "MEDIUM"
+
+        # Check alignment based on risk level
+        if risk_level == "CRITICAL":
+            allowed_traits = {"authority", "supervisor", "admin", "trusted_contributor"}
+            if not allowed_traits.intersection(traits_lower):
+                return False, f"CRITICAL risk action '{action}' requires one of {list(allowed_traits)}, but agent traits are {traits}"
+
+        elif risk_level in ("HIGH", "MEDIUM"):
+            allowed_traits = {"reviewer", "analyst", "coder", "contributor", "authority", "supervisor", "admin", "trusted_contributor"}
+            if not allowed_traits.intersection(traits_lower):
+                return False, f"{risk_level} risk action '{action}' requires traits, but agent traits are empty or unaligned: {traits}"
+
         return True, "OK"

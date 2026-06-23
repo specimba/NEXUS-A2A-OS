@@ -48,7 +48,8 @@ class DGSourceKind(str, Enum):
     GOLDEN_DATASET = "golden_dataset"
 
 
-# Channel mapping: source_kind → NEXUS vault memory channel number
+# Channel mapping: source_kind → NEXUS vault memory channel (integer channel numbers)
+# 2=episodic, 3=semantic, 4=procedural, 5=trust, 6=task, 7=meta
 SOURCE_KIND_TO_CHANNEL: Dict[str, int] = {
     # governance → TRUST (5)
     DGSourceKind.RULES.value: 5,
@@ -70,13 +71,20 @@ SOURCE_KIND_TO_CHANNEL: Dict[str, int] = {
     DGSourceKind.GOLDEN_DATASET.value: 7,
 }
 
+# Integer reverse-lookup for stats/logging (channel name → number)
+CHANNEL_NAME_TO_NUM: Dict[str, int] = {
+    "sensory": 0, "working": 1, "episodic": 2, "semantic": 3,
+    "procedural": 4, "trust": 5, "task": 6, "meta": 7,
+}
+
 
 @dataclass
 class BridgeResult:
     """Result of bridging a single record to the vault."""
     source_kind: str
     target_channel: int
-    record_id: Optional[str]  # ChannelRecord.record_id if write succeeded
+    target_channel_name: str
+    record_id: Optional[str]
     accepted: bool
     reason: str = ""
 
@@ -91,12 +99,14 @@ class DoppelGroundBridge:
     IMPORTANT: This module must NEVER write back to DG. DG→NEXUS is one-way.
     """
 
-    def __init__(self, trust_score_default: float = 75.0):
+    def __init__(self, trust_score_default: float = 90.0):
         """Initialize bridge.
         
         Args:
             trust_score_default: Default trust score for vault writes.
-                Must be >= 65 (the SEMANTIC channel trust gate) or writes will fail.
+                Must be >= 65 (SEMANTIC), >= 80 (PROCEDURAL), or >= 90 (TRUST) 
+                or writes to gated channels will return None.
+                Default 90.0 passes all current channel trust gates.
         """
         self._trust_default = trust_score_default
         self._stats = {
@@ -146,7 +156,6 @@ class DoppelGroundBridge:
             from nexus_os.archivist.import_stage import FileType
             ft = compiled_record.import_record.file_type
             ft_map = {
-                FileType.CODE: DGSourceKind.CODE.value,
                 FileType.CONFIG: DGSourceKind.CONFIG.value,
                 FileType.PROMPT: DGSourceKind.ROLE.value,
                 FileType.BENCHMARK: DGSourceKind.GOLDEN_DATASET.value,
@@ -170,21 +179,21 @@ class DoppelGroundBridge:
             BridgeResult with acceptance status and record ID.
         """
         source_kind = self.infer_source_kind(compiled_record)
-        channel_num = SOURCE_KIND_TO_CHANNEL.get(source_kind, 3)  # default SEMANTIC
+        channel_num = SOURCE_KIND_TO_CHANNEL.get(source_kind, 3)  # default SEMANTIC=3
+        channel_name = next(
+            (name for name, num in CHANNEL_NAME_TO_NUM.items() if num == channel_num),
+            "semantic",
+        )
         
-        try:
-            from nexus_os.vault.memory_channels import MemoryChannel
-            channel = MemoryChannel(channel_num)
-        except (ValueError, KeyError):
-            channel = MemoryChannel.SEMANTIC
-            channel_num = 3
+        from nexus_os.vault.memory_channels import MemoryChannel
+        channel = MemoryChannel(channel_name)
 
         # Build content from the compiled record
         ir = compiled_record.import_record
         content_parts = [
             f"[DG→NEXUS] Source: {ir.file_path}",
             f"Title: {ir.title or 'untitled'}",
-            f"Type: {ir.file_type.value}",
+            f"Type: {getattr(ir.file_type, 'value', ir.file_type)}",
             f"Priority: {ir.priority}",
             f"Topics: {', '.join(compiled_record.topic_tags or [])}",
         ]
@@ -268,6 +277,7 @@ class DoppelGroundBridge:
                 return BridgeResult(
                     source_kind=source_kind,
                     target_channel=channel_num,
+                    target_channel_name=channel_name,
                     record_id=record_id,
                     accepted=True,
                 )
@@ -276,6 +286,7 @@ class DoppelGroundBridge:
                 return BridgeResult(
                     source_kind=source_kind,
                     target_channel=channel_num,
+                    target_channel_name=channel_name,
                     record_id=None,
                     accepted=False,
                     reason="vault_write_returned_none_trust_gate_blocked",
@@ -287,6 +298,7 @@ class DoppelGroundBridge:
             return BridgeResult(
                 source_kind=source_kind,
                 target_channel=channel_num,
+                target_channel_name=channel_name,
                 record_id=None,
                 accepted=False,
                 reason=f"exception: {e}",
@@ -343,6 +355,7 @@ class DoppelGroundBridge:
                     results.append(BridgeResult(
                         source_kind="dossier",
                         target_channel=3,
+                        target_channel_name="SEMANTIC",
                         record_id=record_id,
                         accepted=True,
                     ))
@@ -351,6 +364,7 @@ class DoppelGroundBridge:
                     results.append(BridgeResult(
                         source_kind="dossier",
                         target_channel=3,
+                        target_channel_name="SEMANTIC",
                         record_id=None,
                         accepted=False,
                         reason="vault_write_returned_none_trust_gate_blocked",
@@ -362,6 +376,7 @@ class DoppelGroundBridge:
                 results.append(BridgeResult(
                     source_kind="dossier",
                     target_channel=3,
+                    target_channel_name="SEMANTIC",
                     record_id=None,
                     accepted=False,
                     reason=f"exception: {e}",

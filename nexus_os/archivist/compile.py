@@ -88,7 +88,8 @@ class ArchivistCompiler:
 
     def tag_topics(self, record: ImportRecord) -> List[str]:
         """Tag record with semantic topics based on title and filename."""
-        text = f"{record.title or ''} {record.file_path} {record.file_type.value}".lower()
+        file_type_str = record.file_type.value if hasattr(record.file_type, 'value') else str(record.file_type)
+        text = f"{record.title or ''} {record.file_path} {file_type_str}".lower()
         tags = []
         for topic, keywords in TOPIC_KEYWORDS.items():
             if any(kw in text for kw in keywords):
@@ -292,8 +293,8 @@ class ArchivistCompiler:
         """Filter records that meet wiki admission criteria."""
         return [c for c in compiled if c.is_wiki_admissible]
 
-    def get_stats(self, compiled: Optional[List[CompiledRecord]] = None) -> CompileStats:
-        """Return compile statistics as typed snapshot."""
+    def get_stats(self, compiled: Optional[List[CompiledRecord]] = None) -> Dict:
+        """Return compile statistics as a dict."""
         if compiled is None:
             compiled = [r for candidates in self._dossier_candidates.values() for r in candidates]
         stats = CompileStats(
@@ -304,4 +305,4 @@ class ArchivistCompiler:
             errors=sum(len(c.compile_errors) for c in compiled),
             backlinks=self._last_backlinks,
         )
-        return stats
+        return stats.to_dict()

@@ -123,10 +123,11 @@ class TestTopicTagging:
         tags = compiler.tag_topics(r)
         assert "security" in tags
 
-    def test_all_eight_topics_in_keywords(self):
-        assert len(TOPIC_KEYWORDS) == 8
+    def test_all_fourteen_topics_in_keywords(self):
+        assert len(TOPIC_KEYWORDS) == 14
         expected = {"trust", "memory", "security", "benchmark", "model",
-                     "governance", "multimodal", "agent"}
+                     "governance", "multimodal", "agent", "code", "spec",
+                     "rules", "role", "dataset", "rejection"}
         assert set(TOPIC_KEYWORDS.keys()) == expected
 
 

@@ -87,8 +87,12 @@ class DossierStub:
     generated_at: str = "2026-06-23T00:00:00Z"
 
 
-# Patch imports before loading the module under test
+# Patch imports — isolate mock to this file only, preserve real module identity
 import sys
+
+# Pre-load real modules so their identities persist
+import nexus_os.archivist.import_stage as _real_import_stage
+import nexus_os.vault.memory_channels as _real_memory_channels
 
 # Mock the import_stage module
 mock_import_stage = MagicMock()
@@ -99,9 +103,9 @@ mock_import_stage.ImportRecord = ImportRecordStub
 # Mock the vault memory_channels
 mock_memory_channels = MagicMock()
 
-# Only patch if not already in sys.modules
-sys.modules.setdefault('nexus_os.archivist.import_stage', mock_import_stage)
-sys.modules.setdefault('nexus_os.vault.memory_channels', mock_memory_channels)
+# Set up temporary modules for import time
+sys.modules['nexus_os.archivist.import_stage'] = mock_import_stage
+sys.modules['nexus_os.vault.memory_channels'] = mock_memory_channels
 
 from nexus_os.archivist.doppelground_bridge import (
     DoppelGroundBridge,
@@ -110,6 +114,16 @@ from nexus_os.archivist.doppelground_bridge import (
     BridgeResult,
     get_bridge,
 )
+
+# Restore real modules — do NOT leave holes that change class identities
+sys.modules['nexus_os.archivist.import_stage'] = _real_import_stage
+sys.modules['nexus_os.vault.memory_channels'] = _real_memory_channels
+
+# Use autouse fixture to apply mocks during test execution
+@pytest.fixture(autouse=True)
+def apply_mocks(monkeypatch):
+    monkeypatch.setitem(sys.modules, 'nexus_os.archivist.import_stage', mock_import_stage)
+    monkeypatch.setitem(sys.modules, 'nexus_os.vault.memory_channels', mock_memory_channels)
 
 
 class TestDGSourceKind:

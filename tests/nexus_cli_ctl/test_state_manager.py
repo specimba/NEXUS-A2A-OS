@@ -13,6 +13,7 @@ Validates:
 - Port registration (8765/8766)
 """
 import asyncio
+import builtins
 import json
 import sys
 from pathlib import Path
@@ -102,10 +103,14 @@ class TestStatePersistence:
         assert isinstance(state, dict)
 
     def test_save_handles_permission_error(self, state_manager, monkeypatch):
-        def bad_save(*args, **kwargs):
-            raise PermissionError("no write access")
-        monkeypatch.setattr(state_manager, "_save_state", bad_save)
-        state_manager._save_state()
+        """_save_state should catch PermissionError when writing to disk."""
+        original_open = builtins.open
+        def denied_open(*args, **kwargs):
+            if 'w' in (args[1] if len(args) > 1 else kwargs.get('mode', '')):
+                raise PermissionError("Access denied")
+            return original_open(*args, **kwargs)
+        monkeypatch.setattr(builtins, "open", denied_open)
+        state_manager._save_state()  # Should catch PermissionError and log warning
 
 
 class TestPublishSubscribe:

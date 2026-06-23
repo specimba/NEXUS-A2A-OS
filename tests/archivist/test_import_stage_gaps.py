@@ -285,11 +285,14 @@ class TestClassifyFileAllExtensions:
 
 class TestScorePriorityClamp:
     def test_clamps_to_max_120(self, importer, temp_dir):
-        f = temp_dir / "test.txt"
+        archivist_dir = temp_dir / "ARCHIVIST"
+        archivist_dir.mkdir()
+        f = archivist_dir / "test.txt"
         f.write_text("x")
-        with patch.object(importer, "score_priority", return_value=150):
-            score = importer.score_priority(f, FileType.PAPER, f.stat().st_mtime, str(temp_dir / "ARCHIVIST"))
-            assert score <= 120
+        # ARCHIVIST base=120 + recency=20 + PAPER boost=10 = 150 → clamped to 120
+        score = importer.score_priority(f, FileType.PAPER, f.stat().st_mtime, str(archivist_dir))
+        assert score <= 120
+        assert score == 120
 
     def test_clamps_to_min_0(self, importer, temp_dir):
         f = temp_dir / "test.txt"
