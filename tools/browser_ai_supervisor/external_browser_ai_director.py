@@ -240,6 +240,14 @@ def provider_in_cooldown(now: str, window: ProviderWindow, cooldown_seconds: int
     return (current - previous).total_seconds() < cooldown_seconds
 
 
+def grok_connector_tools_missing(tail: str) -> bool:
+    """Detect a Grok-side custom connector that is absent or lacks NEXUS tools."""
+
+    lowered = tail.lower()
+    if "blocked_tool_not_visible" not in lowered:
+        return False
+    return any(tool not in lowered for tool in ("ping", "registry_debug", "http_diagnostic", "task_add"))
+
 def choose_provider(observation: CycleObservation, config: DirectorConfig) -> str:
     if observation.new_artifact_name:
         return "internai"
@@ -280,6 +288,13 @@ def decide_cycle(
     if observation.requires_bridge and observation.bridge_status != "ok":
         reason = "bridge_not_listening" if observation.bridge_status == "down" else "bridge_unhealthy"
         return DirectorDecision(action="BLOCKED_SETUP", reason=reason)
+
+    if observation.requires_bridge and grok_connector_tools_missing(observation.visible_tail):
+        return DirectorDecision(
+            action="BLOCKED_SETUP",
+            reason="grok_connector_tools_missing",
+            bridge_tools=tuple(BRIDGE_TOOL_MAP),
+        )
 
     current_fingerprint = stable_fingerprint(
         observation.visible_marker,
@@ -403,7 +418,7 @@ def run_egress_probe(url: str, *, method: str = "HEAD", audit_id: str = "directo
     from nexus_os.bridge.browser_http_diagnostic import BrowserHTTPDiagnosticRelay
 
     relay = BrowserHTTPDiagnosticRelay(bridge_url="http://127.0.0.1:7354")
-    return relay.invoke(url, method=method, audit_id=audit_id, operator=operator)
+    return relay.execute_governed(url, method=method, audit_id=audit_id, operator=operator, dry_run=False)
 
 def dry_provider_eval(observation: CycleObservation, provider: str) -> Mapping[str, Any]:
     return {
@@ -488,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
 
 
 

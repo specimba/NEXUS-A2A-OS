@@ -146,18 +146,13 @@ def default_nexusclaw_evidence_matrix() -> list[EvidenceClaim]:
 def wiki_lookup(claim: EvidenceClaim, limit: int = 5) -> list[dict[str, str]]:
     """Search the wiki for pages relevant to an evidence claim.
 
-    Uses the wiki_pipeline's keyword search to find related dossiers
-    and wiki pages. Returns a list of dicts with 'slug' and 'title' keys.
+    Delegates to safe_wiki_search in wiki_helpers.py for the actual
+    pipeline call + fallback handling.
 
     Falls back gracefully if wiki pipeline is unavailable.
     """
-    try:
-        from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
-        pipeline = get_wiki_pipeline()
-        # Search using the claim's artifact name and keywords
-        query_parts = claim.artifact.split()
-        query = " ".join(query_parts[:3])  # Use first 3 terms
-        results = pipeline.search(query, limit=limit)
-        return [{"slug": r.get("slug", ""), "title": r.get("title", "")} for r in results]
-    except Exception:
-        return []  # Graceful fallback when wiki is unavailable
+    from nexus_os.nexusclaw.wiki_helpers import safe_wiki_search
+    query_parts = claim.artifact.split()
+    query = " ".join(query_parts[:3])  # Use first 3 terms
+    results = safe_wiki_search(query, limit=limit)
+    return [{"slug": str(r.get("slug", "")), "title": str(r.get("title", ""))} for r in results]

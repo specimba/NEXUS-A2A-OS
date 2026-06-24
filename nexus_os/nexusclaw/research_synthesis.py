@@ -177,32 +177,11 @@ class ResearchIntegrationEngine:
     def query_wiki(self, topic: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search the wiki pipeline for pages matching a topic.
 
-        This enables research_synthesis to access the wiki's full corpus
-        (archivist dossiers, source cards) in addition to the hardcoded
-        ARCHIVIST_ROOT file list.
-
-        Args:
-            topic: Search query string.
-            limit: Maximum number of results to return.
-
-        Returns:
-            List of wiki page dicts with 'slug', 'title', 'snippet' keys.
-            Empty list if wiki pipeline is unavailable.
+        Delegates to safe_wiki_search in wiki_helpers.py for the actual
+        pipeline call + fallback handling.
         """
-        try:
-            from nexus_cli_ctl.integrations.wiki_pipeline import get_wiki_pipeline
-            pipeline = get_wiki_pipeline()
-            results = pipeline.search(topic, limit=limit)
-            return [
-                {
-                    "slug": r.get("slug", ""),
-                    "title": r.get("title", ""),
-                    "snippet": r.get("snippet", "")[:200],
-                }
-                for r in results
-            ]
-        except Exception:
-            return []  # Graceful fallback
+        from nexus_os.nexusclaw.wiki_helpers import safe_wiki_search
+        return safe_wiki_search(topic, limit=limit)
 
     def enrich_findings_from_wiki(self, findings: List[ResearchFinding]) -> List[ResearchFinding]:
         """Enrich research findings with wiki cross-references.

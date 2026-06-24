@@ -38,8 +38,11 @@ import base64
 import json
 import os
 import time
+import logging
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Tuple, List
+
+logger = logging.getLogger(__name__)
 
 import requests
 
@@ -1131,6 +1134,44 @@ class GuardRouter:
             session_starter: Optional session starter content to verify (CSI defense).
             starter_source: Source of the starter (manual, template, marketplace).
         """
+        # T3 temporal cross-session guard check
+        if session_id:
+            if not hasattr(self, "_t3_guard") or self._t3_guard is None:
+                try:
+                    from nexus_os.security.t3_guard import T3CrossSessionGuard
+                    self._t3_guard = T3CrossSessionGuard()
+                except Exception as e:
+                    logger.error("GuardRouter: Failed to initialize T3CrossSessionGuard: %s", e)
+                    self._t3_guard = None
+
+            if self._t3_guard:
+                # Log prompt to T3 DB
+                is_system = session_starter is not None or "cron:" in prompt.lower() or "[system]" in prompt.lower()
+                self._t3_guard.log_prompt(session_id, prompt, is_system=is_system)
+                
+                # Check for drift and inflation
+                should_escalate, anomaly_score, t3_reason = self._t3_guard.check_drift_and_inflation(session_id, prompt)
+                if should_escalate:
+                    logger.warning("GuardRouter: T3 Guard triggered escalation: %s", t3_reason)
+                    if session_starter:
+                        prompt = f"[T3 ESCALATED CONTEXT - Session Starter: {session_starter}]\\n[Current Action: {prompt}]"
+                    
+                    if anomaly_score >= 1.0:
+                        refusal = self._format_refusal()
+                        return {
+                            "prompt": prompt[:100],
+                            "decision": RoutingDecision.UNSAFE,
+                            "total_latency_ms": 0,
+                            "refusal": f"T3 Temporal Block: {t3_reason}",
+                            "tiers": [{
+                                "tier": "L0-t3",
+                                "prediction": "unsafe",
+                                "confidence": anomaly_score,
+                                "latency_ms": 0,
+                                "raw": t3_reason,
+                            }],
+                        }
+
         # CSI guard check: verify session starter integrity (T2 defense)
         if session_starter and session_id and L0_EXTENDED_AVAILABLE:
             l0_cfg = self.thresholds.get("L0", {})

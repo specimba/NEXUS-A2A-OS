@@ -16,6 +16,8 @@ dependencies = [
     "playwright>=1.40",
     "jinja2>=3.0",
     "httpx>=0.27",
+    "aiohttp",
+    "nltk",
 ]
 
 [project.scripts]
@@ -129,7 +131,8 @@ norecursedirs = [
     "unsloth_compiled_cache",
     "upload",
     ".next",
-    "models"
+    "models",
+    "scratch"
 ]
 
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { BRAIN_API_BASE } from '@/lib/brain-api/contract'
 
 /**
  * GET /api/nexusclaw/status
@@ -6,7 +7,25 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function GET(req: NextRequest) {
   try {
-    // Mock data for now - will connect to Python backend
+    const apiKey = process.env.NEXUS_BRAIN_API_KEY || 'nexus-default-key'
+    try {
+      const res = await fetch(`${BRAIN_API_BASE}/api/nexusclaw/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return NextResponse.json(data)
+      }
+    } catch (pyError) {
+      console.warn('Python NexusClaw status API offline, falling back to mock:', pyError)
+    }
+
+    // Mock data fallback
     const status = {
       status: 'operational',
       stats: {
@@ -55,7 +74,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Mock intervention submission
+    const apiKey = process.env.NEXUS_BRAIN_API_KEY || 'nexus-default-key'
+    try {
+      const res = await fetch(`${BRAIN_API_BASE}/api/nexusclaw/intervene`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return NextResponse.json(data)
+      }
+    } catch (pyError) {
+      console.warn('Python NexusClaw intervene API offline, falling back to mock:', pyError)
+    }
+
+    // Mock intervention submission fallback
     const interventionId = `intervene-${Date.now()}`
 
     console.log(`[INTERVENTION] ${intervention} → ${target} (id=${interventionId})`)

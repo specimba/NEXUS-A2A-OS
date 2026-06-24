@@ -138,6 +138,9 @@ def scan_directory(dir_path: Path, max_depth: int = 3, max_size_mb: int = 100) -
         logger.warning("Error scanning %s: %s", dir_path, e)
     return files
 
+# Bridge mapping for callers that consume categorize_file() output.
+# Maps archivist's string category labels to import_stage's FileType enum.
+# Currently no callers in production — kept as a stable conversion contract.
 CATEGORIZE_TO_FILETYPE = {
     "paper": "PAPER",
     "log": "LOG",

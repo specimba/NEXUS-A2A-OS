@@ -199,6 +199,87 @@ class BrowserHTTPDiagnosticRelay:
             return self._jsonrpc_tool_call("http_diagnostic", decision.gross_arguments)
         return self._a2a_tool_call("browser_http_diagnostic", decision.gross_arguments)
 
+    def execute_governed(
+        self,
+        url: str,
+        *,
+        method: str = "HEAD",
+        headers: dict[str, str] | None = None,
+        audit_id: str = "browser-http-governed",
+        operator: str = "nexus",
+        dry_run: bool = True,
+        token_budget_checker: Callable[[dict[str, Any]], bool] | None = None,
+        approval_checker: Callable[[dict[str, Any]], bool] | None = None,
+        memory_sink: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, Any]:
+        """Governed execution boundary for browser-agent egress.
+
+        The default is a dry run that returns the exact GROSS arguments without
+        invoking transport. Live execution requires the same HTTPS/read-only/
+        allowlist validation as ``invoke`` plus optional TokenGuard/approval
+        callbacks before any bridge call.
+        """
+
+        mode = "dry_run" if dry_run else "live"
+        decision = self.prepare(
+            url,
+            method=method,
+            headers=headers,
+            audit_id=audit_id,
+            operator=operator,
+            mode=mode,
+        )
+        gate_payload = {
+            "url": url,
+            "method": method.upper(),
+            "audit_id": audit_id,
+            "operator": operator,
+            "bridge_url": self.bridge_url,
+            "bridge_tool": "http_diagnostic",
+            "dry_run": dry_run,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+        }
+        if memory_sink is not None:
+            memory_sink({"phase": "before", **gate_payload})
+        if not decision.allowed:
+            result = {"blocked": True, "reason": decision.reason, "side_effects_enabled": False}
+            if memory_sink is not None:
+                memory_sink({"phase": "after", **gate_payload, "result": result})
+            return result
+        if token_budget_checker is not None and not token_budget_checker(gate_payload):
+            result = {"blocked": True, "reason": "token_budget_denied", "side_effects_enabled": False}
+            if memory_sink is not None:
+                memory_sink({"phase": "after", **gate_payload, "result": result})
+            return result
+        if not dry_run and approval_checker is not None and not approval_checker(gate_payload):
+            result = {"blocked": True, "reason": "approval_denied", "side_effects_enabled": False}
+            if memory_sink is not None:
+                memory_sink({"phase": "after", **gate_payload, "result": result})
+            return result
+
+        assert decision.gross_arguments is not None
+        if dry_run:
+            result = {
+                "blocked": False,
+                "dry_run": True,
+                "access_result": "planned",
+                "side_effects_enabled": False,
+                "gross_arguments": decision.gross_arguments,
+            }
+        else:
+            result = self.invoke(
+                url,
+                method=method,
+                headers=headers,
+                audit_id=audit_id,
+                operator=operator,
+                mode="live",
+            )
+            result.setdefault("side_effects_enabled", False)
+        if memory_sink is not None:
+            memory_sink({"phase": "after", **gate_payload, "result": result})
+        return result
     def _jsonrpc_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         payload = {
             "jsonrpc": "2.0",
@@ -313,4 +394,5 @@ def _env_float(name: str, default: float) -> float:
         return float(os.getenv(name, str(default)))
     except ValueError:
         return default
+
 

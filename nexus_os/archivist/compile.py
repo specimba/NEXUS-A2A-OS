@@ -18,28 +18,10 @@ from typing import Dict, List, Optional, Set
 from pathlib import Path
 
 from nexus_os.archivist.import_stage import ImportRecord, FileType, AdmissionClass
+from nexus_os.archivist.taxonomy import TOPIC_KEYWORDS
 
 logger = logging.getLogger("nexus_os.archivist.compile")
 
-
-# Semantic topic tags
-TOPIC_KEYWORDS = {
-    "trust": {"trust", "reputation", "bayesian", "grinding", "gaming", "sigmoid", "logistic"},
-    "memory": {"memory", "episodic", "semantic", "procedural", "consolidation", "retrieval", "rag", "context"},
-    "security": {"security", "attack", "threat", "jailbreak", "prompt injection", "exfiltration", "cve", "vulnerability"},
-    "benchmark": {"benchmark", "evaluation", "arena", "mmlu", "gpqa", "aime", "score", "metric"},
-    "model": {"model", "llm", "transformer", "diffusion", "embedding", "quantization", "inference"},
-    "governance": {"governance", "policy", "regulation", "compliance", "audit", "cdr", "risk"},
-    "multimodal": {"multimodal", "vision", "image", "vlm", "audio", "speech"},
-    "agent": {"agent", "autonomous", "tool use", "orchestration", "multi-agent", "mas"},
-    # --- New topics from unified taxonomy (DoppelGround source_kinds + AlphaXiv folders) ---
-    "code": {"code", "implementation", "software", "programming", "sdk", "api", "module", "pipeline"},
-    "spec": {"spec", "specification", "design doc", "architect", "blueprint", "requirements", "srd"},
-    "rules": {"rules", "config", "configuration", "yaml", "policy file", "guardrail"},
-    "role": {"role", "persona", "system prompt", "identity", "operator", "dispatcher"},
-    "dataset": {"dataset", "golden", "benchmark data", "corpus", "evaluation set", "training data"},
-    "rejection": {"rejection", "failure", "failure pattern", "anti-pattern", "negative example", "hallucination"},
-}
 
 
 @dataclass
@@ -59,7 +41,12 @@ class CompiledRecord:
 
 @dataclass
 class CompileStats:
-    """Compile stage statistics snapshot."""
+    """Compile stage statistics snapshot.
+
+    Backward-compatible dataclass: supports both attribute access
+    (stats.total) and dict-style access (stats["total"]) / membership
+    checks ("total" in stats).
+    """
     total: int = 0
     wiki_admissible: int = 0
     dossier_topics: int = 0
@@ -76,6 +63,30 @@ class CompileStats:
             "errors": self.errors,
             "backlinks": self.backlinks,
         }
+
+    def __getitem__(self, key: str) -> int:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.to_dict()
+
+    def __iter__(self):
+        return iter(self.to_dict())
+
+    def __len__(self) -> int:
+        return len(self.to_dict())
+
+    def keys(self):
+        return self.to_dict().keys()
+
+    def values(self):
+        return self.to_dict().values()
+
+    def items(self):
+        return self.to_dict().items()
 
 
 class ArchivistCompiler:

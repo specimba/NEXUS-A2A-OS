@@ -359,6 +359,7 @@ class MetaAttackDetector:
     ]
 
     MCP_TOOL_SHADOWING: list[tuple[str, float]] = [
+        # Direct impersonation / spoofing
         (r"\bmcp\b.*\b(?:(?<!/etc/)shadow|same\s*name|impersonate|spoof)\b", 0.85),
         (r"\b(?:(?<!/etc/)shadow|same\s*name|impersonate|spoof)\b.*\bmcp\b", 0.85),
         # Priority / Routing / Egress Overrides
@@ -367,6 +368,19 @@ class MetaAttackDetector:
         # Ambiguous Tool Names / Collisions
         (r"\bmcp\b.*\b(?:shadow[-_\s]+tool|tool[-_\s]+shadowing|name[-_\s]+collision|tool[-_\s]+collision|ambiguous[-_\s]+tool|ambiguous[-_\s]+name)\b", 0.85),
         (r"\b(?:shadow[-_\s]+tool|tool[-_\s]+shadowing|name[-_\s]+collision|tool[-_\s]+collision|ambiguous[-_\s]+tool|ambiguous[-_\s]+name)\b.*\bmcp\b", 0.85),
+        # Tool registry poisoning / proxy interception
+        (r"\b(?:register|replace|override|intercept|redirect)\b.*\btool\b.*\b(?:same\s*name|identical|copy|duplicate)\b", 0.80),
+        (r"\btool\b.*\b(?:register|replace|override|intercept|redirect)\b.*\b(?:same\s*name|identical|copy|duplicate)\b", 0.80),
+        # Output redirection / eavesdropping
+        (r"\b(?:redirect|intercept|eavesdrop|capture|forward)\b.*\b(?:tool\s*output|tool\s*response|tool\s*result|call\s*result)\b", 0.80),
+        (r"\b(?:tool\s*output|tool\s*response|tool\s*result|call\s*result)\b.*\b(?:redirect|intercept|eavesdrop|capture|forward)\b", 0.80),
+        # Tool name similarity exploitation
+        (r"\b(?:similar|lookalike|homoglyph|confusable|variant)\b.*\btool\s*name\b", 0.80),
+        (r"\btool\s*name\b.*\b(?:similar|lookalike|homoglyph|confusable|variant)\b", 0.80),
+        # Priority inversion in tool routing
+        (r"\b(?:priority\s*inversion|route\s*hijack|tool\s*hijack|call\s*hijack)\b", 0.85),
+        (r"\bmcp\b.*\b(?:hijack|reroute|divert|intercede)\b.*\b(?:tool|call|request)\b", 0.80),
+        (r"\b(?:hijack|reroute|divert|intercede)\b.*\bmcp\b.*\b(?:tool|call|request)\b", 0.80),
     ]
 
     MCP_TOOL_CONFUSION: list[tuple[str, float]] = [
@@ -381,6 +395,24 @@ class MetaAttackDetector:
         # UI Parameter Collapse
         (r"\bmcp\b.*\b(?:ui[-_\s]+parameter[-_\s]+collapse|parameter[-_\s]+collapse|collapse[-_\s]+parameter|hidden[-_\s]+parameter)\b", 0.85),
         (r"\b(?:ui[-_\s]+parameter[-_\s]+collapse|parameter[-_\s]+collapse|collapse[-_\s]+parameter|hidden[-_\s]+parameter)\b.*\bmcp\b", 0.85),
+        # Tool description manipulation
+        (r"\b(?:modify|alter|rewrite|forge|fabricate)\b.*\btool\s*description\b", 0.80),
+        (r"\btool\s*description\b.*\b(?:modify|alter|rewrite|forge|fabricate)\b", 0.80),
+        # Schema injection / parameter injection
+        (r"\b(?:inject|insert|add|append)\b.*\b(?:parameter|field|argument|schema)\b.*\b(?:tool|function|api)\b", 0.80),
+        (r"\b(?:tool|function|api)\b.*\b(?:inject|insert|add|append)\b.*\b(?:parameter|field|argument|schema)\b", 0.80),
+        # Tool output poisoning
+        (r"\b(?:poison|taint|corrupt|fabricate)\b.*\b(?:tool\s*output|tool\s*response|return\s*value)\b", 0.80),
+        (r"\b(?:tool\s*output|tool\s*response|return\s*value)\b.*\b(?:poison|taint|corrupt|fabricate)\b", 0.80),
+        # Name confusion / typosquatting
+        (r"\b(?:typosquat|homograph|confusable|lookalike)\b.*\b(?:tool|function|endpoint|api)\b", 0.80),
+        (r"\b(?:tool|function|endpoint|api)\b.*\b(?:typosquat|homograph|confusable|lookalike)\b", 0.80),
+        # Tool registry poisoning
+        (r"\b(?:poison|tamper|corrupt|manipulate)\b.*\btool\s*registry\b", 0.85),
+        (r"\btool\s*registry\b.*\b(?:poison|tamper|corrupt|manipulate)\b", 0.85),
+        # Parameter boundary confusion
+        (r"\b(?:boundary|separator|delimiter)\b.*\bconfus\w*\b.*\b(?:tool|parameter)\b", 0.75),
+        (r"\btool\b.*\bconfus\w*\b.*\b(?:boundary|separator|delimiter)\b", 0.75),
     ]
 
     MCP_PREFERENCE_MANIPULATION: list[tuple[str, float]] = [

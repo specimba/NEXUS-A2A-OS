@@ -94,6 +94,8 @@ class SyncCallbackExecutor(ExecutorBackend):
             )
 
 
+import httpx
+
 class AsyncBridgeExecutor(ExecutorBackend):
     """
     Sends task execution requests through the Nexus Bridge to remote agents.
@@ -112,14 +114,72 @@ class AsyncBridgeExecutor(ExecutorBackend):
                 success=False,
                 error="No agent_id in task context for bridge execution",
             )
-        # TODO: Implement actual Bridge RPC call
-        # For now, return a structured not-implemented result
-        return ExecutionResult(
-            task_id=task_id,
-            success=False,
-            error=f"BridgeExecutor not yet wired to Bridge at {self.bridge_url}",
-            agent_id=agent_id,
-        )
+        
+        project_id = context.get("project_id", "nexus-os")
+        trace_id = context.get("trace_id", f"trace-{task_id}")
+        signature = context.get("signature", "")
+        
+        headers = {
+            "Content-Type": "application/json",
+            "X-Nexus-Agent-Id": agent_id,
+            "X-Nexus-Project-Id": project_id,
+            "X-Nexus-Trace-Id": trace_id,
+            "X-Nexus-Signature": signature,
+        }
+        
+        payload = {
+            "method": "tasks/submit",
+            "description": description,
+            "context": context,
+        }
+        
+        url = f"{self.bridge_url.rstrip('/')}/tasks/submit"
+        
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(url, json=payload, headers=headers)
+                
+                if response.status_code == 200:
+                    res_json = response.json()
+                    if "result" in res_json:
+                        res_data = res_json["result"]
+                        is_success = res_data.get("status") == "completed"
+                        return ExecutionResult(
+                            task_id=res_data.get("task_id") or task_id,
+                            success=is_success,
+                            output=res_data.get("output", ""),
+                            error=res_data.get("error"),
+                            duration_ms=res_data.get("duration_ms"),
+                            agent_id=agent_id,
+                        )
+                    else:
+                        return ExecutionResult(
+                            task_id=task_id,
+                            success=False,
+                            error=f"Malformed JSON-RPC response from bridge: {res_json}",
+                            agent_id=agent_id,
+                        )
+                elif response.status_code == 429:
+                    return ExecutionResult(
+                        task_id=task_id,
+                        success=False,
+                        error="Bridge rate limit / token budget exceeded (429)",
+                        agent_id=agent_id,
+                    )
+                else:
+                    return ExecutionResult(
+                        task_id=task_id,
+                        success=False,
+                        error=f"Bridge server returned status {response.status_code}: {response.text}",
+                        agent_id=agent_id,
+                    )
+        except Exception as e:
+            return ExecutionResult(
+                task_id=task_id,
+                success=False,
+                error=f"Bridge HTTP connection failed: {e}",
+                agent_id=agent_id,
+            )
 
 
 class MockExecutor(ExecutorBackend):

@@ -1,6 +1,6 @@
 # NEXUS OS — Canonical Knowledge Base
 
-**Compiled:** 2026-06-13 | **Branch:** codex/specimba/1805mainSpeci | **HEAD:** Sprints 0-4 Complete (2237+ tests pass)
+**Compiled:** 2026-06-23 | **Branch:** codex/specimba/nexus-blind-push | **HEAD:** ChimeraRouter-ModelRelay adapter + PAPERS synthesis merge
 
 <!-- CANARY: 7a14b495084935aa0985a638734cf0bb -->
 <!-- UPDATED: 2026-06-13 by Sprint 3 Execution -->
@@ -398,3 +398,95 @@ Hierarchical config registry: `ConfigSyncEngine` with `EnvSource` (NEXUS_* vars)
 - **All Sprint 4 tests:** 78/78 pass
 - **Core suite:** 1,640 passed, 30 skipped, 0 failures (regression-free)
 - **Circuit breaker + deliberation fix:** 2 pre-existing bugs caught and fixed
+
+## Sprint 5 — PAPERS Integration Research Synthesis (2026-06-23)
+Hermes deep-synthesized 241-line PAPERS integration report (`ARCHIVIST/ubuntuGROKbuild/2026-06-22-PAPERS-NEXUS-SYNTHESIS.md`) from 20+ PDFs. Key reconciliations merged into canonical state:
+
+### 1. MCP Security L0-L5 Guard Architecture
+- 8 priority MCP-specific attacks with NEXUS impact mapping (VATS 100% ASR, MCP-ITP 84.2%, MCP-TDP ~100%)
+- L0 pre-admission scan: DCI checker (description-code inconsistency), VIPER-MCP taint scanning
+- L1-L2 content classification for tree-structured injection (TIP >95% undefended)
+- 7 IPI defenses mapped: AgentVisor (0.65% ASR), ClawGuard (deterministic), AgentSys (0.78% ASR), PlanGuard (72.8%→0%), AuthGraph (40%→1%), PACT, AttriGuard (0% ASR)
+- MCPXKIT 31-attack suite + MCP-38 taxonomy as canonical threat model
+
+### 2. Memory/Vault Synthesis
+- 5 memory papers confirmed: Evo-Memory (test-time learning), MemEvolve (meta-evolution), SimpleMem (lifelong), AllMem (long-context unification), AgentSys (hierarchical isolation)
+- Vault actions: 4-tier memory transitions (STM→LTM), AgentSys-style 0.78% ASR isolation, consolidation scoring per MemEvolve
+
+### 3. Agent Communication / MessageBus Architecture
+- 10 of 19 cataloged protocols directly relevant: A2A (Google) parallels NEXUSCLAW MessageBus, ACP-IBM maps to TaskRouter, ACN for multi-instance discovery
+- Three-layer security taxonomy confirmed: L1 data transmission (MITM/replay/DoS), L2 interaction protocol (spoofing/session/privilege escalation), L3 semantic interpretation (injection/jailbreak/cognitive exhaustion)
+
+### 4. Jailbreak Auto-Categorization
+- Adversarial Déjà Vu: novel jailbreaks = sparse recombinations of earlier adversarial skills (35x compression to 397 atoms)
+- ASCoT training paradigm → NEXUSCLAW self-improvement loop
+- Dictionary learning (K-SVD + LARS) → intent classification in Doppelground
+
+### 5. Benchmark Infrastructure Extensions
+- 8 additional benchmark papers: AgentWebBench (multi-agent), CHEEMS, CausalReasoningBenchmark, Claw-Eval, IPI, AgentRedBench (215-scenario), LivePI (12 families/7 surfaces), MCPTox (1312 cases)
+- Replace 196 NEXUSCLAW tests with MCPXKIT 31 + MCPTox 1312
+
+### 6. Trustworthy Agents & Security Surveys
+- 4 agentic security surveys: Layered Attack Surface Framework (2604.23338), Agentic Security apps (2510.06445), Trustworthy LLM Agents, OpenClaw eval (2604.03131)
+- OpenClaw eval methodology as hardening template for NEXUSCLAW
+- GitHub integrations: NVIDIA/NemoClaw, ClawGuard, agentsys-memory as reference implementations
+
+### Not Yet Grounded
+- papers07 Trustworthy LLM Agents / Systematic Security Threats deep text extracts
+- papers01 OpenClaw Eval deep text extract
+- papers06 CHEEMS/AgentWebBench/CausalReasoningBenchmark deep extract
+- papers02 IPI defense deep extract
+
+## Sprint 6 — Gap Analysis & Improvement Roadmap (2026-06-24)
+Deep web search (8+ targeted queries) + reports grounding + PAPERS10 strategic assessment identified 12 gaps across 3 priority tiers.
+
+### Current Snapshot
+- **3290 tests pass**, 0 failures, 73 skipped
+- **Ports active**: 7350 (Node Relay), 7352 (Brain API), 7353 (TWAVE), 7355 (Python Relay)
+- **Baseten key rotated**: GLM-5.2 ranked #1 (27.06/avg, 3.4s latency), working
+- **MetaAttackDetector v5**: 64% overall (MCP tool shadowing 20%, tool poisoning 30%, tool confusion 30%)
+
+### P0: Critical Gaps (Immediate)
+
+| # | Gap | Impact | Industry SOTA | Implementation Target |
+|---|-----|--------|---------------|---------------------|
+| 1 | **MCP Gateway / Tool Poisoning Defense** | 20-30% detection on MCP attacks | MCP gateways with real-time schema scanning, hash-based monitoring, rug-pull detection. 91% of attacks = silent exfiltration (Straiker 2026). MCP03 = #1 OWASP MCP category | `nexus_os/security/mcp_gateway.py` — pre-deploy scanning, runtime monitoring, formal vetting |
+| 2 | **Memory Dream Consolidation** | 8-channel Vault has no consolidation pipeline | Anthropic Auto Dream, REM Labs Dream Engine, Mem0 memory benchmarks. "Agent capability = model + harness + memory + environment + evolution" (Red Hat 2026) | `nexus_os/vault/dream_cycle.py` — periodic consolidation, stale pruning, cross-session learning |
+| 3 | **Calibrated Hallucination Detection** | LG tracker is dry-run only | CES (Calibrated Entropy Score) 2026 — single forward pass, black-box logits. Semantic Entropy (Nature 2024) — meaning-level uncertainty. 96% hallucination reduction in production | Calibrate LG tracker to real logits + CES + self-correction loop |
+
+### P1: High Priority Gaps
+
+| # | Gap | Impact | Industry SOTA | Implementation Target |
+|---|-----|--------|---------------|---------------------|
+| 4 | **A2A Protocol Compatibility** | MessageBus not A2A-compatible | A2A + MCP = 2026 industry standard. 40-60% faster workflow with hybrid approach. MCP 2026 roadmap: transport scalability, refined agent communication | A2A-compatible message envelopes + A2A card discovery for MessageBus |
+| 5 | **Persistent Context / Smart Compaction** | Context overflow at 60% capacity | Temporal knowledge graphs outperform RAG. Context Engineering replacing Prompt Engineering. Redis: 15-20 turns before overflow | `nexus_os/vault/compaction.py` — temporal KG for 8-channel Vault |
+| 6 | **Jailbreak Auto-Categorization** | IntentClassifier has no dictionary learning | Adversarial Déjà Vu: 32 papers, 1,494 pairs, 16,901 skills compressed to 397 atoms (35x). ASCoT improves generalization | `nexus_os/governor/jailbreak_dictionary.py` — K-SVD + LARS + ASCoT |
+| 7 | **Self-Correction Loop** | No reflection/retry pattern | Reflection pattern, Chain-of-Verification, CRITIC (tool-interactive critiquing). Models are 34% more confident when hallucinating (MIT 2026) | `nexus_os/engine/self_correction.py` — reflection + verification + retry |
+
+### P2: Medium Priority Gaps
+
+| # | Gap | Impact | Industry SOTA |
+|---|-----|--------|---------------|
+| 8 | **Tool Registration Catalog** | No supply-chain verification for MCP servers | Solo.io Registration Catalog + Agent Gateway. 5.5% of public servers have poisoned metadata. CVE-2025-6514: 437K+ downloads |
+| 9 | **Multi-Agent Memory Consistency** | No shared memory protocol between agents | "Most pressing open challenge in MAS" (2603.10062). 3-layer hierarchy: I/O → cache → memory. Cache sharing + access control |
+| 10 | **Enterprise Governance Dashboard** | No centralized cost/trust/drift observability | 40% of agent projects fail due to governance gaps (Gartner 2027). Market: $7.8B→$52B by 2030 |
+| 11 | **Cross-Session Identity Resolution** | Anonymous session continuity | Multi-scope memory (user_id + agent_id + run_id + org_id). Mem0 production benchmark |
+| 12 | **Agent Behavioral Audit** | Mythos-like proactive audit missing | Mythos: 2,300 investigation sessions, 1,150 scenarios, 15-dimension scoring. NEXUS has reactive monitoring only |
+
+### Recommendations (Next 3 Sessions)
+
+1. **Session A** — MCP Gateway: `mcp_gateway.py` (pre-deploy scanning + runtime monitoring + vetting workflow). Closes P0#1, raises MCP detection from 20-30% to 80%+.
+2. **Session B** — Dream Cycle: `dream_cycle.py` (periodic consolidation + stale pruning + cross-session learning). Closes P0#2, makes 8-channel Vault truly persistent.
+3. **Session C** — Calibrated Hallucination Detector: wire LG tracker to real logit stream + CES + self-correction loop. Closes P0#3.
+
+### Search Sources Used
+- 2026 state-of-the-art multi-agent AI framework security architecture improvements
+- MCP tool poisoning defense detection techniques 2026
+- Multi-agent system memory architecture 2026 RAG long-term memory persistent context
+- AI agent hallucination detection self-correction 2026 entropy-based methods
+- Agent persistent context memory dream cycle consolidation 2026
+- MCP Gateway tool verification registration catalog
+- Enterprise AI agent deployment patterns governance 2026
+- PAPER10 strategic assessment (130 papers)
+- NEXUSCLAW V1 paper analysis (25 papers, 12 improvement opportunities)
+- Mythos gap analysis (229 lines)

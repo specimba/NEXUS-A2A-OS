@@ -15,6 +15,12 @@ from nexus_os.mcp.client import (
     MCPToolInfo,
     get_client,
 )
+from nexus_os.mcp.egress_governor import (
+    EgressDecision,
+    EgressRequest,
+    EgressResult,
+    McpEgressGovernor,
+)
 
 __all__ = [
     "GovernedMCPServer",
@@ -28,4 +34,9 @@ __all__ = [
     "MCPCallResult",
     "MCPToolInfo",
     "get_client",
+    "EgressDecision",
+    "EgressRequest",
+    "EgressResult",
+    "McpEgressGovernor",
 ]
+

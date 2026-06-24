@@ -12,6 +12,7 @@ import pytest
 import os
 import sys
 import time
+import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
@@ -93,7 +94,7 @@ class TestSyncCallbackExecutor:
 
 
 class TestAsyncBridgeExecutor:
-    """Test the Bridge RPC executor stub."""
+    """Test the Bridge RPC executor."""
 
     def test_missing_agent_id_returns_error(self):
         executor = AsyncBridgeExecutor()
@@ -101,17 +102,46 @@ class TestAsyncBridgeExecutor:
         assert result.success is False
         assert "No agent_id" in result.error
 
-    def test_with_agent_id_returns_not_implemented(self):
-        executor = AsyncBridgeExecutor()
+    def test_with_agent_id_returns_connection_failure(self):
+        executor = AsyncBridgeExecutor(bridge_url="http://invalid-local-domain-xyz:8000")
         result = executor.execute("task-21", "Task", {"agent_id": "agent-01"})
         assert result.success is False
-        assert "not yet wired" in result.error
+        assert "connection failed" in result.error.lower()
         assert result.agent_id == "agent-01"
 
-    def test_custom_bridge_url(self):
-        executor = AsyncBridgeExecutor(bridge_url="http://192.168.1.100:8000")
+    def test_custom_bridge_url_failure(self):
+        executor = AsyncBridgeExecutor(bridge_url="http://192.0.2.1:8000", timeout=0.1) # Test-net IP
         result = executor.execute("task-22", "Task", {"agent_id": "a1"})
-        assert "192.168.1.100" in result.error
+        assert result.success is False
+        assert "connection failed" in result.error.lower()
+
+    def test_successful_mocked_execution(self, monkeypatch):
+        class MockResponse:
+            status_code = 200
+            def json(self):
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "task_id": "task-mocked-123",
+                        "status": "completed",
+                        "output": "mocked output text",
+                        "error": None,
+                        "duration_ms": 42.0
+                    },
+                    "id": "trace-task-mocked-123"
+                }
+
+        def mock_post(self, url, json, headers):
+            return MockResponse()
+
+        monkeypatch.setattr(httpx.Client, "post", mock_post)
+
+        executor = AsyncBridgeExecutor(bridge_url="http://127.0.0.1:8000")
+        result = executor.execute("task-mocked-123", "Run mocked", {"agent_id": "agent-01"})
+        assert result.success is True
+        assert result.output == "mocked output text"
+        assert result.task_id == "task-mocked-123"
+        assert result.agent_id == "agent-01"
 
 
 class TestTaskExecutor:

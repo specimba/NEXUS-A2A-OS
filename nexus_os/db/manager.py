@@ -178,11 +178,17 @@ class DatabaseManager:
                 agent_id TEXT PRIMARY KEY,
                 model_id TEXT NOT NULL,
                 capabilities TEXT,
+                traits TEXT,
                 status TEXT DEFAULT 'active' CHECK(status IN ('active', 'suspended', 'halted')),
                 registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_seen TIMESTAMP
             )
         """)
+
+        try:
+            adapter.execute("ALTER TABLE agent_registry ADD COLUMN traits TEXT")
+        except Exception:
+            pass
 
         adapter.execute("""
             CREATE TABLE IF NOT EXISTS memory_records (

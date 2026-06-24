@@ -99,6 +99,22 @@ def test_new_artifact_maps_exact_bridge_tools_once_cooldown_allows():
     }
 
 
+def test_grok_missing_connector_tools_blocks_before_provider():
+    observation = CycleObservation(
+        cdp_status="ok",
+        bridge_status="ok",
+        visible_marker="grok report",
+        visible_tail="GrokMcpEgressIntegrationReport_v2\nconnector_status: BLOCKED\nhealth_result: BLOCKED_TOOL_NOT_VISIBLE\nhttp_diagnostic_result: BLOCKED_TOOL_NOT_VISIBLE",
+        requires_bridge=True,
+    )
+
+    decision = decide_cycle(observation, previous_fingerprint=None)
+
+    assert decision.action == "BLOCKED_SETUP"
+    assert decision.reason == "grok_connector_tools_missing"
+    assert decision.provider_allowed is False
+    assert decision.bridge_tools == ("ping", "registry_debug", "http_diagnostic", "task_add")
+
 def test_bridge_required_down_is_blocked_setup_not_provider_call():
     decision = decide_cycle(
         CycleObservation(
@@ -184,4 +200,5 @@ def test_outro_record_has_blocker_only_for_retry_or_setup():
     assert record["action"] == "RETRY_LATER"
     assert record["blocker"] == "runtime_evaluate_timeout"
     assert record["provider_calls"] == 0
+
 

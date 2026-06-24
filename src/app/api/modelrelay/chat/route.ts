@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { BRAIN_API_BASE } from '@/lib/brain-api/contract'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,13 +13,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 })
     }
 
-    const lastMessage = messages[messages.length - 1]?.content || ''
     const selectedModel = model || 'llama4-maverick'
     const provider = selectedModel.includes('groq') ? 'groq'
       : selectedModel.includes('cerebras') ? 'cerebras'
       : selectedModel.includes('z-ai') || selectedModel.includes('glm') ? 'z-ai'
       : 'openrouter'
 
+    const apiKey = process.env.NEXUS_BRAIN_API_KEY || 'nexus-default-key'
+    try {
+      const res = await fetch(`${BRAIN_API_BASE}/api/relay/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return NextResponse.json(data)
+      }
+    } catch (pyError) {
+      console.warn('Python relay chat API offline, falling back to mock:', pyError)
+    }
+
+    // Fallback to mock response
+    const lastMessage = messages[messages.length - 1]?.content || ''
     const simulatedLatency = provider === 'groq' ? 38
       : provider === 'cerebras' ? 45
       : provider === 'z-ai' ? 12

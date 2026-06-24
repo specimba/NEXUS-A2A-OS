@@ -133,37 +133,23 @@ class DoppelGroundBridge:
         3. Default: 'doc' (generic documentation)
         """
         # Check topic tags for explicit source kind match
-        tag_to_kind = {
-            "rules": DGSourceKind.RULES.value,
-            "config": DGSourceKind.CONFIG.value,
-            "mission": DGSourceKind.MISSION.value,
-            "doc": DGSourceKind.DOC.value,
-            "spec": DGSourceKind.SPEC.value,
-            "code": DGSourceKind.CODE.value,
-            "role": DGSourceKind.ROLE.value,
-            "dataset": DGSourceKind.GOLDEN_DATASET.value,
-            "rejection": DGSourceKind.REJECTION_EXAMPLE.value,
-            "governance": DGSourceKind.RULES.value,  # governance → rules (policy)
-            "benchmark": DGSourceKind.GOLDEN_DATASET.value,  # benchmark data → dataset
-            "security": DGSourceKind.RULES.value,  # security → rules (guardrails)
-        }
+        from nexus_os.archivist.taxonomy import (
+            TOPIC_TO_SOURCE_KIND,
+            FILE_TYPE_TO_TOPIC,
+            source_kind_for_topic,
+        )
         for tag in (compiled_record.topic_tags or []):
-            if tag in tag_to_kind:
-                return tag_to_kind[tag]
+            if tag in TOPIC_TO_SOURCE_KIND:
+                return TOPIC_TO_SOURCE_KIND[tag]
 
-        # File type heuristic
+        # File type heuristic via shared taxonomy
         try:
             from nexus_os.archivist.import_stage import FileType
             ft = compiled_record.import_record.file_type
-            ft_map = {
-                FileType.CONFIG: DGSourceKind.CONFIG.value,
-                FileType.PROMPT: DGSourceKind.ROLE.value,
-                FileType.BENCHMARK: DGSourceKind.GOLDEN_DATASET.value,
-                FileType.MARKDOWN: DGSourceKind.DOC.value,
-                FileType.PAPER: DGSourceKind.DEEP_RESEARCH.value,
-            }
-            if ft in ft_map:
-                return ft_map[ft]
+            ft_value = ft.value if hasattr(ft, "value") else str(ft)
+            if ft_value in FILE_TYPE_TO_TOPIC:
+                topic = FILE_TYPE_TO_TOPIC[ft_value]
+                return source_kind_for_topic(topic)
         except Exception:
             pass
 
@@ -355,7 +341,7 @@ class DoppelGroundBridge:
                     results.append(BridgeResult(
                         source_kind="dossier",
                         target_channel=3,
-                        target_channel_name="SEMANTIC",
+                        target_channel_name="semantic",
                         record_id=record_id,
                         accepted=True,
                     ))
@@ -364,7 +350,7 @@ class DoppelGroundBridge:
                     results.append(BridgeResult(
                         source_kind="dossier",
                         target_channel=3,
-                        target_channel_name="SEMANTIC",
+                        target_channel_name="semantic",
                         record_id=None,
                         accepted=False,
                         reason="vault_write_returned_none_trust_gate_blocked",
@@ -376,7 +362,7 @@ class DoppelGroundBridge:
                 results.append(BridgeResult(
                     source_kind="dossier",
                     target_channel=3,
-                    target_channel_name="SEMANTIC",
+                    target_channel_name="semantic",
                     record_id=None,
                     accepted=False,
                     reason=f"exception: {e}",
