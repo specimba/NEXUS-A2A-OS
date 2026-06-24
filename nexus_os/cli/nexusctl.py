@@ -822,6 +822,62 @@ def cmd_route(args):
         print(json.dumps(exec_payload, indent=2))
 
 
+def cmd_track(args):
+    """`nexusctl track` — run TWAVE Landau-Ginzburg entropy tracker and report.
+
+    Surfaces the entropy/hallucination/cooling telemetry that the tracker
+    already computes internally but was not visible in the operator CLI.
+
+    Dry-run mode (default) simulates entropy without a live model:
+        nexusctl track --tokens 50 --category R2.2
+
+    With real logits (requires a running model backend):
+        nexusctl track --tokens 50 --no-dry-run
+    """
+    try:
+        from nexus_os.twave.landau_ginzburg_tracker_v2 import LandauGinzburgTrackerV2
+    except ImportError as exc:
+        print(f"ERROR: LandauGinzburgTrackerV2 not importable: {exc}")
+        return 1
+
+    tracker = LandauGinzburgTrackerV2(
+        category=args.category,
+        enable_edt=args.edt,
+        enable_lead=args.lead,
+        enable_epr=args.epr,
+        enable_led=args.led,
+        enable_ckplug=args.ckplug,
+    )
+    tracker.set_dry_run(not args.no_dry_run)
+
+    for i in range(args.tokens):
+        tracker.step(
+            position=i,
+            current_temperature=args.temperature,
+        )
+
+    report = tracker.get_report()
+    payload = {
+        "category": report.category,
+        "tokens_generated": report.tokens_generated,
+        "hallucination_detected": report.hallucination_detected,
+        "hallucination_positions": report.hallucination_positions,
+        "self_correction_positions": report.self_correction_positions,
+        "cooling_events": len(report.cooling_events),
+        "mean_entropy": round(report.mean_entropy, 4),
+        "max_entropy": round(report.max_entropy, 4),
+        "entropy_variance": round(report.entropy_variance, 4),
+        "final_temperature": round(report.final_temperature, 4),
+        "estimated_healing_length": round(report.estimated_healing_length, 2) if report.estimated_healing_length else None,
+        "epr_score": round(report.epr_score, 4) if report.epr_score else None,
+        "mode_transitions": len(report.mode_transitions) if report.mode_transitions else 0,
+        "led_depths": len(report.led_depth_selected) if report.led_depth_selected else 0,
+        "edt_schedule_points": len(report.edt_temperature_schedule) if report.edt_temperature_schedule else 0,
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nexusctl",
@@ -980,6 +1036,22 @@ def main():
     sub.add_argument("--fallback-url", default=None, help="Fallback relay URL (default: http://127.0.0.1:7355)")
     sub.add_argument("--godmode-url", default=None, help="God Mode Proxy URL (default: http://127.0.0.1:7357)")
     sub.set_defaults(func=cmd_route)
+
+    # track — TWAVE Landau-Ginzburg entropy tracker
+    sub = subparsers.add_parser(
+        "track",
+        help="Run TWAVE Landau-Ginzburg entropy tracker and report (dry-run by default)",
+    )
+    sub.add_argument("--tokens", type=int, default=30, help="Number of tokens to simulate")
+    sub.add_argument("--category", default="F1.1", help="Tracker category (affects t_c and weights)")
+    sub.add_argument("--temperature", type=float, default=0.7, help="Initial temperature")
+    sub.add_argument("--no-dry-run", action="store_true", default=False, help="Disable dry-run (requires real logits)")
+    sub.add_argument("--edt", action="store_true", default=True, help="Enable EDT (entropy-based dynamic temperature)")
+    sub.add_argument("--lead", action="store_true", default=True, help="Enable LEAD (latent/discrete mode switching)")
+    sub.add_argument("--epr", action="store_true", default=True, help="Enable EPR (entropy production rate)")
+    sub.add_argument("--led", action="store_true", default=False, help="Enable LED (layer entropy exploration)")
+    sub.add_argument("--ckplug", action="store_true", default=False, help="Enable CK-PLUG (retrieval chemical potential)")
+    sub.set_defaults(func=cmd_track)
 
     # models — list installed CLIs and current reachability
     sub = subparsers.add_parser(
