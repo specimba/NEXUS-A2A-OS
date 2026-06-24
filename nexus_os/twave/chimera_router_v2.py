@@ -18,6 +18,20 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from enum import Enum
 
+try:
+    from nexus_os.relay.model_relay_adapter import (
+        ModelRelayAdapter,
+        RelayRequest,
+        RelayResult,
+        execute_decision,
+    )
+except Exception:
+    # Adapter is optional at import time — router still works decision-only
+    ModelRelayAdapter = None  # type: ignore[assignment]
+    RelayRequest = None  # type: ignore[assignment]
+    RelayResult = None  # type: ignore[assignment]
+    execute_decision = None  # type: ignore[assignment]
+
 class Tier(Enum):
     CONTROL_PLANE = "control"
     LOCAL_STANDARD = "local_std"
@@ -290,6 +304,42 @@ class ChimeraRouterV2:
         ]
         if not self.has_cloud_access:
             self._available = [p for p in self._available if p.tier != Tier.CLOUD]
+        self._recent_routes: List[Dict[str, Any]] = []
+        self._resilience_tier_limits: Dict[str, Dict[str, float]] = {
+            'hotTier': {
+                'timegapSeconds': 5.0,
+                'latMs': 4500.0,
+                'retries': 4,
+                'decodeMs': 775.0,
+                'decodeRatio': 20.0,
+                'scheduleMs': 1500.0,
+                'schemaMs': 300.0,
+                'specCoefficient': 0.147,
+                'heatCoefficient': 0.175,
+            },
+            'coldTier': {
+                'timegapSeconds': 90.0,
+                'latMs': 24000.0,
+                'retries': 8,
+                'decodeMs': 700.0,
+                'decodeRatio': 30.0,
+                'scheduleMs': 500.0,
+                'schemaMs': 560.0,
+                'specCoefficient': 0.221,
+                'heatCoefficient': 0.103,
+            },
+            'thermalTier': {
+                'timegapSeconds': 180.0,
+                'latMs': 39000.0,
+                'retries': 12,
+                'decodeMs': 650.0,
+                'decodeRatio': 40.0,
+                'scheduleMs': 1450.0,
+                'schemaMs': 180.0,
+                'specCoefficient': 0.130,
+                'heatCoefficient': 0.157,
+            },
+        }
 
     def route(self, prompt, latency_budget_ms=1000.0, quality_target=0.75,
               max_tokens=512, preferred_tier=None, category="default",
@@ -301,6 +351,47 @@ class ChimeraRouterV2:
         ernie_suggestion = self.ernie.get_suggestion(prompt, analysis)
         budget = self.qwave.allocate(analysis, latency_budget_ms, quality_target, max_tokens)
         candidates = self._available.copy()
+        hot_limit = self._resilience_tier_limits.get('hotTier', {})
+        cold_limit = self._resilience_tier_limits.get('coldTier', {})
+        thermal_limit = self._resilience_tier_limits.get('thermalTier', {})
+        recent = self._recent_routes[-8:]
+        hot_excludes = set()
+        cold_excludes = set()
+        thermal_excludes = set()
+        for entry in recent:
+            profile = entry.get('profile')
+            if not profile:
+                continue
+            name = profile.get('name') if isinstance(profile, dict) else getattr(profile, 'name', None)
+            if not name:
+                continue
+            if entry.get('latencyMs', 0) > hot_limit.get('latMs', 4500):
+                hot_excludes.add(name)
+            if entry.get('timeMs', 0) > cold_limit.get('timegapSeconds', 90):
+                cold_excludes.add(name)
+            if entry.get('timeMs', 0) > thermal_limit.get('timegapSeconds', 180):
+                thermal_excludes.add(name)
+            if entry.get('retries', 0) > hot_limit.get('retries', 4):
+                hot_excludes.add(name)
+        candidates = [
+            p for p in candidates
+            if getattr(p, 'name', None) not in hot_excludes
+        ]
+        cold_candidates = [
+            p for p in candidates
+            if getattr(p, 'name', None) not in (cold_excludes | hot_excludes)
+        ]
+        if cold_candidates:
+            candidates = cold_candidates
+        else:
+            thermal_candidates = [
+                p for p in candidates
+                if getattr(p, 'name', None) not in (thermal_excludes | cold_excludes | hot_excludes)
+            ]
+            if thermal_candidates:
+                candidates = thermal_candidates
+        if not candidates:
+            candidates = self._available.copy()
         if preferred_tier: candidates = [p for p in candidates if p.tier == preferred_tier]
         quality_pass = [p for p in candidates if p.quality_score >= quality_target - 0.05]
         if quality_pass: candidates = quality_pass
@@ -381,7 +472,7 @@ class ChimeraRouterV2:
         if use_ckplug: reasons.append("CK-PLUG: retrieval chemical potential")
         if ernie_suggestion: reasons.append(f"ERNIE: conf={ernie_suggestion.confidence:.2f}, override={ernie_suggestion.override_router}")
         confidence = min(1.0, best.quality_score / quality_target) if quality_target > 0 else 1.0
-        return RoutingDecision(
+        decision = RoutingDecision(
             tier=best.tier, model=best.name, profile=best,
             expected_latency_ms=best.latency_ms_per_token * budget.max_tokens,
             expected_quality=best.quality_score,
@@ -397,3 +488,54 @@ class ChimeraRouterV2:
             confidence=confidence, reason=" | ".join(reasons),
             budget=budget, ernie_suggestion=ernie_suggestion,
         )
+        try:
+            self._recent_routes.append({
+                'profile': best,
+                'latencyMs': decision.expected_latency_ms,
+                'timeMs': time.time(),
+                'retries': 0,
+                'currentRetryIndex': 0,
+                'execTimeMs': decision.expected_latency_ms,
+                'scheduleTimeMs': getattr(decision.budget, 'retrieval_budget_ms', 0.0) + getattr(decision.budget, 'speculator_budget', 0.0),
+                'decodeTimeMs': getattr(decision.budget, 'budget_tokens', 0.0) * best.latency_ms_per_token,
+                'schemaMs': 0.0,
+                'healthy': True,
+            })
+            if len(self._recent_routes) > 32:
+                self._recent_routes = self._recent_routes[-32:]
+        except Exception:
+            pass
+        return decision
+
+    # ------------------------------------------------------------------
+    # Execution — hand the RoutingDecision to ModelRelayAdapter
+    # ------------------------------------------------------------------
+
+    def execute(
+        self,
+        prompt: str,
+        decision: Optional["RoutingDecision"] = None,
+        adapter: Any = None,
+        **route_kwargs,
+    ) -> Any:
+        """Route a prompt and execute it through ModelRelay.
+
+        If *decision* is None, ``self.route(prompt, **route_kwargs)`` is called
+        first to produce a RoutingDecision.  Then a ModelRelayAdapter (provided or
+        auto-created) converts the decision into an OpenAI-compatible call.
+
+        Returns a RelayResult with ``status``, ``provider``, ``raw``, etc.
+
+        Raises RuntimeError if the adapter module is unavailable.
+        """
+        if execute_decision is None:
+            raise RuntimeError(
+                "nexus_os.relay.model_relay_adapter is not importable — "
+                "cannot execute routing decisions through ModelRelay."
+            )
+
+        if decision is None:
+            decision = self.route(prompt, **route_kwargs)
+
+        ada = adapter or ModelRelayAdapter()
+        return execute_decision(decision, prompt, adapter=ada)

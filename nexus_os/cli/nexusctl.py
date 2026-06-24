@@ -5,6 +5,7 @@ Canonical CLI for system operations, health checks, and integrations.
 import argparse
 import asyncio
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -728,6 +729,99 @@ def cmd_model_sync(args):
     return model_sync.main(argv if argv else None)
 
 
+def cmd_route(args):
+    """`nexusctl route` — route a prompt through ChimeraRouter, optionally execute via ModelRelay.
+
+    Decision-only mode (default):
+        nexusctl route "Explain quantum entanglement step by step."
+
+    Execute mode (calls the live relay):
+        nexusctl route "Write a haiku about rust" --execute
+        nexusctl route "Code a fibonacci function" --execute --relay-url http://127.0.0.1:7350
+    """
+    from nexus_os.twave.chimera_router_v2 import (
+        ChimeraRouterV2,
+        TemperaturePolicy,
+        Tier,
+    )
+
+    policy_map = {
+        "auto": TemperaturePolicy.AUTO,
+        "fixed": TemperaturePolicy.FIXED,
+        "edt": TemperaturePolicy.EDT,
+        "ead": TemperaturePolicy.EAD,
+        "lead": TemperaturePolicy.LEAD,
+        "ernie": TemperaturePolicy.ERNIE,
+    }
+    policy = policy_map.get(args.policy, TemperaturePolicy.AUTO)
+
+    router = ChimeraRouterV2(
+        vram_gb=args.vram,
+        has_cloud_access=args.cloud,
+        available_tiers=[Tier.CONTROL_PLANE, Tier.LOCAL_STANDARD, Tier.LOCAL_POWER],
+    )
+    decision = router.route(
+        args.prompt,
+        latency_budget_ms=args.budget,
+        quality_target=args.quality,
+        category=args.category,
+        temperature_policy=policy,
+    )
+
+    route_payload = {
+        "tier": decision.tier.value,
+        "model": decision.model,
+        "temperature": round(decision.temperature, 3),
+        "policy": decision.temperature_policy.value,
+        "expected_latency_ms": round(decision.expected_latency_ms, 0),
+        "expected_quality": round(decision.expected_quality, 2),
+        "max_tokens": decision.budget.max_tokens,
+        "features": {
+            "edt": decision.use_edt,
+            "lead": decision.use_lead,
+            "epr": decision.use_epr,
+            "led": decision.use_led,
+            "ckplug": decision.use_ckplug,
+            "attn_divergence": decision.use_attention_divergence,
+        },
+        "confidence": round(decision.confidence, 2),
+        "reason": decision.reason,
+    }
+    print(json.dumps(route_payload, indent=2))
+
+    if getattr(args, "execute", False):
+        from nexus_os.relay.model_relay_adapter import ModelRelayAdapter, RelayRequest
+
+        relay_url = args.relay_url or f"http://127.0.0.1:{os.environ.get('NODERELAY_PORT', '7350')}"
+        fallback_url = args.fallback_url or f"http://127.0.0.1:{os.environ.get('PYTHONRELAY_PORT', '7355')}"
+        godmode_url = args.godmode_url or f"http://127.0.0.1:{os.environ.get('GODMODE_PORT', '7357')}"
+
+        adapter = ModelRelayAdapter(
+            primary_url=relay_url,
+            fallback_url=fallback_url,
+            godmode_url=godmode_url,
+        )
+        req = RelayRequest(
+            model=decision.model,
+            prompt=args.prompt,
+            temperature=decision.temperature,
+            max_tokens=decision.budget.max_tokens,
+            relay_url=relay_url,
+            metadata={"category": args.category, "policy": decision.temperature_policy.value},
+        )
+        result = adapter.execute(req)
+        exec_payload = {
+            "status": result.status,
+            "provider": result.provider,
+            "used_fallback": result.used_fallback,
+            "latency_ms": result.latency_ms,
+            "attempts": result.attempts,
+        }
+        if result.raw:
+            exec_payload["response_preview"] = result.raw[:500]
+        print(json.dumps(exec_payload, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nexusctl",
@@ -868,6 +962,24 @@ def main():
     sub.add_argument("--include-refusal", action="store_true", help="Include refusal probe tasks")
     sub.add_argument("--json", action="store_true", help="Emit JSON report")
     sub.set_defaults(func=cmd_eval)
+
+    # route — ChimeraRouter prompt routing + optional execution
+    sub = subparsers.add_parser(
+        "route",
+        help="Route a prompt through ChimeraRouter (decision-only by default, --execute to call relay)",
+    )
+    sub.add_argument("prompt", help="Prompt text to route")
+    sub.add_argument("--vram", type=float, default=8.0, help="Available VRAM in GB")
+    sub.add_argument("--budget", type=float, default=2000.0, help="Latency budget in ms")
+    sub.add_argument("--quality", type=float, default=0.75, help="Quality target (0-1)")
+    sub.add_argument("--category", default="default", help="Prompt category for t_c config")
+    sub.add_argument("--policy", default="auto", choices=["auto", "fixed", "edt", "ead", "lead", "ernie"])
+    sub.add_argument("--cloud", action="store_true", default=False, help="Allow cloud-tier models")
+    sub.add_argument("--execute", action="store_true", default=False, help="Execute the routing decision through ModelRelay")
+    sub.add_argument("--relay-url", default=None, help="Primary relay URL (default: http://127.0.0.1:7350)")
+    sub.add_argument("--fallback-url", default=None, help="Fallback relay URL (default: http://127.0.0.1:7355)")
+    sub.add_argument("--godmode-url", default=None, help="God Mode Proxy URL (default: http://127.0.0.1:7357)")
+    sub.set_defaults(func=cmd_route)
 
     # models — list installed CLIs and current reachability
     sub = subparsers.add_parser(

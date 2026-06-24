@@ -147,6 +147,28 @@ class PersistentRouter:
         self.quota = QuotaTracker()
         self.fugu = FuguDispatcher()
         self._last_primary_used: Optional[str] = None
+        self._recent_failures: Dict[str, List[float]] = {}
+        self._FAILURE_WINDOW_SEC = 3600
+        self._FAILURE_THRESHOLD = 3
+
+    def _record_failure(self, provider: str, model: str) -> None:
+        key = f"{provider}:{model}"
+        now = time.time()
+        self._recent_failures.setdefault(key, [])
+        self._recent_failures[key].append(now)
+        cutoff = now - self._FAILURE_WINDOW_SEC
+        self._recent_failures[key] = [t for t in self._recent_failures[key] if t >= cutoff]
+
+    def _is_degraded(self, provider: str, model: str) -> bool:
+        key = f"{provider}:{model}"
+        now = time.time()
+        cutoff = now - self._FAILURE_WINDOW_SEC
+        return sum(1 for t in self._recent_failures.get(key, []) if t >= cutoff) >= self._FAILURE_THRESHOLD
+
+    def _recover_success(self, provider: str, model: str) -> None:
+        key = f"{provider}:{model}"
+        if key in self._recent_failures and self._recent_failures[key]:
+            self._recent_failures[key].pop()
 
     def pick_for_task(
         self,
@@ -227,6 +249,13 @@ class PersistentRouter:
 
         Call this after each task completion to improve future routing.
         """
+        if not success and ":" in worker:
+            provider, model = worker.split(":", 1)
+            self._record_failure(provider, model)
+        else:
+            if ":" in worker:
+                provider, model = worker.split(":", 1)
+                self._recover_success(provider, model)
         self.fugu.record_worker_outcome(worker, task_type, success, latency_ms)
 
     def continue_task(
@@ -330,38 +359,54 @@ class PersistentRouter:
             if f"{p}:{m}" != exclude and not self.quota.is_quota_exhausted(p)
         ]
 
-        # Use Fugu soft-target dispatch if enabled and we have task features
-        if use_fugu and task_features is not None and available:
-            candidate_keys = [f"{p}:{m}" for p, m in available]
+        # Partition candidates: healthy first, then degraded.
+        healthy = []
+        degraded = []
+        for provider, model in available:
+            if self._is_degraded(provider, model):
+                degraded.append((provider, model))
+            else:
+                healthy.append((provider, model))
+
+        dispatch_pool = healthy or degraded
+        if use_fugu and task_features is not None and dispatch_pool:
+            candidate_keys = [f"{p}:{m}" for p, m in dispatch_pool]
             chosen_key, probs = self.fugu.dispatch(
                 task_features, candidate_keys, deterministic=True
             )
             chosen_provider, chosen_model = chosen_key.split(":", 1)
-            # Get the original reason from tier_def
             reason = next(
                 (r for p, m, r in tier_def["models"] if p == chosen_provider and m == chosen_model),
                 f"Fugu soft-target dispatch (chosen with prob={probs.get(chosen_key, 0):.3f})"
             )
+            if healthy and (chosen_provider, chosen_model) not in healthy:
+                reason += " [DEGRADED_CANDIDATE]"
             return chosen_provider, chosen_model, reason
 
-        # Otherwise use the tier's first available model (non-Fugu path)
         for provider, model, reason in tier_def["models"]:
             key = f"{provider}:{model}"
             if key == exclude:
                 continue
             if self.quota.is_quota_exhausted(provider):
                 continue
-            return provider, model, reason
+            if key in [f"{p}:{m}" for p, m in healthy]:
+                return provider, model, reason
+            if not healthy and key in [f"{p}:{m}" for p, m in degraded]:
+                return provider, model, reason + " [DEGRADED_CANDIDATE]"
 
-        # Both primary exhausted — fall back
         if tier == "primary":
             for provider, model, reason in TIER_FALLBACK["models"]:
                 key = f"{provider}:{model}"
                 if key == exclude:
                     continue
+                if self._is_degraded(provider, model):
+                    continue
                 return provider, model, f"Primary exhausted → fallback {provider}:{model}"
 
-        # Last resort
+        if tier == "primary" and TIER_FALLBACK["models"]:
+            fallback_provider, fallback_model, fallback_reason = TIER_FALLBACK["models"][0]
+            return fallback_provider, fallback_model, "Last-resort fallback (degraded allowed)"
+
         return TIER_FALLBACK["models"][0][0], TIER_FALLBACK["models"][0][1], "Last resort fallback"
 
     def _infer_tier(self, model: str, provider: str) -> str:

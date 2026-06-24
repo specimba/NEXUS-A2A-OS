@@ -360,7 +360,7 @@ class ModelRelay:
 
         t0 = time.time()
         try:
-            resp = requests.post(OLLAMA_CHAT_URL, json=ollama_payload, timeout=120)
+            resp = requests.post(OLLAMA_CHAT_URL, json=ollama_payload, timeout=(30, 120))
             resp.raise_for_status()
             data = resp.json()
             raw_msg = data.get("choices", [{}])[0].get("message", {})
