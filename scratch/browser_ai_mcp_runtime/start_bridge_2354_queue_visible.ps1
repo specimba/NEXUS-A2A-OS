@@ -1,0 +1,5 @@
+$env:GROK_LISTEN_PORT = '7354'
+$env:GROK_LISTEN_HOST = '0.0.0.0'
+$env:GROK_HTTP_ALLOWED_HOSTS = 'huggingface.co,hf.co,cdn-lfs.huggingface.co,raw.githubusercontent.com,github.com,pypi.org,files.pythonhosted.org,grok.com,files.grok.com,modelcontextprotocol.io,arxiv.org,docs.modal.com,modal.com,docs.tailscale.com,docs.anthropic.com,platform.openai.com,ai.google.dev,docs.groq.com,docs.z.ai,longcat.chat,intern-ai.org.cn,deepseek.com,sakana.ai'
+$env:GROK_MCP_VERSION = '2.3.0-queue-visible'
+python 'tools/browser_ai_mcp/grok_mcp_server_v2.py'

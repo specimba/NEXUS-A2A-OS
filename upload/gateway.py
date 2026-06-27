@@ -177,6 +177,24 @@ class ModelRelayGateway:
                 resolved_key = resolve_intern_ai_key(lane)
                 key_val = resolved_key.value or ""
                 headers["Authorization"] = f"Bearer {key_val}"
+        elif provider == "openmodel":
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                lane = plan.get("provider_lane")
+                from upload.openmodel_lanes import resolve_openmodel_key
+                resolved_key = resolve_openmodel_key(lane)
+                key_val = resolved_key.value or ""
+                headers["Authorization"] = f"Bearer {key_val}"
+        elif provider == "sakana":
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                lane = plan.get("provider_lane")
+                from upload.sakana_lanes import resolve_sakana_key
+                resolved_key = resolve_sakana_key(lane)
+                key_val = resolved_key.value or ""
+                headers["Authorization"] = f"Bearer {key_val}"
         elif provider == "longcat":
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
@@ -261,6 +279,8 @@ class ModelRelayGateway:
             "minimax": "MINIMAX_API_KEY",
             "groq": "GROQ_API_KEY",
             "deepseek": "DEEPSEEK_API_KEY",
+            "openmodel": "NEXUS_OPENMODEL_API_KEY",
+            "sakana": "NEXUS_SAKANA_API_KEY",
         }
         return os.environ.get(key_map.get(provider, ""), "")
 

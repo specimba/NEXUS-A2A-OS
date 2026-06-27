@@ -42,6 +42,8 @@ class QuotaGuard:
         "cerebras": {"requests_per_day": 1000, "type": "requests"},
         "together": {"type": "free_tier"},
         "deepseek": {"type": "free_tier"},
+        "openmodel": {"requests_per_day": 1000, "type": "free_tier"},
+        "sakana": {"requests_per_day": 200, "type": "credits"},
         "internai": {"requests_per_day": 43200, "type": "requests"},
         "longcat": {"requests_per_day": 200, "type": "tokens"},
     }

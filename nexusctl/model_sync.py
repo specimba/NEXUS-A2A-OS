@@ -231,7 +231,7 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
                 "options": {
                     "baseURL": bt.get("baseUrl", "https://inference.baseten.co/v1"),
                     "apiKey": key,
-                    "authScheme": "Api-Key",
+                    "authScheme": "Bearer",
                 },
                 "models": models,
             }
@@ -498,6 +498,60 @@ def install_hourly_schedule() -> dict:
         return {"installed": False, "error": str(e)}
 
 
+def _auto_revive_relays() -> bool:
+    """Best-effort one-shot revive of the NEXUS relay ports.
+
+    Called when model-sync finds both relays dead (typical right after a PC
+    restart). Tries the canonical Windows revive script, falls back to the
+    individual Node + Python relay launchers. Returns True if at least one
+    core relay came up. Never raises — sync must stay resilient.
+    """
+    root = Path(__file__).resolve().parent.parent
+    revive_all = root / "scripts" / "revive_relay_ports.ps1"
+    start_node = root / "scripts" / "start_node_relay.ps1"
+    py_relay_bat = root / "scripts" / "start_python_relay_7355.bat"
+    python = root / ".venv" / "Scripts" / "python.exe"
+    ran_something = False
+
+    def _try(cmd: list[str], timeout: int = 20) -> bool:
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            return True
+        except Exception:
+            return False
+
+    if sys.platform == "win32":
+        if revive_all.exists():
+            ran = _try([
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(revive_all),
+            ], timeout=45)
+            ran_something = ran
+        if start_node.exists() and not _port_alive(7350, "/"):
+            _try(["powershell", "-NoProfile", "-File", str(start_node)], timeout=15)
+            ran_something = True
+        if py_relay_bat.exists() and not _port_alive(7355, "/health"):
+            subprocess.Popen(["cmd.exe", "/c", "start", "/min", "cmd", "/c", str(py_relay_bat)],
+                             cwd=str(root))
+            ran_something = True
+        if python.exists() and not _port_alive(7357, "/health"):
+            subprocess.Popen([str(python), "-m", "nexus_os.relay.god_mode_proxy"], cwd=str(root))
+            ran_something = True
+        if ran_something:
+            time.sleep(4)
+    return _port_alive(7350, "/") or _port_alive(7357, "/health")
+
+
+def _port_alive(port: int, path: str = "/health", timeout: int = 2) -> bool:
+    import urllib.request
+    try:
+        r = urllib.request.urlopen(
+            urllib.request.Request(f"http://127.0.0.1:{port}{path}"), timeout=timeout)
+        return r.status < 400
+    except Exception:
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="NEXUS CLI model provider sync")
     ap.add_argument("--refresh", action="store_true", help="Force refresh upstream cache first")
@@ -515,9 +569,18 @@ def main(argv: list[str] | None = None) -> int:
 
     state = fetch_live_state(refresh=args.refresh)
     if not state["god_proxy_alive"] and not state["node_relay_alive"]:
+        # Relays die after a PC restart; auto-revive once before giving up so that
+        # `nexusctl model-sync` (and therefore Hermes + every CLI wiring) can proceed
+        # even from a cold boot. This is the root fix for "Hermes cannot wire relay".
+        revived = _auto_revive_relays()
+        if revived:
+            time.sleep(3)
+            state = fetch_live_state(refresh=True)
+    if not state["god_proxy_alive"] and not state["node_relay_alive"]:
         print(json.dumps({
             "error": "Neither God Mode Proxy (7357) nor Node ModelRelay (7350) reachable",
-            "hint": "Start them with:  scripts\\start_node_relay.ps1  and  python -m nexus_os.relay.god_mode_proxy",
+            "auto_revive_attempted": True,
+            "hint": "Start them with:  scripts\\revive_relay_ports.ps1  (or install: scripts\\install_nexus_autostart.ps1)",
         }, indent=2))
         return 2
 

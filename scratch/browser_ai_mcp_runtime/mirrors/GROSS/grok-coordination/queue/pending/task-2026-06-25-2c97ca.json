@@ -1,0 +1,10 @@
+{
+  "id": "task-2026-06-25-2c97ca",
+  "created_at": "2026-06-25T05:55:23.079477Z",
+  "kind": "diagnostic",
+  "prompt": "NEXUS queue visibility retest from GrokInternetHandsCoverageMatrix_v3",
+  "priority": 3,
+  "status": "pending",
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\queue\\\\pending\\\\task-2026-06-25-2c97ca.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\queue\\pending\\task-2026-06-25-2c97ca.json"
+}

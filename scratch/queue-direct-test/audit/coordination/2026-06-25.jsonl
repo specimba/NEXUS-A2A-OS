@@ -1,0 +1,1 @@
+{"scenario": "coordination", "action": "task_add", "task_id": "task-2026-06-25-205260", "kind": "diagnostic", "queue_revision": 1, "written_task_path": "C:\\Users\\speci.000\\Documents\\NEXUS\\scratch\\queue-direct-test\\coord\\queue\\pending\\task-2026-06-25-205260.json", "_id": "7dea0b56", "_ts": "2026-06-25T06:03:11.982464Z", "_schema": "audit_v2", "_hash": "43d216183cdc4019"}

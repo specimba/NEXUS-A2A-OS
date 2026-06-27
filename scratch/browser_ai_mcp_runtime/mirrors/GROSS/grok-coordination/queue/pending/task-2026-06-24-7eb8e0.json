@@ -1,0 +1,10 @@
+{
+  "id": "task-2026-06-24-7eb8e0",
+  "created_at": "2026-06-24T22:40:56.999061Z",
+  "kind": "integration",
+  "prompt": "NEXUSCLAW Task Proposal: Integrate Grok MCP internet-hands into local Browser-AI Supervisor. task_id: grok-mcp-hands-integration-2026-06-24. lane: egress-governance. intent: Wire nexus-grok-bridge-v2 http_diagnostic and task tools into McpEgressGovernor and GrokDirectorCycleContract for governed public HTTP in director cycles. required_capabilities: http_diagnostic (HEAD/GET public), task coordination, memory persistence. egress_policy: Use bridge allowlist only; dry-run default; live only after health check and TokenGuard. evidence_refs: GrokMcpEgressIntegrationReport_v2, http_diagnostic 200 on huggingface.co/github.com/arxiv.org, 22-tool registry. stop_rules: No private targets, no >1 provider call/cycle, escalate on policy block or timeout >5min. local verification commands: 1. python -m pytest tests/tools/test_governed_egress_supervisor.py 2. Run GrokDirectorCycleContract_v1 with mocked bridge. 3. Verify task appears in task_list with status pending.",
+  "priority": 7,
+  "status": "pending",
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\queue\\\\pending\\\\task-2026-06-24-7eb8e0.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\queue\\pending\\task-2026-06-24-7eb8e0.json"
+}

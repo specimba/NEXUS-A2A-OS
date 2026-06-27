@@ -1,0 +1,10 @@
+{
+  "id": "task-2026-06-25-7e8ea3",
+  "created_at": "2026-06-25T08:06:32.853279Z",
+  "kind": "implementation",
+  "prompt": "Implement MCP Gateway L1 registry/schema hash drift detection and L3 output taint propagation for NEXUS. Required local files likely include tools/browser_ai_mcp/grok_mcp_server_v2.py, tools/browser_ai_supervisor/external_browser_ai_director.py if present, nexus_os/security/mcp_gateway.py if present/new, and tests/tools/test_grok_mcp_server_v2_static.py plus new tests for schema hash mismatch, duplicate tool shadowing, output taint, and private egress block. Must preserve port law: 7352 Brain API only, 7354 Grok/browser MCP bridge, 7350 Node ModelRelay, 7355 Python/internal relay, 7357 God Mode Proxy. Must be dry-run/test-first and no secret exposure.",
+  "priority": 4,
+  "status": "pending",
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\queue\\\\pending\\\\task-2026-06-25-7e8ea3.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\queue\\pending\\task-2026-06-25-7e8ea3.json"
+}

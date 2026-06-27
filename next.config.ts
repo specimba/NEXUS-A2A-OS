@@ -7,11 +7,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Use port 3001 to avoid conflict with WSL relay on port 3000
-  // WSL relay (wslrelay.exe) occupies port 3000 for WSL2 networking
-  serverRuntimeConfig: {
-    port: 3001,
-  },
+  // Dashboard served on 3001 via `npx next dev -p 3001` / PORT env.
+  // (serverRuntimeConfig removed in Next 16 — that key triggered an
+  //  "Unrecognized key" warning on boot.)
 };
 
 export default nextConfig;

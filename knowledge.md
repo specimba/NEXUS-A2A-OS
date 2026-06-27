@@ -1,11 +1,18 @@
 # NEXUS OS — Canonical Knowledge Base
 
-**Compiled:** 2026-06-23 | **Branch:** codex/specimba/nexus-blind-push | **HEAD:** ChimeraRouter-ModelRelay adapter + PAPERS synthesis merge
+**Compiled:** 2026-06-26 | **Branch:** codex/specimba/nexus-blind-push | **HEAD:** ChimeraRouter-ModelRelay adapter + PAPERS synthesis merge
 
 <!-- CANARY: 7a14b495084935aa0985a638734cf0bb -->
 <!-- UPDATED: 2026-06-13 by Sprint 3 Execution -->
 ---
 
+## 2026-06-26 Live Grounding Delta
+
+- Grok/browser MCP bridge on `7354` is the active first external-AI hands lane: `nexus-grok-bridge-v2`, 22 tools, queue-visible runtime, registry hash reporting, L1 schema-drift and L3 taint flags, private-target blocking, allowlisted GET/HEAD egress only.
+- Browser-AI automation policy is now local-supervisor-first: Grok may run every 10 minutes only with CDP `9224` + bridge `7354`; Zo, GLM/Z.ai, and GPT browser lanes default to 6 hours. `NOOP_UNCHANGED`, setup blockers, and retryable bridge errors must not call providers.
+- Dashboard/wiki integration now exposes a sidebar Wiki tab backed by safe `docs/` indexing and catch-all markdown reads, plus a NEXUSCLAW Control Center that probes `7352/7350/7354/7355/7357` and shows bridge queue, MCP tools, registry hardening, supervisor cadence, and port ownership.
+- GLM-5.2/OpenCode log-24 advanced BEBOP/Landau-Ginzburg/Chimera monitoring, circuit-breaker isolation, relay auto-revive scripts, model-sync dry-run, and OpenModel/Sakana provider lanes. Treat these as local changes requiring focused tests before promotion.
+- `papers11` exists in ARCHIVIST as new intake evidence. It is not canonical until source-carded with body-derived claims, hash/path, lane, and adoption gate.
 ## PROJECT IDENTITY
 
 Nexus OS is a governed, local-first agent operating system. Python/FastAPI governance is canonical. Next.js dashboard (port 3000) is the UI proxy. Windows = control/authoring plane; Linux/WSL = execution sandbox.
@@ -437,56 +444,67 @@ Hermes deep-synthesized 241-line PAPERS integration report (`ARCHIVIST/ubuntuGRO
 - papers06 CHEEMS/AgentWebBench/CausalReasoningBenchmark deep extract
 - papers02 IPI defense deep extract
 
-## Sprint 6 — Gap Analysis & Improvement Roadmap (2026-06-24)
-Deep web search (8+ targeted queries) + reports grounding + PAPERS10 strategic assessment identified 12 gaps across 3 priority tiers.
+## Sprint 6 — Deep Grounded Gap Analysis (2026-06-25)
 
-### Current Snapshot
+### Sources Grounded
+| Source | Size | Key Finding |
+|--------|------|-------------|
+| CODEX log-15 | 831KB | Automation failures: stateless retries, no shared failure ledger, no cooldown. Supervisor designed as fix |
+| CODEX log-16 | 1.26MB | MCP-egress-governor concept verified. CODEX claimed `execute_governed` missing — CORRECTION: it exists and is fully implemented |
+| NEXUSubuntuHERMESlog-04 | 238KB | ChimeraRouter adapter, PAPERS synthesis, LG tracker (analyzed Sprint 5) |
+| ModelRelay Router Findings | 34 lines | Fireworks=412(dead), DeepInfra=timeout(dead), Ollama=ECONNREFUSED(dead). 429 retries stuck, no circuit breaker |
+| Core Gaps v4.2 | 5.5KB | CVA Verifier, AsyncBridgeExecutor, FlowSearch DAG proposed. T3 Guard claimed as gap — CORRECTION: already implemented |
+| Core Improvements Plan 18 | 15KB | Trust unification (dual [-1,1] vs [0,1]), MCP zero-day pattern expansion, DB persistence for stubs |
+| Zero-Cost ModelRelay Plan 19 | 12KB | InternAI provider, SiliconFlow aliases, IP rotation, 429/402→quota mapping |
+| MCP Security v5 Research | Multiple CSV/docx | Attack/defense grand master data — exists as raw data, not wired into detector |
+| NEXUSCLAW Paper Analysis | 875 lines | 25 papers, 12 improvement opportunities across 6 areas |
+| Mythos Gap Analysis | 229 lines | Behavioral audit, cybersecurity testing, concealment monitoring recommendations |
+
+### CORRECTIONS from Live Repo Check
+The ARCHIVIST documents and CODEX-16 made several incorrect claims. Live verification at `nexus_os/`:
+
+| Claim (Source) | Reality | Status |
+|----------------|---------|--------|
+| `execute_governed` is MISSING (CODEX-16) | `BrowserHTTPDiagnosticRelay.execute_governed()` EXISTS at `bridge/browser_http_diagnostic.py:202` — 70 lines, full implementation with token budget, approval callbacks, memory sink, A2A protocol | Already implemented |
+| T3 Cross-Session Guard is a proposed plan (Core Gaps v4.2) | `T3CrossSessionGuard` EXISTS at `security/t3_guard.py` — 125 lines, SQLite-backed, drift detection, trust inflation monitoring | Already implemented |
+| MetaAttackDetector has 0% recall on MCP (Plan 18) | MetaAttackDetector is 65KB — has SOME MCP patterns but detection rate is 20-30% (tool shadowing/poisoning/confusion) | PARTIALLY correct — needs expansion |
+
+### Current Snapshot (Verified Live)
 - **3290 tests pass**, 0 failures, 73 skipped
 - **Ports active**: 7350 (Node Relay), 7352 (Brain API), 7353 (TWAVE), 7355 (Python Relay)
 - **Baseten key rotated**: GLM-5.2 ranked #1 (27.06/avg, 3.4s latency), working
 - **MetaAttackDetector v5**: 64% overall (MCP tool shadowing 20%, tool poisoning 30%, tool confusion 30%)
+- **ModelRelay providers**: Fireworks=412(dead), DeepInfra=timeout(dead), Ollama=ECONNREFUSED(dead), Nvidia=healthy, Cloudflare=healthy
+- **BrowserHTTPDiagnosticRelay**: EXISTS + full `execute_governed` — validates 7354 bridge with A2A protocol
+- **T3CrossSessionGuard**: EXISTS + SQLite-backed — drift detection, trust inflation monitoring
+- **BROWSER_AI_SUPERVISOR**: EXISTS at `docs/operations/NEXUS_BROWSER_AI_SUPERVISOR_AUTOMATION_2026-06-21.md`
 
-### P0: Critical Gaps (Immediate)
+### Real Gaps (Verified Against Live State)
 
-| # | Gap | Impact | Industry SOTA | Implementation Target |
-|---|-----|--------|---------------|---------------------|
-| 1 | **MCP Gateway / Tool Poisoning Defense** | 20-30% detection on MCP attacks | MCP gateways with real-time schema scanning, hash-based monitoring, rug-pull detection. 91% of attacks = silent exfiltration (Straiker 2026). MCP03 = #1 OWASP MCP category | `nexus_os/security/mcp_gateway.py` — pre-deploy scanning, runtime monitoring, formal vetting |
-| 2 | **Memory Dream Consolidation** | 8-channel Vault has no consolidation pipeline | Anthropic Auto Dream, REM Labs Dream Engine, Mem0 memory benchmarks. "Agent capability = model + harness + memory + environment + evolution" (Red Hat 2026) | `nexus_os/vault/dream_cycle.py` — periodic consolidation, stale pruning, cross-session learning |
-| 3 | **Calibrated Hallucination Detection** | LG tracker is dry-run only | CES (Calibrated Entropy Score) 2026 — single forward pass, black-box logits. Semantic Entropy (Nature 2024) — meaning-level uncertainty. 96% hallucination reduction in production | Calibrate LG tracker to real logits + CES + self-correction loop |
+| # | Priority | Gap | Evidence | Impact |
+|---|----------|-----|----------|--------|
+| 1 | **P0** | **MCP Gateway: connect BrowserHTTPDiagnosticRelay → MetaAttackDetector pipeline** | Both exist independently but NOT wired together. `execute_governed` validates egrees but results don't feed detector. Detector has 20-30% MCP recall | MCP attacks undetected until after execution |
+| 2 | **P0** | **Provider Health Circuit Breaker for ModelRelay** | Router retries 412/timeout/429 providers 6 times before failover. No circuit breaker, no cooldown, no degraded-state partitioning | 15+ second latency spikes on dead providers |
+| 3 | **P0** | **Memory Dream Consolidation** | 8-channel Vault has sleep/dream cycle. CODEX-15: automation memory fragmentation proves need | Cross-session learning breaks |
+| 4 | **P1** | **MetaAttackDetector MCP Pattern Expansion + CSV ingestion** | `mcp_attack_master_v5.csv` has 5 rounds of attack variants — not used as detection rules. Tool shadowing/poisoning stuck at 20-30% | Attack surface unmonitored |
+| 5 | **P1** | **Calibrated Hallucination Detection (CES)** | LG tracker is dry-run only. CES: single forward pass, black-box logits | No real-model hallucination detection |
+| 6 | **P1** | **Trust Unification** | Dual scorer conflict: `trust_formulas.py` [-1,1] vs `vault/trust.py` [0,1] | Inconsistent routing decisions |
+| 7 | **P1** | **A2A Protocol Compatibility** | BrowserHTTPDiagnosticRelay supports A2A but MessageBus does not. NEXUSCLAW uses custom envelopes | No interop with Google A2A ecosystem |
+| 8 | **P2** | **FlowSearch DAG** | Core Gaps v4.2: Sakana-style directed-graph task execution. Not implemented | Engine lacks DAG task execution |
+| 9 | **P2** | **Self-Correction Loop** | No reflection/retry pattern. Industry: chain-of-verification, CRITIC | Hallucinations propagate unchecked |
+| 10 | **P2** | **Jailbreak Dictionary** | Adversarial Déjà Vu: 35x compression to 397 atoms. Not implemented | Missing recombinatorial detection |
 
-### P1: High Priority Gaps
+### Recommended Next Session
 
-| # | Gap | Impact | Industry SOTA | Implementation Target |
-|---|-----|--------|---------------|---------------------|
-| 4 | **A2A Protocol Compatibility** | MessageBus not A2A-compatible | A2A + MCP = 2026 industry standard. 40-60% faster workflow with hybrid approach. MCP 2026 roadmap: transport scalability, refined agent communication | A2A-compatible message envelopes + A2A card discovery for MessageBus |
-| 5 | **Persistent Context / Smart Compaction** | Context overflow at 60% capacity | Temporal knowledge graphs outperform RAG. Context Engineering replacing Prompt Engineering. Redis: 15-20 turns before overflow | `nexus_os/vault/compaction.py` — temporal KG for 8-channel Vault |
-| 6 | **Jailbreak Auto-Categorization** | IntentClassifier has no dictionary learning | Adversarial Déjà Vu: 32 papers, 1,494 pairs, 16,901 skills compressed to 397 atoms (35x). ASCoT improves generalization | `nexus_os/governor/jailbreak_dictionary.py` — K-SVD + LARS + ASCoT |
-| 7 | **Self-Correction Loop** | No reflection/retry pattern | Reflection pattern, Chain-of-Verification, CRITIC (tool-interactive critiquing). Models are 34% more confident when hallucinating (MIT 2026) | `nexus_os/engine/self_correction.py` — reflection + verification + retry |
+**MCP Gateway Pipeline** — wire `BrowserHTTPDiagnosticRelay` → `MetaAttackDetector` + add provider health circuit breaker:
 
-### P2: Medium Priority Gaps
+1. Create `nexus_os/security/mcp_gateway.py` — pre-deploy MCP server scanning (tool description hash + schema validation)
+2. Add runtime monitoring hook in `execute_governed` that feeds decisions to MetaAttackDetector
+3. Add `ProviderHealthCircuitBreaker` — tracks 412/429/timeout per provider, auto-degrades after threshold
+4. Import attack patterns from `ARCHIVIST mcp_attack_master_v5.csv` as detection rules in MetaAttackDetector
+5. Test: `nexusctl doctor --mcp-gateway` reports gateway status + provider health
 
-| # | Gap | Impact | Industry SOTA |
-|---|-----|--------|---------------|
-| 8 | **Tool Registration Catalog** | No supply-chain verification for MCP servers | Solo.io Registration Catalog + Agent Gateway. 5.5% of public servers have poisoned metadata. CVE-2025-6514: 437K+ downloads |
-| 9 | **Multi-Agent Memory Consistency** | No shared memory protocol between agents | "Most pressing open challenge in MAS" (2603.10062). 3-layer hierarchy: I/O → cache → memory. Cache sharing + access control |
-| 10 | **Enterprise Governance Dashboard** | No centralized cost/trust/drift observability | 40% of agent projects fail due to governance gaps (Gartner 2027). Market: $7.8B→$52B by 2030 |
-| 11 | **Cross-Session Identity Resolution** | Anonymous session continuity | Multi-scope memory (user_id + agent_id + run_id + org_id). Mem0 production benchmark |
-| 12 | **Agent Behavioral Audit** | Mythos-like proactive audit missing | Mythos: 2,300 investigation sessions, 1,150 scenarios, 15-dimension scoring. NEXUS has reactive monitoring only |
-
-### Recommendations (Next 3 Sessions)
-
-1. **Session A** — MCP Gateway: `mcp_gateway.py` (pre-deploy scanning + runtime monitoring + vetting workflow). Closes P0#1, raises MCP detection from 20-30% to 80%+.
-2. **Session B** — Dream Cycle: `dream_cycle.py` (periodic consolidation + stale pruning + cross-session learning). Closes P0#2, makes 8-channel Vault truly persistent.
-3. **Session C** — Calibrated Hallucination Detector: wire LG tracker to real logit stream + CES + self-correction loop. Closes P0#3.
-
-### Search Sources Used
-- 2026 state-of-the-art multi-agent AI framework security architecture improvements
-- MCP tool poisoning defense detection techniques 2026
-- Multi-agent system memory architecture 2026 RAG long-term memory persistent context
-- AI agent hallucination detection self-correction 2026 entropy-based methods
-- Agent persistent context memory dream cycle consolidation 2026
-- MCP Gateway tool verification registration catalog
-- Enterprise AI agent deployment patterns governance 2026
+This closes P0#1+P0#2+P1#4 in one coherent slice and leverages code that's already 90% written.
 - PAPER10 strategic assessment (130 papers)
 - NEXUSCLAW V1 paper analysis (25 papers, 12 improvement opportunities)
 - Mythos gap analysis (229 lines)

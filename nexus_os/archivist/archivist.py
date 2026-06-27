@@ -140,7 +140,8 @@ def scan_directory(dir_path: Path, max_depth: int = 3, max_size_mb: int = 100) -
 
 # Bridge mapping for callers that consume categorize_file() output.
 # Maps archivist's string category labels to import_stage's FileType enum.
-# Currently no callers in production — kept as a stable conversion contract.
+# This is THE single source of truth for extension-to-type classification.
+# When adding a new FileType, add a mapping here AND update categorize_file() below.
 CATEGORIZE_TO_FILETYPE = {
     "paper": "PAPER",
     "log": "LOG",
@@ -150,12 +151,20 @@ CATEGORIZE_TO_FILETYPE = {
     "plan": "MARKDOWN",
     "report": "LOG",
     "text": "LOG",
+    "image": "IMAGE",
+    "notebook": "NOTEBOOK",
+    "data": "DATA",
     "archive": "UNKNOWN",
     "other": "UNKNOWN",
 }
 
 def categorize_file(path: str) -> str:
-    """Categorize file by extension and name."""
+    """Categorize file by extension and name.
+
+    Returns string category labels that CATEGORIZE_TO_FILETYPE maps to FileType enum
+    values. Both this function and the mapping must stay in sync — add new extension
+    patterns here and their mapping above.
+    """
     p = path.lower()
     if p.endswith('.pdf'):
         return 'paper'
@@ -177,8 +186,22 @@ def categorize_file(path: str) -> str:
             return 'text'
     elif p.endswith('.py') or p.endswith('.js') or p.endswith('.ts'):
         return 'code'
+    elif p.endswith('.rs') or p.endswith('.go') or p.endswith('.java'):
+        return 'code'
+    elif p.endswith('.c') or p.endswith('.cpp') or p.endswith('.h'):
+        return 'code'
     elif p.endswith('.json') or p.endswith('.yaml') or p.endswith('.yml'):
         return 'config'
+    elif p.endswith('.toml') or p.endswith('.ini') or p.endswith('.cfg'):
+        return 'config'
+    elif p.endswith('.png') or p.endswith('.jpg') or p.endswith('.jpeg'):
+        return 'image'
+    elif p.endswith('.gif') or p.endswith('.bmp') or p.endswith('.webp') or p.endswith('.svg'):
+        return 'image'
+    elif p.endswith('.ipynb'):
+        return 'notebook'
+    elif p.endswith('.csv') or p.endswith('.parquet') or p.endswith('.jsonl'):
+        return 'data'
     elif p.endswith('.zip') or p.endswith('.tar.gz'):
         return 'archive'
     else:

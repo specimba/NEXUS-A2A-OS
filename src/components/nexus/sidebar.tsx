@@ -50,6 +50,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'nexusclaw', label: 'NEXUSCLAW', icon: <Brain className="h-4 w-4" /> },
   { id: 'swarm-intervention', label: 'Intervene', icon: <Swords className="h-4 w-4" />, badge: '190 tests' },
   { id: 'research', label: 'Research', icon: <BookOpen className="h-4 w-4" />, badge: '20' },
+  { id: 'wiki', label: 'Wiki', icon: <BookOpen className="h-4 w-4" />, badge: 'DOC' },
   { id: 'tokens', label: 'Token Budget', icon: <Coins className="h-4 w-4" /> },
   { id: 'ratelimit', label: 'Rate Limits', icon: <Gauge className="h-4 w-4" /> },
   { id: 'kpi', label: 'KPI Dashboard', icon: <Target className="h-4 w-4" /> },

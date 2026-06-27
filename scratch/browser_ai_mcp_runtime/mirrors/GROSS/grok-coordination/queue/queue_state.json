@@ -1,0 +1,7 @@
+{
+  "queue_revision": 2,
+  "last_added_task_id": "task-2026-06-25-7e8ea3",
+  "last_updated_at": "2026-06-25T08:06:32.856177Z",
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\queue\\\\queue_state.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\queue\\queue_state.json"
+}

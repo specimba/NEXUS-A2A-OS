@@ -1,4 +1,4 @@
-"""Source-card helpers for ARCHIVIST PAPERS/papers09 intake.
+"""Source-card helpers for ARCHIVIST PAPERS intake.
 
 This module intentionally separates draft filename inventory from promotable
 paper evidence. A paper is not promotable until it has a body-derived claim,
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-PRIORITY_TITLES = (
+PAPERS09_PRIORITY_TITLES = (
     "VibeThinker-3B",
     "FastContext",
     "Nanbeige4.1-3B",
@@ -26,6 +26,36 @@ PRIORITY_TITLES = (
     "Context Compression",
     "AllMem",
     "Hybrid Associative Memories",
+)
+
+
+PAPERS10_PRIORITY_TITLES = (
+    "Fugu_technical_report",
+    "FastContext",
+    "GLM-5 from Vibe Coding to Agentic Engineering",
+    "Agent Security Bench",
+    "A Survey of LLM-based Deep Search Agents",
+    "Deep Research Agents",
+    "Context Compression",
+    "AllMem",
+    "GUARD-SLM",
+    "SafeDecoding",
+    "Reasoned Safety Alignment",
+    "Claw-Eval",
+    "Progent",
+    "CommandSans",
+    "TRINITY",
+    "VERGE",
+    "VERIWEB",
+    "Learning to Route Among Specialized Experts",
+    "Training Long-Context, Multi-Turn Software",
+    "SWE-LEGO",
+    "VibeThinker-3B",
+    "Nanbeige4.1-3B",
+)
+
+PRIORITY_TITLES = PAPERS09_PRIORITY_TITLES + tuple(
+    title for title in PAPERS10_PRIORITY_TITLES if title not in PAPERS09_PRIORITY_TITLES
 )
 
 
@@ -42,6 +72,18 @@ LANE_HINTS = {
     "Context Compression": "vault_memory",
     "AllMem": "vault_memory",
     "Hybrid Associative Memories": "vault_memory",
+
+    "Fugu": "free_cloud_model_relay",
+    "GLM-5": "modal_teacher_probe",
+    "Agent Security Bench": "internal_ai_stress_lab",
+    "Deep Research": "research_systems",
+    "Progent": "guard_bouncer",
+    "CommandSans": "guard_bouncer",
+    "TRINITY": "nexusclaw_coordinator",
+    "VERGE": "verification",
+    "VERIWEB": "browser_ai_eval",
+    "Learning to Route": "modelrelay_router",
+    "Training Long-Context": "heavyskill_reviewer",
 }
 
 
@@ -118,13 +160,52 @@ def promote_card(card: PaperSourceCard, *, body_claim: str, evidence_grade: str 
     )
 
 
-def iter_priority_paths(root: Path) -> Iterable[Path]:
-    """Yield priority papers from a papers09 folder in deterministic order."""
+
+def create_promoted_card_from_body(
+    path: Path,
+    *,
+    body_text: str,
+    evidence_grade: str = "E1",
+) -> PaperSourceCard:
+    """Create a promotable source card from a bounded body-read excerpt.
+
+    The body text must come from extracted PDF text, a trusted sidecar, or a
+    manually reviewed excerpt. Filename-only evidence must use
+    ``create_draft_card`` instead.
+    """
+
+    excerpt = " ".join(body_text.strip().split())
+    if len(excerpt) < 80:
+        raise ValueError("body_text excerpt is too short for E1 promotion")
+    claim = excerpt[:360]
+    if len(excerpt) > 360:
+        claim += "..."
+    return promote_card(create_draft_card(path), body_claim=claim, evidence_grade=evidence_grade)
+
+
+def create_backlog_cards(root: Path, *, priority_titles: Iterable[str] = PRIORITY_TITLES) -> list[PaperSourceCard]:
+    """Create deterministic non-promoted cards for a papers folder."""
+
+    return [create_draft_card(path) for path in iter_priority_paths(root, priority_titles=priority_titles)]
+
+
+def _match_key(value: str) -> str:
+    """Normalize paper titles for filename matching across spaces/underscores."""
+
+    return " ".join(value.replace("_", " ").replace("-", " ").lower().split())
+
+
+def iter_priority_paths(root: Path, *, priority_titles: Iterable[str] = PRIORITY_TITLES) -> Iterable[Path]:
+    """Yield priority papers from a papers folder in deterministic order."""
 
     files = sorted(path for path in root.iterdir() if path.is_file())
-    for title in PRIORITY_TITLES:
-        lowered = title.lower()
+    matched: set[Path] = set()
+    for title in priority_titles:
+        lowered = _match_key(title)
         for path in files:
-            if lowered in path.stem.lower():
+            if path in matched:
+                continue
+            if lowered in _match_key(path.stem):
+                matched.add(path)
                 yield path
                 break

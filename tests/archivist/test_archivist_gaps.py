@@ -171,8 +171,16 @@ class TestCategorizeFile:
         ("script.py", "code"),
         ("app.js", "code"),
         ("module.ts", "code"),
+        ("main.rs", "code"),
+        ("server.go", "code"),
+        ("app.java", "code"),
+        ("driver.c", "code"),
+        ("utils.cpp", "code"),
+        ("header.h", "code"),
         ("config.yaml", "config"),
         ("settings.json", "config"),
+        ("app.toml", "config"),
+        ("config.ini", "config"),
         ("readme.md", "documentation"),
         ("plan.md", "plan"),
         ("implementation_guide.md", "plan"),
@@ -180,6 +188,17 @@ class TestCategorizeFile:
         ("log.md", "report"),
         ("output.log", "log"),
         ("notes.txt", "text"),
+        ("screenshot.png", "image"),
+        ("photo.jpg", "image"),
+        ("image.jpeg", "image"),
+        ("animation.gif", "image"),
+        ("diagram.bmp", "image"),
+        ("icon.svg", "image"),
+        ("chart.webp", "image"),
+        ("notebook.ipynb", "notebook"),
+        ("data.csv", "data"),
+        ("dataset.parquet", "data"),
+        ("records.jsonl", "data"),
         ("backup.zip", "archive"),
         ("data.tar.gz", "archive"),
         ("unknown.xyz", "other"),
@@ -195,12 +214,13 @@ class TestCategorizeToFiletypeMapping:
 
     def test_all_categories_mapped(self):
         possible_categories = {"paper", "log", "code", "config", "documentation",
-                               "plan", "report", "text", "archive", "other"}
+                                "plan", "report", "text", "image", "notebook", "data",
+                                "archive", "other"}
         for cat in possible_categories:
             assert cat in CATEGORIZE_TO_FILETYPE, f"Missing mapping for category: {cat}"
 
     def test_values_are_filetype_strings(self):
-        valid_types = {"PAPER", "LOG", "CODE", "CONFIG", "MARKDOWN", "UNKNOWN"}
+        valid_types = {"PAPER", "LOG", "CODE", "CONFIG", "MARKDOWN", "IMAGE", "NOTEBOOK", "DATA", "UNKNOWN"}
         for cat, ft in CATEGORIZE_TO_FILETYPE.items():
             assert ft in valid_types, f"Category {cat!r} maps to invalid FileType {ft!r}"
 

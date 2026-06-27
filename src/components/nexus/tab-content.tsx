@@ -19,6 +19,7 @@ import { DashboardsTab } from './tabs/dashboards-tab'
 import { McpHubTab } from './tabs/mcp-hub-tab'
 import { BrainStatusTab } from './tabs/brain-status-tab'
 import { ConfigTab } from './tabs/config-tab'
+import { WikiTab } from './tabs/wiki-tab'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const tabComponents: Record<string, React.ComponentType> = {
@@ -38,9 +39,9 @@ const tabComponents: Record<string, React.ComponentType> = {
   mcp: McpHubTab,
   'brain-status': BrainStatusTab,
   config: ConfigTab,
+  wiki: WikiTab,
 }
 
-// Stagger container variants — children will animate in with delay
 export const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {

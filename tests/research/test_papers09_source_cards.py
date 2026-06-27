@@ -5,7 +5,10 @@ from pathlib import Path
 import pytest
 
 from nexus_os.research.papers09_source_cards import (
+    PAPERS10_PRIORITY_TITLES,
+    create_backlog_cards,
     create_draft_card,
+    create_promoted_card_from_body,
     iter_priority_paths,
     lane_for_title,
     promote_card,
@@ -57,3 +60,42 @@ def test_priority_paths_are_deterministic(tmp_path: Path):
         "VibeThinker-3B Exploring the Frontier.pdf",
         "FastContext Training Efficient Repository Explorer.pdf",
     ]
+
+
+def test_papers10_titles_are_in_priority_backlog(tmp_path: Path):
+    assert "Fugu" in " ".join(PAPERS10_PRIORITY_TITLES)
+
+    (tmp_path / "Fugu technical report for agentic systems.pdf").write_text("x", encoding="utf-8")
+    (tmp_path / "Unrelated paper.pdf").write_text("x", encoding="utf-8")
+
+    cards = create_backlog_cards(tmp_path)
+
+    assert [Path(card.source_path).name for card in cards] == ["Fugu technical report for agentic systems.pdf"]
+    assert cards[0].target_lane == "free_cloud_model_relay"
+    assert cards[0].evidence_grade == "E0"
+    assert cards[0].promotable is False
+
+
+def test_body_read_promotion_records_e1_claim_and_hash(tmp_path: Path):
+    paper = tmp_path / "GLM-5 from Vibe Coding to Agentic Engineering.pdf"
+    paper.write_text("fixture", encoding="utf-8")
+    body = (
+        "This paper reports long-horizon agentic coding behavior, repository-scale "
+        "planning, and verification-oriented development loops for GLM-5 style models."
+    )
+
+    card = create_promoted_card_from_body(paper, body_text=body)
+
+    assert card.evidence_grade == "E1"
+    assert card.promotable is True
+    assert "long-horizon agentic coding" in card.body_claim
+    assert card.sha256
+    assert card.target_lane == "modal_teacher_probe"
+
+
+def test_body_read_promotion_requires_actual_body_text(tmp_path: Path):
+    paper = tmp_path / "SafeDecoding.pdf"
+    paper.write_text("fixture", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        create_promoted_card_from_body(paper, body_text="too short")

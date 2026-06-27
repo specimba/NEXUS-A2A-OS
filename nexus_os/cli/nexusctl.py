@@ -61,6 +61,25 @@ def cmd_doctor(args):
     except Exception as e:
         checks["Wiki Pipeline"] = f"ERROR: {e}"
 
+    if getattr(args, "mcp_gateway", False):
+        try:
+            from nexus_os.security.mcp_gateway import MCPGateway
+            gw = MCPGateway()
+            stats = gw.get_stats()
+            cb = gw.get_circuit_breaker_status()
+            dead = cb.get("dead_providers", {})
+            checks["MCP Gateway"] = (
+                f"{stats['total_requests']} reqs, "
+                f"{stats['allowed']} allowed, "
+                f"{stats['blocked']} blocked"
+            )
+            if dead:
+                checks["MCP Gateway Circuit Breaker"] = (
+                    f"{len(dead)} providers in cooldown"
+                )
+        except Exception as e:
+            checks["MCP Gateway"] = f"ERROR: {e}"
+
     try:
         from nexus_cli_ctl.integrations.messaging.messaging_integration import get_messaging_integration
         msg = get_messaging_integration()
@@ -729,6 +748,217 @@ def cmd_model_sync(args):
     return model_sync.main(argv if argv else None)
 
 
+def cmd_a2a_channels(args):
+    """`nexusctl a2a-channels` — Inter-session A2A message bus (Plan 20).
+
+    List, publish, subscribe, or consolidate typed channels under
+    ~/.nexus/a2a_channels/.
+    """
+    from nexus_os.bridge.a2a_channels import A2AChannelBus
+
+    bus = A2AChannelBus()
+
+    if getattr(args, "list_channels", False):
+        channels = bus.discover()
+        print(json.dumps(channels, indent=2))
+        return 0
+
+    if getattr(args, "publish", None):
+        channel_id, topic, msg = args.publish
+        result = bus.publish(channel_id=channel_id, sender="nexusctl", message=msg, topic=topic)
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "subscribe", None):
+        channel_id = args.subscribe[0]
+        messages = bus.subscribe(channel_id, max_messages=50)
+        print(json.dumps([m.to_dict() for m in messages], indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "consolidate", False):
+        result = bus.consolidate()
+        print(json.dumps(result, indent=2))
+        return 0
+
+    if getattr(args, "stats", False):
+        stats = bus.get_stats()
+        print(json.dumps(stats, indent=2))
+        return 0
+
+    print("Usage: nexusctl a2a-channels [--list | --publish CHAN TOPIC MSG | --subscribe CHAN | --consolidate | --stats]")
+    return 2
+
+
+def cmd_dream_cycle(args):
+    """`nexusctl dream-cycle` — run memory consolidation (Dream Cycle, P0#3).
+
+    Consolidates EPISODIC → SEMANTIC memory, deduplicates, prunes stale
+    entries, and emits cross-session learning patterns to A2A channels.
+    """
+    from nexus_os.vault.dream_cycle import DreamCycle
+
+    dc = DreamCycle(a2a_channel=getattr(args, "a2a_channel", None))
+
+    if getattr(args, "daemon", False):
+        dc.run_daemon(interval_minutes=getattr(args, "interval", 30))
+        return 0
+
+    if getattr(args, "status", False):
+        stats = dc.get_stats()
+        print(json.dumps(stats, indent=2))
+        return 0
+
+    result = dc.consolidate()
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def cmd_adrf(args):
+    """`nexusctl adrf` — Adversarial Robustness Defense Framework (Plan 19).
+
+    Detects prompt injection, jailbreaks, prompt leaks, role overrides,
+    encoded payloads, MCP exploits, and rate bypass attempts via
+    signature-based scanning.
+    """
+    from nexus_os.security.adrf import ADRFDetector, AdversarialSignature, AttackType
+
+    detector = ADRFDetector(a2a_channel=getattr(args, "a2a_channel", None))
+
+    if getattr(args, "list", False):
+        sigs = [sig.to_dict() for sig in detector._signatures]
+        print(json.dumps({"signatures": sigs, "count": len(sigs)}, indent=2))
+        return 0
+
+    if getattr(args, "add", None):
+        try:
+            data = json.loads(args.add)
+            sig = AdversarialSignature(
+                pattern=data["pattern"],
+                attack_type=AttackType(data.get("attack_type", "injection")),
+                severity=float(data.get("severity", 0.5)),
+                description=data.get("description", ""),
+            )
+            detector.add_signature(sig)
+            print(json.dumps({"added": sig.to_dict()}, indent=2))
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            print(json.dumps({"error": str(exc)}, indent=2))
+            return 1
+        return 0
+
+    if getattr(args, "stats", False):
+        print(json.dumps(detector.get_stats(), indent=2))
+        return 0
+
+    if getattr(args, "test", None):
+        result = detector.analyze(args.test)
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print("Usage: nexusctl adrf [--test TEXT | --list | --add JSON | --stats]")
+    return 2
+
+
+def cmd_hallucination(args):
+    """`nexusctl hallucination` — Calibrated Hallucination Detector (P1).
+
+    Wraps LG tracker's EPR detector with adaptive threshold calibration,
+    cross-session learning, and self-correction signaling.
+    """
+    from nexus_os.monitoring.calibrated_hallucination_detector import CalibratedHallucinationDetector
+
+    chd = CalibratedHallucinationDetector(
+        a2a_channel=getattr(args, "a2a_channel", None),
+        bebop_weight=getattr(args, "bebop_weight", 0.15),
+        bebop_tau=getattr(args, "bebop_tau", 0.40),
+    )
+
+    if getattr(args, "status", False):
+        print(json.dumps({
+            "stats": chd.get_stats(),
+            "history": chd.get_calibration_history()[-10:],
+        }, indent=2))
+        return 0
+
+    if getattr(args, "feedback", None) is not None:
+        chd.record_feedback(args.feedback)
+        threshold = chd._get_effective_threshold()
+        print(json.dumps({"feedback_recorded": args.feedback, "calibrated_threshold": threshold}, indent=2))
+        return 0
+
+    if getattr(args, "assess", None) is not None:
+        probs = [float(x) for x in args.assess.split(",")] if args.assess else None
+        result = chd.assess(topk_probs=probs)
+        print(json.dumps(result, indent=2))
+        return 0
+
+    print("Usage: nexusctl hallucination [--status | --assess PROBS | --feedback BOOL]")
+    return 2
+
+
+def cmd_rotate_keys(args):
+    """`nexusctl rotate-keys` — test provider keys, circuit breaker, propagate to all CLIs."""
+    from nexusctl import rotate_keys
+
+    if getattr(args, "install_schedule", False):
+        result = rotate_keys.install_hourly_schedule()
+        print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
+        return 0 if result.get("installed") else 1
+
+    if getattr(args, "health_check", False):
+        result = rotate_keys.cmd_health_check()
+        print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "circuit_breaker", False):
+        result = rotate_keys.cmd_circuit_breaker()
+        print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
+        return 0
+
+    if getattr(args, "test_model", None):
+        provider_id, model, key = args.test_model
+        result = rotate_keys.test_openai_model(provider_id, key, model)
+        print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
+        return 0
+
+    key_id = None
+    key_value = None
+    if getattr(args, "key", None):
+        key_id = args.key[0]
+        key_value = args.key[1]
+
+    result = rotate_keys.cmd_rotate(key_id=key_id, key_value=key_value, dry_run=getattr(args, "dry_run", False))
+    print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
+def cmd_monitor(args):
+    """`nexusctl monitor` — run the Monitor Daemon (Dream Cycle + health + key rotation)."""
+    from nexus_os.monitor_daemon import MonitorDaemon, install_monitor_schedule
+
+    daemon = MonitorDaemon(
+        interval_minutes=getattr(args, "interval", 15),
+        a2a_channel=getattr(args, "a2a_channel", None),
+    )
+
+    if getattr(args, "install_schedule", False):
+        result = install_monitor_schedule(interval_minutes=args.interval)
+        print(json.dumps(result, indent=2))
+        return 0
+
+    if getattr(args, "status", False):
+        status = daemon.get_status()
+        print(json.dumps(status, indent=2, default=str))
+        return 0
+
+    if getattr(args, "daemon", False):
+        daemon.run_daemon()
+        return 0
+
+    result = daemon.run_once()
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
 def cmd_route(args):
     """`nexusctl route` — route a prompt through ChimeraRouter, optionally execute via ModelRelay.
 
@@ -891,6 +1121,7 @@ def main():
 
     # doctor
     sub = subparsers.add_parser("doctor", help="Run system health check")
+    sub.add_argument("--mcp-gateway", action="store_true", help="Show MCP Gateway pipeline status + circuit breaker state")
     sub.set_defaults(func=cmd_doctor)
 
     # dashboard
@@ -1019,6 +1250,19 @@ def main():
     sub.add_argument("--json", action="store_true", help="Emit JSON report")
     sub.set_defaults(func=cmd_eval)
 
+    # monitor — Monitor Daemon
+    sub = subparsers.add_parser(
+        "monitor",
+        help="Monitor Daemon: Dream Cycle consolidation, health checks, key rotation",
+    )
+    sub.add_argument("--run-once", action="store_true", help="Run a single monitor cycle")
+    sub.add_argument("--daemon", action="store_true", help="Run continuously every --interval minutes")
+    sub.add_argument("--interval", type=int, default=15, help="Daemon interval in minutes (default 15)")
+    sub.add_argument("--install-schedule", action="store_true", help="Install Windows scheduled task")
+    sub.add_argument("--status", action="store_true", help="Show last run results")
+    sub.add_argument("--a2a-channel", default=None, help="A2A channel for emitting results")
+    sub.set_defaults(func=cmd_monitor)
+
     # route — ChimeraRouter prompt routing + optional execution
     sub = subparsers.add_parser(
         "route",
@@ -1061,6 +1305,22 @@ def main():
     sub.add_argument("--refresh", action="store_true", help="Force upstream God Mode Proxy + Node Relay cache refresh before reporting")
     sub.set_defaults(func=cmd_models_list)
 
+    # rotate-keys — test + propagate provider keys to all CLIs
+    sub = subparsers.add_parser(
+        "rotate-keys",
+        help="Test provider API keys, update circuit breaker, propagate to all CLIs",
+    )
+    sub.add_argument("--key", nargs=2, metavar=("PROVIDER", "VALUE"), default=None,
+                     help="Set/update a specific provider key (e.g. --key baseten DDLL...)")
+    sub.add_argument("--health-check", action="store_true", help="Ping all providers and show status (read-only)")
+    sub.add_argument("--circuit-breaker", action="store_true", help="Show circuit breaker state")
+    sub.add_argument("--install-schedule", action="store_true",
+                     help="Install 1-hour Windows scheduled task for automatic key rotation")
+    sub.add_argument("--dry-run", action="store_true", help="Preview without writing any file")
+    sub.add_argument("--test-model", nargs=3, metavar=("PROVIDER", "MODEL", "KEY"),
+                     help="Test a specific model: --test-model baseten zai-org/GLM-5.2 <KEY>")
+    sub.set_defaults(func=cmd_rotate_keys)
+
     # model-sync — push live lanes/providers/models to every CLI
     sub = subparsers.add_parser(
         "model-sync",
@@ -1072,6 +1332,58 @@ def main():
     sub.add_argument("--install-schedule", action="store_true", help="Install/update the 1-hour Windows scheduled task for automatic model sync")
     sub.add_argument("--log", default=None, help="Append JSON log to this path")
     sub.set_defaults(func=cmd_model_sync)
+
+    # a2a-channels — Plan 20 inter-session message bus
+    sub = subparsers.add_parser(
+        "a2a-channels",
+        help="Inter-session A2A message bus (Plan 20): list, publish, subscribe, consolidate",
+    )
+    sub.add_argument("--list", dest="list_channels", action="store_true", help="List all channels")
+    sub.add_argument("--publish", nargs=3, metavar=("CHANNEL", "TOPIC", "MSG"), default=None,
+                     help="Publish a message: --publish CHANNEL TOPIC MSG")
+    sub.add_argument("--subscribe", nargs=1, metavar="CHANNEL", default=None,
+                     help="Tail recent messages from a channel")
+    sub.add_argument("--consolidate", action="store_true", help="Purge stale messages from all channels")
+    sub.add_argument("--stats", action="store_true", help="Show summary stats")
+    sub.set_defaults(func=cmd_a2a_channels)
+
+    # dream-cycle — P0 memory consolidation
+    sub = subparsers.add_parser(
+        "dream-cycle",
+        help="Run Dream Cycle memory consolidation (EPISODIC->SEMANTIC, dedup, prune, A2A emit)",
+    )
+    sub.add_argument("--daemon", action="store_true", help="Run every N minutes")
+    sub.add_argument("--interval", type=int, default=30, help="Daemon interval (minutes)")
+    sub.add_argument("--status", action="store_true", help="Show Dream Cycle stats")
+    sub.add_argument("--a2a-channel", default=None, help="A2A channels directory (Plan 20)")
+    sub.set_defaults(func=cmd_dream_cycle)
+
+    # adrf — Adversarial Robustness Defense Framework
+    sub = subparsers.add_parser(
+        "adrf",
+        help="Adversarial Robustness Defense Framework (Plan 19): detect and defend against adversarial attacks",
+    )
+    sub.add_argument("--test", type=str, default=None, help="Analyze a text string for adversarial content")
+    sub.add_argument("--list", action="store_true", help="Show all registered signatures")
+    sub.add_argument("--add", type=str, default=None, help="Add a custom signature as JSON")
+    sub.add_argument("--stats", action="store_true", help="Show detection stats")
+    sub.add_argument("--a2a-channel", default=None, help="A2A channels directory (Plan 20)")
+    sub.set_defaults(func=cmd_adrf)
+
+    # hallucination — Calibrated Hallucination Detector
+    sub = subparsers.add_parser(
+        "hallucination",
+        help="Calibrated Hallucination Detector with adaptive threshold + A2A learning",
+    )
+    sub.add_argument("--status", action="store_true", help="Show stats + calibration history")
+    sub.add_argument("--assess", default=None, help="Comma-separated top-k probs to assess")
+    sub.add_argument("--feedback", type=bool, default=None, help="Calibration feedback (True/False)")
+    sub.add_argument("--a2a-channel", default=None, help="A2A channels directory (Plan 20)")
+    sub.add_argument("--bebop-weight", type=float, default=0.15,
+                     help="Weight for Bebop TV-distribution signal (0.0 disables; default 0.15)")
+    sub.add_argument("--bebop-tau", type=float, default=0.40,
+                     help="TV-distance threshold for Bebop (default 0.40)")
+    sub.set_defaults(func=cmd_hallucination)
 
     args = parser.parse_args()
 

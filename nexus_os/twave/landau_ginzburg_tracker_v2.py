@@ -439,8 +439,34 @@ class LandauGinzburgTrackerV2:
 
     def set_dry_run(self, enabled=True): self._is_dry_run = enabled
 
-    def get_report(self):
+    def get_report(self, *, apply_spectral_bounds: bool = False):
         entropies = [op.entropy for op in self._order_params]
+        # P2.2 (LoopWM): optional spectral bound. Default off; no behavior change.
+        stability_report = None
+        if apply_spectral_bounds and self._lg_states:
+            try:
+                from nexus_os.twave.spectral_stability import (
+                    SpectralBounds,
+                    bound_effective_temperature,
+                )
+                series = [s.effective_temperature for s in self._lg_states]
+                bounded = bound_effective_temperature(series, bounds=SpectralBounds())
+                pre_max = max((abs(x) for x in series), default=0.0)
+                post_max = max((abs(x) for x in bounded), default=0.0)
+                # Overlay: mutate the LG states so downstream reads see bounded values.
+                for st, v in zip(self._lg_states, bounded):
+                    st.effective_temperature = v
+                self._current_temperature = bounded[-1] if bounded else self._current_temperature
+                stability_report = {
+                    "applied": True,
+                    "states_adjusted": len(bounded),
+                    "pre_max_abs": round(pre_max, 4),
+                    "post_max_abs": round(post_max, 4),
+                    "t_low": SpectralBounds().t_low,
+                    "t_high": SpectralBounds().t_high,
+                }
+            except Exception:
+                stability_report = {"applied": False, "error": "import_or_apply_failed"}
         return TrackerReport(
             category=self.category, t_c=self.t_c,
             tokens_generated=len(self._order_params),

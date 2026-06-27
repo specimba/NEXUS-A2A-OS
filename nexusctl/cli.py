@@ -535,6 +535,139 @@ def run_models_list(refresh: bool) -> int:
     return 0 if (state.get("god_proxy_alive") or state.get("node_relay_alive")) else 2
 
 
+def run_dream_cycle() -> int:
+    """`nexusctl dream-cycle` — memory consolidation."""
+    try:
+        from nexus_os.vault.dream_cycle import DreamCycle
+        dc = DreamCycle()
+        result = dc.consolidate()
+        _json_print(result)
+        return 0
+    except Exception as exc:
+        _json_print({"ok": False, "error": str(exc)})
+        return 1
+
+
+def run_adrf(args: argparse.Namespace) -> int:
+    """`nexusctl adrf` — Adversarial Robustness Defense Framework (Plan 19)."""
+    from nexus_os.security.adrf import ADRFDetector, AdversarialSignature, AttackType
+
+    detector = ADRFDetector(a2a_channel=getattr(args, "a2a_channel", None))
+
+    if getattr(args, "list", False):
+        sigs = [sig.to_dict() for sig in detector._signatures]
+        _json_print({"signatures": sigs, "count": len(sigs)})
+        return 0
+
+    if getattr(args, "add", None):
+        try:
+            data = json.loads(args.add)
+            sig = AdversarialSignature(
+                pattern=data["pattern"],
+                attack_type=AttackType(data.get("attack_type", "injection")),
+                severity=float(data.get("severity", 0.5)),
+                description=data.get("description", ""),
+            )
+            detector.add_signature(sig)
+            _json_print({"added": sig.to_dict()})
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            _json_print({"error": str(exc)})
+            return 1
+        return 0
+
+    if getattr(args, "stats", False):
+        _json_print(detector.get_stats())
+        return 0
+
+    if getattr(args, "test", None):
+        result = detector.analyze(args.test)
+        _json_print(result.to_dict())
+        return 0
+
+    _json_print({"error": "use --test TEXT | --list | --add JSON | --stats"})
+    return 2
+
+
+def run_hallucination_status() -> int:
+    """`nexusctl hallucination` — calibrated hallucination detector stats."""
+    try:
+        from nexus_os.monitoring.calibrated_hallucination_detector import CalibratedHallucinationDetector
+        chd = CalibratedHallucinationDetector()
+        _json_print({"stats": chd.get_stats(), "history": chd.get_calibration_history()[-10:]})
+        return 0
+    except Exception as exc:
+        _json_print({"ok": False, "error": str(exc)})
+        return 1
+
+
+def run_a2a_channels(args: argparse.Namespace) -> int:
+    """`nexusctl a2a-channels` — inter-session A2A message bus (Plan 20)."""
+    try:
+        from nexus_os.bridge.a2a_channels import A2AChannelBus
+        bus = A2AChannelBus()
+    except Exception as exc:
+        _json_print({"ok": False, "error": f"a2a_channels import failed: {exc}"})
+        return 1
+
+    if getattr(args, "list_channels", False):
+        channels = bus.discover()
+        _json_print(channels)
+        return 0
+
+    if getattr(args, "publish", None):
+        channel_id, topic, msg = args.publish
+        result = bus.publish(channel_id=channel_id, sender="nexusctl", message=msg, topic=topic)
+        _json_print(result.to_dict())
+        return 0
+
+    if getattr(args, "subscribe", None):
+        channel_id = args.subscribe[0]
+        messages = bus.subscribe(channel_id, max_messages=50)
+        _json_print({"channel": channel_id, "messages": [m.to_dict() for m in messages]})
+        return 0
+
+    if getattr(args, "consolidate", False):
+        result = bus.consolidate()
+        _json_print(result)
+        return 0
+
+    if getattr(args, "stats", False):
+        stats = bus.get_stats()
+        _json_print(stats)
+        return 0
+
+    _json_print({"ok": False, "error": "Usage: --list, --publish CHAN TOPIC MSG, --subscribe CHAN, --consolidate, or --stats"})
+    return 2
+
+
+def run_monitor(args: argparse.Namespace) -> int:
+    """`nexusctl monitor` — Monitor Daemon."""
+    from nexus_os.monitor_daemon import MonitorDaemon, install_monitor_schedule
+
+    daemon = MonitorDaemon(
+        interval_minutes=getattr(args, "interval", 15),
+        a2a_channel=getattr(args, "a2a_channel", None),
+    )
+
+    if getattr(args, "install_schedule", False):
+        result = install_monitor_schedule(interval_minutes=args.interval)
+        _json_print(result)
+        return 0 if result.get("installed") else 1
+
+    if getattr(args, "status", False):
+        status = daemon.get_status()
+        _json_print(status)
+        return 0
+
+    if getattr(args, "daemon", False):
+        daemon.run_daemon()
+        return 0
+
+    result = daemon.run_once()
+    _json_print(result)
+    return 0
+
+
 def run_model_sync(args: argparse.Namespace) -> int:
     """`nexusctl model-sync` — sync live models/lanes to every CLI."""
     from nexusctl import model_sync
@@ -552,6 +685,120 @@ def run_model_sync(args: argparse.Namespace) -> int:
     if log:
         argv.extend(["--log", log])
     return model_sync.main(argv if argv else None)
+
+
+def run_grok_lane(args: argparse.Namespace) -> int:
+    """`nexusctl grok-lane doctor` — pure-probe the full Grok automation lane.
+
+    Probes the entire chain the NexusClaw Grok supervisor depends on, WITHOUT
+    spawning any long-lived process (so this never blocks the agent shell):
+        CDP(9224) -> Grok MCP bridge(7354) -> Node relay(7350) -> Python relay(7355)
+        -> God Mode(7357) -> Dashboard(3000,/api/nexusclaw/status) -> Dashboard UI(7356)
+    For every dead link it prints the EXACT command for the operator to run in an
+    admin terminal (proxies must be owned by the operator, not this agent shell).
+    Use --revive to attempt detached background relaunch of the relays only.
+    """
+    import urllib.request
+    import shutil
+
+    root = _find_repo_root() or Path.cwd()
+    checks = [
+        ("cdp",          9224, "/json/version",         "Chrome --remote-debugging-port=9224 (Grok authenticated profile)"),
+        ("grok_bridge",  7354, "/health",                "Grok MCP bridge (tools/server)"),
+        ("node_relay",   7350, "/",                      "Node ModelRelay primary"),
+        ("python_relay", 7355, "/health",                "Python ModelRelay fallback"),
+        ("god_mode",     7357, "/health",                "God Mode Proxy"),
+        ("dash_api",     None, "/api/nexusclaw/status",  "Next.js dashboard control-center API (port 3001 canonical, 3000 fallback)"),
+        ("dash_ui",      7356, "/",                      "Static dashboard"),
+    ]
+    results = {}
+    for name, port, path, _desc in checks:
+        ok = False
+        if name == "dash_api":
+            # probe canonical 3001 first, then non-canonical 3000.
+            # Dev servers (Turbopack) compile routes on demand, so a cold probe
+            # of /api/nexusclaw/status can take >2s; warm '/' best-effort first,
+            # then probe the API route directly with a long timeout. Connection-
+            # refused returns instantly, so dead ports don't waste the budget.
+            for cand in (3001, 3000):
+                try:
+                    urllib.request.urlopen(
+                        urllib.request.Request(f"http://127.0.0.1:{cand}/"), timeout=20)
+                except Exception:
+                    pass  # warm-up is best-effort; don't let it mask the API probe
+                try:
+                    r = urllib.request.urlopen(
+                        urllib.request.Request(f"http://127.0.0.1:{cand}{path}"), timeout=30)
+                    if r.status < 400:
+                        ok = True
+                        break
+                except Exception:
+                    pass
+        else:
+            try:
+                r = urllib.request.urlopen(
+                    urllib.request.Request(f"http://127.0.0.1:{port}{path}"), timeout=3)
+                ok = r.status < 400
+            except Exception:
+                ok = False
+        results[name] = ok
+
+    # Revive (detached, opt-in) — only the relays, never CDP/dashboard which the
+    # operator must own. Uses Start-Process so it returns immediately.
+    revived = []
+    if getattr(args, "revive", False):
+        ps = root / "scripts" / "revive_relay_ports.ps1"
+        if ps.exists() and shutil.which("powershell"):
+            try:
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                     "-File", str(ps)],
+                    capture_output=True, text=True, timeout=60)
+                # re-probe relays
+                for name, port, path, _ in checks:
+                    if name in {"node_relay", "python_relay", "god_mode"}:
+                        try:
+                            urllib.request.urlopen(
+                                urllib.request.Request(f"http://127.0.0.1:{port}{path}"),
+                                timeout=2)
+                            results[name] = True
+                        except Exception:
+                            pass
+                revived = [n for n in ("node_relay", "python_relay", "god_mode") if results[n]]
+            except Exception:
+                pass
+
+    # Exact admin-terminal commands for each dead link (one-stop gateway preferred)
+    gw = "scripts\\start_nexus_gateway.ps1   (starts the full stack in background; one command)"
+    fixes = {
+        "cdp":        gw + "   |   or: scripts\\start_grok_cdp_9224.ps1   (login to Grok ONCE in the dedicated Chrome, then it persists forever)",
+        "grok_bridge": gw + "   |   or: powershell -File tools\\browser_ai_mcp\\start_grok_mcp_v2.ps1",
+        "node_relay":  gw + "   |   or: scripts\\start_node_relay.ps1",
+        "python_relay":gw + "   |   or: scripts\\start_python_relay_7355.bat",
+        "god_mode":    gw + "   |   or: .venv\\Scripts\\python.exe -m nexus_os.relay.god_mode_proxy",
+        "dash_api":    gw + "   |   or: npx next dev -p 3001   (canonical dashboard port is 3001)",
+        "dash_ui":     gw + "   |   or: node scripts\\serve_dashboard_7356.js",
+    }
+
+    print("=== NEXUS Grok Lane — chain probe ===")
+    for name, _p, _path, desc in checks:
+        flag = "UP  " if results[name] else "DOWN"
+        print(f"  [{flag}] {name:12} {desc}")
+    dead = [n for n, ok in results.items() if not ok]
+    print("")
+    if not dead:
+        print("All links UP. Grok automation lane is end-to-end reachable.")
+    else:
+        print(f"{len(dead)} link(s) DOWN. Run these in your ADMIN terminal (not this agent shell):")
+        for n in dead:
+            print(f"  - {n:12} -> {fixes.get(n, '(no known fix)')}")
+    if revived:
+        print(f"\n[revive] detached relaunch brought up: {', '.join(revived)}")
+    if getattr(args, "revive", False) and not revived:
+        print("\n[revive] no relay came up via detached launch — start them manually (see fixes above).")
+
+    _json_print({"results": results, "dead": dead, "revived": revived})
+    return 0 if not dead else 1
 
 
 def main() -> int:
@@ -622,6 +869,40 @@ def main() -> int:
     models_sync.add_argument("--only", choices=["opencode", "mimo", "kilo", "cline", "hermes", "nexusctl"], help="Sync only this CLI")
     models_sync.add_argument("--install-schedule", action="store_true", help="Install 1-hour Windows scheduled task for automatic model sync")
     models_sync.add_argument("--log", default=None, help="Append JSON log to this path")
+
+    a2a = subparsers.add_parser("a2a-channels", help="Inter-session A2A message bus (Plan 20): list, publish, subscribe, consolidate")
+    a2a.add_argument("--list", dest="list_channels", action="store_true", help="List all channels")
+    a2a.add_argument("--publish", nargs=3, metavar=("CHANNEL", "TOPIC", "MSG"), default=None,
+                     help="Publish a message: --publish CHANNEL TOPIC MSG")
+    a2a.add_argument("--subscribe", nargs=1, metavar="CHANNEL", default=None,
+                     help="Tail recent messages from a channel")
+    a2a.add_argument("--consolidate", action="store_true", help="Purge stale messages from all channels")
+    a2a.add_argument("--stats", action="store_true", help="Show summary stats")
+
+    subparsers.add_parser("dream-cycle", help="Run Dream Cycle memory consolidation (P0#3)")
+    subparsers.add_parser("hallucination", help="Calibrated Hallucination Detector status (P1)")
+
+    adrf = subparsers.add_parser("adrf", help="Adversarial Robustness Defense Framework (Plan 19)")
+    adrf.add_argument("--test", type=str, default=None, help="Analyze a text string")
+    adrf.add_argument("--list", action="store_true", help="Show all signatures")
+    adrf.add_argument("--add", type=str, default=None, help="Add a custom signature as JSON")
+    adrf.add_argument("--stats", action="store_true", help="Show detection stats")
+    adrf.add_argument("--a2a-channel", default=None, help="A2A channels directory")
+
+    monitor = subparsers.add_parser("monitor", help="Monitor Daemon: Dream Cycle + health checks + key rotation")
+    monitor.add_argument("--run-once", action="store_true", help="Run a single monitor cycle")
+    monitor.add_argument("--daemon", action="store_true", help="Run continuously")
+    monitor.add_argument("--interval", type=int, default=15, help="Daemon interval in minutes (default 15)")
+    monitor.add_argument("--install-schedule", action="store_true", help="Install Windows scheduled task")
+    monitor.add_argument("--status", action="store_true", help="Show last run results")
+    monitor.add_argument("--a2a-channel", default=None, help="A2A channel for results")
+
+    grok_lane = subparsers.add_parser("grok-lane", help="Probe the Grok automation lane chain (CDP->bridge->relays->dashboard)")
+    grok_lane_sub = grok_lane.add_subparsers(dest="grok_lane_command")
+    grok_lane_sub.required = True
+    gl_doctor = grok_lane_sub.add_parser("doctor", help="Pure-probe: report which link is dead + exact admin command")
+    gl_doctor.add_argument("--revive", action="store_true", help="Also attempt detached background relaunch of the 3 relays (never CDP/dashboard)")
+
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -649,8 +930,20 @@ def main() -> int:
             return run_nexusclaw_dispatch_dry_run(args)
     if args.command == "models":
         return run_models_list(args.refresh)
+    if args.command == "a2a-channels":
+        return run_a2a_channels(args)
+    if args.command == "dream-cycle":
+        return run_dream_cycle()
+    if args.command == "hallucination":
+        return run_hallucination_status()
+    if args.command == "adrf":
+        return run_adrf(args)
+    if args.command == "monitor":
+        return run_monitor(args)
     if args.command == "model-sync":
         return run_model_sync(args)
+    if args.command == "grok-lane":
+        return run_grok_lane(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 

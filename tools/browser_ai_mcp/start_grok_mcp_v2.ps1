@@ -2,7 +2,7 @@ param(
     [int]$Port = 7354,
     [string]$HostName = "0.0.0.0",
     [switch]$StartNgrok,
-    [string]$AllowedHosts = "huggingface.co,hf.co,cdn-lfs.huggingface.co,raw.githubusercontent.com,github.com,pypi.org,files.pythonhosted.org,grok.com,files.grok.com,modelcontextprotocol.io,arxiv.org"
+    [string]$AllowedHosts = "huggingface.co,hf.co,cdn-lfs.huggingface.co,raw.githubusercontent.com,github.com,pypi.org,files.pythonhosted.org,grok.com,files.grok.com,modelcontextprotocol.io,arxiv.org,docs.modal.com,modal.com,docs.tailscale.com,docs.anthropic.com,platform.openai.com,ai.google.dev,docs.groq.com,docs.z.ai,longcat.chat,intern-ai.org.cn,deepseek.com,sakana.ai"
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,7 +17,7 @@ if ($existing) {
 $env:GROK_LISTEN_PORT = [string]$Port
 $env:GROK_LISTEN_HOST = $HostName
 $env:GROK_HTTP_ALLOWED_HOSTS = $AllowedHosts
-$env:GROK_MCP_VERSION = "2.2.0-nexus-hardened"
+$env:GROK_MCP_VERSION = "2.3.0-queue-visible"
 
 Write-Host "Starting hardened Grok MCP bridge on $HostName`:$Port" -ForegroundColor Cyan
 $server = Start-Process -WindowStyle Hidden -FilePath "python" -ArgumentList @($serverPath) -PassThru -WorkingDirectory $repoRoot
@@ -39,3 +39,4 @@ if ($StartNgrok) {
 
 Write-Host "Server PID: $($server.Id)" -ForegroundColor Gray
 Write-Host "Use this only as the browser-AI connector facade. Do not expose Brain API 7352." -ForegroundColor Gray
+

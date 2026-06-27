@@ -21,6 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+DEFAULT_MEMORY_PATH = Path.home() / ".nexus" / "browser_ai_supervisor_memory.jsonl"
+
 
 BRIDGE_TOOL_MAP: dict[str, str] = {
     "ping": "connectivity_probe",
@@ -64,6 +66,46 @@ class DirectorConfig:
 
 
 @dataclass(frozen=True)
+class SourceProfile:
+    """Cadence and control policy for one browser-AI source."""
+
+    source_id: str
+    cadence_seconds: int
+    requires_bridge: bool
+    cdp_port: int | None = None
+    url_hint: str = ""
+    active: bool = True
+
+
+SOURCE_PROFILES: dict[str, SourceProfile] = {
+    "grok-project-nexus": SourceProfile(
+        source_id="grok-project-nexus",
+        cadence_seconds=10 * 60,
+        requires_bridge=True,
+        cdp_port=9224,
+        url_hint="https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba",
+    ),
+    "zo-computer-nexus": SourceProfile(
+        source_id="zo-computer-nexus",
+        cadence_seconds=6 * 60 * 60,
+        requires_bridge=False,
+        url_hint="https://www.zo.computer/chats/pub_wEKDc2wQF0tGj1o0",
+    ),
+    "glm52-dashboard": SourceProfile(
+        source_id="glm52-dashboard",
+        cadence_seconds=6 * 60 * 60,
+        requires_bridge=False,
+        url_hint="https://chat.z.ai/c/47e59a42-06cb-442e-9b35-3e3d8d2b078f",
+    ),
+    "gpt-browser-mcp": SourceProfile(
+        source_id="gpt-browser-mcp",
+        cadence_seconds=6 * 60 * 60,
+        requires_bridge=True,
+    ),
+}
+
+
+@dataclass(frozen=True)
 class MemoryEntry:
     run_id: str
     source_id: str
@@ -74,6 +116,7 @@ class MemoryEntry:
     provider_calls: int = 0
     blocker: str | None = None
     next_action: str | None = None
+    completed_at: str | None = None
 
     @classmethod
     def from_mapping(cls, item: Mapping[str, Any]) -> "MemoryEntry":
@@ -87,8 +130,8 @@ class MemoryEntry:
             provider_calls=int(item.get("provider_calls", 0) or 0),
             blocker=item.get("blocker"),
             next_action=item.get("next_action"),
+            completed_at=item.get("completed_at"),
         )
-
 
 @dataclass(frozen=True)
 class CycleObservation:
@@ -173,6 +216,52 @@ def append_memory(path: Path, record: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(dict(record), sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def profile_for_source(source_id: str) -> SourceProfile:
+    """Return the configured source profile or a safe 6-hour advisory default."""
+
+    return SOURCE_PROFILES.get(
+        source_id,
+        SourceProfile(source_id=source_id, cadence_seconds=6 * 60 * 60, requires_bridge=False, active=False),
+    )
+
+
+def cadence_elapsed(entries: list[MemoryEntry | Mapping[str, Any]], now: str, profile: SourceProfile) -> bool:
+    """Whether a source is allowed to run based on its last completed record."""
+
+    if not profile.active:
+        return False
+    if not entries:
+        return True
+    latest = entries[-1]
+    if isinstance(latest, MemoryEntry):
+        last = latest.completed_at or latest.started_at
+    else:
+        last = str(latest.get("completed_at") or latest.get("started_at") or "")
+    try:
+        current = datetime.fromisoformat(now.replace("Z", "+00:00"))
+        previous = datetime.fromisoformat(last.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return (current - previous).total_seconds() >= profile.cadence_seconds
+
+
+def classify_bridge_status(status: str) -> tuple[str, str | None]:
+    """Map observed bridge status to director status and optional error code."""
+
+    normalized = status.strip().lower()
+    if normalized in {"ok", "healthy", "live"}:
+        return "ok", None
+    if normalized in {"missing", "tool_missing"}:
+        return "down", "bridge_tool_missing"
+    if normalized in {"down", "not_listening"}:
+        return "down", "bridge_not_listening"
+    if normalized in {"timeout", "busy", "503", "unavailable"}:
+        return "retry", "bridge_timeout" if normalized == "timeout" else "bridge_busy"
+    if normalized in {"skipped", ""}:
+        return "skipped", None
+    return "unhealthy", "bridge_wrong_version"
 
 
 def observation_from_probe(
@@ -334,6 +423,37 @@ def decide_cycle(
     )
 
 
+
+def decide_source_run(
+    *,
+    source_id: str,
+    entries: list[MemoryEntry],
+    observation: CycleObservation,
+    now: str | None = None,
+    provider_window: ProviderWindow | None = None,
+    config: DirectorConfig | None = None,
+) -> DirectorDecision:
+    """Source-aware wrapper around ``decide_cycle`` with cadence protection."""
+
+    now = now or utc_now()
+    profile = profile_for_source(source_id)
+    if not cadence_elapsed(entries, now, profile):
+        return DirectorDecision(action="NOOP_UNCHANGED", reason="cadence_not_elapsed")
+    previous_fingerprint = None
+    if entries:
+        latest = entries[-1]
+        if isinstance(latest, MemoryEntry):
+            previous_fingerprint = latest.visible_fingerprint
+        else:
+            previous_fingerprint = latest.get("visible_fingerprint")
+    return decide_cycle(
+        observation,
+        previous_fingerprint=previous_fingerprint,
+        provider_window=provider_window,
+        now=now,
+        config=config or DirectorConfig(source_id=source_id),
+    )
+
 def build_outro_record(
     *,
     run_id: str,
@@ -345,8 +465,10 @@ def build_outro_record(
     started_at = started_at or utc_now()
     return {
         "run_id": run_id,
+        "schema": "nexus.browser_ai_supervisor.memory.v1",
         "source_id": source_id,
         "started_at": started_at,
+        "completed_at": utc_now(),
         "visible_fingerprint": stable_fingerprint(
             observation.visible_marker,
             observation.visible_tail[-2048:],
@@ -380,11 +502,11 @@ class DirectorRunner:
 
     def run_once(self, *, run_id: str, now: str | None = None, provider_window: ProviderWindow | None = None) -> dict[str, Any]:
         memory = read_memory_tail(self.memory_path, limit=1)
-        previous_fingerprint = memory[-1].visible_fingerprint if memory else None
         observation = self.observe()
-        decision = decide_cycle(
-            observation,
-            previous_fingerprint=previous_fingerprint,
+        decision = decide_source_run(
+            source_id=self.config.source_id,
+            entries=memory,
+            observation=observation,
             provider_window=provider_window,
             now=now,
             config=self.config,
@@ -478,7 +600,8 @@ def run_from_probe(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run one NEXUS external browser-AI director policy cycle from a bounded probe JSON.")
     parser.add_argument("--probe-json", required=True, type=Path)
-    parser.add_argument("--memory", required=True, type=Path)
+    parser.add_argument("--memory", type=Path, default=DEFAULT_MEMORY_PATH,
+                        help=f"Path to JSONL memory file (default: {DEFAULT_MEMORY_PATH})")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--bridge-status", default="skipped", choices=["ok", "down", "skipped", "unhealthy"])
     parser.add_argument("--requires-bridge", action="store_true")
@@ -503,6 +626,11 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+
+
 
 
 

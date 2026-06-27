@@ -1,0 +1,34 @@
+{
+  "schema": "nexus.agent-adapter.v1",
+  "surface": "shared",
+  "provider": {
+    "id": "openmodel",
+    "name": "OpenModel DeepSeek V4 Flash",
+    "type": "openai-compatible",
+    "baseURL": "${OPENMODEL_BASE_URL:-https://api.openmodel.ai}",
+    "apiKeyEnvOrder": ["NEXUS_OPENMODEL_API_KEY", "OPENMODEL_API_KEY", "OPENMODEL_DEEPSEEK_API_KEY"],
+    "chatPath": "/v1/chat/completions"
+  },
+  "models": {
+    "worker": "deepseek-v4-flash-free",
+    "code": "deepseek-v4-flash-free",
+    "review": "deepseek-v4-flash-free"
+  },
+  "capabilities": {
+    "chat": true,
+    "streaming": true,
+    "tools": false,
+    "vision": false,
+    "maxContext": 131000
+  },
+  "requestDefaults": {
+    "stream": false,
+    "temperature": 0.2,
+    "max_tokens": 4096
+  },
+  "requestRules": {
+    "health": "lazy",
+    "backgroundPolling": false,
+    "retry429": "cooldown"
+  }
+}

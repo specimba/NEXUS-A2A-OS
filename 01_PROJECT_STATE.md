@@ -1,8 +1,32 @@
 # NEXUS OS - Canonical Project State
 
-Date: 2026-06-23
+Date: 2026-06-26
 Current local HEAD: codex/specimba/1805mainSpeci (5e7046bf)
 Status: Phases A-D + Phases 1-8 COMPLETE. Sprints 0-4 Complete. **1450/1450 tests passing** (archivist, governor, nexusclaw, security, research, bridge, unit). Baseten GLM 5.2 + Kimi K2.7 Code integrated. Trinity×Fugu, T3 Guard, Knowledge Flow, CVA verifier all tested and passing.
+
+## 2026-06-26 Dashboard, Browser-AI Supervisor, and GLM-5.2 Log-24 Grounding
+
+Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackendGLM52log-24.txt`, last-24h NEXUSlogs scan, ARCHIVIST `papers11` additions, and current worktree state.
+
+### Confirmed Recent Progress
+- **Grok/browser MCP bridge**: `nexus-grok-bridge-v2` on port `7354` is live with 22 tools, queue-visible runtime, registry schema hash reporting, L1 schema-drift flag, L3 taint flag, private egress blocking, and allowlisted public GET/HEAD diagnostics.
+- **Browser-AI supervisor reset**: frequent Codex browser automations are replaced by a local NexusClaw supervisor contract. Grok is the only 10-minute lane when CDP `9224` and bridge `7354` are healthy; Zo, GLM/Z.ai, and GPT-browser lanes default to 6 hours. Unchanged fingerprints and setup blockers must make zero provider calls.
+- **Dashboard/wiki slice**: wiki tab is reachable from the sidebar, `/api/wiki` indexes tracked `docs/` categories, `/api/wiki/[...slug]` reads safe markdown paths, and the wiki dashboard provides search/category/source-card reading rather than a raw preformatted dump.
+- **NEXUSCLAW control center slice**: `/api/nexusclaw/status` now probes Brain API `7352`, Node ModelRelay `7350`, Grok bridge `7354`, Python relay `7355`, and God Mode proxy `7357`; the tab surfaces bridge queue/tool count, registry hardening flags, port ownership, routing chain, supervisor cadence, and honest degradation notes.
+- **GLM-5.2 log-24 progression**: BEBOP probability-vector handling, calibrated hallucination detector wiring, Landau-Ginzburg spectral bounds, circuit-breaker persistence isolation, relay auto-revive scripts, and model-sync dry-run paths were advanced by the GLM-5.2/OpenCode lane.
+- **Provider/model relay work**: OpenModel/DeepSeek V4 Flash and Sakana/Fugu lanes are present as env-keyed, secret-free provider additions; InternAI and LongCat remain preserved/gated lanes.
+- **Research intake**: `papers11` was added under ARCHIVIST with new transformer/world-model/sparse-attention material; it remains intake evidence until source-carded.
+
+### Current Verification Notes
+- Targeted dashboard/wiki/control-center TypeScript diagnostic filter: `NO_CHANGED_FILE_TS_ERRORS` for changed files.
+- Bridge health probe: `http://127.0.0.1:7354/health` returned live `nexus-grok-bridge-v2`, 22 tools, queue counts, L1 registry hash active, L3 taint active.
+- Existing running dashboard on `3000` returned `404` for `/api/nexusclaw/status`, so the live Next process appears stale or not serving this checkout. Restart/rebuild before claiming runtime UI success.
+
+### Remaining Work
+- Confirm/install `NexusServiceAutoRevive` scheduled task if durable post-restart relay revival is desired.
+- Wire `CATEGORIZE_TO_FILETYPE` in Archivist import flow; it remains explicitly unfinished in recent agent logs.
+- Lift P0 detector scaffolds (MCP gateway, dream consolidation, calibrated hallucination) from import-clean to behavior-tested.
+- Make the Browser-AI supervisor produce/read a durable JSONL memory path from the production scheduler, then run the Grok 10-minute lane through NexusClaw rather than Codex heartbeat loops.
 
 ## 2026-06-22 Cognitive Elastic Reasoning & Monotonic Privilege Confinement Integration
 

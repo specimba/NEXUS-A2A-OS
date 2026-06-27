@@ -46,7 +46,7 @@ COORD_DIR = pathlib.Path(os.getenv("GROK_COORD_DIR", "D:/GROSS/grok-coordination
 FALLBACK_RUNTIME_DIR = pathlib.Path(
     os.getenv("GROK_FALLBACK_RUNTIME_DIR", "scratch/browser_ai_mcp_runtime")
 ).resolve()
-SERVER_VERSION = os.getenv("GROK_MCP_VERSION", "2.2.0-nexus-hardened")
+SERVER_VERSION = os.getenv("GROK_MCP_VERSION", "2.3.0-queue-visible")
 SERVER_NAME = os.getenv("GROK_MCP_NAME", "nexus-grok-bridge-v2")
 LOG_LEVEL = os.getenv("GROK_LOG_LEVEL", "INFO").upper()
 LISTEN_HOST = os.getenv("GROK_LISTEN_HOST", "0.0.0.0")
@@ -68,6 +68,70 @@ BLOCKED_HTTP_HEADER_PREFIXES = (
     "x-csrf-token",
     "x-xsrf-token",
 )
+
+
+TOOL_NAMES = [
+    "ping", "echo", "audit_log", "evidence_capture", "http_diagnostic",
+    "query_log", "comparison_add", "comparison_get", "comparison_export",
+    "task_add", "task_list", "task_claim", "task_complete", "task_fail",
+    "coordination_status", "session_heartbeat", "session_status",
+    "agent_publish_message", "agent_retrieve_messages", "agent_list_topics",
+    "simulate_probe", "registry_debug",
+]
+
+TOOL_DESCRIPTIONS = {
+    "ping": "Connectivity and identity probe for the Grok MCP bridge.",
+    "echo": "Bounded echo tool for connector smoke tests.",
+    "audit_log": "Append structured audit evidence with integrity hashing.",
+    "evidence_capture": "Capture bounded text evidence with SHA256 integrity metadata.",
+    "http_diagnostic": "Scoped HTTPS GET/HEAD diagnostic for public-source evidence.",
+    "query_log": "Record files.grok.com or browser-source query evidence.",
+    "comparison_add": "Append a comparison result to an evidence matrix.",
+    "comparison_get": "Read bounded comparison matrix records.",
+    "comparison_export": "Export comparison matrix metadata.",
+    "task_add": "Create one durable coordination queue task.",
+    "task_list": "List coordination queue tasks with optional task_id filtering.",
+    "task_claim": "Move a coordination task into claimed state.",
+    "task_complete": "Move a coordination task into done state.",
+    "task_fail": "Move a coordination task into failed state.",
+    "coordination_status": "Return queue counts, last task id, and queue revision.",
+    "session_heartbeat": "Record browser-agent heartbeat state.",
+    "session_status": "Read bounded browser-agent heartbeat state.",
+    "agent_publish_message": "Publish a bounded A2A channel message.",
+    "agent_retrieve_messages": "Retrieve bounded A2A channel messages.",
+    "agent_list_topics": "List A2A channel topics.",
+    "simulate_probe": "Run a dry simulated probe pipeline.",
+    "registry_debug": "Return bridge tool registry, schema hashes, and drift contract.",
+}
+
+
+def _tool_schema_entries() -> list[dict[str, Any]]:
+    return [
+        {
+            "name": name,
+            "description": TOOL_DESCRIPTIONS.get(name, ""),
+            "input_schema": {"contract": "nexus-grok-bridge-v2", "version": SERVER_VERSION},
+        }
+        for name in TOOL_NAMES
+    ]
+
+
+def _tool_registry_security() -> dict[str, Any]:
+    from nexus_os.security.mcp_gateway import (
+        registry_schema_hash,
+        tool_schema_hashes,
+        validate_registry_snapshot,
+    )
+
+    schemas = _tool_schema_entries()
+    decision = validate_registry_snapshot(schemas)
+    return {
+        "registry_schema_hash": registry_schema_hash(schemas),
+        "tool_schema_hashes": tool_schema_hashes(schemas),
+        "schema_drift_decision": decision.to_dict(),
+        "l1_registry_schema_hash": True,
+        "l3_output_taint": True,
+    }
 
 for d in [AUDIT_DIR / "audit", AUDIT_DIR / "evidence", AUDIT_DIR / "coordination",
           AUDIT_DIR / "queries", EVIDENCE_DIR, PHASE2_DIR,
@@ -204,13 +268,14 @@ def _read_logs(category: str, limit: int = 50) -> list[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Coordination Queue (file-based, same pattern as GrokFileQueue)
 # ---------------------------------------------------------------------------
-def _atomic_write(path: pathlib.Path, data: Dict[str, Any]):
+def _atomic_write(path: pathlib.Path, data: Dict[str, Any]) -> pathlib.Path:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
         tmp.replace(path)
+        return path
     except OSError as exc:
         fallback = _fallback_for_path(path)
         fallback.parent.mkdir(parents=True, exist_ok=True)
@@ -221,6 +286,7 @@ def _atomic_write(path: pathlib.Path, data: Dict[str, Any]):
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(fallback_data, f, indent=2, default=str)
         tmp.replace(fallback)
+        return fallback
 
 
 def _read_json_safe(path: pathlib.Path) -> Optional[Dict[str, Any]]:
@@ -232,6 +298,54 @@ def _read_json_safe(path: pathlib.Path) -> Optional[Dict[str, Any]]:
             return None
     return None
 
+def _queue_dir(status: str) -> pathlib.Path:
+    return COORD_DIR / "queue" / status
+
+
+def _queue_fallback_dir(status: str) -> pathlib.Path:
+    return _fallback_for_path(_queue_dir(status) / "__placeholder__.json").parent
+
+
+def _queue_state_file() -> pathlib.Path:
+    return COORD_DIR / "queue" / "queue_state.json"
+
+
+def _queue_state_fallback_file() -> pathlib.Path:
+    return _fallback_for_path(_queue_state_file())
+
+
+def _queue_files(status: str) -> list[pathlib.Path]:
+    files: dict[str, pathlib.Path] = {}
+    for base in (_queue_dir(status), _queue_fallback_dir(status)):
+        if not base.exists():
+            continue
+        for path in base.glob("*.json"):
+            if path.name == "queue_state.json" or path.name.startswith("__placeholder__"):
+                continue
+            files.setdefault(path.name, path)
+    return sorted(files.values(), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def _queue_counts() -> dict[str, int]:
+    return {status: len(_queue_files(status)) for status in ["pending", "claimed", "done", "failed"]}
+
+
+def _read_queue_state() -> dict[str, Any]:
+    for path in (_queue_state_file(), _queue_state_fallback_file()):
+        state = _read_json_safe(path)
+        if state:
+            return state
+    return {"queue_revision": 0, "last_added_task_id": None}
+
+
+def _write_queue_state(*, last_added_task_id: str | None = None) -> tuple[dict[str, Any], pathlib.Path]:
+    state = _read_queue_state()
+    state["queue_revision"] = int(state.get("queue_revision") or 0) + 1
+    state["last_updated_at"] = _now_iso()
+    if last_added_task_id:
+        state["last_added_task_id"] = last_added_task_id
+    written_path = _atomic_write(_queue_state_file(), state)
+    return state, written_path
 
 # ---------------------------------------------------------------------------
 # FastMCP Server
@@ -468,33 +582,56 @@ def handle_task_add(kind: str, prompt: str, priority: int = 5) -> str:
         "priority": priority,
         "status": "pending"
     }
-    task_path = COORD_DIR / "queue" / "pending" / f"{task_id}.json"
-    _atomic_write(task_path, task)
-    entry = {"scenario": "coordination", "action": "task_add", "task_id": task_id, "kind": kind}
+    task_path = _queue_dir("pending") / f"{task_id}.json"
+    written_task_path = _atomic_write(task_path, task)
+    state, written_state_path = _write_queue_state(last_added_task_id=task_id)
+    visible = any((t.get("id") == task_id) for t in [_read_json_safe(p) or {} for p in _queue_files("pending")])
+    entry = {
+        "scenario": "coordination",
+        "action": "task_add",
+        "task_id": task_id,
+        "kind": kind,
+        "queue_revision": state.get("queue_revision"),
+        "written_task_path": str(written_task_path),
+    }
     _write_log("coordination", entry)
     logger.info(f"[COORD] task_added {task_id} kind={kind}")
-    return json.dumps({"task_id": task_id, "status": "pending", "kind": kind}, indent=2)
-
-
+    return json.dumps({
+        "task_id": task_id,
+        "status": "pending",
+        "kind": kind,
+        "queue_revision": state.get("queue_revision"),
+        "last_added_task_id": state.get("last_added_task_id"),
+        "visible_in_task_list": visible,
+        "written_task_path": str(written_task_path),
+        "written_state_path": str(written_state_path),
+    }, indent=2)
 @mcp.tool(
     name="task_list",
     description="List tasks in the queue by status: pending, claimed, done, failed, or all"
 )
-def handle_task_list(status: str = "all") -> str:
+def handle_task_list(status: str = "all", task_id: str = "") -> str:
     results = {}
     statuses = ["pending", "claimed", "done", "failed"] if status == "all" else [status]
+    task_id = (task_id or "").strip()
     for s in statuses:
-        dir_path = COORD_DIR / "queue" / s
-        if dir_path.exists():
-            tasks = []
-            for f in sorted(dir_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
-                t = _read_json_safe(f)
-                if t:
-                    tasks.append(t)
-            results[s] = tasks
-    return json.dumps({"tasks": results, "counts": {k: len(v) for k, v in results.items()}}, indent=2)
-
-
+        tasks = []
+        for f in _queue_files(s)[:50]:
+            t = _read_json_safe(f)
+            if not t:
+                continue
+            if task_id and t.get("id") != task_id:
+                continue
+            tasks.append(t)
+        results[s] = tasks
+    state = _read_queue_state()
+    return json.dumps({
+        "tasks": results,
+        "counts": {k: len(v) for k, v in results.items()},
+        "queue_revision": state.get("queue_revision", 0),
+        "last_added_task_id": state.get("last_added_task_id"),
+        "filter_task_id": task_id or None,
+    }, indent=2)
 @mcp.tool(
     name="task_claim",
     description="Atomically claim the highest-priority pending task. Returns the task or null if queue is empty."
@@ -576,10 +713,8 @@ def handle_task_fail(task_id: str, error_message: str = "") -> str:
     description="Return coordination queue health summary"
 )
 def handle_coordination_status() -> str:
-    counts = {}
-    for s in ["pending", "claimed", "done", "failed"]:
-        d = COORD_DIR / "queue" / s
-        counts[s] = len(list(d.glob("*.json"))) if d.exists() else 0
+    counts = _queue_counts()
+    state = _read_queue_state()
     last_hb = None
     hb_file = COORD_DIR / "heartbeats" / "grok-sandbox-main.json"
     hb = _read_json_safe(hb_file)
@@ -589,10 +724,11 @@ def handle_coordination_status() -> str:
         "queue_counts": counts,
         "total": sum(counts.values()),
         "last_heartbeat": last_hb,
+        "queue_revision": state.get("queue_revision", 0),
+        "last_added_task_id": state.get("last_added_task_id"),
+        "last_queue_updated_at": state.get("last_updated_at"),
         "timestamp": _now_iso()
     }, indent=2)
-
-
 # ============================
 # 5. SESSION MANAGEMENT
 # ============================
@@ -760,32 +896,20 @@ def handle_simulate_probe(audit_id: str = "test", scenario: str = "pipeline_test
     description="Return the exact list of tools registered on this MCP bridge server."
 )
 def handle_registry_debug() -> str:
+    registry_security = _tool_registry_security()
     return json.dumps({
-            "server": SERVER_NAME,
-            "version": SERVER_VERSION,
-            "tool_count": 22,
-            "mcp_tool_count": 22,
-            "a2a_skill_count": 5,
-        "tool_names": [
-            "ping", "echo",
-            "audit_log", "evidence_capture", "http_diagnostic",
-            "query_log", "comparison_add", "comparison_get", "comparison_export",
-            "task_add", "task_list", "task_claim", "task_complete", "task_fail",
-            "coordination_status",
-            "session_heartbeat", "session_status",
-            "agent_publish_message", "agent_retrieve_messages", "agent_list_topics",
-            "simulate_probe", "registry_debug",
-        ],
+        "server": SERVER_NAME,
+        "version": SERVER_VERSION,
+        "tool_count": len(TOOL_NAMES),
+        "mcp_tool_count": len(TOOL_NAMES),
+        "a2a_skill_count": 5,
+        "queue_contract": {"task_add_visible": True, "task_list_task_id_filter": True, "coordination_status_revision": True},
+        "tool_names": TOOL_NAMES,
+        "tool_schemas": _tool_schema_entries(),
         "registry_hash": hashlib.sha256(json.dumps({
-            "server": SERVER_NAME, "version": SERVER_VERSION, "tools": [
-                "ping", "echo", "audit_log", "evidence_capture", "http_diagnostic",
-                "query_log", "comparison_add", "comparison_get", "comparison_export",
-                "task_add", "task_list", "task_claim", "task_complete", "task_fail",
-                "coordination_status", "session_heartbeat", "session_status",
-                "agent_publish_message", "agent_retrieve_messages", "agent_list_topics",
-                "simulate_probe", "registry_debug"
-            ]
+            "server": SERVER_NAME, "version": SERVER_VERSION, "tools": TOOL_NAMES
         }, sort_keys=True).encode()).hexdigest()[:16],
+        **registry_security,
         "a2a": {
             "agent_card": f"{A2A_PUBLIC_URL}/.well-known/agent.json",
             "tasks_send": f"{A2A_PUBLIC_URL}/a2a/tasks/send",
@@ -856,6 +980,17 @@ def _http_diagnostic_policy_snapshot() -> dict:
     }
 
 
+def _taint_http_diagnostic_result(result: dict) -> dict:
+    from nexus_os.security.mcp_gateway import taint_tool_output
+
+    result["taint"] = taint_tool_output(
+        result,
+        tool_name="http_diagnostic",
+        source_mcp_server=SERVER_NAME,
+    )
+    return result
+
+
 def _http_diagnostic_error(audit_id: str, scenario: str, operator: str, mode: str, url: str, method: str, message: str) -> str:
     result = {
         "error": message,
@@ -869,6 +1004,7 @@ def _http_diagnostic_error(audit_id: str, scenario: str, operator: str, mode: st
         "side_effects_enabled": False,
         "policy": _http_diagnostic_policy_snapshot(),
     }
+    result = _taint_http_diagnostic_result(result)
     _http_diagnostic_log(audit_id or "no-audit", scenario or "http_diagnostic", operator or "unknown", mode, url, method, result)
     return json.dumps(result, indent=2)
 
@@ -971,6 +1107,7 @@ def handle_http_diagnostic(
             "policy": _http_diagnostic_policy_snapshot(),
         }
 
+    result = _taint_http_diagnostic_result(result)
     _http_diagnostic_log(audit_id or "no-audit", scenario or "http_diagnostic", operator or "unknown", mode, url, method, result)
     return json.dumps(result, indent=2)
 
@@ -1270,6 +1407,7 @@ async def handle_health_http(request: Request) -> JSONResponse:
         "queue": queue_counts,
         "last_heartbeat": last_hb,
         "timestamp": _now_iso(),
+        "registry_security": _tool_registry_security(),
         "hardening": _http_diagnostic_policy_snapshot(),
         "runtime_write_policy": {
             "primary_runtime": "D:/GROSS by default",
@@ -1356,6 +1494,12 @@ if __name__ == "__main__":
     print("=" * 60)
     sys.stdout.flush()
     mcp.run(transport="sse")
+
+
+
+
+
+
 
 
 

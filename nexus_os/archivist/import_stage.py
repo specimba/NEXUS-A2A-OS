@@ -150,11 +150,19 @@ class ArchivistImporter:
         return files
 
     def classify_file(self, file_path: Path) -> FileType:
-        """Classify file by extension and content heuristics."""
+        """Classify file by extension and content heuristics.
+
+        Primary path: ``categorize_file()`` + ``CATEGORIZE_TO_FILETYPE`` — the
+        centralized extension-to-type mapping in ``archivist.py`` (source of truth).
+
+        Local overrides (content-based heuristics) add types the mapping can't
+        express: PROMPT via filename keywords, LOG via line-count for
+        extensionless files, and early PDF→PAPER as the most common case.
+        """
         ext = file_path.suffix.lower()
         name = file_path.name.lower()
 
-        # Specific local classification first
+        # ── Local overrides (content/name heuristics beyond static mapping) ──
         if ext == ".pdf":
             return FileType.PAPER
         if ext in {".txt", ".log", ".md"}:
@@ -165,18 +173,8 @@ class ArchivistImporter:
             if ext == ".md":
                 return FileType.MARKDOWN
             return FileType.LOG
-        if ext in {".py", ".js", ".ts", ".rs", ".go", ".java", ".c", ".cpp", ".h"}:
-            return FileType.CODE
-        if ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}:
-            return FileType.IMAGE
-        if ext in {".ipynb"}:
-            return FileType.NOTEBOOK
-        if ext in {".parquet", ".csv", ".json", ".jsonl"}:
-            return FileType.DATA
-        if ext in {".yaml", ".yml", ".toml", ".ini", ".cfg"}:
-            return FileType.CONFIG
 
-        # Heuristic: large text files without extension are logs
+        # Heuristic: line-rich text files without a recognised extension are logs
         if ext == "" and file_path.stat().st_size < 10_000_000:
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -186,7 +184,7 @@ class ArchivistImporter:
             except Exception:
                 pass
 
-        # Fallback to shared categorization mapping
+        # ── Central mapping: delegate to categorize_file + CATEGORIZE_TO_FILETYPE ──
         cat = categorize_file(str(file_path))
         if cat in CATEGORIZE_TO_FILETYPE:
             mapped = CATEGORIZE_TO_FILETYPE[cat]

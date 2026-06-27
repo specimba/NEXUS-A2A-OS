@@ -1,0 +1,34 @@
+{
+  "schema": "nexus.agent-adapter.v1",
+  "surface": "shared",
+  "provider": {
+    "id": "sakana",
+    "name": "Sakana Fugu",
+    "type": "openai-compatible",
+    "baseURL": "${SAKANA_BASE_URL:-https://api.sakana.ai/v1}",
+    "apiKeyEnvOrder": ["NEXUS_SAKANA_API_KEY", "SAKANA_API_KEY", "FUGU_API_KEY"],
+    "chatPath": "/chat/completions"
+  },
+  "models": {
+    "worker": "fugu",
+    "verifier": "fugu-ultra"
+  },
+  "capabilities": {
+    "chat": true,
+    "streaming": true,
+    "tools": false,
+    "vision": true,
+    "maxContext": 1000000
+  },
+  "requestDefaults": {
+    "stream": false,
+    "temperature": 0.2,
+    "max_tokens": 4096
+  },
+  "requestRules": {
+    "health": "lazy",
+    "backgroundPolling": false,
+    "retry429": "cooldown",
+    "toolExecution": "disabled"
+  }
+}

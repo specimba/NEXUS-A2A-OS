@@ -1,0 +1,10 @@
+{
+  "id": "task-2026-06-25-cb5c76",
+  "created_at": "2026-06-25T08:03:56.336892Z",
+  "kind": "diagnostic",
+  "prompt": "NEXUS patched queue visibility verification after 2.3 restart",
+  "priority": 3,
+  "status": "pending",
+  "_primary_write_failed": "[Errno 13] Permission denied: 'D:\\\\GROSS\\\\grok-coordination\\\\queue\\\\pending\\\\task-2026-06-25-cb5c76.tmp'",
+  "_primary_path": "D:\\GROSS\\grok-coordination\\queue\\pending\\task-2026-06-25-cb5c76.json"
+}

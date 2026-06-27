@@ -19,6 +19,7 @@ from nexus_os.nexusclaw.agent_pool import (
     AgentCapability,
     get_agent_pool,
 )
+from nexus_os.nexusclaw.browser_ai import BrowserAINexusClawBridge, BrowserAIRoutingPacket
 from nexus_os.nexusclaw.brainstorm import (
     BrainstormEngine,
     BrainstormMode,
@@ -81,6 +82,9 @@ __all__ = [
     "AgentType",
     "AgentCapability",
     "get_agent_pool",
+    # Browser-AI Supervisor Bridge
+    "BrowserAINexusClawBridge",
+    "BrowserAIRoutingPacket",
     # Brainstorm Engine
     "BrainstormEngine",
     "BrainstormMode",
