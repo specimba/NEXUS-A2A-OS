@@ -15,112 +15,133 @@ Coverage:
   7. OLLAMA_HOST env override
 """
 import sys, os, types
+_ORIG_MODULES = {
+    k: sys.modules.get(k) for k in ["sklearn", "sklearn.pipeline", "numpy", "pydantic", "fastapi", "uvicorn"]
+}
+
+if "pytest" not in sys.modules and "PYTEST_CURRENT_TEST" not in os.environ:
+    
+    # Only execute mock stubs if NOT running under pytest to prevent global sys.modules pollution
+    if "pytest" not in sys.modules and "PYTEST_CURRENT_TEST" not in os.environ:
 sys.path.insert(0, "src")
 sys.path.insert(0, ".")
-
-# Stub FastAPI/pydantic/uvicorn so we can import the service logic
-# without installing the full web framework stack.
-class _StubBaseModel:
-    def __init_subclass__(cls, **kw): pass
-
-class _StubField:
-    def __call__(self, default=..., **kw):
-        return default
-    @staticmethod
-    def default(*a, **k): return None
-
-class _StubFastAPI:
-    def __init__(self, title="", version=""):
-        self.title = title
-        self.version = version
-    def post(self, path, **kw):
-        def decorator(fn):
-            return fn
-        return decorator
-    def get(self, path, **kw):
-        def decorator(fn):
-            return fn
-        return decorator
-
-class _StubHTTPException(Exception):
-    def __init__(self, status_code=500, detail=""):
-        self.status_code = status_code
-        self.detail = detail
-
-try:
-    import pydantic  # noqa: F401
-    import fastapi  # noqa: F401
-except Exception:
-    # Replace pydantic.Field with callable stub only when the real web stack is absent.
-    sys.modules["pydantic"] = types.ModuleType("pydantic")
-    sys.modules["pydantic"].BaseModel = _StubBaseModel
-    sys.modules["pydantic"].Field = _StubField()
-    sys.modules["fastapi"] = types.ModuleType("fastapi")
-    sys.modules["fastapi"].FastAPI = _StubFastAPI
-    sys.modules["fastapi"].HTTPException = _StubHTTPException
-
-try:
-    import uvicorn  # noqa: F401
-except Exception:
-    sys.modules["uvicorn"] = types.ModuleType("uvicorn")
-
-# Stub sklearn so pickle.load() of query_classifier.pkl can succeed
-class _StubPipeline:
-    classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
-                "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
-                "benign_simple", "tamas", "v7"]
-    def predict_proba(self, X):
-        import numpy as np
-        n = len(self.classes_)
-        probs = np.zeros((len(X), n))
-        probs[:, 0] = 0.3  # default low-confidence
-        return probs
-
-class _StubSklearn:
-    class pipeline:
-        class Pipeline:
-            pass
-
-sys.modules["sklearn"] = _StubSklearn()
-sys.modules["sklearn.pipeline"] = _StubSklearn.pipeline
-import numpy
-sys.modules["numpy"] = numpy
-
-# Monkey-patch pickle.load to return our stub when loading the classifier
-import pickle as _pickle
-_real_pickle_load = _pickle.load
-
-class _MockArray:
-    def __init__(self, data):
-        self._data = data
-    def argmax(self):
-        return 0  # default to first class
-    def __getitem__(self, idx):
-        return self._data[idx]
-
-class _StubClassifier:
-    classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
-                "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
-                "benign_simple", "tamas", "v7"]
-    def predict_proba(self, X):
-        import numpy as np
-        n = len(self.classes_)
-        probs = np.zeros((len(X), n))
-        probs[:, 0] = 0.1  # Keep confidence low so it falls back or tests correctly
-        return probs
-
-def _patched_pickle_load(f, **kw):
-    # If loading the classifier file, return stub
-    if hasattr(f, "name") and "query_classifier" in f.name:
-        return _StubClassifier()
-    return _real_pickle_load(f, **kw)
-
-_pickle.load = _patched_pickle_load
-
-# Set a dummy Ollama host so urlopen doesn't try to connect during import
-os.environ.setdefault("OLLAMA_HOST", "127.0.0.1:59999")
-
+    
+    # Stub FastAPI/pydantic/uvicorn so we can import the service logic
+    # without installing the full web framework stack.
+    class _StubBaseModel:
+        def __init_subclass__(cls, **kw): pass
+    
+    class _StubField:
+        def __call__(self, default=..., **kw):
+            return default
+        @staticmethod
+        def default(*a, **k): return None
+    
+    class _StubFastAPI:
+        def __init__(self, title="", version=""):
+            self.title = title
+            self.version = version
+        def post(self, path, **kw):
+            def decorator(fn):
+                return fn
+            return decorator
+        def get(self, path, **kw):
+            def decorator(fn):
+                return fn
+            return decorator
+    
+    class _StubHTTPException(Exception):
+        def __init__(self, status_code=500, detail=""):
+            self.status_code = status_code
+            self.detail = detail
+    
+    try:
+        import pydantic  # noqa: F401
+        import fastapi  # noqa: F401
+    except Exception:
+        # Replace pydantic.Field with callable stub only when the real web stack is absent.
+        sys.modules["pydantic"] = types.ModuleType("pydantic")
+        sys.modules["pydantic"].BaseModel = _StubBaseModel
+        sys.modules["pydantic"].Field = _StubField()
+        sys.modules["fastapi"] = types.ModuleType("fastapi")
+        sys.modules["fastapi"].FastAPI = _StubFastAPI
+        sys.modules["fastapi"].HTTPException = _StubHTTPException
+    
+    try:
+        import uvicorn  # noqa: F401
+    except Exception:
+        sys.modules["uvicorn"] = types.ModuleType("uvicorn")
+    
+    # Stub sklearn so pickle.load() of query_classifier.pkl can succeed
+    class _StubPipeline:
+        classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
+                    "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
+                    "benign_simple", "tamas", "v7"]
+        def predict_proba(self, X):
+            import numpy as np
+            n = len(self.classes_)
+            probs = np.zeros((len(X), n))
+            probs[:, 0] = 0.3  # default low-confidence
+            return probs
+    
+    class _StubSklearn:
+        class pipeline:
+            class Pipeline:
+                pass
+    
+    sys.modules["sklearn"] = _StubSklearn()
+    sys.modules["sklearn.pipeline"] = _StubSklearn.pipeline
+    import numpy
+    sys.modules["numpy"] = numpy
+    
+    # Monkey-patch pickle.load to return our stub when loading the classifier
+    import pickle as _pickle
+    _real_pickle_load = _pickle.load
+    
+    class _MockArray:
+        def __init__(self, data):
+            self._data = data
+        def argmax(self):
+            return 0  # default to first class
+        def __getitem__(self, idx):
+            return self._data[idx]
+    
+    class _StubClassifier:
+        classes_ = ["attack_ernie", "benign_adversarial_benign", "benign_domain_specific",
+                    "benign_edge_cases", "benign_ernie_corpus", "benign_gray_area",
+                    "benign_simple", "tamas", "v7"]
+        def predict_proba(self, X):
+            import numpy as np
+            n = len(self.classes_)
+            probs = np.zeros((len(X), n))
+            probs[:, 0] = 0.1  # Keep confidence low so it falls back or tests correctly
+            return probs
+    
+    def _patched_pickle_load(f, **kw):
+        # If loading the classifier file, return stub
+        if hasattr(f, "name") and "query_classifier" in f.name:
+            return _StubClassifier()
+        return _real_pickle_load(f, **kw)
+    
+    _pickle.load = _patched_pickle_load
+    
+    # Set a dummy Ollama host so urlopen doesn't try to connect during import
+    os.environ.setdefault("OLLAMA_HOST", "127.0.0.1:59999")
+    
 from models.guards.guard_plane_service import GuardPlane, BOUNCER_V5
+
+try:
+    import pytest
+    @pytest.fixture(scope="module", autouse=True)
+    def cleanup_sys_modules():
+        yield
+        for k, val in _ORIG_MODULES.items():
+            if val is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = val
+except ImportError:
+    pass
 
 def run():
     passed = 0
@@ -227,6 +248,13 @@ def run():
     ok("ollama_api_uses_host", OLLAMA_HOST in OLLAMA_API)
 
     # ── Summary ──────────────────────────────────────────────────
+        # ── Cleanup ──────────────────────────────────────────────────
+    for k, val in _ORIG_MODULES.items():
+        if val is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = val
+
     print("\n" + "=" * 60)
     print(f"RESULTS: {passed} passed, {failed} failed")
     print("=" * 60)
