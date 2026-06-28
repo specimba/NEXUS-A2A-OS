@@ -163,17 +163,30 @@ def fetch_live_state(refresh: bool = False) -> dict[str, Any]:
 
 
 def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Returns an opencode-style provider dict for the relay + LongCat + InternAI + Baseten."""
+    """Returns an opencode-style provider dict with lane aliases + direct model passthrough."""
     entries: dict[str, dict[str, Any]] = {}
 
-    # 1. The NEXUS God Mode Relay — single entry exposing all lanes
+    # 1. The NEXUS God Mode Relay — expose lanes + direct model names
     lanes = state.get("lanes", [])
     lane_models = {}
     for lane in lanes:
         lane_models[lane["id"]] = {"name": lane["name"]}
-    # Add a direct passthrough too
+
+    # Add ALL discovered models as passthrough entries so users can
+    # type "kimi-k2.6", "minimax-m3", "deepseek-v4-pro" etc. directly.
+    for m in state.get("models", []):
+        mid = m.get("id")
+        if mid:
+            label = m.get("label") or mid.split("/")[-1]
+            provider = m.get("provider", "")
+            mid_with_provider = f"{provider}/{mid}" if provider and not mid.startswith(f"{provider}/") else mid
+            # Skip lane names (they're already above)
+            if mid in lane_models or mid_with_provider in lane_models:
+                continue
+            lane_models[mid] = {"name": f"{label} ({provider})"}
+
     entries["nexus-god-relay"] = {
-        "name": "NEXUS God Relay (12 lanes + auto-routing)",
+        "name": f"NEXUS God Relay ({len(lanes)} lanes + {len(state.get('models', []))} models)",
         "npm": "@ai-sdk/openai-compatible",
         "options": {
             "baseURL": f"{NODE_RELAY_URL}/v1",
@@ -215,12 +228,88 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
             "models": models,
         }
 
-    # 4. Baseten direct provider (premium)
+    # 4. NVIDIA NIM direct provider (Minimax M3, Kimi K2, Devstral 2, etc.)
+    nv = mrelay.get("providers", {}).get("nvidia")
+    if nv:
+        api_keys = mrelay.get("apiKeys", {})
+        key = nv.get("api_key", api_keys.get("nvidia", ""))
+        nv_models = nv.get("models") or ["nvidia/minimax-m3", "nvidia/devstral-2-123b", "nvidia/kimi-k2-thinking"]
+        NIM_THINKING = {"minimaxai/minimax-m3", "nvidia/minimax-m3", "moonshotai/kimi-k2-thinking", "nvidia/kimi-k2-thinking"}
+        models = {}
+        for m in nv_models:
+            opts = {}
+            if m in NIM_THINKING:
+                opts = {"options": {"enable_thinking": True, "thinking_budget": 8192}}
+            mkey = m.split("/")[-1]
+            models[m] = {"name": f"NVIDIA {mkey}", **opts}
+        entries["nvidia-nim"] = {
+            "name": "NVIDIA NIM (Minimax M3, Devstral 2, Kimi K2, GLM-5 variants)",
+            "npm": "@ai-sdk/openai-compatible",
+            "options": {
+                "baseURL": nv.get("baseUrl", "https://integrate.api.nvidia.com/v1"),
+                "apiKey": key,
+            },
+            "models": models,
+        }
+
+    # 5. SiliconFlow direct (GLM-5, DeepSeek V4, Kimi K2, MiniMax, Qwen3)
+    sf = mrelay.get("providers", {}).get("openai-compatible:siliconflow")
+    if sf and sf.get("_status") != "DEAD":
+        api_keys = mrelay.get("apiKeys", {})
+        key = sf.get("api_key", api_keys.get("openai-compatible:siliconflow", ""))
+        sf_models_list = sf.get("models", [])
+        THINKING_MODELS = {
+            "zai-org/GLM-5.1", "zai-org/GLM-5", "moonshotai/Kimi-K2-Thinking",
+            "deepseek-ai/DeepSeek-V3.1", "deepseek-ai/DeepSeek-V3.2",
+            "deepseek-ai/DeepSeek-V3.2-Exp", "tencent/Hunyuan-A13B-Instruct",
+        }
+        sf_models = {}
+        for m in sf_models_list:
+            opts = {}
+            if m in THINKING_MODELS:
+                opts = {"options": {"enable_thinking": True, "thinking_budget": 8192}}
+            sf_models[m] = {"name": f"SF {m.split('/')[-1]}", **opts}
+        if sf_models:
+            entries["siliconflow"] = {
+                "name": f"SiliconFlow ({len(sf_models)} models — free tier)",
+                "npm": "@ai-sdk/openai-compatible",
+                "options": {
+                    "baseURL": sf.get("baseUrl", "https://api.siliconflow.com/v1"),
+                    "apiKey": key,
+                },
+                "models": sf_models,
+            }
+
+    # 6. Generic fallback providers from .modelrelay.json
+    for pname, pcfg in mrelay.get("providers", {}).items():
+        if pname in ("longcat", "internai", "nvidia", "openai-compatible:baseten", "openai-compatible:siliconflow", "ollama"):
+            continue  # already handled above or not useful as direct
+        if not isinstance(pcfg, dict):
+            continue
+        base_url = pcfg.get("baseUrl")
+        pmodels = pcfg.get("models")
+        if not base_url or not pmodels:
+            continue
+        api_keys = mrelay.get("apiKeys", {})
+        key = pcfg.get("api_key", api_keys.get(pname, ""))
+        display_name = pcfg.get("name", pname)
+        models = {m: {"name": f"{display_name.split('/')[-1]} {m.split('/')[-1]}"} for m in pmodels}
+        safe_id = pname.replace(":", "-").replace("/", "-").replace(".", "-")
+        entries[f"direct-{safe_id}"] = {
+            "name": f"{display_name} (direct)",
+            "npm": "@ai-sdk/openai-compatible",
+            "options": {
+                "baseURL": base_url,
+                "apiKey": key,
+            },
+            "models": models,
+        }
+
+    # 7. Baseten direct (policy changes — GLM-5.2 may be gone, flagging status)
     bt = mrelay.get("providers", {}).get("openai-compatible:baseten")
     if bt:
         api_keys = mrelay.get("apiKeys", {})
         key = bt.get("api_key", api_keys.get("openai-compatible:baseten", api_keys.get("baseten", "")))
-        # Only include the frontier-class Baseten models (avoid noise)
         wanted = ["zai-org/GLM-5.2", "moonshotai/Kimi-K2.7-Code", "zai-org/GLM-5.1"]
         avail = [m for m in wanted if m in (bt.get("models") or [])]
         if avail:
@@ -231,10 +320,25 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
                 "options": {
                     "baseURL": bt.get("baseUrl", "https://inference.baseten.co/v1"),
                     "apiKey": key,
-                    "authScheme": "Bearer",
                 },
                 "models": models,
             }
+        else:
+            # GLM-5.x no longer available — flag for replacement
+            entries["baseten"] = {
+                "name": "Baseten (deprecated — policy change, models unavail)",
+                "npm": "@ai-sdk/openai-compatible",
+                "options": {
+                    "baseURL": bt.get("baseUrl", "https://inference.baseten.co/v1"),
+                    "apiKey": key,
+                },
+                "models": {},
+            }
+
+    # 8. GLM-5.2 fallback alternatives: NVIDIA NIM may have GLM-5 variants,
+    # SiliconFlow has GLM-5-9B, LongCat has GLM-5-Flash.
+    # These are already picked up via the generic fallback loop above
+    # if configured in .modelrelay.json.
 
     return entries
 

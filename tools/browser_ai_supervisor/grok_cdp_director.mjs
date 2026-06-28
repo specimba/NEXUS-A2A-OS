@@ -188,9 +188,12 @@ if (!target) {
   process.exit(2);
 }
 
+// NOTE: Page.bringToFront deliberately REMOVED — it steals OS focus from the user.
+// Instead we interact via Runtime.evaluate which works without window focus.
+// If you need visual debugging, add --headless=false to chrome and uncomment:
+//   await cdp.send("Page.bringToFront");
 const cdp = new Cdp(target.webSocketDebuggerUrl);
 await cdp.open();
-await cdp.send("Page.bringToFront");
 await cdp.send("Runtime.enable");
 
 const stateResult = await cdp.send("Runtime.evaluate", {

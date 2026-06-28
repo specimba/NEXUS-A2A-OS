@@ -146,6 +146,7 @@ def default_nexusclaw_evidence_matrix() -> list[EvidenceClaim]:
 def wiki_lookup(claim: EvidenceClaim, limit: int = 5) -> list[dict[str, str]]:
     """Search the wiki for pages relevant to an evidence claim.
 
+    Searches both general wiki pages and ARCHIVIST dossiers.
     Delegates to safe_wiki_search in wiki_helpers.py for the actual
     pipeline call + fallback handling.
 
@@ -155,4 +156,22 @@ def wiki_lookup(claim: EvidenceClaim, limit: int = 5) -> list[dict[str, str]]:
     query_parts = claim.artifact.split()
     query = " ".join(query_parts[:3])  # Use first 3 terms
     results = safe_wiki_search(query, limit=limit)
-    return [{"slug": str(r.get("slug", "")), "title": str(r.get("title", ""))} for r in results]
+    return [{"slug": str(r.get("slug", "")), "title": str(r.get("title", "")), "page_type": str(r.get("page_type", "page"))} for r in results]
+
+
+def enrich_evidence_with_wiki(
+    claims: list[EvidenceClaim],
+    limit_per_claim: int = 3,
+) -> list[dict[str, str | list[dict]]]:
+    """Enrich a list of evidence claims with relevant wiki dossier references.
+
+    Returns enriched claim dicts with a 'wiki_refs' key containing
+    matching wiki pages (including ARCHIVIST dossiers).
+    """
+    enriched = []
+    for claim in claims:
+        refs = wiki_lookup(claim, limit=limit_per_claim)
+        entry = claim.to_dict()
+        entry["wiki_refs"] = refs
+        enriched.append(entry)
+    return enriched

@@ -1,14 +1,14 @@
-"""nexus_os/archivist/fit.py — ARCHIVIST Fit Stage
+"""nexus_os/archivist/fit.py — ARCHIVIST Fit Stage (Stage 3 of 3)
 
-Stage 3 of 3-stage pipeline:
-- Dossier synthesis: merge related papers into wiki articles
-- Project-fit scoring: how relevant to NEXOS goals?
-- Wiki markdown generation with frontmatter (title, tags, source, priority, admission_class)
-- Feed to SEMANTIC channel (3) of memory architecture
+Synthesizes compiled evidence records into structured wiki dossiers.
 
-Output format: Markdown with YAML frontmatter, compatible with NEXUS wiki dashboard.
+Integration:
+- Output written to nexus_os/archivist/wiki/dossiers/ for WikiPipeline indexing
+- LLM synthesis via ModelRelayAdapter (GMR model routing) with graceful fallback
+- Citation graph tracks cites/extends/contradicts/replicates/applies edges
+- Dossiers available to Brain API, NexusClaw evidence, and Next.js dashboard
 
-Frontmatter schema:
+Frontmatter schema (Obsidian-compatible):
 ---
 title: "Dossier: Memory Architecture for LLM Agents"
 tags: [memory, trust, semantic, episodic, consolidation]
@@ -230,7 +230,7 @@ class ArchivistFitter:
     """Fit stage: dossier synthesis, wiki markdown generation, SEMANTIC channel feed."""
 
     def __init__(self, output_dir: Optional[str] = None):
-        self.output_dir = Path(output_dir) if output_dir else Path(__file__).parent / "wiki_output"
+        self.output_dir = Path(output_dir) if output_dir else Path(__file__).parent / "wiki" / "dossiers"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._dossiers: List[Dossier] = []
         self._citation_graph: Optional[CitationGraph] = None
@@ -294,35 +294,46 @@ class ArchivistFitter:
         records: List[CompiledRecord],
         citation_graph: Optional[CitationGraph] = None,
     ) -> LLMSynthesisResult:
-        """Attempt LLM-powered dossier synthesis via GMR model routing.
+        """Attempt LLM-powered dossier synthesis via ModelRelayAdapter (GMR routing).
 
-        Falls back gracefully if GMR is unavailable, returning a result
-        with success=False and the fallback content seeded from metadata.
+        3-tier fallback: Node Relay (7350) -> God Mode Proxy (7357) -> Python Relay (7355).
 
-        This is a best-effort synthesis — the actual LLM call is wrapped
-        in try/except so the pipeline never blocks on model availability.
+        Falls back gracefully on failure, returning a metadata-based summary
+        so the pipeline never blocks on model availability.
         """
         prompt = self._build_llm_prompt(topic, records, citation_graph)
 
-        # Try GMR model routing
+        # Try ModelRelayAdapter (3-tier GMR model routing)
         try:
-            from nexus_os.engine.gmr import GMRRouter
-            router = GMRRouter()
-            response = router.route(
-                prompt=prompt,
-                task_type="dossier_synthesis",
+            from nexus_os.relay.model_relay_adapter import ModelRelayAdapter
+            from nexus_os.twave.router import ChimeraRouterV2, RoutingDecision
+
+            adapter = ModelRelayAdapter()
+            router = ChimeraRouterV2()
+            decision = router.select(
+                task_type="research",
+                complexity="high",
                 max_tokens=4096,
                 temperature=0.3,
             )
-            if response and response.get("content"):
+            request = RoutingDecision(
+                provider=decision.provider if hasattr(decision, 'provider') else "system",
+                model=decision.model if hasattr(decision, 'model') else "default",
+                task_type="research",
+                prompt=prompt,
+                max_tokens=4096,
+                temperature=0.3,
+            )
+            result = adapter.execute(request)
+            if result and result.content:
                 return LLMSynthesisResult(
                     success=True,
-                    content=response["content"],
-                    model_used=response.get("model", "unknown"),
-                    tokens_used=response.get("tokens_used", 0),
+                    content=result.content,
+                    model_used=result.model or f"{result.provider}/unknown",
+                    tokens_used=result.tokens_used or 0,
                 )
         except ImportError:
-            logger.info("GMR not available, using metadata synthesis for topic '%s'", topic)
+            logger.info("ModelRelayAdapter not available, using metadata synthesis for topic '%s'", topic)
         except Exception as e:
             logger.warning("LLM synthesis failed for topic '%s': %s", topic, e)
 
@@ -333,23 +344,6 @@ class ArchivistFitter:
             content=fallback,
             error="GMR unavailable, used metadata fallback",
         )
-
-    def score_nexus_relevance(self, compiled: List[CompiledRecord]) -> float:
-        """Score how relevant a set of records is to NEXUS goals."""
-        if not compiled:
-            return 0.0
-
-        total_relevance = 0.0
-        for c in compiled:
-            record_relevance = 0.0
-            for tag in c.topic_tags:
-                record_relevance += GOAL_RELEVANCE.get(tag, 0.5)
-            # Weight by quality and priority
-            total_relevance += record_relevance * c.quality_score * (c.import_record.priority / 120.0)
-
-        # Normalize by count
-        avg_relevance = total_relevance / len(compiled)
-        return min(1.0, avg_relevance)
 
     def synthesize_dossier(
         self,

@@ -105,9 +105,9 @@ if (!target) {
   process.exit(2);
 }
 
+// Page.bringToFront removed — silent interaction only
 const cdp = new Cdp(target.webSocketDebuggerUrl);
 await cdp.open();
-await cdp.send("Page.bringToFront");
 await cdp.send("Runtime.enable");
 
 const probeExpression = `async ({ expand, maxChars, maxCodeChars }) => {

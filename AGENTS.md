@@ -17,6 +17,8 @@ Nexus OS is a governed, agent operating system. Every agent working in this repo
 - Read current files before making claims or edits.
 - Treat downloaded reports and external team notes as input evidence, not canonical state, until reconciled into tracked docs.
 - Do not create duplicate canonical files with conflicting content. Merge toward one clear source of truth.
+- Before making project-state claims, run `nexusctl grounding doctor --json` and an incremental grounding scan.
+- Grounding may update evidence ledgers, source cards, memory, and worklogs; canonical docs remain proposal-gated.
 - The `docs/handbook/` directory contains detailed operational guidance (nexusctl usage, safety procedures, troubleshooting).
 
 ## Core Architecture Map

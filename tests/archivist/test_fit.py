@@ -82,9 +82,10 @@ class TestGoalRelevance:
         score = fitter.score_nexus_relevance(compiled)
         assert 0.0 <= score <= 1.0
 
-    def test_all_eight_topics_have_weights(self):
+    def test_all_fourteen_topics_have_weights(self):
         expected = {"trust", "memory", "security", "benchmark", "model",
-                     "governance", "multimodal", "agent"}
+                     "governance", "multimodal", "agent", "code", "spec",
+                     "rules", "role", "dataset", "rejection"}
         assert set(GOAL_RELEVANCE.keys()) == expected
 
     def test_relevance_weighted_by_quality(self):

@@ -7,6 +7,9 @@ before reaching Ollama. Internal state tests verify the GuardPlane wiring.
 These tests do NOT require Ollama.
 """
 import sys, os, types
+_ORIG_MODULES = {
+    k: sys.modules.get(k) for k in ["sklearn", "sklearn.pipeline", "numpy", "pydantic", "fastapi", "uvicorn"]
+}
 
 CANARY: str = "4e8f2a1d7c6b9e3f5a0d2c8b4e7f1a6d"
 
@@ -97,6 +100,19 @@ os.environ.setdefault("OLLAMA_HOST", "127.0.0.1:59999")
 from models.guards.guard_plane_service import GuardPlane
 _pickle.load = _real_pickle_load
 
+
+try:
+    import pytest
+    @pytest.fixture(scope="module", autouse=True)
+    def cleanup_sys_modules():
+        yield
+        for k, val in _ORIG_MODULES.items():
+            if val is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = val
+except ImportError:
+    pass
 
 def run():
     passed = 0
@@ -223,6 +239,13 @@ def run():
     ok("total_cats_61_plus", len(cats) >= 61)
 
     # ── Summary ────────────────────────────────────────────────
+        # ── Cleanup ──────────────────────────────────────────────────
+    for k, val in _ORIG_MODULES.items():
+        if val is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = val
+
     print("\n" + "=" * 60)
     print(f"RESULTS: {passed} passed, {failed} failed")
     print("=" * 60)

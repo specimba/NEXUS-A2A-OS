@@ -50,6 +50,7 @@ class CalibratedHallucinationDetector:
         adaptive: bool = True,
         bebop_weight: float = 0.15,
         bebop_tau: float = 0.40,
+        high_sensitivity: bool = False,
     ):
         """
         Args:
@@ -57,6 +58,7 @@ class CalibratedHallucinationDetector:
                          Recommended range: 0.1 — 0.25. Anything >= 0.5 may
                          double-count a high-drift case alongside the EPR.
             bebop_tau: TV-distance threshold that maps to ~0.5 risk score.
+            high_sensitivity: If True, tightens thresholds for more aggressive detection.
         """
         self.base_threshold = threshold
         if high_sensitivity:

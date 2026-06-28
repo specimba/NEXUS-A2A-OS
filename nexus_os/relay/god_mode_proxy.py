@@ -430,13 +430,13 @@ def select_candidates(models: list, profile: dict, messages: list, top_n: int = 
 
     # Specialty filtering
     if profile.get("name") == "Code":
-        coding_keywords = {"coder", "code", "devstral", "qwen3 80b", "qwen 2.5 coder", "deepseek", "codeqwen", "starcoder"}
+        coding_keywords = {"coder", "code", "devstral", "qwen3 80b", "qwen 2.5 coder", "deepseek", "codeqwen", "starcoder", "minimax-m3", "minimax m3", "minimax-m2", "minimax m2"}
         coding = [m for m in candidates if any(k in (m.get("label", "") + " " + m.get("modelId", "")).lower() for k in coding_keywords)]
         if coding:
             candidates = coding
 
     if profile.get("name") == "Reason":
-        reason_keywords = {"reasoning", "thinking", "r1", "qwq", "o4", "o3", "deepseek-r1", "glm-5", "kimi-k2", "think"}
+        reason_keywords = {"reasoning", "thinking", "r1", "qwq", "o4", "o3", "deepseek-r1", "glm-5", "glm 5", "kimi-k2", "kimi k2", "think", "nemotron"}
         reason = [m for m in candidates if any(k in (m.get("label", "") + " " + m.get("modelId", "")).lower() for k in reason_keywords)]
         if reason:
             candidates = reason

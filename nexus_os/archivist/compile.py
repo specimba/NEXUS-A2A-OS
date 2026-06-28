@@ -14,8 +14,10 @@ Output: CompiledRecord list with tags, links, dossier assignments
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from pathlib import Path
+
+import numpy as np
 
 from nexus_os.archivist.import_stage import ImportRecord, FileType, AdmissionClass
 from nexus_os.archivist.taxonomy import TOPIC_KEYWORDS
@@ -92,10 +94,12 @@ class CompileStats:
 class ArchivistCompiler:
     """Compile stage: semantic tagging, linking, admission refinement."""
 
-    def __init__(self):
+    def __init__(self, enable_embedding: bool = True):
         self._dossier_candidates: Dict[str, List[CompiledRecord]] = {}
         self._arxiv_index: Dict[str, CompiledRecord] = {}  # arXiv ID → record
         self._last_backlinks: int = 0
+        self._enable_embedding = enable_embedding
+        self._vectorizer = None  # Lazy init
 
     def tag_topics(self, record: ImportRecord) -> List[str]:
         """Tag record with semantic topics based on title and filename."""
@@ -118,6 +122,157 @@ class ArchivistCompiler:
             if m != record.arxiv_id:
                 links.append(m)
         return links
+
+    def _get_vectorizer(self):
+        """Lazy-initialize TF-IDF vectorizer for embedding-based classification."""
+        if self._vectorizer is None and self._enable_embedding:
+            try:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                self._vectorizer = TfidfVectorizer(max_features=5000, stop_words="english")
+            except ImportError:
+                logger.warning("sklearn not available, embedding classifier disabled")
+                self._enable_embedding = False
+        return self._vectorizer
+
+    def hybrid_classify_topics(self, record: ImportRecord) -> Tuple[List[str], Dict[str, float]]:
+        """Hybrid topic classification: rule-based (0.6) + embedding-based (0.4).
+
+        Rule path: keyword matching against TOPIC_KEYWORDS (same as tag_topics).
+        Embedding path: TF-IDF cosine similarity between record text and topic
+        keyword centroids.
+
+        Returns:
+            (tags_list, scores_dict) where scores_dict maps topic → combined score.
+        """
+        text = self._build_classification_text(record)
+        combined: Dict[str, float] = {}
+
+        # ── Rule-based pass (weight 0.6) ──
+        for topic, keywords in TOPIC_KEYWORDS.items():
+            if any(kw in text for kw in keywords):
+                combined[topic] = combined.get(topic, 0.0) + 0.6
+
+        # ── Embedding-based pass (weight 0.4) ──
+        vec = self._get_vectorizer()
+        if vec is not None and len(text) > 20:
+            try:
+                from sklearn.feature_extraction.text import TfidfVectorizer as _T
+                from sklearn.metrics.pairwise import cosine_similarity
+
+                all_texts = [text]
+                topic_anchor_texts = []
+                for topic in TOPIC_KEYWORDS:
+                    topic_anchor_texts.append(" ".join(TOPIC_KEYWORDS[topic]))
+
+                corpus = all_texts + topic_anchor_texts
+                tfidf = _T(max_features=5000, stop_words="english")
+                tfidf_matrix = tfidf.fit_transform(corpus)
+
+                record_vec = tfidf_matrix[0:1]
+                topic_vecs = tfidf_matrix[1:]
+
+                similarities = cosine_similarity(record_vec, topic_vecs).flatten()
+                for i, topic in enumerate(TOPIC_KEYWORDS):
+                    embed_score = similarities[i] * 0.4
+                    if embed_score >= 0.05:
+                        combined[topic] = combined.get(topic, 0.0) + embed_score
+
+            except Exception as e:
+                logger.debug("Embedding classification failed: %s", e)
+
+        # Filter by threshold 0.30
+        tags = [
+            tag for tag, score in sorted(combined.items(), key=lambda x: -x[1])
+            if score >= 0.30
+        ]
+        return tags[:5], combined
+
+    def _build_classification_text(self, record: ImportRecord) -> str:
+        """Build the text string used for classification."""
+        file_type_str = (
+            record.file_type.value
+            if hasattr(record.file_type, "value")
+            else str(record.file_type)
+        )
+        parts = [
+            record.title or "",
+            record.file_path or "",
+            file_type_str,
+        ]
+        if record.topic_tags:
+            parts.extend(record.topic_tags)
+        text = " ".join(parts).lower()
+        return text
+
+    def auto_link_records(
+        self, compiled: List[CompiledRecord], threshold: float = 0.30
+    ) -> int:
+        """Auto-link compiled records by topic overlap and citation relationships.
+
+        Creates bidirectional links between records sharing ≥2 topic tags,
+        or having high embedding similarity. Returns count of links created.
+
+        Edge types:
+        - direct citation: arXiv ID citation (existing citation_links)
+        - topic overlap: 2+ shared tags → ``topic_link``
+        - semantic: embedding similarity ≥ threshold → ``semantic_link``
+        """
+        links_added = 0
+
+        # Built-in citation backlinks are done in _build_backlinks already.
+        # This adds topic-overlap and semantic links.
+
+        # Topic overlap links
+        topic_to_records: Dict[str, List[CompiledRecord]] = {}
+        for c in compiled:
+            for tag in (c.topic_tags or []):
+                if tag not in topic_to_records:
+                    topic_to_records[tag] = []
+                topic_to_records[tag].append(c)
+
+        for c in compiled:
+            for tag in (c.topic_tags or []):
+                peers = topic_to_records.get(tag, [])
+                for peer in peers:
+                    if peer is c:
+                        continue
+                    shared = set(c.topic_tags or []) & set(peer.topic_tags or [])
+                    if len(shared) >= 2:
+                        key = f"topic_link:{tag}"
+                        if key not in c.citation_links:
+                            c.citation_links.append(key)
+                            links_added += 1
+
+        # Semantic links via embedding similarity
+        vec = self._get_vectorizer()
+        if vec is not None and len(compiled) >= 2:
+            try:
+                from sklearn.feature_extraction.text import TfidfVectorizer as _T
+                from sklearn.metrics.pairwise import cosine_similarity
+
+                texts = [self._build_classification_text(c.import_record) for c in compiled]
+                tfidf = _T(max_features=5000, stop_words="english")
+                matrix = tfidf.fit_transform(texts)
+                sim_matrix = cosine_similarity(matrix)
+
+                for i in range(len(compiled)):
+                    for j in range(i + 1, len(compiled)):
+                        sim = sim_matrix[i][j]
+                        if sim >= threshold:
+                            key_i = f"semantic_link:{compiled[j].import_record.arxiv_id or compiled[j].import_record.blake3_hash[:12]}"
+                            key_j = f"semantic_link:{compiled[i].import_record.arxiv_id or compiled[i].import_record.blake3_hash[:12]}"
+                            if key_i not in compiled[i].citation_links:
+                                compiled[i].citation_links.append(key_i)
+                                links_added += 1
+                            if key_j not in compiled[j].citation_links:
+                                compiled[j].citation_links.append(key_j)
+                                links_added += 1
+            except Exception as e:
+                logger.debug("Semantic linking failed: %s", e)
+
+        if links_added:
+            logger.info("Auto-linked %d records (%d links)", len(compiled), links_added)
+        return links_added
 
     def estimate_word_count(self, record: ImportRecord) -> Optional[int]:
         """Estimate word count for text files."""
@@ -203,8 +358,8 @@ class ArchivistCompiler:
         compiled = CompiledRecord(import_record=record)
 
         try:
-            # Semantic tagging
-            compiled.topic_tags = self.tag_topics(record)
+            # Semantic tagging (hybrid: rule 0.6 + embedding 0.4)
+            compiled.topic_tags, _ = self.hybrid_classify_topics(record)
 
             # Citation linking
             compiled.citation_links = self.link_citations(record)
@@ -248,7 +403,9 @@ class ArchivistCompiler:
         self._retroactively_promote_dossiers(compiled)
         # Build reverse citation links
         backlinks = self._build_backlinks(compiled)
-        self._last_backlinks = backlinks
+        # Auto-link records by topic overlap and semantic similarity
+        auto_links = self.auto_link_records(compiled)
+        self._last_backlinks = backlinks + auto_links
         return compiled
 
     def _retroactively_promote_dossiers(self, compiled: List[CompiledRecord]) -> int:

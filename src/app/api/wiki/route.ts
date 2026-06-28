@@ -4,6 +4,10 @@ import path from 'path'
 
 const DOCS_ROOT = path.join(process.cwd(), 'docs')
 const WIKI_DIR = path.join(DOCS_ROOT, 'wiki')
+// Canonical ARCHIVIST wiki — fit.py writes dossiers here
+const ARCHIVIST_WIKI = path.join(process.cwd(), 'nexus_os', 'archivist', 'wiki')
+const ARCHIVIST_DOSSIERS = path.join(ARCHIVIST_WIKI, 'dossiers')
+
 type WikiIndexFile = {
   slug: string
   title: string
@@ -96,7 +100,25 @@ export async function GET() {
         .filter((entry) => entry.isDirectory() && INDEXED_DOC_DIRS.has(entry.name))
         .map((entry) => collectMarkdownFiles(path.join(DOCS_ROOT, entry.name), entry.name)),
     )
-    const files = groups
+
+    // Also index ARCHIVIST wiki (sources, entities, concepts, dossiers)
+    const archivistGroups: Promise<WikiIndexFile[]>[] = []
+    if (await fs.stat(ARCHIVIST_WIKI).then(() => true).catch(() => false)) {
+      const wikiDirs = await fs.readdir(ARCHIVIST_WIKI, { withFileTypes: true })
+      for (const entry of wikiDirs) {
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          archivistGroups.push(
+            collectMarkdownFiles(
+              path.join(ARCHIVIST_WIKI, entry.name),
+              `archivist/${entry.name}`,
+            ),
+          )
+        }
+      }
+    }
+
+    const allGroups = await Promise.all([...groups, ...archivistGroups])
+    const files = allGroups
       .flat()
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 
@@ -104,7 +126,7 @@ export async function GET() {
     return NextResponse.json({
       files,
       categories,
-      root: 'docs',
+      root: 'docs + archivist/wiki',
       count: files.length,
       generatedAt: new Date().toISOString(),
     })

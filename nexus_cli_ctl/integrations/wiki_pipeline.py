@@ -52,7 +52,12 @@ class WikiPipeline:
         self.running = False
 
     def _build_index(self):
-        """Build in-memory wiki index from wiki directory"""
+        """Build in-memory wiki index from wiki directory.
+
+        Indexes all .md files including dossiers/ subdirectory.
+        Dossiers are written by fit.py and indexed alongside
+        sources, entities, and concepts.
+        """
         self._wiki_index = {}
         self._page_count = 0
         self._dossier_count = 0
@@ -82,31 +87,22 @@ class WikiPipeline:
                 if any(t in slug_parts for t in EXCLUDED_TOPICS):
                     continue
 
+                page_type = "dossier" if "dossiers/" in slug else slug.split("/")[0] if "/" in slug else "root"
+
                 self._wiki_index[slug] = {
                     "slug": slug,
                     "title": title,
                     "path": str(md_file),
                     "word_count": word_count,
+                    "page_type": page_type,
                     "last_modified": datetime.fromtimestamp(md_file.stat().st_mtime).isoformat(),
                     "snippet": content[:200].strip(),
                 }
                 self._page_count += 1
+                if page_type == "dossier":
+                    self._dossier_count += 1
             except Exception as e:
                 logger.debug(f"Failed to index {md_file}: {e}")
-
-        # Load dossier count from wiki state
-        if WIKI_STATE_FILE.exists():
-            try:
-                state = json.loads(WIKI_STATE_FILE.read_text(encoding="utf-8"))
-                self._dossier_count = state.get("dossier_count", 0)
-                if self._dossier_count == 0:
-                    wiki_output_dir = WIKI_DIR.parent / "wiki_output"
-                    if wiki_output_dir.exists():
-                        self._dossier_count = len(list(wiki_output_dir.glob("dossier_*.md")))
-            except json.JSONDecodeError as e:
-                logger.warning("Wiki state file corrupted (%s), resetting dossier count", e)
-            except Exception as e:
-                logger.warning("Failed to read wiki state file: %s", e)
 
     def _extract_title(self, content: str) -> Optional[str]:
         """Extract title from first H1 or H2 heading"""

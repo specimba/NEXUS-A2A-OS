@@ -1,0 +1,73 @@
+{
+  "schema": "nexus.agent-provider-lanes.v1",
+  "provider": "internai",
+  "base_url_env": "INTERN_BASE_URL",
+  "default_base_url": "https://chat.intern-ai.org.cn/api/v1",
+  "chat_path": "/chat/completions",
+  "auth": {
+    "type": "bearer",
+    "header": "Authorization",
+    "secret_policy": "env-only"
+  },
+  "rate_limit": {
+    "rpm": 30,
+    "scope": "user"
+  },
+  "lanes": {
+    "modelrelay": {
+      "surface": "Local ModelRelay",
+      "key_env_order": ["INTERN_MODELRELAY_API_KEY", "INTERN_API_KEY", "INTERN_API_KEY_2"],
+      "default_model": "intern-latest",
+      "fallback_model": "intern-s2-preview",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": false
+    },
+    "hermes": {
+      "surface": "Hermes planner and GMR selector",
+      "key_env_order": ["INTERN_HERMES_API_KEY", "INTERN_API_KEY", "INTERN_API_KEY_2"],
+      "default_model": "intern-s2-preview",
+      "fallback_model": "intern-latest",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": true
+    },
+    "opencode": {
+      "surface": "OpenCode executor",
+      "key_env_order": ["INTERN_OPENCODE_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
+      "default_model": "intern-s2-preview",
+      "fallback_model": "intern-latest",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": true
+    },
+    "kilocode": {
+      "surface": "KiloCode executor",
+      "key_env_order": ["INTERN_KILOCODE_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
+      "default_model": "intern-s2-preview",
+      "fallback_model": "intern-latest",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": true
+    },
+    "claw": {
+      "surface": "Zo/OpenClaw runtime",
+      "key_env_order": ["INTERN_CLAW_API_KEY", "INTERN_ZO_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
+      "default_model": "intern-s2-preview",
+      "fallback_model": "intern-latest",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": true
+    },
+    "zo": {
+      "surface": "Zo Computer cloud service",
+      "key_env_order": ["INTERN_ZO_API_KEY", "INTERN_CLAW_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
+      "default_model": "intern-s2-preview",
+      "fallback_model": "intern-latest",
+      "vision_model": "internvl2.5-latest",
+      "thinking_mode": true
+    }
+  },
+  "request_rules": {
+    "strip_fields": ["stop"],
+    "tool_schema": "openai-tools",
+    "thinking_mode_models": ["intern-s2-preview", "intern-s1-pro", "intern-s1", "intern-s1-mini"],
+    "treat_429_as": "cooldown"
+  }
+}
+

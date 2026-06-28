@@ -190,11 +190,11 @@ class TestAssess:
         with patch.object(d, "_tracker", mock_tracker), \
              patch.object(d, "_epr", mock_epr):
             result = d.assess(topk_probs=[0.5, 0.3, 0.2])
-        assert result["risk"] == "low"  # 0.5 < RISK_MEDIUM (0.6)
+        assert result["risk"] == "medium"  # 0.5 >= RISK_MEDIUM (0.4)
         assert result["reasons"] == ["high_epr"]
 
-    def test_medium_risk_when_epr_and_lg_energy(self):
-        """EPR + high LG energy = 0.5 + 0.3 = 0.8, crosses RISK_MEDIUM (0.6)."""
+    def test_high_risk_when_epr_and_lg_energy(self):
+        """EPR + high LG energy = 0.5 + 0.3 = 0.8, crosses RISK_HIGH (0.6)."""
         d = CalibratedHallucinationDetector(bebop_weight=0.0)
         mock_report = MagicMock()
         mock_lg_state = MagicMock()
@@ -215,7 +215,7 @@ class TestAssess:
         with patch.object(d, "_tracker", mock_tracker), \
              patch.object(d, "_epr", mock_epr):
             result = d.assess(topk_probs=[0.5, 0.3, 0.2])
-        assert result["risk"] == "medium"
+        assert result["risk"] == "high"
         assert "high_epr" in result["reasons"]
         assert "high_lg_energy" in result["reasons"]
 

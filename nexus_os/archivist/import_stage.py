@@ -33,6 +33,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import yaml
+
 from nexus_os.archivist.archivist import CATEGORIZE_TO_FILETYPE, categorize_file
 
 logger = logging.getLogger("nexus_os.archivist.import")
@@ -346,26 +348,144 @@ class ArchivistImporter:
             self._error_count += 1
             return None
 
+    def _parse_frontmatter(self, file_path: Path) -> tuple:
+        """Parse YAML frontmatter from a markdown file.
+
+        Returns (frontmatter_dict, body_text). If no frontmatter,
+        returns ({}, full_content).
+        """
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    fm = yaml.safe_load(parts[1]) or {}
+                    body = parts[2].strip()
+                    return fm, body
+            return {}, content
+        except Exception as e:
+            logger.debug("Frontmatter parse failed for %s: %s", file_path, e)
+            return {}, ""
+
+    def scan_m0_freeze_source_cards(
+        self,
+        m0_freeze_path: Optional[str] = None,
+        max_cards: Optional[int] = None,
+    ) -> List[ImportRecord]:
+        """Scan DoppelGround m0_freeze directory for canonical source cards.
+
+        Source cards are the highest-priority ingest — structured .md files
+        with YAML frontmatter containing explicit source_kind, tags, and
+        priority. They represent human-curated evidence packages from the
+        DoppelGround evidence preparation layer.
+
+        Args:
+            m0_freeze_path: Path to m0_freeze directory. Defaults to
+                ~/Downloads/ARCHIVIST/m0_freeze.
+            max_cards: Optional limit on number of cards to process.
+
+        Returns:
+            List of ImportRecords with AdmissionClass.SOURCE_CARD.
+        """
+        if m0_freeze_path is None:
+            home = Path.home()
+            m0_freeze_path = str(home / "Downloads" / "ARCHIVIST" / "m0_freeze")
+
+        m0_path = Path(m0_freeze_path)
+        if not m0_path.exists():
+            logger.info("m0_freeze path does not exist, skipping: %s", m0_freeze_path)
+            return []
+
+        records: List[ImportRecord] = []
+        count = 0
+
+        for md_file in sorted(m0_path.rglob("*.md")):
+            if max_cards and count >= max_cards:
+                break
+
+            fm, body = self._parse_frontmatter(md_file)
+            if not fm:
+                logger.debug("Skipping %s: no YAML frontmatter", md_file.name)
+                continue
+
+            title = fm.get("title", md_file.stem)
+            source_kind = fm.get("source_kind", "doc")
+            tags = fm.get("tags", [])
+            priority = fm.get("priority", 100)
+            confidence = fm.get("confidence", 1.0)
+
+            kind_to_type = {
+                "rules": FileType.CONFIG, "config": FileType.CONFIG,
+                "mission": FileType.MARKDOWN, "doc": FileType.MARKDOWN,
+                "deep_research": FileType.PAPER, "spec": FileType.MARKDOWN,
+                "code": FileType.CODE, "test": FileType.CODE, "skill": FileType.CODE,
+                "rejection_example": FileType.LOG, "role": FileType.PROMPT,
+                "golden_dataset": FileType.DATA,
+            }
+            file_type = kind_to_type.get(source_kind, FileType.MARKDOWN)
+
+            blake3_hash = self.compute_hash(md_file)
+            if not blake3_hash:
+                continue
+
+            record = ImportRecord(
+                file_path=str(md_file),
+                file_type=file_type,
+                admission_class=AdmissionClass.SOURCE_CARD,
+                priority=min(120, priority),
+                blake3_hash=blake3_hash,
+                file_size=md_file.stat().st_size,
+                mtime=md_file.stat().st_mtime,
+                source_dir=str(md_file.parent),
+                title=title,
+                topic_tags=tags if isinstance(tags, list) else [],
+            )
+            record.processed_at = time.time()
+            records.append(record)
+            count += 1
+
+        logger.info("Scanned %d m0_freeze source cards from %s", len(records), m0_freeze_path)
+        return records
+
     def import_batch(
         self,
         max_files: Optional[int] = None,
         progress_callback: Optional[callable] = None,
+        include_m0_freeze: bool = True,
     ) -> List[ImportRecord]:
-        """Process all discovered files in a batch."""
-        files = self.discover_files(max_files=max_files)
+        """Process all discovered files in a batch.
+
+        Phase 1: ingest m0_freeze source cards (highest priority).
+        Phase 2: discover and process all other watched files.
+        """
         records: List[ImportRecord] = []
+
+        # Phase 1: m0_freeze source cards (canonical, highest priority)
+        if include_m0_freeze:
+            m0_records = self.scan_m0_freeze_source_cards(max_cards=max_files)
+            records.extend(m0_records)
+            if max_files and len(records) >= max_files:
+                return records[:max_files]
+
+        # Phase 2: regular file discovery (remaining budget)
+        remaining = (max_files - len(records)) if max_files else None
+        files = self.discover_files(max_files=remaining)
 
         for i, file_path in enumerate(files):
             record = self.process_file(file_path)
             if record:
                 records.append(record)
+                if max_files and len(records) >= max_files:
+                    break
 
             if progress_callback and i % 100 == 0:
                 progress_callback(i, len(files), len(records))
 
         logger.info(
-            "Import batch complete: %d files, %d records, %d duplicates, %d quarantined, %d errors",
-            len(files), len(records), self._duplicate_count,
+            "Import batch complete: %d source_cards + %d regular files = %d records, %d duplicates, %d quarantined, %d errors",
+            len([r for r in records if r.admission_class == AdmissionClass.SOURCE_CARD]),
+            len([r for r in records if r.admission_class != AdmissionClass.SOURCE_CARD]),
+            len(records), self._duplicate_count,
             self._quarantine_count, self._error_count,
         )
         return records

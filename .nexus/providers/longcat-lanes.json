@@ -1,0 +1,14 @@
+{
+  "schema": "nexus.provider-lanes.v1",
+  "provider": "longcat",
+  "lanes": {
+    "modelrelay": ["LONGCAT_MODELRELAY_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "hermes": ["LONGCAT_HERMES_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "opencode": ["LONGCAT_OPENCODE_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "kilocode": ["LONGCAT_KILOCODE_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "claw": ["LONGCAT_CLAW_API_KEY", "LONGCAT_ZO_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
+    "zo": ["LONGCAT_ZO_API_KEY", "LONGCAT_CLAW_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"]
+  },
+  "model": "LongCat-2.0-Preview",
+  "secretPolicy": "env-only-no-archivist-key-copy"
+}

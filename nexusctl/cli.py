@@ -241,6 +241,66 @@ def run_doctor_hygiene(report_only: bool) -> int:
     return 0
 
 
+def run_grounding(args: argparse.Namespace) -> int:
+    from nexus_os.grounding import GroundingService, GroundingStore, default_source_roots
+    from nexus_os.grounding.native_watcher import watch_grounding
+
+    store = GroundingStore()
+    if args.grounding_command == "status":
+        _json_print({"status": "ok", "command": "grounding status", **store.status()})
+        return 0
+    if args.grounding_command == "doctor":
+        roots = default_source_roots()
+        root_status = {
+            source_id: {"path": str(path), "exists": path.exists()}
+            for source_id, path in roots.items()
+        }
+        _json_print({
+            "status": "ok" if all(item["exists"] for item in root_status.values()) else "degraded",
+            "command": "grounding doctor",
+            "roots": root_status,
+            "store": store.status(),
+            "canonical_mutation_allowed": False,
+        })
+        return 0
+    if args.grounding_command == "scan":
+        result = GroundingService(store=store).reconcile(
+            changed_only=args.changed_only,
+            stability_delay_seconds=args.stability_delay,
+            max_files=args.max_files,
+        )
+        result["command"] = "grounding scan"
+        _json_print(result)
+        return 0
+    if args.grounding_command == "watch":
+        watch_grounding(
+            GroundingService(store=store),
+            fallback_poll_seconds=args.poll_seconds,
+            reconcile_seconds=args.reconcile_seconds,
+        )
+        return 0
+    if args.grounding_command == "promote":
+        proposal_path = store.proposals_dir / f"{args.proposal}.json"
+        if not proposal_path.exists():
+            _json_print({
+                "status": "blocked",
+                "command": "grounding promote",
+                "reason": "proposal_not_found",
+                "proposal": args.proposal,
+            })
+            return 2
+        proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        _json_print({
+            "status": "dry_run",
+            "command": "grounding promote",
+            "proposal": proposal,
+            "canonical_files_modified": [],
+            "operator_approval_required": True,
+        })
+        return 0
+    raise ValueError(f"Unknown grounding command: {args.grounding_command}")
+
+
 def run_doctor(report_only: bool, topic: str | None, refresh: bool) -> int:
     if topic == "memory":
         return run_doctor_memory(report_only)
@@ -801,6 +861,117 @@ def run_grok_lane(args: argparse.Namespace) -> int:
     return 0 if not dead else 1
 
 
+def run_pipeline(args: argparse.Namespace) -> int:
+    """Run the ARCHIVIST pipeline (import → compile → fit)."""
+    import json as _json
+
+    repo_root = _find_repo_root()
+    if not repo_root:
+        print('{"ok": false, "error": "repository root not found"}')
+        return 1
+
+    if args.status:
+        try:
+            from nexus_os.archivist.archivist import cmd_status
+            result = cmd_status()
+            print(_json.dumps(_as_dict(result), indent=2))
+        except Exception as e:
+            print(_json.dumps({"ok": False, "error": str(e)}))
+            return 1
+        return 0
+
+    pipeline_dir = repo_root / "nexus_os" / "archivist"
+    import_dir = args.import_dir or repo_root / "imports"
+    compiled_dir = pipeline_dir / "compiled"
+    wiki_output = pipeline_dir / "wiki" / "dossiers"
+
+    skip_import = args.skip_import
+    skip_compile = args.skip_compile
+    skip_fit = args.skip_fit
+
+    stages = []
+    errors = []
+    compiler = None
+
+    # Stage 1: Import
+    if not skip_import:
+        try:
+            from nexus_os.archivist.archivist import scan_directory
+            results = scan_directory(str(import_dir))
+            count = len(results)
+            stages.append({"stage": "import", "ok": True, "files": count})
+            print(_json.dumps({"stage": "import", "ok": True, "files": count}))
+        except Exception as e:
+            stages.append({"stage": "import", "ok": False, "error": str(e)})
+            errors.append(f"import: {e}")
+            print(_json.dumps({"stage": "import", "ok": False, "error": str(e)}))
+
+    # Stage 2: Compile
+    if not skip_compile:
+        try:
+            from nexus_os.archivist.compile import ArchivistCompiler
+            compiler = ArchivistCompiler()
+            records = compiler.compile_all()
+            stages.append({"stage": "compile", "ok": True, "records": len(records)})
+            print(_json.dumps({"stage": "compile", "ok": True, "records": len(records)}))
+        except Exception as e:
+            stages.append({"stage": "compile", "ok": False, "error": str(e)})
+            errors.append(f"compile: {e}")
+            print(_json.dumps({"stage": "compile", "ok": False, "error": str(e)}))
+
+    # Stage 3: Fit
+    if not skip_fit:
+        try:
+            from nexus_os.archivist.fit import ArchivistFitter
+            fitter = ArchivistFitter()
+            grouped: dict = {}
+            if compiler is not None and hasattr(compiler, 'compiled'):
+                for r in compiler.compiled:
+                    for tag in r.topic_tags or ["general"]:
+                        grouped.setdefault(tag, []).append(r)
+            if not grouped:
+                for cache_path in [compiled_dir / "all_records.json", pipeline_dir / "all_records.json"]:
+                    if cache_path.exists():
+                        import json as _json2
+                        from nexus_os.archivist.compile import CompiledRecord
+                        data = _json2.loads(cache_path.read_text(encoding="utf-8"))
+                        for r_data in data:
+                            for tag in r_data.get("topic_tags", ["general"]):
+                                grouped.setdefault(tag, []).append(
+                                    CompiledRecord(
+                                        import_record=r_data.get("import_record", {}),
+                                        quality_score=r_data.get("quality_score", 0.5),
+                                        topic_tags=r_data.get("topic_tags", ["general"]),
+                                        citation_links=r_data.get("citation_links", []),
+                                    )
+                                )
+                        break
+            dossiers = fitter.fit_batch(grouped) if grouped else []
+            stages.append({
+                "stage": "fit", "ok": True,
+                "dossiers": len(dossiers),
+                "output_dir": str(wiki_output),
+            })
+            print(_json.dumps({
+                "stage": "fit", "ok": True,
+                "dossiers": len(dossiers),
+                "output_dir": str(wiki_output),
+            }))
+        except Exception as e:
+            stages.append({"stage": "fit", "ok": False, "error": str(e)})
+            errors.append(f"fit: {e}")
+            print(_json.dumps({"stage": "fit", "ok": False, "error": str(e)}))
+
+    summary = {
+        "pipeline": "import → compile → fit",
+        "stages": stages,
+        "errors": errors,
+        "ok": len(errors) == 0,
+    }
+    print(_json.dumps(summary, indent=2))
+    return 0 if summary["ok"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="nexusctl")
     subparsers = parser.add_subparsers(dest="command")
@@ -861,6 +1032,20 @@ def main() -> int:
     dispatch.add_argument("--capability", action="append", default=[])
     dispatch.add_argument("--evidence-ref", action="append", default=[])
 
+    pipeline = subparsers.add_parser("pipeline", help="Run the ARCHIVIST pipeline: import → compile → fit")
+    pipeline.add_argument("--import-dir", type=Path, default=None,
+                          help="Import raw source documents from this directory")
+    pipeline.add_argument("--skip-import", action="store_true",
+                          help="Skip import stage, use existing compiled records")
+    pipeline.add_argument("--skip-compile", action="store_true",
+                          help="Skip compile stage, use existing imports")
+    pipeline.add_argument("--skip-fit", action="store_true",
+                          help="Skip fit (dossier synthesis) stage")
+    pipeline.add_argument("--enable-llm", action="store_true",
+                          help="Enable LLM-powered dossier synthesis (requires relay)")
+    pipeline.add_argument("--status", action="store_true",
+                          help="Show pipeline stage status")
+
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
     models.add_argument("--refresh", action="store_true", help="Force upstream cache refresh before listing")
     models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (opencode, kilo, cline, hermes, mimo)")
@@ -903,6 +1088,23 @@ def main() -> int:
     gl_doctor = grok_lane_sub.add_parser("doctor", help="Pure-probe: report which link is dead + exact admin command")
     gl_doctor.add_argument("--revive", action="store_true", help="Also attempt detached background relaunch of the 3 relays (never CDP/dashboard)")
 
+    grounding = subparsers.add_parser("grounding", help="Continuous evidence grounding and promotion controls")
+    grounding_sub = grounding.add_subparsers(dest="grounding_command")
+    grounding_sub.required = True
+    grounding_doctor = grounding_sub.add_parser("doctor", help="Validate roots and durable grounding store")
+    grounding_doctor.add_argument("--json", action="store_true", help="Emit JSON (default output)")
+    grounding_sub.add_parser("status", help="Show grounding ledger and index status")
+    grounding_scan = grounding_sub.add_parser("scan", help="Run incremental source reconciliation")
+    grounding_scan.add_argument("--changed-only", action="store_true", default=True)
+    grounding_scan.add_argument("--stability-delay", type=float, default=2.0)
+    grounding_scan.add_argument("--max-files", type=int)
+    grounding_watch = grounding_sub.add_parser("watch", help="Run continuous incremental grounding")
+    grounding_watch.add_argument("--poll-seconds", type=int, default=30)
+    grounding_watch.add_argument("--reconcile-seconds", type=int, default=3600)
+    grounding_promote = grounding_sub.add_parser("promote", help="Review a promotion proposal")
+    grounding_promote.add_argument("--proposal", required=True)
+    grounding_promote.add_argument("--dry-run", action="store_true", default=True)
+
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -928,6 +1130,8 @@ def main() -> int:
             return run_nexusclaw_status()
         if args.nexusclaw_command == "dispatch-dry-run":
             return run_nexusclaw_dispatch_dry_run(args)
+    if args.command == "pipeline":
+        return run_pipeline(args)
     if args.command == "models":
         return run_models_list(args.refresh)
     if args.command == "a2a-channels":
@@ -944,6 +1148,8 @@ def main() -> int:
         return run_model_sync(args)
     if args.command == "grok-lane":
         return run_grok_lane(args)
+    if args.command == "grounding":
+        return run_grounding(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 

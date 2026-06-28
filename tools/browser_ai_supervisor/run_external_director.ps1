@@ -46,5 +46,11 @@ if ($RequiresBridge) { $args += "--requires-bridge" }
 if ($EgressProbeUrl) { $args += @("--egress-url", $EgressProbeUrl, "--egress-method", "HEAD") }
 
 python @args
+$directorExit = $LASTEXITCODE
+if ($directorExit -eq 0 -and $env:NEXUS_GROUNDING_ROOT) {
+    python tools\browser_ai_supervisor\record_grounding_event.py `
+        --memory $memoryPath --grounding-root $env:NEXUS_GROUNDING_ROOT
+}
+exit $directorExit
 
 

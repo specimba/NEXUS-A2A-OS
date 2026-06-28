@@ -88,12 +88,14 @@ class WorklogSystem:
         markdown_enabled: bool = False,
         memory_trust_score: float = 100.0,
         archivist_queue_enabled: bool = True,
+        grounding_store: Any = None,
     ) -> None:
         self.memory_channels = memory_channels or get_manager()
         self.repo_root = Path(repo_root) if repo_root is not None else Path.cwd()
         self.markdown_enabled = markdown_enabled
         self.memory_trust_score = memory_trust_score
         self.archivist_queue_enabled = archivist_queue_enabled
+        self.grounding_store = grounding_store
         self._entries: List[WorklogEntry] = []
         self._archivist_queue: List[Dict[str, Any]] = []
         self._lock = threading.RLock()
@@ -134,6 +136,8 @@ class WorklogSystem:
     def queue_depth(self) -> int:
         """Return the number of records waiting for ARCHIVIST handoff."""
         with self._lock:
+            if self.grounding_store is not None:
+                return self.grounding_store.pending_count("nexusclaw.worklog")
             return len(self._archivist_queue)
 
     def get_archivist_queue(self, clear_processed: bool = False) -> List[Dict[str, Any]]:
@@ -223,13 +227,47 @@ class WorklogSystem:
         )
 
     def _queue_for_archivist(self, entry: WorklogEntry) -> WorklogSinkResult:
-        """Queue worklog evidence for a future real ARCHIVIST adapter."""
+        """Queue worklog evidence through the durable grounding ledger."""
 
         if not self.archivist_queue_enabled:
             return WorklogSinkResult(
                 sink="archivist:v0_queue",
                 success=True,
                 detail="deferred by config",
+            )
+
+        if self.grounding_store is not None:
+            try:
+                from hashlib import sha256
+                from nexus_os.grounding.models import GroundingEvent, GroundingLifecycle
+
+                line = entry.to_markdown_line()
+                self.grounding_store.append(
+                    GroundingEvent(
+                        source_id="nexusclaw.worklog",
+                        path=f"worklog://{entry.entry_id}",
+                        size=len(line.encode("utf-8")),
+                        mtime_ns=0,
+                        content_hash=sha256(line.encode("utf-8")).hexdigest(),
+                        source_kind="worklog",
+                        evidence_grade="E1",
+                        lifecycle_state=GroundingLifecycle.QUEUED.value,
+                        trace_id=entry.entry_id,
+                        metadata={"record": entry.to_dict()},
+                    )
+                )
+            except Exception as exc:
+                return WorklogSinkResult(
+                    sink="archivist:grounding_ledger",
+                    success=False,
+                    detail="durable queue write failed",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+            return WorklogSinkResult(
+                sink="archivist:grounding_ledger",
+                success=True,
+                detail="queued durably",
+                records_written=1,
             )
 
         self._archivist_queue.append(
@@ -341,11 +379,14 @@ def get_worklog(
     """Get the singleton WorklogSystem instance."""
     global _worklog_instance
     if _worklog_instance is None:
+        from nexus_os.grounding.store import GroundingStore
+
         _worklog_instance = WorklogSystem(
             memory_channels=memory_channels,
             repo_root=repo_root,
             markdown_enabled=markdown_enabled,
             memory_trust_score=memory_trust_score,
             archivist_queue_enabled=archivist_queue_enabled,
+            grounding_store=GroundingStore(),
         )
     return _worklog_instance

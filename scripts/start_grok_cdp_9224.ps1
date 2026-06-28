@@ -9,7 +9,8 @@
 param(
     [int]$Port = 9224,
     [string]$ProfileDir = "$env:USERPROFILE\.nexus_chrome_grok",
-    [string]$StartUrl = "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f"
+    [string]$StartUrl = "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f",
+    [switch]$ShowWindow = $false
 )
 
 $chrome = @(
@@ -21,20 +22,36 @@ $chrome = @(
 if (-not $chrome) { throw "Google Chrome not found. Install Chrome or set `$chrome manually." }
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 
-Write-Host "Starting Grok-lane Chrome (CDP :$Port, profile: $ProfileDir)"
-Write-Host "  -> $StartUrl"
-Write-Host "NOTE: dedicated profile. Log in to Grok ONCE in this window; the profile"
-Write-Host "      persists, so you never log in again on later restarts."
-Write-Host "Verify from any shell:  nexusctl grok-lane doctor   (cdp should be UP)"
+if ($ShowWindow) {
+    Write-Host "Starting Grok-lane Chrome VISIBLE — log in to Grok in this window, then close it."
+    Write-Host "Future runs will launch silently in background."
+    Start-Process -FilePath $chrome -ArgumentList @(
+        "--remote-debugging-port=$Port",
+        "--user-data-dir=$ProfileDir",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=Translate,InterestCohorts",
+        $StartUrl
+    )
+} else {
+    Write-Host "Starting Grok-lane Chrome (CDP :$Port, SILENT BACKGROUND MODE)"
+    Write-Host "  -> $StartUrl"
+    Write-Host "Window hidden + offscreen to avoid focus stealing."
+    Write-Host "Verify: nexusctl grok-lane doctor"
+    Write-Host "To re-authenticate: start_grok_cdp_9224.ps1 -ShowWindow"
 
-Start-Process -FilePath $chrome -ArgumentList @(
-    "--remote-debugging-port=$Port",
-    "--user-data-dir=$ProfileDir",
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-features=Translate,InterestCohorts",
-    $StartUrl
-)
+    Start-Process -FilePath $chrome -ArgumentList @(
+        "--remote-debugging-port=$Port",
+        "--user-data-dir=$ProfileDir",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=Translate,InterestCohorts",
+        "--window-position=-32000,-32000",
+        "--window-size=1,1",
+        "--hide-crash-restore-bubble",
+        $StartUrl
+    ) -WindowStyle Hidden
+}
 
 Start-Sleep -Seconds 2
 try {

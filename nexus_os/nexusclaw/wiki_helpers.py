@@ -13,14 +13,15 @@ def safe_wiki_search(query: str, limit: int = 10) -> List[Dict[str, Any]]:
 
     Wraps `get_wiki_pipeline().search(...)` in a try/except and returns
     an empty list if the pipeline is unavailable (import failure, service
-    down, schema mismatch). Returned dict shape: {slug, title, snippet}.
+    down, schema mismatch). Returned dict includes page_type to distinguish
+    dossiers from regular wiki pages.
 
     Args:
         query: Search query string.
         limit: Max results to return (capped by pipeline).
 
     Returns:
-        List of result dicts with keys 'slug', 'title', 'snippet'.
+        List of result dicts with keys 'slug', 'title', 'snippet', 'page_type'.
         Empty list on failure.
     """
     try:
@@ -33,6 +34,7 @@ def safe_wiki_search(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                 "slug": r.get("slug", ""),
                 "title": r.get("title", ""),
                 "snippet": r.get("snippet", "")[:200],
+                "page_type": r.get("page_type", "page"),
             })
         return normalized
     except Exception:

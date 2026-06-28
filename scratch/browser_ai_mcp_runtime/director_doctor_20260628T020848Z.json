@@ -1,0 +1,379 @@
+﻿{
+    "status":  "OK_CDP",
+    "blocker":  null,
+    "cdp":  [
+                {
+                    "port":  9224,
+                    "ok":  true,
+                    "browser":  "Chrome/149.0.7827.197",
+                    "webSocketDebuggerUrl":  "ws://127.0.0.1:9224/devtools/browser/815ca149-4829-4ff8-ab50-4ecbaf31002e"
+                }
+            ],
+    "requiredUrlPattern":  "grok\\.com",
+    "matchingTargets":  [
+                            {
+                                "port":  9224,
+                                "type":  [
+                                             "page",
+                                             "iframe",
+                                             "iframe",
+                                             "background_page",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "service_worker",
+                                             "worker",
+                                             "worker"
+                                         ],
+                                "title":  [
+                                              "NEXUS OS (clone) - Grok",
+                                              "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;title=Grok\u0026amp;referrer=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;muid=247e11f4-3dce-44d9-ac50-2b6571e63b08c90c36\u0026amp;sid=NA\u0026amp;version=6\u0026amp;preview=false\u0026amp;__shared_params__[version]=basil",
+                                              "https://m.stripe.network/inner.html#url=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;title=Grok\u0026amp;referrer=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;muid=247e11f4-3dce-44d9-ac50-2b6571e63b08c90c36\u0026amp;sid=NA\u0026amp;version=6\u0026amp;preview=false\u0026amp;__shared_params__[version]=basil",
+                                              "chrome-extension://hnmpcagpplmpfojmgmnngilcnanddlhb/offscreenHub.html",
+                                              "Service Worker chrome-extension://cmedhionkhpnakcndndgjdbohmhepckk/background.js",
+                                              "Service Worker chrome-extension://hnmpcagpplmpfojmgmnngilcnanddlhb/backgroundScripts.js",
+                                              "Service Worker chrome-extension://hehggadaopoacecdllhhajmbjkdcmajg/background.js",
+                                              "Service Worker chrome-extension://kbfnbcaeplbcioakkpcpgfkobkghlhen/sw.js",
+                                              "Service Worker chrome-extension://iidnbdjijdkbmajdffnidomddglmieko/quillbot-sw.js",
+                                              "Service Worker chrome-extension://gighmmpiobklfepjocnamgkkbiglidom/abp-background.js",
+                                              "Service Worker chrome-extension://cfhdojbkjhnklbpkdaibdccddilifddb/background.js",
+                                              "Service Worker chrome-extension://jplgfhpmjnbigmhklmmbgecoobifkmpa/js/service.js",
+                                              "",
+                                              ""
+                                          ],
+                                "url":  ""
+                            }
+                        ],
+    "target_count":  1,
+    "target_sample":  [
+                          {
+                              "port":  9224,
+                              "type":  [
+                                           "page",
+                                           "iframe",
+                                           "iframe",
+                                           "background_page",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "service_worker",
+                                           "worker",
+                                           "worker"
+                                       ],
+                              "title":  [
+                                            "NEXUS OS (clone) - Grok",
+                                            "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;title=Grok\u0026amp;referrer=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;muid=247e11f4-3dce-44d9-ac50-2b6571e63b08c90c36\u0026amp;sid=NA\u0026amp;version=6\u0026amp;preview=false\u0026amp;__shared_params__[version]=basil",
+                                            "https://m.stripe.network/inner.html#url=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;title=Grok\u0026amp;referrer=https%3A%2F%2Fgrok.com%2Fproject%2F99253cca-2469-4454-8593-0f173b7f640f%3Fchat%3D4d8d8598-9da7-4639-918e-4ceb6a8812ba\u0026amp;muid=247e11f4-3dce-44d9-ac50-2b6571e63b08c90c36\u0026amp;sid=NA\u0026amp;version=6\u0026amp;preview=false\u0026amp;__shared_params__[version]=basil",
+                                            "chrome-extension://hnmpcagpplmpfojmgmnngilcnanddlhb/offscreenHub.html",
+                                            "Service Worker chrome-extension://cmedhionkhpnakcndndgjdbohmhepckk/background.js",
+                                            "Service Worker chrome-extension://hnmpcagpplmpfojmgmnngilcnanddlhb/backgroundScripts.js",
+                                            "Service Worker chrome-extension://hehggadaopoacecdllhhajmbjkdcmajg/background.js",
+                                            "Service Worker chrome-extension://kbfnbcaeplbcioakkpcpgfkobkghlhen/sw.js",
+                                            "Service Worker chrome-extension://iidnbdjijdkbmajdffnidomddglmieko/quillbot-sw.js",
+                                            "Service Worker chrome-extension://gighmmpiobklfepjocnamgkkbiglidom/abp-background.js",
+                                            "Service Worker chrome-extension://cfhdojbkjhnklbpkdaibdccddilifddb/background.js",
+                                            "Service Worker chrome-extension://jplgfhpmjnbigmhklmmbgecoobifkmpa/js/service.js",
+                                            "",
+                                            ""
+                                        ],
+                              "url":  ""
+                          }
+                      ],
+    "browser_process_count":  57,
+    "browser_processes":  [
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  26736,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  87680,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  10148,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  98096,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  23124,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  72060,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  26780,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  24868,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  40120,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  53784,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  96720,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  57612,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  89924,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  67952,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  87424,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  70720,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  42368,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  81328,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  72988,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  20864,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  4032,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  37412,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  28896,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  73968,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  99984,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  78968,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  75588,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  14564,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  83060,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  89808,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  65560,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  66020,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  53984,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  89324,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  64196,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  40480,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  97924,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  64524,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  59556,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  68460,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  71696,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  88668,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  40536,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  64892,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  51832,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  76952,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  86080,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  94732,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  67852,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  80964,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  101040,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  14744,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  64480,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  94444,
+                                  "hasRemoteDebugging":  true
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  21768,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  69740,
+                                  "hasRemoteDebugging":  false
+                              },
+                              {
+                                  "name":  "chrome.exe",
+                                  "processId":  94132,
+                                  "hasRemoteDebugging":  false
+                              }
+                          ],
+    "supervisor_rule":  "Do not use Playwright or fresh in-app browsers for authenticated AI sources."
+}
