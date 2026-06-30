@@ -63,8 +63,9 @@ class Cdp {
     this.ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
       if (msg.id && this.pending.has(msg.id)) {
-        const { resolve, reject } = this.pending.get(msg.id);
+        const { resolve, reject, timer } = this.pending.get(msg.id);
         this.pending.delete(msg.id);
+        clearTimeout(timer);
         if (msg.error) reject(new Error(JSON.stringify(msg.error)));
         else resolve(msg.result);
       }
@@ -73,13 +74,13 @@ class Cdp {
   send(method, params = {}) {
     const id = this.nextId++;
     const promise = new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
           reject(new Error(`CDP call timeout: ${method}`));
         }
       }, 45000);
+      this.pending.set(id, { resolve, reject, timer });
     });
     this.ws.send(JSON.stringify({ id, method, params }));
     return promise;
@@ -202,6 +203,3 @@ if (outFile) {
 }
 console.log(json);
 cdp.close();
-
-
-

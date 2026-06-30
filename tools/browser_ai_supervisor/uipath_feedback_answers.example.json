@@ -1,0 +1,18 @@
+{
+  "answers": {
+    "1": "REPLACE_FIRST_NAME",
+    "2": "REPLACE_LAST_NAME",
+    "3": "NEXUS Sentinel",
+    "4": "REPLACE_EMAIL",
+    "5": "9 Star",
+    "6": "UiPath Maestro Case",
+    "7": "Describe the governed case workflow using only public, non-sensitive details.",
+    "8": "Somewhat satisfied",
+    "9": "Somewhat difficult",
+    "10": "List evidence-backed product challenges. Do not include credentials, private paths, or unverified claims.",
+    "11": "Describe the single highest-impact platform improvement.",
+    "12": "Describe what surprised the team and practical advice for another builder.",
+    "13": "Explain what Maestro simplified across agents, APIs, people, and governance.",
+    "14": "Use my story without my name (anonymous attribution)"
+  }
+}
