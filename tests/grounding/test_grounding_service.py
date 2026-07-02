@@ -65,3 +65,35 @@ def test_grounding_kaiju_authorization_denied(tmp_path: Path):
     with pytest.raises(PermissionError) as excinfo:
         service_bad_intent.reconcile()
     assert "KAIJU authorization denied" in str(excinfo.value)
+
+
+def test_unknown_clearance_hard_fails(tmp_path: Path):
+    """An unrecognized clearance string must deny, never silently upgrade
+    to MAINTAINER (audit: fail-open at service clearance parsing)."""
+    import pytest
+
+    store = GroundingStore(tmp_path / "state")
+    service = GroundingService(store=store, roots={}, clearance="garbage")
+    with pytest.raises(PermissionError) as excinfo:
+        service.check_kaiju_authorization("write")
+    assert "unknown clearance" in str(excinfo.value)
+
+
+def test_public_ingest_path_has_no_authorization_bypass(tmp_path: Path):
+    """ingest_path must always pass the KAIJU write gate — the old
+    authorized=True kwarg allowed any caller to skip it entirely."""
+    import inspect
+    import pytest
+
+    store = GroundingStore(tmp_path / "state")
+    source = tmp_path / "source"
+    source.mkdir()
+    target = source / "report.txt"
+    target.write_text("data", encoding="utf-8")
+
+    service = GroundingService(store=store, roots={"test": source}, clearance="reader")
+    with pytest.raises(PermissionError):
+        service.ingest_path("test", target, stability_delay_seconds=0)
+
+    sig = inspect.signature(GroundingService.ingest_path)
+    assert "authorized" not in sig.parameters

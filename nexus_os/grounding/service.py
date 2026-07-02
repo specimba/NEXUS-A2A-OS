@@ -105,7 +105,12 @@ class GroundingService:
         try:
             clearance_enum = ClearanceLevel(self.clearance)
         except ValueError:
-            clearance_enum = ClearanceLevel.MAINTAINER
+            # Hard-fail default: an unrecognized clearance must never be
+            # silently upgraded to a privileged level.
+            raise PermissionError(
+                f"KAIJU authorization denied for action '{action}': "
+                f"unknown clearance {self.clearance!r}"
+            )
 
         req = AuthRequest(
             agent_id=self.agent_id,
@@ -140,6 +145,19 @@ class GroundingService:
         stability_delay_seconds: float = 2.0,
     ) -> GroundingEvent | None:
         self.check_kaiju_authorization("write")
+        return self._ingest_path_authorized(
+            source_id, path, stability_delay_seconds=stability_delay_seconds
+        )
+
+    def _ingest_path_authorized(
+        self,
+        source_id: str,
+        path: Path,
+        *,
+        stability_delay_seconds: float = 2.0,
+    ) -> GroundingEvent | None:
+        """Ingest without re-checking KAIJU. Internal only — callers must have
+        already passed the write gate (e.g. reconcile checks once per batch)."""
         path = Path(path)
         root = self.roots.get(source_id)
         try:
@@ -226,6 +244,7 @@ class GroundingService:
         max_files: int | None = None,
     ) -> dict[str, object]:
         self.check_kaiju_authorization("execute")
+        self.check_kaiju_authorization("write")
         discovered = 0
         ingested = 0
         skipped_roots: list[str] = []
@@ -238,7 +257,7 @@ class GroundingService:
                 if not path.is_file():
                     continue
                 discovered += 1
-                event = self.ingest_path(
+                event = self._ingest_path_authorized(
                     source_id,
                     path,
                     stability_delay_seconds=stability_delay_seconds,
@@ -262,16 +281,13 @@ class GroundingService:
             "store": self.store.status(),
         }
 
-    def watch(self, poll_seconds: int = 30, reconcile_seconds: int = 3600) -> None:
-        """Continuously poll with hourly reconciliation.
+    def watch(self, poll_seconds: int = 30) -> None:
+        """Continuously reconcile on every poll.
 
-        The manifest makes each pass incremental. This fallback has the same
-        missed-event recovery semantics required by native directory watchers.
+        Each pass is incremental (file-state manifest short-circuits
+        unchanged files), giving the missed-event recovery semantics
+        required of native directory watchers.
         """
-        last_reconcile = 0.0
         while True:
-            now = time.monotonic()
             self.reconcile(stability_delay_seconds=0.0)
-            if now - last_reconcile >= reconcile_seconds:
-                last_reconcile = now
             time.sleep(max(1, poll_seconds))

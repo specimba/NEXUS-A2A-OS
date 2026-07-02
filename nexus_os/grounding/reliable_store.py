@@ -1,7 +1,8 @@
-"""Append-only grounding ledger with a rebuildable single-writer SQLite index."""
+"""Crash-recoverable append-only grounding ledger implementation."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -22,12 +23,16 @@ def default_grounding_dir() -> Path:
     return Path.home() / ".nexus" / "grounding"
 
 
-class GroundingStore:
-    """Durable event ledger.
+class ReliableGroundingStore:
+    """JSONL source of truth with a rebuildable rollback-journal index."""
 
-    JSONL is authoritative. SQLite is an index and deliberately uses the
-    rollback journal with one in-process writer.
-    """
+    NON_FILE_KINDS = {
+        "source_card",
+        "tombstone",
+        "worklog",
+        "browser_ai_cycle",
+        "browser_ai_collaboration",
+    }
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = Path(root) if root else default_grounding_dir()
@@ -38,7 +43,9 @@ class GroundingStore:
         self.proposals_dir = self.root / "proposals"
         self.proposals_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self._corrupt_lines = 0
         self._initialize_index()
+        self.rebuild_index()
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.index_path, timeout=30.0)
@@ -79,67 +86,134 @@ class GroundingStore:
                 """
             )
 
-    def append(self, event: GroundingEvent) -> None:
+    @staticmethod
+    def _encoded_payload(event: GroundingEvent) -> str:
         payload = event.to_dict()
-        encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True)
+        canonical = json.dumps(payload, ensure_ascii=True, sort_keys=True)
+        payload["record_checksum"] = (
+            "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        )
+        return json.dumps(payload, ensure_ascii=True, sort_keys=True)
+
+    @staticmethod
+    def _checksum_is_valid(payload: dict[str, Any]) -> bool:
+        expected = payload.get("record_checksum")
+        if expected is None:
+            return True
+        unsigned = dict(payload)
+        unsigned.pop("record_checksum", None)
+        canonical = json.dumps(unsigned, ensure_ascii=True, sort_keys=True)
+        actual = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return expected == actual
+
+    @classmethod
+    def _tracks_file_state(cls, event: GroundingEvent) -> bool:
+        return event.source_kind not in cls.NON_FILE_KINDS and "://" not in event.path
+
+    def append(self, event: GroundingEvent) -> None:
+        encoded = self._encoded_payload(event)
         with self._lock:
             with self.ledger_path.open("a", encoding="utf-8", newline="\n") as handle:
                 handle.write(encoded + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
             with self._connect() as connection:
-                connection.execute(
-                    """
-                    INSERT OR IGNORE INTO events VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        event.event_id,
-                        event.source_id,
-                        event.path,
-                        event.size,
-                        event.mtime_ns,
-                        event.content_hash,
-                        event.source_kind,
-                        event.evidence_grade,
-                        event.lifecycle_state,
-                        event.trace_id,
-                        event.parent_event_id,
-                        event.observed_at,
-                        json.dumps(event.metadata, ensure_ascii=True, sort_keys=True),
-                    ),
-                )
-                connection.execute(
-                    """
-                    INSERT INTO file_state VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(path) DO UPDATE SET
-                        source_id=excluded.source_id,
-                        size=excluded.size,
-                        mtime_ns=excluded.mtime_ns,
-                        content_hash=excluded.content_hash,
-                        last_event_id=excluded.last_event_id,
-                        observed_at=excluded.observed_at
-                    """,
-                    (
-                        event.path,
-                        event.source_id,
-                        event.size,
-                        event.mtime_ns,
-                        event.content_hash,
-                        event.event_id,
-                        event.observed_at,
-                    ),
-                )
+                self._index_event(connection, event)
+
+    def _index_event(
+        self, connection: sqlite3.Connection, event: GroundingEvent
+    ) -> None:
+        inserted = connection.execute(
+            """
+            INSERT OR IGNORE INTO events VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.event_id,
+                event.source_id,
+                event.path,
+                event.size,
+                event.mtime_ns,
+                event.content_hash,
+                event.source_kind,
+                event.evidence_grade,
+                event.lifecycle_state,
+                event.trace_id,
+                event.parent_event_id,
+                event.observed_at,
+                json.dumps(event.metadata, ensure_ascii=True, sort_keys=True),
+            ),
+        ).rowcount
+        if not inserted:
+            return
+        if event.source_kind == "tombstone":
+            connection.execute("DELETE FROM file_state WHERE path=?", (event.path,))
+            return
+        if not self._tracks_file_state(event):
+            return
+        connection.execute(
+            """
+            INSERT INTO file_state VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                source_id=excluded.source_id,
+                size=excluded.size,
+                mtime_ns=excluded.mtime_ns,
+                content_hash=excluded.content_hash,
+                last_event_id=excluded.last_event_id,
+                observed_at=excluded.observed_at
+            """,
+            (
+                event.path,
+                event.source_id,
+                event.size,
+                event.mtime_ns,
+                event.content_hash,
+                event.event_id,
+                event.observed_at,
+            ),
+        )
+
+    def rebuild_index(self) -> dict[str, int]:
+        """Replay valid ledger records and report malformed/checksum-failed lines."""
+        corrupt = 0
+        recovered = 0
+        if not self.ledger_path.exists():
+            self._corrupt_lines = 0
+            return {"recovered": 0, "corrupt_lines": 0}
+        with self._lock, self._connect() as connection:
+            for raw_line in self.ledger_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines():
+                if not raw_line.strip():
+                    continue
+                try:
+                    payload = json.loads(raw_line)
+                    if not self._checksum_is_valid(payload):
+                        raise ValueError("record checksum mismatch")
+                    event = GroundingEvent.from_dict(payload)
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    corrupt += 1
+                    continue
+                before = connection.total_changes
+                self._index_event(connection, event)
+                if connection.total_changes > before:
+                    recovered += 1
+        self._corrupt_lines = corrupt
+        return {"recovered": recovered, "corrupt_lines": corrupt}
 
     def append_card(self, card: dict[str, Any]) -> None:
+        encoded = json.dumps(card, ensure_ascii=True, sort_keys=True)
         with self._lock:
             with self.cards_path.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(json.dumps(card, ensure_ascii=True, sort_keys=True) + "\n")
+                handle.write(encoded + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
 
     def file_state(self, path: Path) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT size, mtime_ns, content_hash, last_event_id FROM file_state WHERE path=?",
+                "SELECT size, mtime_ns, content_hash, last_event_id "
+                "FROM file_state WHERE path=?",
                 (str(path),),
             ).fetchone()
         if row is None:
@@ -152,7 +226,6 @@ class GroundingStore:
         }
 
     def forget_path(self, path: Path) -> None:
-        """Remove a deleted path from the rebuildable current-state index."""
         with self._connect() as connection:
             connection.execute("DELETE FROM file_state WHERE path=?", (str(path),))
 
@@ -182,6 +255,7 @@ class GroundingStore:
             "events": total,
             "files": files,
             "states": states,
+            "corrupt_lines": self._corrupt_lines,
         }
 
     def create_proposal(self, cards: Iterable[dict[str, Any]]) -> Path | None:
@@ -204,10 +278,3 @@ class GroundingStore:
         }
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
         return path
-
-
-# Compatibility export: callers keep importing GroundingStore while the
-# checksummed implementation remains isolated and reversible.
-from .reliable_store import ReliableGroundingStore
-
-GroundingStore = ReliableGroundingStore
