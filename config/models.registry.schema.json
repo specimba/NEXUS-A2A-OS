@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NEXUS canonical model registry",
+  "type": "object",
+  "required": ["version", "providers", "models"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "_comment": { "type": "string" },
+    "providers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["keyRef", "status"],
+        "properties": {
+          "keyRef": { "type": ["string", "null"], "description": "apiKeys slug in ~/.modelrelay.json — NEVER a key value" },
+          "baseUrl": { "type": "string", "pattern": "^https?://" },
+          "chatPath": { "type": "string" },
+          "modelsPath": { "type": "string" },
+          "apiFormat": { "type": "string" },
+          "authHeader": { "type": "string" },
+          "authScheme": { "type": "string" },
+          "discoverModels": { "type": "boolean" },
+          "status": { "enum": ["active", "suspended", "deprecated", "pending_operator"] },
+          "priority": { "type": "integer", "minimum": 0 },
+          "quota": { "type": "object" },
+          "allowedLanes": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "provider", "status"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "provider": { "type": "string", "minLength": 1 },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "context": { "type": ["integer", "null"], "minimum": 1024 },
+          "maxOutput": { "type": ["integer", "null"], "minimum": 1 },
+          "free": { "type": ["boolean", "null"] },
+          "tier": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "thinking": { "type": "boolean" },
+              "thinkingBudget": { "type": "boolean" },
+              "tools": { "type": "boolean" },
+              "vision": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          },
+          "roles": {
+            "type": "array",
+            "items": { "enum": ["guard", "intent", "math", "code", "reasoning", "teacher", "frontier", "drafter", "judge", "fast"] }
+          },
+          "lanes": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["active", "suspended", "deprecated", "unknown", "pending_operator"] },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "priorityTiers": { "type": "object" },
+    "teams": { "type": "object" }
+  },
+  "additionalProperties": false
+}
