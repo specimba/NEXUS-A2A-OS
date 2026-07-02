@@ -14,6 +14,50 @@ import aiohttp
 
 logger = logging.getLogger("nexus.mimo")
 
+
+def strip_jsonc_comments(text: str) -> str:
+    """Remove // line and /* */ block comments, leaving string contents alone.
+
+    The previous line.split('//') approach truncated every value containing
+    '://' (baseURL "http://127.0.0.1:7355/v1" -> '"baseURL": "http:'), which
+    made the whole file unparseable and — via the empty-config fallback —
+    wiped the user's mimo config on every 5-minute daemon sync cycle.
+    """
+    out = []
+    i, n = 0, len(text)
+    in_string = False
+    while i < n:
+        c = text[i]
+        if in_string:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+            out.append(c)
+            i += 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 class MimoConfig:
     """Mimo CLI configuration manager"""
 
@@ -27,6 +71,7 @@ class MimoConfig:
     RETRY_BACKOFF_BASE = 2
 
     def __init__(self):
+        self._load_failed = False
         self.config = self._load_config()
 
     def _load_config(self) -> dict:
@@ -37,20 +82,28 @@ class MimoConfig:
         try:
             with open(self.MIMO_CONFIG_PATH, 'r', encoding='utf-8') as f:
                 content = f.read()
-                # Strip JSONC comments
-                lines = []
-                for line in content.split('\n'):
-                    stripped = line.split('//')[0]
-                    lines.append(stripped)
-                return json.loads('\n'.join(lines))
+            return json.loads(strip_jsonc_comments(content))
         except Exception as e:
+            # Hard-fail default: an unparseable config must never be
+            # replaced by our empty fallback on the next save.
+            self._load_failed = True
             logger.error(f"Failed to load Mimo config: {e}")
             return {"providers": {}}
 
     def _save_config(self) -> bool:
         """Save Mimo config to disk"""
+        if self._load_failed:
+            logger.error(
+                f"Refusing to save: {self.MIMO_CONFIG_PATH} failed to parse at load "
+                "— writing now would replace the user's config with the empty fallback."
+            )
+            return False
         try:
             self.MIMO_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            if self.MIMO_CONFIG_PATH.exists():
+                backup = self.MIMO_CONFIG_PATH.with_name(
+                    self.MIMO_CONFIG_PATH.name + ".nexus-sync.bak")
+                backup.write_bytes(self.MIMO_CONFIG_PATH.read_bytes())
             content = json.dumps(self.config, indent=2)
             with open(self.MIMO_CONFIG_PATH, 'w', encoding='utf-8') as f:
                 f.write(content)
