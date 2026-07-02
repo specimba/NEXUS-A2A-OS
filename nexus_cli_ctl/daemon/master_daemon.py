@@ -187,12 +187,22 @@ class NEXUSMasterDaemon:
     async def _start_brain_api(self):
         """Start Brain API as a uvicorn subprocess"""
         try:
+            import os as _os
             import uvicorn
             from nexus_os.api.brain_api import brain_app
 
+            # Loopback by default (audit: 0.0.0.0 + weak auth exposed the
+            # governance API to the LAN). Widening the bind requires an
+            # explicit NEXUS_BRAIN_TOKEN — the auto token file is
+            # local-trust only.
+            host = _os.environ.get("NEXUS_BRAIN_BIND", "127.0.0.1")
+            if host not in ("127.0.0.1", "::1", "localhost") and not _os.environ.get("NEXUS_BRAIN_TOKEN"):
+                raise RuntimeError(
+                    f"Refusing to bind Brain API on {host!r} without an explicit NEXUS_BRAIN_TOKEN")
+
             config = uvicorn.Config(
                 brain_app,
-                host="0.0.0.0",
+                host=host,
                 port=7352,
                 log_level="warning",
                 loop="asyncio",

@@ -474,9 +474,14 @@ if TEXTUAL_AVAILABLE:
             """Fetch data from Brain API"""
             import httpx
             try:
+                from nexus_os.api.brain_api import get_brain_api_token
+                token = get_brain_api_token()
+            except Exception:
+                token = ""
+            try:
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     url = f"{self.brain_api_url}{path}"
-                    resp = await client.get(url, headers={"X-Api-Key": "tui_internal"})
+                    resp = await client.get(url, headers={"X-Api-Key": token})
                     if resp.status_code == 200:
                         return resp.json()
             except Exception as e:

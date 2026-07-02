@@ -249,17 +249,50 @@ def get_relay_proxy() -> _ModelRelayProxy:
 
 
 # ── Auth ────────────────────────────────────────────────────────────────────────
+# Audit CRITICAL closed 2026-07-02: reads accepted any (or no) key and
+# mutations accepted any key starting with "nexus-" — a guessable static
+# pattern. Both now verify a real shared secret with a constant-time compare.
+
+import hmac as _hmac
+import secrets as _pysecrets
+from pathlib import Path as _Path
+
+BRAIN_TOKEN_FILE = _Path.home() / ".nexus_pi" / "state" / ".brain_api_token"
+
+
+def get_brain_api_token() -> str:
+    """Shared secret: NEXUS_BRAIN_TOKEN env, else an auto-generated local
+    token file readable by local clients (TUI, dashboard). Non-loopback
+    binds must set the env token explicitly (enforced by the daemon)."""
+    env = os.environ.get("NEXUS_BRAIN_TOKEN")
+    if env:
+        return env
+    if BRAIN_TOKEN_FILE.exists():
+        tok = BRAIN_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if tok:
+            return tok
+    tok = _pysecrets.token_hex(32)
+    BRAIN_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BRAIN_TOKEN_FILE.write_text(tok, encoding="utf-8")
+    return tok
+
+
+def _token_valid(supplied: Optional[str]) -> bool:
+    return bool(supplied) and _hmac.compare_digest(supplied, get_brain_api_token())
+
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
-    if not x_api_key:
-        return "anonymous"
-    return x_api_key
+    """Read-side gate: the governed state is not anonymous-readable."""
+    if not _token_valid(x_api_key):
+        raise HTTPException(status_code=401, detail="valid API key required")
+    return "authenticated"
 
 
 async def require_auth(x_api_key: Optional[str] = Header(None)) -> str:
-    if not x_api_key or not x_api_key.startswith("nexus-"):
-        raise HTTPException(status_code=401, detail="API key required (nexus-*)")
-    return x_api_key
+    """Mutation-side gate."""
+    if not _token_valid(x_api_key):
+        raise HTTPException(status_code=401, detail="valid API key required")
+    return "authenticated"
 
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────────────

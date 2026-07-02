@@ -11,6 +11,13 @@ from nexus_os.api.brain_api import brain_app
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def _auth_token(monkeypatch):
+    # Auth is a real shared secret now; make the suite's static "test"
+    # header the valid token for these endpoint tests.
+    monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "test")
+
+
 @pytest.fixture
 def client():
     return TestClient(brain_app)

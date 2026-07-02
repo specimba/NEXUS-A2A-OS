@@ -57,12 +57,16 @@ class SecurityPatternsResponse(BaseModel):
 # ── Authentication Dependency ─────────────────────────────────────────────────────
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
-    """Verify API key for authenticated endpoints."""
+    """Verify API key for authenticated endpoints.
+
+    Delegates to the Brain API shared-secret check (audit: the old
+    startswith("nexus-") pattern accepted any guessable key).
+    """
+    from nexus_os.api.brain_api import _token_valid
     if not x_api_key:
         raise HTTPException(status_code=401, detail="API key required")
-    # TODO: Validate against vault secrets
-    if x_api_key.startswith("nexus-"):
-        return x_api_key
+    if _token_valid(x_api_key):
+        return "authenticated"
     raise HTTPException(status_code=403, detail="Invalid API key")
 
 

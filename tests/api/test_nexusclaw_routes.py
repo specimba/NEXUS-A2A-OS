@@ -14,6 +14,13 @@ from fastapi.testclient import TestClient
 import nexus_os.api.nexusclaw_routes as routes
 
 
+@pytest.fixture(autouse=True)
+def _auth_token(monkeypatch):
+    # Router auth now validates the Brain API shared secret (the old
+    # startswith("nexus-") pattern is rejected as guessable).
+    monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "nexus-test-key")
+
+
 @pytest.fixture
 def client():
     app = FastAPI()
