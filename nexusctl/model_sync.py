@@ -234,14 +234,10 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
         api_keys = mrelay.get("apiKeys", {})
         key = nv.get("api_key", api_keys.get("nvidia", ""))
         nv_models = nv.get("models") or ["nvidia/minimax-m3", "nvidia/devstral-2-123b", "nvidia/kimi-k2-thinking"]
-        NIM_THINKING = {"minimaxai/minimax-m3", "nvidia/minimax-m3", "moonshotai/kimi-k2-thinking", "nvidia/kimi-k2-thinking"}
         models = {}
         for m in nv_models:
-            opts = {}
-            if m in NIM_THINKING:
-                opts = {"options": {"enable_thinking": True, "thinking_budget": 8192}}
             mkey = m.split("/")[-1]
-            models[m] = {"name": f"NVIDIA {mkey}", **opts}
+            models[m] = {"name": f"NVIDIA {mkey}"}
         entries["nvidia-nim"] = {
             "name": "NVIDIA NIM (Minimax M3, Devstral 2, Kimi K2, GLM-5 variants)",
             "npm": "@ai-sdk/openai-compatible",
