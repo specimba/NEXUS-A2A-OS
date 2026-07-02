@@ -206,3 +206,85 @@ class TestStrategyExecution:
         )
         assert fake.route_calls == []
         assert result["relay_info"]["gmr_level"] == "L1"
+
+
+class TestTaskHandoff:
+    @pytest.fixture
+    def bus(self, tmp_path, monkeypatch):
+        """Isolated MemoryBus with one task in flight."""
+        import nexus_os.model_relay.persistent_memory as pm
+        test_bus = pm.MemoryBus(path=tmp_path / "model_memory.json")
+        monkeypatch.setattr(pm, "_bus", test_bus, raising=False)
+        monkeypatch.setattr(pm, "get_memory_bus", lambda: test_bus)
+        task = test_bus.create_task(
+            "Solidify NEXUS core", "Wire the GMR handoff", working_model="model-alpha",
+        )
+        return test_bus, task
+
+    @pytest.mark.asyncio
+    async def test_intro_prepended_and_rotation_recorded(self, relay, bus):
+        test_bus, task = bus
+        captured = {}
+
+        def spy_post(url, json, timeout):
+            captured.update(json)
+            return _ok_post(url, json, timeout)
+
+        import nexus_os.relay.model_relay as mr
+        fake = FakeCogER()
+        fake.classify_complexity_heuristically = lambda q: "L1"
+        relay._coger = fake
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(mr.requests, "post", spy_post)
+            result = await relay.proxy_completion(
+                {
+                    "model": "auto-gmr",
+                    "messages": [{"role": "user", "content": "2+2?"}],
+                    "task_id": task.task_id,
+                }
+            )
+
+        assert result["choices"][0]["message"]["content"] == "ok"
+        # Entry: first message is the intro briefing
+        first = captured["messages"][0]
+        assert first["role"] == "system"
+        assert "Task Intro: Solidify NEXUS core" in first["content"]
+        assert task.task_id in first["content"]
+        # Outro: rotation from model-alpha to the serving model was recorded
+        assert len(test_bus.handoffs) == 1
+        assert test_bus.handoffs[0].from_model == "model-alpha"
+        assert test_bus.handoffs[0].reason == "model_rotation"
+
+    @pytest.mark.asyncio
+    async def test_second_turn_intro_carries_first_turn_state(self, relay, bus):
+        """The zero-knowledge model on turn 2 must see turn 1's findings."""
+        test_bus, task = bus
+        test_bus.update_task(task.task_id, add_finding="turn one discovered X")
+
+        fake = FakeCogER()
+        fake.classify_complexity_heuristically = lambda q: "L1"
+        relay._coger = fake
+
+        messages, intro = relay._gmr_apply_task_handoff(
+            {"task_id": task.task_id}, [{"role": "user", "content": "continue"}], "model-beta"
+        )
+        assert intro is not None
+        assert "turn one discovered X" in intro
+        assert messages[0]["role"] == "system"
+
+    @pytest.mark.asyncio
+    async def test_no_task_id_is_a_noop(self, relay):
+        messages_in = [{"role": "user", "content": "hi"}]
+        messages, intro = relay._gmr_apply_task_handoff({}, messages_in, "m")
+        assert messages is messages_in
+        assert intro is None
+
+    @pytest.mark.asyncio
+    async def test_unknown_task_id_is_a_noop(self, relay, bus):
+        messages_in = [{"role": "user", "content": "hi"}]
+        messages, intro = relay._gmr_apply_task_handoff(
+            {"task_id": "task-nonexistent"}, messages_in, "m"
+        )
+        assert messages is messages_in
+        assert intro is None

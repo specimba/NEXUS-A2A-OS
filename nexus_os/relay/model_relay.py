@@ -313,6 +313,67 @@ class ModelRelay:
     #: never hang the relay caller indefinitely.
     GMR_STRATEGY_TIMEOUT_S = 120
 
+    def _gmr_apply_task_handoff(self, request_data: dict, messages: List[dict], serving_model: str):
+        """Entry/outro rotation handoff for task-scoped auto-gmr requests.
+
+        When the caller supplies a task_id, the persistent MemoryBus
+        (nexus_os/model_relay/persistent_memory.py) gives the incoming
+        model a compact intro briefing (entry) and records a HandoffNote
+        when the serving model changed since the last call (outro). The
+        handoff is mirrored to the vault TASK channel so it is
+        trust-governed and durable. Never raises.
+
+        Returns (messages, intro_text): messages possibly prefixed with a
+        system intro; intro_text for callers that work on a raw prompt.
+        """
+        task_id = request_data.get("task_id")
+        if not task_id:
+            return messages, None
+        try:
+            from nexus_os.model_relay.persistent_memory import TaskIntroBuilder, get_memory_bus
+
+            bus = get_memory_bus()
+            task = bus.tasks.get(task_id)
+            if task is None:
+                return messages, None
+            if task.working_model and task.working_model != serving_model:
+                note = bus.record_handoff(
+                    task_id,
+                    task.working_model,
+                    task.working_provider or "relay",
+                    serving_model,
+                    "relay",
+                    reason="model_rotation",
+                )
+                self._mirror_handoff_to_vault(task_id, note)
+            elif not task.working_model:
+                task.working_model = serving_model
+                task.working_provider = "relay"
+                bus._save()
+            intro = TaskIntroBuilder.build(task, persistent_summary=task.memory_summary)
+            return [{"role": "system", "content": intro}, *messages], intro
+        except Exception as e:
+            logger.warning(f"Task handoff skipped ({e.__class__.__name__}: {e})")
+            return messages, None
+
+    def _mirror_handoff_to_vault(self, task_id: str, note) -> None:
+        """Persist a rotation HandoffNote to the vault TASK channel."""
+        try:
+            from nexus_os.vault.memory_channels import get_manager
+
+            get_manager().append_task(
+                agent_id=f"relay:{note.from_model}",
+                content=(
+                    f"HANDOFF {note.from_model} -> {note.to_model} "
+                    f"({note.reason}) task={task_id}"
+                ),
+                task_id=task_id,
+                task_status="active",
+                trust_score=100.0,  # relay rotation events are system-authoritative
+            )
+        except Exception as e:
+            logger.debug(f"Vault TASK mirror skipped: {e}")
+
     async def _gmr_execute_strategy(self, prompt: str, level: str, request_data: dict) -> Optional[dict]:
         """Execute the COGER L2 (tandem) / L3 (peer-review swarm) strategy.
 
@@ -401,8 +462,14 @@ class ModelRelay:
             if gmr_level in ("L2", "L3"):
                 # Full strategy execution: L2 tandem (coordinator blueprint +
                 # local executor), L3 peer-review swarm. Falls back to the
-                # single-model Chimera path below on any failure.
-                strategy_response = await self._gmr_execute_strategy(prompt, gmr_level, request_data)
+                # single-model Chimera path below on any failure. Task-scoped
+                # requests get the intro briefing prefixed to the prompt so a
+                # zero-knowledge coordinator wakes up mid-task briefed.
+                _, intro = self._gmr_apply_task_handoff(
+                    request_data, messages, f"gmr/{gmr_level.lower()}"
+                )
+                strategy_prompt = f"{intro}\n\n---\n\n{prompt}" if intro else prompt
+                strategy_response = await self._gmr_execute_strategy(strategy_prompt, gmr_level, request_data)
                 if strategy_response is not None:
                     return strategy_response
             level_q, level_l = self.GMR_LEVEL_TARGETS[gmr_level]
@@ -437,6 +504,11 @@ class ModelRelay:
                 )
             logger.warning(f"Model {ollama_model} unhealthy, falling back to {fallback}")
             ollama_model = fallback
+
+        if gmr_level is not None:
+            # Task-scoped rotation handoff (entry briefing + outro note)
+            # for auto-gmr requests that carry a task_id.
+            messages, _ = self._gmr_apply_task_handoff(request_data, messages, ollama_model)
 
         ollama_payload = {
             "model": ollama_model,
