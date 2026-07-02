@@ -422,13 +422,16 @@ class TrustKernel:
         if self.vault_enabled:
             from nexus_os.vault.memory_channels import get_manager
             manager = get_manager()
-            # Write to TRUST channel (real-time governance)
+            # Write to TRUST channel (real-time governance). The kernel IS
+            # the trust authority: writer_trust asserts its own write right;
+            # trust_score is the recorded value and may legitimately be low.
             manager.append_trust(
                 agent_id=event.agent_id,
                 lane=lane_enum.value,
                 trust_score=round(trust, 4),
                 evidence_count=snapshot.evidence_count,
                 content=event.outcome,
+                writer_trust=100.0,
             )
             # Write to EPISODIC channel (task outcomes feed back into trust formula)
             manager.append_episodic(

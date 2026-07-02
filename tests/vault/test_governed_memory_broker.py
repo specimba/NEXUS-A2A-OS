@@ -71,7 +71,7 @@ def test_cold_start_budget_limits_memory_to_local_hot_and_canonical_paths():
         duration_ms=11,
         token_count=22,
     )
-    tracks.append_trust("agent-cold", "orchestration", trust_score=0.5, evidence_count=0)
+    tracks.append_trust("agent-cold", "orchestration", trust_score=0.5, evidence_count=0, writer_trust=100.0)
     semantic = FakeSemanticMemory()
 
     broker = GovernedMemoryBroker(
@@ -108,7 +108,7 @@ def test_elevated_budget_can_use_semantic_recall_when_explicitly_injected():
         duration_ms=18,
         token_count=33,
     )
-    tracks.append_trust("agent-elevated", "implementation", trust_score=0.86, evidence_count=30)
+    tracks.append_trust("agent-elevated", "implementation", trust_score=0.86, evidence_count=30, writer_trust=100.0)
     tracks.append_procedural("agent-elevated", "python security skill", ["python", "security"], confidence=0.92, trust_score=85.0)
     semantic = FakeSemanticMemory()
 

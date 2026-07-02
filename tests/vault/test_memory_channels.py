@@ -96,10 +96,41 @@ class TestTrustGatedWrite:
         result = manager.append_procedural(agent_id, "skill", ["python"], 0.9, trust_score=85.0)
         assert result is not None
 
-    def test_trust_open(self, manager, agent_id):
-        """TRUST: trust gate = 90 but append_trust does not check gate (governance)."""
+    def test_trust_denied_without_writer_authority(self, manager, agent_id):
+        """TRUST: gate = 90; hard-fail default denies writes with no stated authority."""
         result = manager.append_trust(agent_id, "general", 0.5, 10)
+        assert result is None
+
+    def test_trust_denied_at_writer_trust_85(self, manager, agent_id):
+        """TRUST: gate = 90; writer authority 85 is insufficient."""
+        result = manager.append_trust(agent_id, "general", 0.5, 10, writer_trust=85.0)
+        assert result is None
+
+    def test_trust_allowed_for_authoritative_writer_recording_low_score(self, manager, agent_id):
+        """TRUST: the gate checks writer authority, NOT the recorded score —
+        the TrustKernel must be able to record a failing agent's low score."""
+        result = manager.append_trust(agent_id, "general", 0.05, 10, writer_trust=100.0)
         assert result is not None
+        assert result.trust_score == 0.05
+
+    def test_governance_denied_without_writer_authority(self, manager, agent_id):
+        """GOVERNANCE (TRUST channel): same hard-fail default as append_trust."""
+        result = manager.append_governance(agent_id, "rule-1", "high")
+        assert result is None
+
+    def test_governance_lane_is_valid_and_preserved(self, manager, agent_id):
+        """'governance' is a valid lane; DG-bridge records must not be
+        silently remapped to 'general'."""
+        result = manager.append_trust(
+            agent_id, "governance", 90.0, 1, content="dg rules card", writer_trust=90.0
+        )
+        assert result is not None
+        assert result.lane == "governance"
+
+    def test_episodic_denied_at_explicit_low_trust(self, manager, agent_id):
+        """EPISODIC: gate = 30 applies when trust_score is passed explicitly."""
+        result = manager.append_episodic(agent_id, "event", "success", trust_score=20.0)
+        assert result is None
 
     def test_task_denied_at_30(self, manager, agent_id):
         """TASK: trust gate = 40, denied at 30."""
@@ -172,8 +203,8 @@ class TestMergedTracks:
 
     def test_trust_includes_governance(self, manager, agent_id):
         """TRUST merges original TRUST + GOVERNANCE tracks."""
-        trust_record = manager.append_trust(agent_id, "general", 0.8, 5)
-        gov_record = manager.append_governance(agent_id, "rule-1", "high")
+        trust_record = manager.append_trust(agent_id, "general", 0.8, 5, writer_trust=100.0)
+        gov_record = manager.append_governance(agent_id, "rule-1", "high", writer_trust=100.0)
 
         assert trust_record is not None
         assert gov_record is not None
@@ -259,9 +290,9 @@ class TestQueryMethods:
         assert records[0].content == "s1"
 
     def test_trust_history_lane_filter(self, manager, agent_id):
-        manager.append_trust(agent_id, "general", 0.5, 1)
-        manager.append_trust(agent_id, "audit", 0.8, 2)
-        manager.append_trust(agent_id, "general", 0.6, 3)
+        manager.append_trust(agent_id, "general", 0.5, 1, writer_trust=100.0)
+        manager.append_trust(agent_id, "audit", 0.8, 2, writer_trust=100.0)
+        manager.append_trust(agent_id, "general", 0.6, 3, writer_trust=100.0)
         
         general = manager.get_trust_history(agent_id, "general")
         assert len(general) == 2
@@ -270,8 +301,8 @@ class TestQueryMethods:
         assert len(audit) == 1
 
     def test_latest_trust(self, manager, agent_id):
-        manager.append_trust(agent_id, "general", 0.5, 1)
-        manager.append_trust(agent_id, "general", 0.7, 2)
+        manager.append_trust(agent_id, "general", 0.5, 1, writer_trust=100.0)
+        manager.append_trust(agent_id, "general", 0.7, 2, writer_trust=100.0)
         
         latest = manager.get_latest_trust(agent_id, "general")
         assert latest == 0.7

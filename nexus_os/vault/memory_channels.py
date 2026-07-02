@@ -67,6 +67,7 @@ VALID_LANES = {
     "compliance",  # Compliance verification
     "implementation",  # Code implementation
     "orchestration",   # Agent coordination
+    "governance",  # Governance entries (DG bridge rules/config, append_governance)
     "general",     # General tasks
 }
 
@@ -305,13 +306,19 @@ class MemoryChannelManager:
         failure_type: Optional[str] = None,
         trace_id: Optional[str] = None,
         project_id: Optional[str] = None,
+        trust_score: float = 0.0,
     ) -> Optional[ChannelRecord]:
         """Append an EPISODIC record (task outcome).
-        
+
         Merged from original EVENT + FAILURE_PATTERN tracks.
-        Trust gate: 30 (basic agent history).
+        Trust gate: 30 (basic agent history). Legacy callers that do not
+        pass ``trust_score`` are treated as internal-trusted (same
+        convention as append_task/append_meta); explicit callers are gated.
         Execution path: WARM (50s SLA).
         """
+        effective_trust = 100.0 if trust_score == 0.0 else trust_score
+        if not self._check_write_access(agent_id, MemoryChannel.EPISODIC, effective_trust):
+            return None
         record = ChannelRecord(
             channel=MemoryChannel.EPISODIC,
             agent_id=agent_id,
@@ -477,13 +484,20 @@ class MemoryChannelManager:
         evidence_count: int = 1,
         content: str = "",
         trace_id: Optional[str] = None,
+        writer_trust: float = 0.0,
     ) -> Optional[ChannelRecord]:
         """Append a TRUST record (lane-scoped novel tanh-based trust formula scoring).
-        
+
         Merged from original TRUST + GOVERNANCE tracks.
-        Trust gate: 90 (governance requires highest trust).
+        Trust gate: 90, enforced against ``writer_trust`` — the writing
+        entity's authority — NOT against ``trust_score``, which is the
+        recorded value and may legitimately be low (e.g. the TrustKernel
+        recording a failing agent's score). Hard-fail default: writes are
+        denied unless the caller states sufficient authority.
         Execution path: HOT (0.02s SLA).
         """
+        if not self._check_write_access(agent_id, MemoryChannel.TRUST, writer_trust):
+            return None
         if lane not in VALID_LANES and content == "":
             content = lane
             lane = "general"
@@ -511,16 +525,21 @@ class MemoryChannelManager:
         severity: str = "low",
         content: str = "",
         trace_id: Optional[str] = None,
+        writer_trust: float = 0.0,
     ) -> Optional[ChannelRecord]:
         """Append a governance record (behavior under rules).
-        
+
         Stored in TRUST channel with governance metadata.
-        Trust gate: 90 (governance requires highest trust).
+        Trust gate: 90, enforced against ``writer_trust`` (hard-fail default —
+        denied unless the caller states sufficient authority).
         """
+        if not self._check_write_access(agent_id, MemoryChannel.TRUST, writer_trust):
+            return None
         record = ChannelRecord(
             channel=MemoryChannel.TRUST,
             agent_id=agent_id,
             content=content,
+            lane="governance",
             rule_violated=rule_violated,
             severity=severity,
             trace_id=trace_id,

@@ -331,7 +331,7 @@ class TestCrossComponentMemoryIntegration:
         
         # Write to each channel (episodic has lowest threshold 30.0)
         manager.append_episodic(agent_id, "Episodic memory", "success", 0.0, 0)
-        manager.append_trust(agent_id, "Trust update record")
+        manager.append_trust(agent_id, "Trust update record", writer_trust=100.0)
         
         # Verify records were written
         epi_records = manager.get_records(agent_id, "episodic")

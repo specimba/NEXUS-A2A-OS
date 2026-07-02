@@ -213,6 +213,7 @@ class DoppelGroundBridge:
                     evidence_count=1,
                     content=content,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
+                    writer_trust=self._trust_default,
                 )
             elif channel == MemoryChannel.PROCEDURAL:
                 record = manager.append_procedural(

@@ -266,7 +266,7 @@ class IntegrationTrack(BenchmarkTrack):
             logger.warning("Failed to append procedural: %s", e)
 
         try:
-            manager.append_trust(agent_id, lane="implementation", trust_score=85.0, evidence_count=5, content="benchmark trust")
+            manager.append_trust(agent_id, lane="implementation", trust_score=85.0, evidence_count=5, content="benchmark trust", writer_trust=100.0)
             writes_ok += 1
         except Exception as e:
             logger.warning("Failed to append trust: %s", e)
