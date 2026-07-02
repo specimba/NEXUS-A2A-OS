@@ -36,6 +36,7 @@ from nexus_os.db.manager import DatabaseManager
 from nexus_os.governor.kaiju_auth import (
     KaijuAuthorizer, AuthRequest, AuthResult,
     ScopeLevel, ImpactLevel, ClearanceLevel, Decision,
+    CLEARANCE_HIERARCHY,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,17 @@ class NexusGovernor:
     The governor writes every authorization decision to audit_logs for
     IETF VAP provenance and operational transparency.
     """
+
+    #: Bootstrap identities that must not be lockable-out (mirrors the CVA
+    #: trait bootstrap below). Everything else resolves clearance from the
+    #: agent_registry table, never from the request payload.
+    BOOTSTRAP_ADMIN_AGENTS = frozenset({"admin", "system", "supervisor"})
+
+    #: Clearance ceiling for agents with no registry entry. An unregistered
+    #: agent can act as an ordinary contributor but any maintainer/admin
+    #: claim becomes an elevation HOLD (audit CRITICAL: clearance used to be
+    #: caller-supplied and never verified).
+    UNREGISTERED_CLEARANCE = ClearanceLevel.CONTRIBUTOR
 
     def __init__(
         self,
@@ -175,6 +187,40 @@ class NexusGovernor:
                 self._audit_log(agent_id, action, result, project_id)
                 return result
 
+        # ── Step 0.75: Server-side clearance verification ───────
+        # Audit CRITICAL (base.py:95): clearance was caller-supplied and
+        # never verified, so the whole scope/impact gate validated a
+        # self-declared privilege level. The registry (or the bootstrap
+        # set) is authoritative; a request above it is at most an
+        # elevation request, which HOLDs for operator review.
+        try:
+            requested_clearance = ClearanceLevel(str(clearance).strip().lower())
+        except ValueError as e:
+            result = AuthResult(
+                Decision.DENY,
+                f"Invalid KAIJU variable value: {e}",
+                trace_id,
+            )
+            self._audit_log(agent_id, action, result, project_id)
+            return result
+
+        registered_clearance = self._resolve_registered_clearance(agent_id)
+        if CLEARANCE_HIERARCHY[requested_clearance] > CLEARANCE_HIERARCHY[registered_clearance]:
+            result = AuthResult(
+                Decision.HOLD,
+                f"Clearance elevation request: agent '{agent_id}' is registered as "
+                f"'{registered_clearance.value}' but requested '{requested_clearance.value}' "
+                "— requires operator review",
+                trace_id,
+            )
+            self._audit_log(agent_id, action, result, project_id)
+            logger.warning(
+                "Governor.check_access: HELD agent=%s action=%s — clearance elevation "
+                "%s -> %s not verified against registry",
+                agent_id, action, registered_clearance.value, requested_clearance.value,
+            )
+            return result
+
         # ── Step 1: KAIJU 4-variable authorization ──────────────
         try:
             request = AuthRequest(
@@ -184,7 +230,7 @@ class NexusGovernor:
                 scope=ScopeLevel(scope),
                 intent=intent,
                 impact=ImpactLevel(impact),
-                clearance=ClearanceLevel(clearance),
+                clearance=requested_clearance,
                 trace_id=trace_id,
             )
         except ValueError as e:
@@ -285,6 +331,40 @@ class NexusGovernor:
             agent_id, action, scope, impact,
         )
         return result
+
+    # ── Clearance Resolution ───────────────────────────────────
+
+    def _resolve_registered_clearance(self, agent_id: str) -> ClearanceLevel:
+        """Resolve the agent's clearance server-side.
+
+        Bootstrap identities get ADMIN (never lockable-out). Registered
+        agents get their agent_registry.clearance. Everything else —
+        including lookup failures and garbage registry values — falls to
+        UNREGISTERED_CLEARANCE, never to the caller's claim.
+        """
+        if agent_id in self.BOOTSTRAP_ADMIN_AGENTS:
+            return ClearanceLevel.ADMIN
+        try:
+            conn = self.db.get_connection() if self.db else None
+            if conn is not None:
+                res = conn.execute(
+                    "SELECT clearance FROM agent_registry WHERE agent_id = ?",
+                    (agent_id,),
+                )
+                row = res.fetchone() if hasattr(res, "fetchone") else None
+                if row and row[0]:
+                    return ClearanceLevel(str(row[0]).strip().lower())
+        except ValueError:
+            logger.warning(
+                "Governor: invalid registered clearance for agent %s — treating as unregistered",
+                agent_id,
+            )
+        except Exception as e:
+            logger.warning(
+                "Governor: clearance lookup failed for agent %s (%s) — treating as unregistered",
+                agent_id, e,
+            )
+        return self.UNREGISTERED_CLEARANCE
 
     # ── Token Budget Guard ─────────────────────────────────────
 

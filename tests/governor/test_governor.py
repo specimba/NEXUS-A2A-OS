@@ -40,6 +40,27 @@ class FakeDBAdapter:
                 trace_id TEXT
             )
         """)
+        # Clearance is resolved server-side from agent_registry now
+        # (audit CRITICAL base.py:95) — register the test agents at the
+        # levels the tests exercise.
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS agent_registry (
+                agent_id TEXT PRIMARY KEY,
+                model_id TEXT,
+                capabilities TEXT,
+                traits TEXT,
+                clearance TEXT
+            )
+        """)
+        self._conn.executemany(
+            "INSERT INTO agent_registry (agent_id, model_id, clearance) VALUES (?, ?, ?)",
+            [
+                ("agent-1", "test-model", "maintainer"),
+                ("maint-1", "test-model", "maintainer"),
+                ("contrib-1", "test-model", "contributor"),
+                ("reader-1", "test-model", "reader"),
+            ],
+        )
 
     def execute(self, query, params=()):
         return self._conn.execute(query, params)
@@ -294,6 +315,93 @@ class TestCVADisabled:
             clearance="reader",
         )
         assert result.decision == Decision.ALLOW
+
+
+class TestClearanceVerification:
+    """Audit CRITICAL (base.py:95): clearance was caller-supplied and never
+    verified against any registry — a low-privilege agent could self-declare
+    admin. Clearance now resolves server-side; higher requests HOLD."""
+
+    def test_unregistered_agent_cannot_claim_admin(self, governor):
+        result = governor.check_access(
+            agent_id="rogue-1", project_id="proj-1", action="execute",
+            scope="system", intent="execute system-wide maintenance task",
+            impact="critical", clearance="admin",
+        )
+        assert result.decision == Decision.HOLD
+        assert "elevation" in result.reason.lower()
+
+    def test_unregistered_agent_cannot_claim_maintainer(self, governor):
+        result = governor.check_access(
+            agent_id="rogue-2", project_id="proj-1", action="read",
+            scope="cross_project", intent="compare configs across projects",
+            impact="low", clearance="maintainer",
+        )
+        assert result.decision == Decision.HOLD
+
+    def test_unregistered_agent_still_works_as_contributor(self, governor):
+        result = governor.check_access(
+            agent_id="new-agent", project_id="proj-1", action="read",
+            scope="project", intent="read project memory records for analysis",
+            impact="low", clearance="contributor",
+        )
+        assert result.decision == Decision.ALLOW
+
+    def test_registered_reader_cannot_claim_admin(self, governor):
+        result = governor.check_access(
+            agent_id="reader-1", project_id="proj-1", action="execute",
+            scope="system", intent="execute system maintenance",
+            impact="critical", clearance="admin",
+        )
+        assert result.decision == Decision.HOLD
+        assert "reader" in result.reason
+
+    def test_bootstrap_admin_identity_allowed(self, governor):
+        result = governor.check_access(
+            agent_id="system", project_id="system", action="execute",
+            scope="system", intent="execute system-wide maintenance task",
+            impact="critical", clearance="admin",
+        )
+        assert result.decision == Decision.ALLOW
+
+    def test_elevation_hold_is_audited(self, governor, db):
+        governor.check_access(
+            agent_id="rogue-1", project_id="proj-1", action="write",
+            scope="system", intent="totally legitimate work",
+            impact="critical", clearance="admin", trace_id="elev-1",
+        )
+        conn = db.get_connection()
+        rows = conn.fetchall(conn.execute(
+            "SELECT decision, trace_id FROM audit_logs"
+        ))
+        assert rows == [("hold", "elev-1")]
+
+    def test_lookup_failure_falls_to_cap_not_caller_claim(self):
+        class BrokenDB:
+            def get_connection(self):
+                raise RuntimeError("db down")
+
+        gov = NexusGovernor(BrokenDB(), enable_cva=False)
+        result = gov.check_access(
+            agent_id="agent-x", project_id="proj-1", action="execute",
+            scope="system", intent="execute system maintenance now",
+            impact="critical", clearance="admin",
+        )
+        assert result.decision == Decision.HOLD
+
+    def test_garbage_registry_clearance_treated_as_unregistered(self, governor, db):
+        conn = db.get_connection()
+        conn.execute(
+            "INSERT INTO agent_registry (agent_id, model_id, clearance) VALUES (?, ?, ?)",
+            ("weird-1", "test-model", "superuser"),
+        )
+        conn.commit()
+        result = governor.check_access(
+            agent_id="weird-1", project_id="proj-1", action="read",
+            scope="cross_project", intent="compare configs across projects",
+            impact="low", clearance="maintainer",
+        )
+        assert result.decision == Decision.HOLD
 
 
 class TestCustomKaiju:

@@ -179,6 +179,7 @@ class DatabaseManager:
                 model_id TEXT NOT NULL,
                 capabilities TEXT,
                 traits TEXT,
+                clearance TEXT,
                 status TEXT DEFAULT 'active' CHECK(status IN ('active', 'suspended', 'halted')),
                 registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_seen TIMESTAMP
@@ -187,6 +188,10 @@ class DatabaseManager:
 
         try:
             adapter.execute("ALTER TABLE agent_registry ADD COLUMN traits TEXT")
+        except Exception:
+            pass
+        try:
+            adapter.execute("ALTER TABLE agent_registry ADD COLUMN clearance TEXT")
         except Exception:
             pass
 
