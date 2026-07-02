@@ -8,20 +8,28 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+Set-Location $RepoRoot
 
 if ($Source -ne "grok") {
-    throw "Only Source=grok is wired in V0. Other sources must get dedicated CDP profiles before scheduling."
+    throw "Only Source=grok is wired in V0."
 }
 
+$python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path $python)) { $python = "python" }
+
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
-$runtime = Join-Path (Get-Location) $RuntimeDir
+$runtime = if ([IO.Path]::IsPathRooted($RuntimeDir)) { $RuntimeDir } else { Join-Path $RepoRoot $RuntimeDir }
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 
 $doctorPath = Join-Path $runtime "director_doctor_$timestamp.json"
 $probePath = Join-Path $runtime "director_probe_$timestamp.json"
 $memoryPath = Join-Path $runtime "external_director_memory.jsonl"
+$doctorScript = Join-Path $RepoRoot "tools\browser_ai_supervisor\control_surface_doctor.ps1"
+$probeScript = Join-Path $RepoRoot "tools\browser_ai_supervisor\grok_cdp_context_probe.mjs"
+$directorPy = Join-Path $RepoRoot "tools\browser_ai_supervisor\external_browser_ai_director.py"
 
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\browser_ai_supervisor\control_surface_doctor.ps1 -CdpPorts $CdpPort -RequiredUrlPattern $RequiredUrlPattern -Json | Set-Content -Encoding UTF8 $doctorPath
+& $doctorScript -CdpPorts $CdpPort -RequiredUrlPattern $RequiredUrlPattern -Json | Set-Content -Encoding UTF8 $doctorPath
 
 $bridgeStatus = "skipped"
 if ($RequiresBridge) {
@@ -33,24 +41,22 @@ if ($RequiresBridge) {
     }
 }
 
-node tools\browser_ai_supervisor\grok_cdp_context_probe.mjs --port $CdpPort --required Grok --outFile $probePath --maxChars 5000 --maxCodeChars 1000 | Out-Null
+node $probeScript --port $CdpPort --required Grok --outFile $probePath --maxChars 5000 --maxCodeChars 1000 | Out-Null
 
-$args = @(
-    "tools\browser_ai_supervisor\external_browser_ai_director.py",
+$pyArgs = @(
+    $directorPy,
     "--probe-json", $probePath,
     "--memory", $memoryPath,
     "--run-id", "director-$Source-$timestamp",
     "--bridge-status", $bridgeStatus
 )
-if ($RequiresBridge) { $args += "--requires-bridge" }
-if ($EgressProbeUrl) { $args += @("--egress-url", $EgressProbeUrl, "--egress-method", "HEAD") }
+if ($RequiresBridge) { $pyArgs += "--requires-bridge" }
+if ($EgressProbeUrl) { $pyArgs += @("--egress-url", $EgressProbeUrl, "--egress-method", "HEAD") }
 
-python @args
+& $python @pyArgs
 $directorExit = $LASTEXITCODE
 if ($directorExit -eq 0 -and $env:NEXUS_GROUNDING_ROOT) {
-    python tools\browser_ai_supervisor\record_grounding_event.py `
-        --memory $memoryPath --grounding-root $env:NEXUS_GROUNDING_ROOT
+    $recordPy = Join-Path $RepoRoot "tools\browser_ai_supervisor\record_grounding_event.py"
+    & $python $recordPy --memory $memoryPath --grounding-root $env:NEXUS_GROUNDING_ROOT
 }
 exit $directorExit
-
-

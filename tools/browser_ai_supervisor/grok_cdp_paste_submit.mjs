@@ -90,10 +90,13 @@ if (!target) {
   process.exit(2);
 }
 
-// Page.bringToFront removed — silent interaction only
+// Page.bringToFront only when operator visibility is requested (see grok_cdp_restore_window.mjs).
 const cdp = new Cdp(target.webSocketDebuggerUrl);
 await cdp.open();
 await cdp.send("Runtime.enable");
+if (process.env.NEXUS_GROK_OPERATOR_VISIBLE === "1") {
+  await cdp.send("Page.bringToFront");
+}
 
 const focusResult = await cdp.send("Runtime.evaluate", {
   returnByValue: true,
