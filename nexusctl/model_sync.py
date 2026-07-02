@@ -343,6 +343,36 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
     return entries
 
 
+def _read_json_config_guarded(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Load a config file we intend to rewrite, refusing anything we can't round-trip.
+
+    Returns (cfg, None) when the file is missing (fresh start) or strict JSON.
+    Returns (None, reason) when the file exists but a json.dumps rewrite would
+    destroy it — unparseable, JSONC with comments, or a non-object top level.
+    Callers MUST skip the write in that case: a sync tool never trades the
+    user's config for its own output.
+    """
+    if not path.exists():
+        return {}, None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        return None, f"unreadable ({e}) — refusing to overwrite"
+    try:
+        cfg = json.loads(text)
+    except json.JSONDecodeError as e:
+        return None, f"not strict JSON (comments or trailing commas?) — refusing to overwrite: {e}"
+    if not isinstance(cfg, dict):
+        return None, "top-level value is not an object — refusing to overwrite"
+    return cfg, None
+
+
+def _backup_before_write(path: Path) -> None:
+    """Keep a rolling <name>.nexus-sync.bak of the pre-write bytes."""
+    if path.exists():
+        path.with_name(path.name + ".nexus-sync.bak").write_bytes(path.read_bytes())
+
+
 def _merge_provider_into_json(cfg: dict, entries: dict[str, dict]) -> dict:
     """For opencode/mimo (opencode.json-style config): merge provider entries preserving existing user providers."""
     providers = cfg.setdefault("provider", {})
@@ -357,12 +387,9 @@ def _merge_provider_into_json(cfg: dict, entries: dict[str, dict]) -> dict:
 
 def sync_opencode(state: dict, target: dict, dry_run: bool) -> dict:
     path = Path(target["config_path"])
-    cfg: dict[str, Any] = {}
-    if path.exists():
-        try:
-            cfg = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            cfg = {}
+    cfg, refuse = _read_json_config_guarded(path)
+    if cfg is None:
+        return {"target": "opencode", "path": str(path), "ok": False, "reason": refuse}
     entries = _build_relay_provider_entries(state)
     new_cfg = _merge_provider_into_json(cfg, entries)
     # Set default model to auto-fastest lane if user hasn't picked one
@@ -370,6 +397,7 @@ def sync_opencode(state: dict, target: dict, dry_run: bool) -> dict:
         new_cfg["model"] = "nexus-god-relay/auto-fastest"
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
+        _backup_before_write(path)
         path.write_text(json.dumps(new_cfg, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"target": "opencode", "path": str(path), "providers_added": list(entries), "dry_run": dry_run, "ok": True}
 
@@ -377,16 +405,14 @@ def sync_opencode(state: dict, target: dict, dry_run: bool) -> dict:
 def sync_mimo(state: dict, target: dict, dry_run: bool) -> dict:
     # mimo uses the same schema as opencode, stored as jsonc (still JSON-valid)
     path = Path(target["config_path"])
-    cfg: dict[str, Any] = {}
-    if path.exists():
-        try:
-            cfg = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            cfg = {}
+    cfg, refuse = _read_json_config_guarded(path)
+    if cfg is None:
+        return {"target": "mimo", "path": str(path), "ok": False, "reason": refuse}
     entries = _build_relay_provider_entries(state)
     new_cfg = _merge_provider_into_json(cfg, entries)
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
+        _backup_before_write(path)
         path.write_text(json.dumps(new_cfg, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"target": "mimo", "path": str(path), "providers_added": list(entries), "dry_run": dry_run, "ok": True}
 
@@ -396,12 +422,9 @@ def sync_kilo(state: dict, target: dict, dry_run: bool) -> dict:
     The model list comes from kilo.db; if we add a custom API key, kilo will
     allow it as a custom OpenAI-compatible provider if the baseURL is also set."""
     path = Path(target["config_path"])
-    cfg: dict[str, Any] = {}
-    if path.exists():
-        try:
-            cfg = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            cfg = {}
+    cfg, refuse = _read_json_config_guarded(path)
+    if cfg is None:
+        return {"target": "kilo", "path": str(path), "ok": False, "reason": refuse}
 
     mrelay = state.get("modelrelay_config", {})
     api_keys = mrelay.get("apiKeys", {})
@@ -437,6 +460,7 @@ def sync_kilo(state: dict, target: dict, dry_run: bool) -> dict:
 
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
+        _backup_before_write(path)
         path.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"target": "kilo", "path": str(path), "providers_added": added, "dry_run": dry_run, "ok": True}
 
@@ -447,10 +471,12 @@ def sync_cline(state: dict, target: dict, dry_run: bool) -> dict:
     path = Path(target["config_path"])
     if not path.exists():
         return {"target": "cline", "path": str(path), "ok": False, "reason": "VS Code settings.json not found"}
-    try:
-        cfg = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        cfg = {}
+    # VS Code settings.json is JSONC — comments are normal. A json.dumps
+    # rewrite of a failed parse would replace the user's entire settings
+    # with just our block, so the guard hard-fails instead.
+    cfg, refuse = _read_json_config_guarded(path)
+    if cfg is None:
+        return {"target": "cline", "path": str(path), "ok": False, "reason": refuse}
 
     entries = _build_relay_provider_entries(state)
     # Cline stores provider configs as nested objects
@@ -468,6 +494,7 @@ def sync_cline(state: dict, target: dict, dry_run: bool) -> dict:
         added.append(pid)
 
     if not dry_run:
+        _backup_before_write(path)
         path.write_text(json.dumps(cfg, indent=4, ensure_ascii=False), encoding="utf-8")
     return {"target": "cline", "path": str(path), "providers_added": added, "dry_run": dry_run, "ok": True}
 
@@ -517,6 +544,7 @@ def sync_hermes(state: dict, target: dict, dry_run: bool) -> dict:
             if new_text == original:
                 # No providers: {} line, append
                 new_text = original.rstrip() + "\n\n" + yaml_blob
+        _backup_before_write(path)
         path.write_text(new_text, encoding="utf-8")
 
     return {"target": "hermes", "path": str(path), "providers_added": list(entries), "dry_run": dry_run, "ok": True}
