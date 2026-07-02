@@ -61,14 +61,17 @@ class CalibratedHallucinationDetector:
             high_sensitivity: If True, tightens thresholds for more aggressive detection.
         """
         self.base_threshold = threshold
+        self.bebop_weight = float(bebop_weight)
+        self.bebop_tau = float(bebop_tau)
         if high_sensitivity:
+            # Order matters: bebop_weight must exist before this max() (the
+            # old code read it pre-assignment -> AttributeError, and the
+            # later unconditional assignment silently discarded the boost).
             self.base_threshold = HIGH_SENSITIVITY_THRESHOLD
             self.bebop_weight = max(self.bebop_weight, HIGH_SENSITIVITY_BEBOP_WEIGHT)
         self.calibration_window = calibration_window
         self.a2a_channel = a2a_channel
         self.adaptive = adaptive
-        self.bebop_weight = float(bebop_weight)
-        self.bebop_tau = float(bebop_tau)
 
         self._tracker = None
         self._epr = None
@@ -112,7 +115,14 @@ class CalibratedHallucinationDetector:
             except Exception:
                 pass
 
-    def _save_calibration(self):
+    #: Persist calibration every N assessments. assess() used to write the
+    #: JSON state file on EVERY call — a disk write per token, unusable on
+    #: the hot inference path.
+    PERSIST_EVERY = 25
+
+    def _save_calibration(self, force: bool = True):
+        if not force and self._stats["total_assessments"] % self.PERSIST_EVERY != 0:
+            return
         CALIBRATION_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         CALIBRATION_STATE_FILE.write_text(json.dumps({
             "history": list(self._calibration_history),
@@ -120,6 +130,10 @@ class CalibratedHallucinationDetector:
             "adaptations": self._stats["adaptations"],
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def flush_calibration(self):
+        """Force-persist calibration state (call at end of a generation)."""
+        self._save_calibration(force=True)
 
     def _emit_a2a(self, message: str, topic: str = "hallucination"):
         if not self.a2a_channel:
@@ -295,7 +309,7 @@ class CalibratedHallucinationDetector:
             "position": position,
         })
 
-        self._save_calibration()
+        self._save_calibration(force=False)
 
         # Emit high-risk events to A2A
         if risk_level == "high":

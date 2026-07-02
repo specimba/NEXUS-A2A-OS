@@ -361,3 +361,46 @@ class TestCLI:
             from nexus_os.monitoring.calibrated_hallucination_detector import cli_main
             cli_main()
             m.assert_called_once_with(True)
+
+
+class TestHighSensitivityInit:
+    def test_high_sensitivity_does_not_crash_and_boosts(self):
+        """Regression: bebop_weight was read before assignment (AttributeError)
+        and the boost was then discarded by a later unconditional assignment."""
+        from nexus_os.monitoring.calibrated_hallucination_detector import (
+            HIGH_SENSITIVITY_THRESHOLD,
+            HIGH_SENSITIVITY_BEBOP_WEIGHT,
+        )
+        d = CalibratedHallucinationDetector(high_sensitivity=True)
+        assert d.base_threshold == HIGH_SENSITIVITY_THRESHOLD
+        assert d.bebop_weight >= HIGH_SENSITIVITY_BEBOP_WEIGHT
+
+    def test_high_sensitivity_keeps_larger_explicit_weight(self):
+        d = CalibratedHallucinationDetector(high_sensitivity=True, bebop_weight=0.5)
+        assert d.bebop_weight == 0.5
+
+
+class TestBatchedCalibrationPersistence:
+    def test_assess_does_not_write_every_call(self, tmp_path, monkeypatch):
+        """Hot-path requirement: no JSON disk write per token."""
+        import nexus_os.monitoring.calibrated_hallucination_detector as chd_mod
+        state = tmp_path / "cal.json"
+        monkeypatch.setattr(chd_mod, "CALIBRATION_STATE_FILE", state)
+        d = CalibratedHallucinationDetector()
+        for _ in range(chd_mod.CalibratedHallucinationDetector.PERSIST_EVERY - 1):
+            d.assess(topk_probs=[0.5, 0.3, 0.2])
+        assert not state.exists()
+
+    def test_assess_persists_on_batch_boundary_and_flush(self, tmp_path, monkeypatch):
+        import nexus_os.monitoring.calibrated_hallucination_detector as chd_mod
+        state = tmp_path / "cal.json"
+        monkeypatch.setattr(chd_mod, "CALIBRATION_STATE_FILE", state)
+        d = CalibratedHallucinationDetector()
+        for _ in range(chd_mod.CalibratedHallucinationDetector.PERSIST_EVERY):
+            d.assess(topk_probs=[0.5, 0.3, 0.2])
+        assert state.exists()
+        state.unlink()
+        d.assess(topk_probs=[0.5, 0.3, 0.2])
+        assert not state.exists()
+        d.flush_calibration()
+        assert state.exists()
