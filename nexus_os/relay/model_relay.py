@@ -12,7 +12,7 @@ v2.2 additions:
 - Health check loop now OFF by default, only recently-used models
 """
 
-import os, json, time, logging, threading, asyncio
+import os, json, time, logging, threading, asyncio, hmac
 from collections import deque
 from typing import Optional, Dict, Any, List
 import requests
@@ -73,8 +73,45 @@ OLLAMA_TAGS_URL = f"{OLLAMA_BASE_URL}/api/tags"
 HEALTH_CHECK_INTERVAL_S = int(os.environ.get("RELAY_HEALTH_INTERVAL", "0"))
 HEALTH_CHECK_TIMEOUT_S = int(os.environ.get("RELAY_HEALTH_TIMEOUT", "10"))
 HEALTH_STARTUP_SWEEP = os.environ.get("RELAY_HEALTH_STARTUP_SWEEP", "0") == "1"
+# Cached health expires: a single transient failure must not mark a model
+# (including every guard model) unhealthy until process restart, because the
+# refresh loop is off by default (RELAY_HEALTH_INTERVAL=0).
+HEALTH_TTL_S = int(os.environ.get("RELAY_HEALTH_TTL", "300"))
+HEALTH_NEG_TTL_S = int(os.environ.get("RELAY_HEALTH_NEG_TTL", "60"))
 LATENCY_WINDOW_SIZE = 20
 STARTUP_PORT = int(os.environ.get("RELAY_PORT", "7355"))
+
+# Audit fix (model_relay.py:991): the relay used to bind 0.0.0.0 with no
+# auth layer, exposing chat/guard/metrics to the whole network segment.
+# Loopback by default; widening the bind requires an explicit token
+# (same posture as the state manager and Brain API, P1-2/P1-3).
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+RELAY_BIND = os.environ.get("RELAY_BIND", "127.0.0.1")
+RELAY_TOKEN = os.environ.get("NEXUS_RELAY_TOKEN") or None
+#: paths that stay open so probes/monitors keep working unauthenticated
+AUTH_EXEMPT_PATHS = {"/health", "/health/ready"}
+
+
+def _validate_bind(host: str, token: Optional[str]) -> None:
+    """Hard-fail a non-loopback bind without an explicit token."""
+    if host not in LOOPBACK_HOSTS and not token:
+        raise SystemExit(
+            f"Refusing to bind relay on {host!r}: non-loopback exposure "
+            "requires an explicit NEXUS_RELAY_TOKEN (hard-fail default)."
+        )
+
+
+def _relay_request_authorized(headers) -> bool:
+    """True when no token is configured (loopback-only trust) or the
+    request carries it as ``Authorization: Bearer <t>`` or ``X-Api-Key``."""
+    if not RELAY_TOKEN:
+        return True
+    supplied = headers.get("x-api-key", "")
+    if not supplied:
+        auth = headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            supplied = auth[7:].strip()
+    return bool(supplied) and hmac.compare_digest(supplied, RELAY_TOKEN)
 
 logger = logging.getLogger("nexus.model_relay")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -93,6 +130,13 @@ if not hasattr(app, "on_event"):
             return fn
         return decorator
     app.on_event = _noop_event  # type: ignore[attr-defined]
+
+if hasattr(app, "middleware"):  # absent on the no-FastAPI stub
+    @app.middleware("http")
+    async def _auth_middleware(request, call_next):
+        if request.url.path in AUTH_EXEMPT_PATHS or _relay_request_authorized(request.headers):
+            return await call_next(request)
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
 
 class ModelStats:
@@ -204,6 +248,7 @@ class ModelRelay:
         self._fallback_models = ["minimax-m3:cloud", "nemotron-3-nano:4b", "functiongemma:latest"]
         self._coger = None  # lazy CogER for GMR auto-mode (model == "auto-gmr")
         self._model_health: Dict[str, bool] = {}
+        self._health_checked_at: Dict[str, float] = {}
         self._model_stats: Dict[str, ModelStats] = {}
         self._available_ollama_models: List[str] = []
         self._start_time = time.time()
@@ -256,6 +301,7 @@ class ModelRelay:
     def _check_health(self, model: str) -> bool:
         if model == "adversarial-constraint-relaxation":
             self._model_health[model] = True
+            self._health_checked_at[model] = time.time()
             return True
         try:
             resp = requests.post(OLLAMA_CHAT_URL, json={
@@ -266,14 +312,23 @@ class ModelRelay:
             }, timeout=HEALTH_CHECK_TIMEOUT_S)
             ok = resp.ok
             self._model_health[model] = ok
+            self._health_checked_at[model] = time.time()
             return ok
         except Exception:
             self._model_health[model] = False
+            self._health_checked_at[model] = time.time()
             return False
 
     def health_check(self, model: str) -> bool:
+        # Audit fix (model_relay.py:272): cached health used to live forever,
+        # so one transient failure permanently benched a model. Expired
+        # entries re-probe on demand — unhealthy sooner than healthy.
         if model in self._model_health:
-            return self._model_health[model]
+            cached = self._model_health[model]
+            age = time.time() - self._health_checked_at.get(model, 0.0)
+            ttl = HEALTH_TTL_S if cached else HEALTH_NEG_TTL_S
+            if age < ttl:
+                return cached
         return self._check_health(model)
 
     def _healthy_models(self) -> List[str]:
@@ -428,6 +483,16 @@ class ModelRelay:
             strategy = guard_mode if guard_mode in ("strict", "consensus", "meta") else "consensus"
             guard_result = await self.check_guard(messages, timeout_s=10, strategy=strategy)
             if not guard_result["safe"]:
+                if guard_result.get("reason") == "no_healthy_guard_models":
+                    # Fail-closed on outage, but as 503 "guard unavailable",
+                    # not 403 "your prompt is unsafe".
+                    return self._error_response(
+                        "guard",
+                        "guard",
+                        0.0,
+                        "[ModelRelay] Guard mode is on but no guard model is healthy — refusing unguarded forwarding",
+                        "guard_unavailable",
+                    )
                 return self._error_response(
                     f"blocked-by:{guard_result['stage']}",
                     "guard",
@@ -563,6 +628,16 @@ class ModelRelay:
             self._model_stats.setdefault(ollama_model, ModelStats()).record_failure()
             return self._error_response(ollama_model, model, temperature, f"[ModelRelay] Error: {e}", "inference_error")
 
+    #: Audit fix (model_relay.py:396): errors used to leave as HTTP 200 chat
+    #: completions, defeating every upstream retry/fallback (god_mode_proxy
+    #: and ModelRelayAdapter only fall back on status >= 400).
+    ERROR_STATUS_CODES = {
+        "guard_blocked": 403,
+        "guard_unavailable": 503,
+        "no_healthy_ollama_model": 503,
+        "inference_error": 502,
+    }
+
     def _error_response(self, ollama_model, router_model, temperature, content, error_code):
         return {
             "id": f"relay-{int(time.time())}",
@@ -571,6 +646,9 @@ class ModelRelay:
             "model": ollama_model,
             "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "error"}],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            # Popped by the HTTP endpoint and used as the response status;
+            # in-process callers can read it directly.
+            "_status_code": self.ERROR_STATUS_CODES.get(error_code, 502),
             "relay_info": {
                 "router_model": router_model,
                 "temperature": temperature,
@@ -642,7 +720,9 @@ class ModelRelay:
             output = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             output_first = output.split("\n")[0].strip()
         except Exception as e:
-            return {"safe": True, "output": f"guard_error: {e}"}
+            # Hard-fail default: a broken guard stage must never vouch for a
+            # prompt (audit: guard-model exception returned safe=True).
+            return {"safe": False, "output": f"guard_error: {e}", "error": True}
 
         if output_first in self.GUARD_SAFE_TOKENS:
             return {"safe": True, "output": output}
@@ -694,9 +774,13 @@ class ModelRelay:
 
         Stages run in parallel — healthy guard models only.
         Decision strategies:
-          - "consensus": block if ≥2 stages say UNSAFE
-          - "strict": block if ANY stage says UNSAFE
+          - "consensus": block if a majority of healthy stages say UNSAFE
+          - "strict": block if ANY stage says UNSAFE, errors, or is ambiguous
           - "meta": only llama-guard3 decides (other stages are advisory)
+
+        Fail-closed: a guard-stage error counts as an UNSAFE vote, and zero
+        healthy stages returns safe=False (reason "no_healthy_guard_models")
+        — an outage must not silently disable the pipeline.
 
         Returns:
             {
@@ -717,14 +801,17 @@ class ModelRelay:
             logger.warning(f"Guard stage(s) unhealthy, skipping: {skipped}")
 
         if not healthy_stages:
+            # Hard-fail default (audit: this used to return safe=True, so an
+            # Ollama outage silently disabled the entire guard pipeline).
+            # Callers distinguish unavailability from a real block via reason.
             return {
-                "safe": True,
+                "safe": False,
                 "stage": None,
                 "reason": "no_healthy_guard_models",
                 "unsafe_votes": 0,
                 "total_stages": len(stages),
                 "skipped": skipped,
-                "classifications": {m: {"safe": True, "output": "skipped: unhealthy"} for m in stages},
+                "classifications": {m: {"safe": False, "output": "skipped: unhealthy"} for m in stages},
             }
 
         tasks = [self._classify_one(m, messages, timeout_s) for m in healthy_stages]
@@ -754,8 +841,11 @@ class ModelRelay:
                 stage = unsafe_stages[0] if unsafe_stages else None
                 reason = classifications.get(stage, {}).get("output") if stage else None
         elif strategy == "strict":
-            safe = unsafe_votes == 0
-            stage = unsafe_stages[0] if unsafe_stages else None
+            # Strict/blocking mode: ambiguous guard output is not a pass
+            # (audit: any non-'safe'/'unsafe' output was treated as safe).
+            ambiguous_stages = [m for m in healthy_stages if classifications[m].get("ambiguous")]
+            safe = unsafe_votes == 0 and not ambiguous_stages
+            stage = unsafe_stages[0] if unsafe_stages else (ambiguous_stages[0] if ambiguous_stages else None)
             reason = classifications[stage]["output"] if stage else None
         else:
             safe = unsafe_votes < (len(active_stages) // 2) + 1  # majority of healthy only
@@ -790,7 +880,8 @@ async def _shutdown():
 async def chat(request: Request):
     body = await request.json()
     result = await relay.proxy_completion(body)
-    return JSONResponse(result)
+    status = result.pop("_status_code", 200) if isinstance(result, dict) else 200
+    return JSONResponse(result, status_code=status)
 
 
 @app.get("/v1/models")
@@ -1160,5 +1251,6 @@ th {{ background: #161b22; color: #8b949e; text-transform: uppercase; font-size:
 
 
 if __name__ == "__main__":
-    logger.info(f"Starting Nexus ModelRelay v2.1 on port {STARTUP_PORT}")
-    uvicorn.run(app, host="0.0.0.0", port=STARTUP_PORT)
+    _validate_bind(RELAY_BIND, RELAY_TOKEN)
+    logger.info(f"Starting Nexus ModelRelay v2.2 on {RELAY_BIND}:{STARTUP_PORT}")
+    uvicorn.run(app, host=RELAY_BIND, port=STARTUP_PORT)
