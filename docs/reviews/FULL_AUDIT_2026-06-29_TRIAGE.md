@@ -5,6 +5,8 @@
 - **Totals:** 105 findings (6 critical / 37 high / 57 medium / 5 low), 68 miner insights (16 P0 / 26 P1 / 22 P2 / 4 P3). 43 high/critical findings adversarially verified; 42 confirmed real.
 - **Triage legend:** items below are OPEN unless annotated `[STATUS: ...]`. Update this file as items are fixed; cite the fixing commit.
 
+> **Roadmap pointer (2026-07-02):** the open findings below are now sequenced for execution in `docs/plans/IMPROVEMENT_ROADMAP_2026-07-02.md` (Phase 1 = the four CRITICALs + fail-open network/auth HIGHs; Phases 2–4 absorb the intelligence/daemon/CLI HIGHs). This file stays the findings LEDGER — keep closing items here with commit evidence.
+
 ## Triage status (2026-07-02)
 
 FIXED this session (cite commit before closing elsewhere):

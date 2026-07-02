@@ -1,5 +1,8 @@
 # Novel Core Revival — Design & Wiring Plan (2026-07-02)
 
+> **STATUS 2026-07-02 (later same day): ABSORBED into `docs/plans/IMPROVEMENT_ROADMAP_2026-07-02.md`.**
+> Slice status at absorption: trust equation RESTORED (51603dba); rotation handoff (entry/outro via persistent_memory) DONE (6eeb5164); LG relay logprobs feed → roadmap P2-1; TrustKernel unification + agent_pool read-through → P2-2; COGER trust budget → P2-3; gmr breaker sync → P2-4; Obsidian wikilinks DONE (0f987684). Execute remaining items from the roadmap, not from here.
+
 Branch: `codex/specimba/nexus-core-solidify`. Grounded by four read-only
 explorations (trust forensics, GMR scoping, LG feed design, Archivist map)
 against repo + ARCHIVIST canon. Operator directives: no key rotation
