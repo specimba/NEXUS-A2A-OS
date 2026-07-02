@@ -214,13 +214,22 @@ def emit_domains(registry: dict) -> str:
                 continue
             if not any(r in m.get("roles", []) for r in roles):
                 continue
+            # The GMR "fast" lane means sub-100ms LOCAL response, not
+            # cloud-fast: only Ollama residents qualify (cloud fast-role
+            # models are reachable via the god-fast team instead).
+            if domain == "fast" and m["provider"] != "ollama":
+                continue
+            local = m["provider"] == "ollama"
             entries.append({
                 "model": m["id"],
                 "provider": m["provider"],
                 "tier": m.get("tier") or 50,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "local" if m["provider"] == "ollama" else "up",
+                "latency_ms": 50 if local else 500,
+                # Free-tier cloud calls still burn provider quota: a nominal
+                # nonzero cost keeps the rotator's cost-inverse scoring
+                # local-first (the NEXUS SLM-team posture); true-local = 0.
+                "cost_per_1m": 0.0 if local else 1.0,
+                "status": "local" if local else "up",
             })
         entries.sort(key=lambda e: -e["tier"])
         domains[domain] = {

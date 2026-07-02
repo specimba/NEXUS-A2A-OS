@@ -25,7 +25,9 @@ def test_gmr_select_code_domain():
     gmr = make_gmr()
     sel = gmr.select("code", budget_remaining=100000)
     assert sel.primary == "osman-coder"
-    assert "Devstral 2 123B" in sel.fallbacks
+    # Devstral 2 123B retired (live-verified absent from NIM 2026-07-02);
+    # fallbacks now come from the registry-generated frontier tier.
+    assert "zai-org/GLM-5.2" in sel.fallbacks
 
 def test_gmr_budget_fallback():
     gmr = make_gmr()

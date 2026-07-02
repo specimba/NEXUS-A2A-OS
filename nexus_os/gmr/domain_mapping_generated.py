@@ -8,7 +8,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -16,7 +16,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -24,7 +24,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 94,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -32,7 +32,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 92,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -40,7 +40,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "nvidia",
                 "tier": 92,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -48,7 +48,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "opencode",
                 "tier": 92,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             }
         ],
@@ -66,7 +66,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -74,7 +74,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -82,7 +82,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "nvidia",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -90,7 +90,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 90,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -98,7 +98,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "nvidia",
                 "tier": 90,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -106,7 +106,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "ollama-cloud",
                 "tier": 90,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             }
         ],
@@ -124,7 +124,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -132,7 +132,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -140,7 +140,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -148,7 +148,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -156,7 +156,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "nvidia",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -164,7 +164,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 94,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             }
         ],
@@ -178,59 +178,16 @@ GENERATED_DOMAIN_MAPPING: dict = {
     "fast": {
         "primary": [
             {
-                "model": "deepseek-ai/DeepSeek-V4-Flash",
-                "provider": "siliconflow",
-                "tier": 92,
-                "latency_ms": 500,
+                "model": "nemotron-3-nano:4b",
+                "provider": "ollama",
+                "tier": 45,
+                "latency_ms": 50,
                 "cost_per_1m": 0.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-ai/deepseek-v4-flash",
-                "provider": "nvidia",
-                "tier": 92,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-v4-flash-free",
-                "provider": "opencode",
-                "tier": 92,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "up"
-            },
-            {
-                "model": "stepfun-ai/step-3.7-flash",
-                "provider": "nvidia",
-                "tier": 84,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "up"
-            },
-            {
-                "model": "stepfun/step-3.7-flash:free",
-                "provider": "kilocode",
-                "tier": 84,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "up"
-            },
-            {
-                "model": "stepfun-ai/step-3.5-flash",
-                "provider": "nvidia",
-                "tier": 76,
-                "latency_ms": 500,
-                "cost_per_1m": 0.0,
-                "status": "up"
+                "status": "local"
             }
         ],
         "fallback_chain": [
-            "deepseek-ai/DeepSeek-V4-Flash",
-            "deepseek-ai/deepseek-v4-flash",
-            "deepseek-v4-flash-free",
-            "stepfun-ai/step-3.7-flash"
+            "nemotron-3-nano:4b"
         ]
     },
     "security": {
@@ -240,7 +197,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "internai",
                 "tier": 85,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             }
         ],
@@ -255,7 +212,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -263,7 +220,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -271,7 +228,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -279,7 +236,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -287,7 +244,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "nvidia",
                 "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
@@ -295,7 +252,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "provider": "baseten",
                 "tier": 94,
                 "latency_ms": 500,
-                "cost_per_1m": 0.0,
+                "cost_per_1m": 1.0,
                 "status": "up"
             }
         ],
