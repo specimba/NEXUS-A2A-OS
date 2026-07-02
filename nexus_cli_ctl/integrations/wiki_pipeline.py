@@ -82,9 +82,10 @@ class WikiPipeline:
 
                 title = self._extract_title(content) or slug
 
-                # GROSS exclusion — exact segment match, not substring
-                slug_parts = slug.lower().replace("/", " ").replace("-", " ").replace("_", " ").split()
-                if any(t in slug_parts for t in EXCLUDED_TOPICS):
+                # GROSS exclusion — exact segment match on slug AND title,
+                # not substring (title screening catches confidential pages
+                # hiding under innocuous filenames)
+                if self._is_excluded(slug) or self._is_excluded(title):
                     continue
 
                 page_type = "dossier" if "dossiers/" in slug else slug.split("/")[0] if "/" in slug else "root"
@@ -104,6 +105,37 @@ class WikiPipeline:
             except Exception as e:
                 logger.debug(f"Failed to index {md_file}: {e}")
 
+        if self._dossier_count == 0:
+            self._dossier_count = self._fallback_dossier_count()
+
+    def _fallback_dossier_count(self) -> int:
+        """Recover dossier count from durable state or legacy wiki output."""
+        if WIKI_STATE_FILE.exists():
+            try:
+                state = json.loads(WIKI_STATE_FILE.read_text(encoding="utf-8"))
+                count = int(state.get("dossier_count", 0))
+                if count > 0:
+                    return count
+            except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                logger.warning("Wiki state is corrupt or unreadable: %s", exc)
+
+        legacy_output = WIKI_DIR.parent / "wiki_output"
+        if not legacy_output.exists():
+            return 0
+        return sum(1 for path in legacy_output.glob("dossier_*.md") if path.is_file())
+
+    @staticmethod
+    def _is_excluded(text: str) -> bool:
+        """Exact-segment screen against EXCLUDED_TOPICS.
+
+        Splits on path/word separators; also joins adjacent token pairs with
+        an underscore so multi-word topics like ``api_key`` match "API Key".
+        """
+        tokens = text.lower().replace("/", " ").replace("-", " ").replace("_", " ").split()
+        segments = set(tokens)
+        segments.update(f"{a}_{b}" for a, b in zip(tokens, tokens[1:]))
+        return any(t in segments for t in EXCLUDED_TOPICS)
+
     def _extract_title(self, content: str) -> Optional[str]:
         """Extract title from first H1 or H2 heading"""
         for line in content.split("\n"):
@@ -115,9 +147,15 @@ class WikiPipeline:
         return None
 
     async def _sync_loop(self):
-        """Periodic sync with state manager"""
+        """Periodic sync with state manager.
+
+        Rebuilds the index each cycle (off the event loop) so new or deleted
+        dossiers written by the archivist daemon become visible without a
+        manual refresh.
+        """
         while self.running:
             try:
+                await asyncio.to_thread(self._build_index)
                 await self._sync_to_state()
             except Exception as e:
                 logger.error(f"Wiki sync error: {e}")
@@ -245,6 +283,7 @@ async def main():
     pipeline = WikiPipeline()
 
     if args.search:
+        pipeline._build_index()
         results = pipeline.search(args.search)
         print(json.dumps(results, indent=2))
     elif args.list:

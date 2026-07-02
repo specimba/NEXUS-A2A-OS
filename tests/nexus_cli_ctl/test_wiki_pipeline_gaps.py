@@ -14,6 +14,7 @@ Tests for bugs found during deep audit:
 - Sync loop with broken state_manager
 """
 
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -130,8 +131,15 @@ class TestCorruptedWikiState:
                    for r in caplog.records) or pipeline._dossier_count == 0
 
     def test_missing_wiki_state_file_no_crash(self, tmp_path, monkeypatch):
-        """Missing wiki_state.json should not crash."""
-        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
+        """Missing wiki_state.json should not crash.
+
+        WIKI_DIR is nested so its parent (searched for legacy wiki_output/)
+        is this test's own tmp dir, not the shared pytest parent that other
+        tests may have written a wiki_output/ into.
+        """
+        wiki_dir = tmp_path / "wiki"
+        wiki_dir.mkdir()
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", wiki_dir)
         monkeypatch.setattr(
             "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
             tmp_path / "nonexistent_state.json",
@@ -139,6 +147,26 @@ class TestCorruptedWikiState:
         pipeline = WikiPipeline()
         pipeline._build_index()
         assert pipeline._dossier_count == 0
+
+    def test_missing_state_file_still_counts_legacy_output(self, tmp_path, monkeypatch):
+        """Legacy wiki_output/ fallback must be reachable when wiki_state.json
+        does not exist (the guard used to require the state file, making the
+        legacy path dead code)."""
+        wiki_dir = tmp_path / "wiki"
+        wiki_dir.mkdir()
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", wiki_dir)
+        monkeypatch.setattr(
+            "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
+            tmp_path / "nonexistent_state.json",
+        )
+        legacy = tmp_path / "wiki_output"
+        legacy.mkdir()
+        (legacy / "dossier_trust.md").write_text("# Trust", encoding="utf-8")
+        (legacy / "dossier_memory.md").write_text("# Memory", encoding="utf-8")
+
+        pipeline = WikiPipeline()
+        pipeline._build_index()
+        assert pipeline._dossier_count == 2
 
 
 class TestExcludedTopicsSegmentMatch:
@@ -352,3 +380,90 @@ class TestWikiIndexEdgeCases:
         pipeline._build_index()
         results = pipeline.search("anything")
         assert results == []
+
+
+class TestTitleScreening:
+    def test_confidential_title_under_innocuous_filename_excluded(self, tmp_path, monkeypatch):
+        """A page whose TITLE names an excluded topic must be excluded even
+        when its filename is innocuous (audit: filter only screened slugs)."""
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
+        monkeypatch.setattr(
+            "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
+            tmp_path / "wiki_state.json",
+        )
+        (tmp_path / "project-g-notes.md").write_text(
+            "# GROSS Bridge Internals\nconfidential", encoding="utf-8"
+        )
+        (tmp_path / "public-notes.md").write_text("# Public Notes\nok", encoding="utf-8")
+
+        pipeline = WikiPipeline()
+        pipeline._build_index()
+
+        assert "public-notes" in pipeline._wiki_index
+        assert "project-g-notes" not in pipeline._wiki_index
+
+    def test_multiword_topic_matches_spaced_title(self, tmp_path, monkeypatch):
+        """'API Key' in a title matches the api_key excluded topic."""
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
+        monkeypatch.setattr(
+            "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
+            tmp_path / "wiki_state.json",
+        )
+        (tmp_path / "rotation-guide.md").write_text(
+            "# API Key Rotation Guide\nsteps", encoding="utf-8"
+        )
+        pipeline = WikiPipeline()
+        pipeline._build_index()
+        assert "rotation-guide" not in pipeline._wiki_index
+
+    def test_grossly_not_excluded_as_substring(self, tmp_path, monkeypatch):
+        """Segment matching, not substring: 'grossly' must NOT be excluded."""
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
+        monkeypatch.setattr(
+            "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
+            tmp_path / "wiki_state.json",
+        )
+        (tmp_path / "estimates.md").write_text(
+            "# Grossly Underestimated Budgets\nok", encoding="utf-8"
+        )
+        pipeline = WikiPipeline()
+        pipeline._build_index()
+        assert "estimates" in pipeline._wiki_index
+
+
+class TestSyncLoopRebuild:
+    @pytest.mark.asyncio
+    async def test_sync_loop_rebuilds_index(self, tmp_path, monkeypatch):
+        """The 5-minute sync loop must rebuild the index, not just republish
+        stale counters (audit: new dossiers were invisible until manual refresh)."""
+        monkeypatch.setattr("nexus_cli_ctl.integrations.wiki_pipeline.WIKI_DIR", tmp_path)
+        monkeypatch.setattr(
+            "nexus_cli_ctl.integrations.wiki_pipeline.WIKI_STATE_FILE",
+            tmp_path / "wiki_state.json",
+        )
+
+        published = []
+
+        class FakeSM:
+            async def publish(self, topic, data, source=None):
+                published.append(data)
+
+        pipeline = WikiPipeline(state_manager=FakeSM())
+        pipeline.SYNC_INTERVAL = 0.01
+        await pipeline.start()
+        assert pipeline._page_count == 0
+
+        # A dossier appears on disk after start
+        dossiers = tmp_path / "dossiers"
+        dossiers.mkdir()
+        (dossiers / "new_topic.md").write_text("# New Topic\ncontent", encoding="utf-8")
+
+        try:
+            for _ in range(50):
+                await asyncio.sleep(0.02)
+                if pipeline._page_count >= 1:
+                    break
+            assert pipeline._page_count == 1
+            assert pipeline._dossier_count == 1
+        finally:
+            await pipeline.stop()
