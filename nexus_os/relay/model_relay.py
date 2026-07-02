@@ -309,6 +309,52 @@ class ModelRelay:
             logger.debug(f"GMR classification unavailable, defaulting to L2: {e}")
             return "L2"
 
+    #: Multi-model strategies coordinate several calls; give them room but
+    #: never hang the relay caller indefinitely.
+    GMR_STRATEGY_TIMEOUT_S = 120
+
+    async def _gmr_execute_strategy(self, prompt: str, level: str, request_data: dict) -> Optional[dict]:
+        """Execute the COGER L2 (tandem) / L3 (peer-review swarm) strategy.
+
+        Returns a complete OpenAI-compatible response dict, or None to fall
+        back to the single-model Chimera path — this method never raises.
+        Trust defaults to a RESTRICTED 40.0 unless the caller states
+        otherwise (CogER's own default of 100.0 is open-by-default, which
+        is the wrong posture for a network-facing relay).
+        """
+        try:
+            if self._coger is None:
+                from nexus_os.gmr.coger import CogER
+                self._coger = CogER()
+            trust = float(request_data.get("trust_score", 40.0))
+            t0 = time.time()
+            result = await asyncio.wait_for(
+                asyncio.to_thread(self._coger.route, prompt, level=level, trust_score=trust),
+                timeout=self.GMR_STRATEGY_TIMEOUT_S,
+            )
+            response = (result or {}).get("response") or ""
+            if not response or response.startswith(("Error:", "Execution Blocked:", "Execution Error:")):
+                logger.warning(f"GMR {level} strategy returned empty/error — falling back to Chimera path")
+                return None
+            latency_ms = round((time.time() - t0) * 1000.0, 1)
+            return {
+                "id": f"relay-{int(time.time())}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": f"gmr/{level.lower()}",
+                "choices": [{"index": 0, "message": {"role": "assistant", "content": response}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                "relay_info": {
+                    "router_model": f"gmr/{level.lower()}",
+                    "gmr_level": level,
+                    "gmr_strategy": result.get("strategy"),
+                    "latency_ms": latency_ms,
+                },
+            }
+        except Exception as e:
+            logger.warning(f"GMR {level} strategy execution failed ({e.__class__.__name__}: {e}) — falling back")
+            return None
+
     async def proxy_completion(self, request_data: dict) -> dict:
         messages = request_data.get("messages", [{"role": "user", "content": ""}])
         if not isinstance(messages, list) or not messages:
@@ -352,6 +398,13 @@ class ModelRelay:
             # heuristic defaults — explicit caller values always win. Plain
             # "auto" keeps the Chimera-only path unchanged.
             gmr_level = self._gmr_classify(prompt)
+            if gmr_level in ("L2", "L3"):
+                # Full strategy execution: L2 tandem (coordinator blueprint +
+                # local executor), L3 peer-review swarm. Falls back to the
+                # single-model Chimera path below on any failure.
+                strategy_response = await self._gmr_execute_strategy(prompt, gmr_level, request_data)
+                if strategy_response is not None:
+                    return strategy_response
             level_q, level_l = self.GMR_LEVEL_TARGETS[gmr_level]
             if explicit_quality is None:
                 quality_target = level_q

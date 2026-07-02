@@ -122,3 +122,87 @@ class TestAutoGmrRouting:
         )
         assert "gmr_level" not in result["relay_info"]
         assert "gmr_delegation_advised" not in result["relay_info"]
+
+
+class FakeCogER:
+    """Stands in for CogER: classification + strategy execution."""
+
+    def __init__(self, response="tandem says hello", strategy="Tandem Routing", fail=False):
+        self.response = response
+        self.strategy = strategy
+        self.fail = fail
+        self.route_calls = []
+
+    def classify_complexity_heuristically(self, query):
+        return "L2"
+
+    def route(self, query, level=None, trust_score=100.0, **kw):
+        self.route_calls.append({"query": query, "level": level, "trust_score": trust_score})
+        if self.fail:
+            raise RuntimeError("strategy down")
+        return {"level": level, "strategy": self.strategy, "response": self.response}
+
+
+class TestStrategyExecution:
+    @pytest.mark.asyncio
+    async def test_l2_executes_tandem_strategy(self, relay):
+        relay._coger = FakeCogER()
+        result = await relay.proxy_completion(
+            {"model": "auto-gmr", "messages": [{"role": "user", "content": "explain briefly why"}]}
+        )
+        assert result["choices"][0]["message"]["content"] == "tandem says hello"
+        assert result["relay_info"]["gmr_strategy"] == "Tandem Routing"
+        assert result["relay_info"]["gmr_level"] == "L2"
+
+    @pytest.mark.asyncio
+    async def test_strategy_failure_falls_back_to_chimera(self, relay):
+        relay._coger = FakeCogER(fail=True)
+        result = await relay.proxy_completion(
+            {"model": "auto-gmr", "messages": [{"role": "user", "content": "explain briefly why"}]}
+        )
+        # Chimera single-model path answered via the mocked Ollama post
+        assert result["choices"][0]["message"]["content"] == "ok"
+        assert result["relay_info"]["gmr_level"] == "L2"
+        assert "gmr_strategy" not in result["relay_info"]
+
+    @pytest.mark.asyncio
+    async def test_error_prefixed_response_falls_back(self, relay):
+        relay._coger = FakeCogER(response="Execution Blocked: trust gate")
+        result = await relay.proxy_completion(
+            {"model": "auto-gmr", "messages": [{"role": "user", "content": "explain briefly why"}]}
+        )
+        assert result["choices"][0]["message"]["content"] == "ok"
+
+    @pytest.mark.asyncio
+    async def test_trust_defaults_restricted_not_open(self, relay):
+        """The relay must not inherit CogER's open-by-default trust=100."""
+        fake = FakeCogER()
+        relay._coger = fake
+        await relay.proxy_completion(
+            {"model": "auto-gmr", "messages": [{"role": "user", "content": "explain briefly why"}]}
+        )
+        assert fake.route_calls[0]["trust_score"] == 40.0
+
+    @pytest.mark.asyncio
+    async def test_caller_trust_passes_through(self, relay):
+        fake = FakeCogER()
+        relay._coger = fake
+        await relay.proxy_completion(
+            {
+                "model": "auto-gmr",
+                "messages": [{"role": "user", "content": "explain briefly why"}],
+                "trust_score": 92.5,
+            }
+        )
+        assert fake.route_calls[0]["trust_score"] == 92.5
+
+    @pytest.mark.asyncio
+    async def test_l1_never_invokes_strategy(self, relay):
+        fake = FakeCogER()
+        fake.classify_complexity_heuristically = lambda q: "L1"
+        relay._coger = fake
+        result = await relay.proxy_completion(
+            {"model": "auto-gmr", "messages": [{"role": "user", "content": "2+2?"}]}
+        )
+        assert fake.route_calls == []
+        assert result["relay_info"]["gmr_level"] == "L1"
