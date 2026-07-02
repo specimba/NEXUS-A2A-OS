@@ -3,9 +3,11 @@
  * quota tracking, and dynamic routing. Server-side only.
  */
 
+// PROVIDERS/MODELS come from the registry facade (generated from
+// config/models.registry.json merged over legacy config.ts) — the
+// canonical arsenal, not the stale hardcoded tables.
+import { PROVIDERS, MODELS } from './registry'
 import {
-  PROVIDERS,
-  MODELS,
   ROUTING_STRATEGIES,
   DEFAULT_STRATEGY,
   INTENT_KEYWORDS,
