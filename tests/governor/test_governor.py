@@ -317,6 +317,31 @@ class TestCVADisabled:
         assert result.decision == Decision.ALLOW
 
 
+class TestComplianceFailClosed:
+    """Audit HIGH (base.py:273): a compliance-engine exception used to fall
+    through to ALLOW ("All checks passed"). It must HOLD instead."""
+
+    def test_compliance_exception_holds(self, db):
+        class ExplodingCompliance:
+            def evaluate(self, agent_id, action, ctx, trace_id):
+                raise RuntimeError("rule store corrupt")
+
+        gov = NexusGovernor(db, compliance_engine=ExplodingCompliance())
+        result = gov.check_access(
+            agent_id="agent-1", project_id="proj-1", action="read",
+            scope="project", intent="read project memory records",
+            impact="low", clearance="contributor", trace_id="comp-fail-1",
+        )
+        assert result.decision == Decision.HOLD
+        assert "fail-closed" in result.reason
+
+        conn = db.get_connection()
+        rows = conn.fetchall(conn.execute(
+            "SELECT decision, trace_id FROM audit_logs"
+        ))
+        assert rows == [("hold", "comp-fail-1")]
+
+
 class TestClearanceVerification:
     """Audit CRITICAL (base.py:95): clearance was caller-supplied and never
     verified against any registry — a low-privilege agent could self-declare

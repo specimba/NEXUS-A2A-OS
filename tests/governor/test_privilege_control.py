@@ -328,3 +328,90 @@ class TestProgentPrivilegeControl:
         )
         assert bouncer.narrow_policy(expanded_forbid) is False
 
+
+
+class TestHardeningFixes:
+    """Full-audit HIGH findings (privilege_control.py:121 and :174) +
+    compliance fail-open (base.py:273, tested in test_governor.py)."""
+
+    NEXUS_ALLOW = PrivilegePolicy(
+        allowed_tools={
+            "read_file": {
+                "AbsolutePath": [r"^C:/Users/speci\.000/Documents/NEXUS/.*"]
+            }
+        }
+    )
+
+    def test_path_traversal_out_of_confinement_blocked(self):
+        """:121 — '..' segments used to survive matching because the allowed
+        prefix pattern matched before the traversal escaped the directory."""
+        bouncer = ProgentPrivilegeControl(self.NEXUS_ALLOW)
+        assert bouncer.check_call(
+            "read_file",
+            {"AbsolutePath": "C:/Users/speci.000/Documents/NEXUS/../../../Windows/System32/config/SAM"},
+        ) is False
+
+    def test_backslash_traversal_blocked(self):
+        bouncer = ProgentPrivilegeControl(self.NEXUS_ALLOW)
+        assert bouncer.check_call(
+            "read_file",
+            {"AbsolutePath": "C:/Users/speci.000/Documents/NEXUS\..\..\secret.txt"},
+        ) is False
+
+    def test_legit_path_still_allowed(self):
+        bouncer = ProgentPrivilegeControl(self.NEXUS_ALLOW)
+        assert bouncer.check_call(
+            "read_file",
+            {"AbsolutePath": "C:/Users/speci.000/Documents/NEXUS/01_PROJECT_STATE.md"},
+        ) is True
+
+    def test_unanchored_allow_pattern_is_fullmatch(self):
+        """:121 — allow patterns get fullmatch semantics, so a pattern with
+        no anchors no longer permits arbitrary suffixes."""
+        bouncer = ProgentPrivilegeControl(
+            PrivilegePolicy(allowed_tools={"run": {"cmd": [r"ls"]}})
+        )
+        assert bouncer.check_call("run", {"cmd": "ls"}) is True
+        assert bouncer.check_call("run", {"cmd": "ls; rm -rf /"}) is False
+
+    FORBID_RM = PrivilegePolicy(
+        allowed_tools={"execute_command": {}},
+        forbidden_tools={"execute_command": {"command": [r"^rm.*"]}},
+    )
+
+    def test_forbid_matches_list_argv(self):
+        """:174 — command=['rm', '-rf', '/'] used to be str()-ified into
+        "['rm', ...]" which never matched ^rm."""
+        bouncer = ProgentPrivilegeControl(self.FORBID_RM)
+        assert bouncer.check_call("execute_command", {"command": ["rm", "-rf", "/"]}) is False
+
+    def test_forbid_matches_later_line(self):
+        """:174 — 'ls\nrm -rf /' bypassed re.match (no MULTILINE)."""
+        bouncer = ProgentPrivilegeControl(self.FORBID_RM)
+        assert bouncer.check_call("execute_command", {"command": "ls\nrm -rf /"}) is False
+
+    def test_forbid_matches_nested_dict_value(self):
+        bouncer = ProgentPrivilegeControl(self.FORBID_RM)
+        assert bouncer.check_call(
+            "execute_command", {"command": {"argv": ["rm", "-rf", "/tmp"]}}
+        ) is False
+
+    def test_safe_command_still_allowed(self):
+        bouncer = ProgentPrivilegeControl(self.FORBID_RM)
+        assert bouncer.check_call("execute_command", {"command": "ls -la"}) is True
+        assert bouncer.check_call("execute_command", {"command": ["ls", "-la"]}) is True
+
+    def test_invalid_forbid_regex_fails_closed(self):
+        bouncer = ProgentPrivilegeControl(
+            PrivilegePolicy(
+                allowed_tools={"run": {}},
+                forbidden_tools={"run": {"cmd": [r"(unclosed"]}},
+            )
+        )
+        assert bouncer.check_call("run", {"cmd": "anything"}) is False
+
+    def test_invalid_allow_regex_fails_closed(self):
+        bouncer = ProgentPrivilegeControl(
+            PrivilegePolicy(allowed_tools={"run": {"cmd": [r"(unclosed"]}})
+        )
+        assert bouncer.check_call("run", {"cmd": "anything"}) is False

@@ -10,9 +10,10 @@ Privilege expansions require explicit human/user approval.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Set
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Set
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +108,50 @@ def is_interval_subset(next_int: Tuple[float, float, bool, bool], curr_int: Tupl
     return True
 
 
-def check_constraint(constraint_str: str, val: Any) -> bool:
-    """Validate a value against a constraint string (either interval or regex)."""
+def _canonicalize_path_like(s: str) -> str:
+    """Collapse traversal segments in path-like strings before allow-matching.
+
+    Audit (privilege_control.py:121): without canonicalization an allowed
+    prefix pattern permitted "<allowed-dir>/../../../etc" escapes. Only
+    strings that look like paths AND contain dot segments are normalized,
+    so URLs and plain strings pass through untouched.
+    """
+    if ("/" in s or "\\" in s) and (".." in s or "/./" in s or "\\.\\" in s):
+        return os.path.normpath(s).replace("\\", "/")
+    return s
+
+
+def _iter_candidate_strings(val: Any) -> Iterator[str]:
+    """Yield every string a forbid rule should be tested against.
+
+    Audit (privilege_control.py:174): deny rules ran re.match on str(val),
+    so command=["rm", "-rf", "/"] never matched ^rm. Recurse into
+    structured arguments and also yield the space-joined argv form.
+    """
+    if isinstance(val, str):
+        yield val
+    elif isinstance(val, dict):
+        for k, v in val.items():
+            yield from _iter_candidate_strings(k)
+            yield from _iter_candidate_strings(v)
+    elif isinstance(val, (list, tuple, set, frozenset)):
+        for item in val:
+            yield from _iter_candidate_strings(item)
+        yield " ".join(str(i) for i in val)
+    else:
+        yield str(val)
+
+
+def check_constraint(constraint_str: str, val: Any, mode: str = "allow") -> bool:
+    """Validate a value against a constraint string (either interval or regex).
+
+    mode="allow": the value must lie entirely inside the pattern
+    (re.fullmatch — audit: re.match prefix semantics let unanchored
+    patterns pass arbitrary suffixes) after path canonicalization.
+    mode="forbid": the pattern is hunted anywhere in the value, on any
+    line (re.search + MULTILINE — deny must over-match, never under-match).
+    An invalid regex fails closed: allow-side no match, forbid-side match.
+    """
     interval = parse_interval(constraint_str)
     if interval is not None:
         try:
@@ -118,10 +161,12 @@ def check_constraint(constraint_str: str, val: Any) -> bool:
             return False
     # Fallback to regex
     try:
-        return bool(re.match(constraint_str, str(val)))
+        if mode == "forbid":
+            return bool(re.search(constraint_str, str(val), re.MULTILINE))
+        return bool(re.fullmatch(constraint_str, _canonicalize_path_like(str(val))))
     except re.error as e:
         logger.error("Progent: Invalid regex pattern '%s': %s", constraint_str, e)
-        return False
+        return mode == "forbid"
 
 
 def is_constraint_subset(next_c: str, curr_c: str) -> bool:
@@ -170,9 +215,13 @@ class ProgentPrivilegeControl:
                     continue
                 val = arguments.get(arg_name)
                 if val is not None:
-                    # If it matches even one of the forbid patterns, the call is blocked
+                    # If it matches even one of the forbid patterns, the call is blocked.
+                    # Every candidate string is tested (structured args recursed).
                     for pattern in patterns:
-                        if check_constraint(pattern, val):
+                        if any(
+                            check_constraint(pattern, cand, mode="forbid")
+                            for cand in _iter_candidate_strings(val)
+                        ):
                             logger.warning(
                                 "Progent: Tool call %s blocked by forbid rule for arg %s matching '%s'",
                                 tool_name, arg_name, pattern

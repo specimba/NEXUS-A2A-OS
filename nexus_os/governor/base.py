@@ -317,7 +317,17 @@ class NexusGovernor:
                     )
                     return result
             except Exception as e:
+                # Hard-fail default (audit base.py:273): a broken compliance
+                # engine used to fall through to ALLOW. A check that cannot
+                # run holds the request for review instead of vouching for it.
                 logger.error("Compliance engine error during check_access: %s", e)
+                result = AuthResult(
+                    Decision.HOLD,
+                    f"Compliance engine error (fail-closed): {e}",
+                    trace_id,
+                )
+                self._audit_log(agent_id, action, result, project_id)
+                return result
 
         # ── Step 4: All checks passed ───────────────────────────
         result = AuthResult(
