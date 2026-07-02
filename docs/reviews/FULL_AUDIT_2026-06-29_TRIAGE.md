@@ -15,6 +15,14 @@ FIXED this session (cite commit before closing elsewhere):
 - `76de6e12` — dashboard governance REST wrapper wired to canonical governor check_access, fail-closed to needs_review without a governor.
 - `02baa182` + `88762480` — SECRETS scrub: all known key literals redacted from tracked files (LongCat x4, Baseten, InternAI, HF x2, NVIDIA hardcoded fallback removed with hard-fail + tests); `.z-ai-config` untracked; `{id_str}_brief.md` deleted.
 
+FIXED on branch `codex/specimba/nexus-core-solidify` (2026-07-02, core-solidify session):
+
+- `dc9aa507` — vault TRUST-channel gate ENFORCED: append_trust/append_governance now gate on new `writer_trust` (writer authority, hard-fail default 0 → denied), deliberately NOT on `trust_score` (the recorded value — TrustKernel must record low scores); append_episodic gates with the TASK/META legacy-trusted shim; "governance" added to VALID_LANES (DG-bridge TRUST records were silently remapped to "general"). Covers the "vault TRUST-channel ungated writes" finding at memory_channels.py:472/503.
+- `99547494` — NEXUSCLAW /status API reported fabricated stats: avgTrust hardcoded 75.0 and agent counts read keys AgentPool.stats() never returns (always 0). Now real avg_trust/by_status. Also /intervene NameError (500 on every call) fixed. tests/api was hidden by `.git/info/exclude` (entry removed); first tracked tests added there.
+- `9be0b72c` — duplicate `nexus_os/chimera_router_v2.py` (stale ancestor without relay-adapter wiring) is now a deprecation shim re-exporting the canonical `nexus_os/twave/chimera_router_v2.py`; both stale importers repointed. VERIFIED, not a gap: Chimera decision→execute is LIVE via python relay serving (model_relay.py:323) and `nexusctl route --execute`; browser_ai.py is proposal-only BY DESIGN (`relay_execution_allowed=False`).
+- `c08a38ea` — central secrets resolution `nexus_os/security/secrets.py` (env → `$NEXUS_SECRETS_FILE`/`~/.nexus/secrets.json` → `~/.modelrelay.json` apiKeys; `require_secret` hard-fail; values never logged). nvidia_refresher + benchmark model_comparison wired. Per operator directive 2026-07-02: keys are NOT rotated (free-tier, live routing substrate) — plumbing hardened instead; redact before any push still applies.
+- `31b649bd` — dream_cycle prune test calendar time-bomb (hardcoded 2026-06-26 vs 72h TTL) fixed; full suite green again (3542 passed / 61 skipped).
+
 STILL REQUIRED (operator):
 
 1. ROTATE at provider dashboards: LongCat, Baseten, InternAI, HF tokens (one was read+write), NVIDIA (`nvapi-vPFF9...`), and every key seen in Downloads/NEXUSlogs plaintext logs. All remain in git history.
