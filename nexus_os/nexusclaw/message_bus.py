@@ -157,6 +157,10 @@ class MessageBus:
     # Default rate limit per sender
     DEFAULT_RATE_LIMIT_TPS = 5.0
     DEFAULT_RATE_LIMIT_BURST = 10
+    # SYSTEM message authorization (audit message_bus.py:405): identity
+    # allowlist + trust floor, NOT the caller-writable metadata flag.
+    SYSTEM_SENDER_ALLOWLIST = frozenset({"system", "nexus-governor"})
+    SYSTEM_SENDER_MIN_TRUST = 90.0
 
     def __init__(
         self,
@@ -165,8 +169,14 @@ class MessageBus:
         memory_channels: Optional[MemoryChannelManager] = None,
         rate_limit_tps: float = DEFAULT_RATE_LIMIT_TPS,
         rate_limit_burst: int = DEFAULT_RATE_LIMIT_BURST,
+        system_senders: Optional[Set[str]] = None,
     ) -> None:
         self.agent_pool = agent_pool or get_agent_pool()
+        # Bus-owner-supplied allowlist; senders can't add themselves.
+        self._system_senders: Set[str] = (
+            set(system_senders) if system_senders is not None
+            else set(self.SYSTEM_SENDER_ALLOWLIST)
+        )
         self.worklog = worklog or get_worklog()
         self.memory_channels = memory_channels or get_manager()
         self._rate_limiters: Dict[str, MessageRateLimiter] = {}
@@ -398,11 +408,20 @@ class MessageBus:
 
     def _route_system(self, message: NexusMessage) -> None:
         """Route a system message (always delivered, bypasses most checks).
-        
-        Only the governance system agent can send SYSTEM messages.
+
+        Only allowlisted governance senders with a high trust score can send
+        SYSTEM messages. Audit (message_bus.py:405): the old gate was the
+        metadata flag "governance_origin", which the sender writes itself —
+        any registered agent could claim SYSTEM (and with it the rate-limit
+        and availability bypasses). Identity + trust are checked instead;
+        the metadata flag is ignored for authorization.
         """
         sender = self.agent_pool.get(message.sender_id)
-        if sender is None or not message.metadata.get("governance_origin", False):
+        if (
+            sender is None
+            or message.sender_id not in self._system_senders
+            or sender.trust_score < self.SYSTEM_SENDER_MIN_TRUST
+        ):
             message.delivery_error = (
                 f"Sender {message.sender_id} is not authorized to send SYSTEM messages"
             )

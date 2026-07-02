@@ -219,9 +219,43 @@ class TaskRouter:
             if preferred_agents:
                 candidates = [c for c in candidates if c.agent_id in preferred_agents]
 
-            # Step 3: Check human-in-the-loop requirement for high/critical tasks
-            if requires_human and not any(c.agent_type.value == "human" for c in candidates):
-                logger.warning("Task %s is %s risk but no human agent available", task.task_id, risk_level.value)
+            # Step 3: Check human-in-the-loop requirement for high/critical tasks.
+            # Hard-fail default (audit task_router.py:223): this used to log a
+            # warning and route anyway, assigning CRITICAL-risk tasks to
+            # non-human agents with no human in the loop. The task is now
+            # held, not executed.
+            human_available = any(
+                c.agent_type.value == "human" for c in candidates
+            ) or any(
+                a.agent_type.value == "human" for a in self.agent_pool.list_available()
+            )
+            if requires_human and not human_available:
+                logger.warning(
+                    "Task %s is %s risk but no human agent available — holding, not routing",
+                    task.task_id, risk_level.value,
+                )
+                decision = RoutingDecision(
+                    task_id=task.task_id,
+                    strategy=strategy,
+                    selected_agents=[],
+                    rejected_agents=[c.agent_id for c in candidates],
+                    reason=(
+                        f"blocked: {risk_level.value}-risk task requires human oversight "
+                        "and no human agent is available — held for human approval"
+                    ),
+                    risk_level=risk_level.value,
+                    trust_threshold=trust_threshold,
+                    metadata={
+                        "requires_human_oversight": True,
+                        "held_for_human": True,
+                        "lane": task.lane,
+                        "intent": task.intent,
+                        "candidate_count": len(candidates),
+                        "selected_count": 0,
+                    },
+                )
+                self._log_routing_decision(decision, task)
+                return decision
 
             # Step 4: Apply strategy to select agents
             max_agents = self.MAX_AGENTS.get(strategy, 1)

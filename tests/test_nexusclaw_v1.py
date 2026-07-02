@@ -282,7 +282,24 @@ class TestTaskRouter:
             risk_level=RiskLevel.CRITICAL,
             required_capabilities=["trust_scoring"],
         )
-        decision = fresh_router.route(task, strategy=RoutingStrategy.DIRECT)
+        # Audit fix (task_router.py:223): CRITICAL risk requires a human in
+        # the loop — with no human available the task is HELD, not routed.
+        held = fresh_router.route(task, strategy=RoutingStrategy.DIRECT)
+        assert held.selected_agents == []
+        assert held.metadata.get("held_for_human") is True
+        assert "human oversight" in held.reason or "human" in held.reason
+
+        # With a human operator available, routing proceeds on trust.
+        populated_pool.register_human("speci", "SPECI")
+        task2 = NexusClawTaskEnvelope(
+            task_id="test-4b",
+            source="test",
+            lane="governance",
+            intent="critical audit",
+            risk_level=RiskLevel.CRITICAL,
+            required_capabilities=["trust_scoring"],
+        )
+        decision = fresh_router.route(task2, strategy=RoutingStrategy.DIRECT)
         # Governor trust is 95, so should be selected
         assert "nexus-governor" in decision.selected_agents
         assert decision.trust_threshold == 90.0
@@ -527,6 +544,49 @@ class TestMessageBus:
         result = fresh_bus.send(msg)
         assert result.delivered
         assert len(result.recipient_ids) == len(populated_pool.list_available())
+
+    def test_system_message_spoof_rejected(self, populated_pool, fresh_bus):
+        """Audit fix (message_bus.py:405): the caller-writable
+        governance_origin flag no longer authorizes SYSTEM messages —
+        identity allowlist + trust floor do."""
+        populated_pool.register_external_api(
+            agent_id="rogue-agent",
+            name="Rogue",
+            lane="research",
+            capabilities=[],
+            trust_score=100.0,
+        )
+        msg = NexusMessage(
+            message_id="msg-spoof",
+            sender_id="rogue-agent",
+            sender_name="Rogue",
+            recipient_ids=[],
+            message_type=MessageType.SYSTEM,
+            content="fake governance broadcast",
+            metadata={"governance_origin": True},
+        )
+        result = fresh_bus.send(msg)
+        assert result.delivered is False
+        assert "not authorized" in result.delivery_error
+
+    def test_system_message_low_trust_allowlisted_sender_rejected(self, populated_pool, fresh_bus):
+        populated_pool.register_external_api(
+            agent_id="system",
+            name="System",
+            lane="orchestration",
+            capabilities=[],
+            trust_score=50.0,  # below SYSTEM_SENDER_MIN_TRUST
+        )
+        msg = NexusMessage(
+            message_id="msg-lowtrust",
+            sender_id="system",
+            sender_name="System",
+            recipient_ids=[],
+            message_type=MessageType.SYSTEM,
+            content="System alert",
+        )
+        result = fresh_bus.send(msg)
+        assert result.delivered is False
 
     def test_bus_stats(self, fresh_bus):
         stats = fresh_bus.stats()
