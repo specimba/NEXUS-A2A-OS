@@ -347,3 +347,55 @@ class TestOutputDirCreation:
     def test_default_output_dir(self):
         fitter = ArchivistFitter()
         assert fitter.output_dir.exists()
+
+
+class TestWikilinkEmission:
+    """Obsidian wikilink emission (2026-07-02): dossiers link sources and
+    concepts; stubs are created idempotently; index.md becomes a MOC."""
+
+    def _fitter_with_dossier(self, tmp_path):
+        import nexus_os.archivist.fit as fit_mod
+        from nexus_os.archivist.compile import ArchivistCompiler
+        from nexus_os.archivist.import_stage import ArchivistImporter
+
+        src = tmp_path / "notes"
+        src.mkdir()
+        (src / "trust_a.md").write_text("# Trust Kernel\n\nTanh trust formula for agents across lanes.", encoding="utf-8")
+        (src / "trust_b.md").write_text("# Trust Gates\n\nTrust thresholds gate memory channel writes for agents.", encoding="utf-8")
+        (src / "trust_c.md").write_text("# Trust Decay\n\nAgent trust decays toward baseline over time.", encoding="utf-8")
+
+        importer = ArchivistImporter(watched_dirs=[str(src)])
+        records = importer.import_batch()
+        compiler = ArchivistCompiler()
+        compiler.compile_batch(records)
+
+        wiki_root = tmp_path / "wiki"
+        fitter = fit_mod.ArchivistFitter(output_dir=str(wiki_root / "dossiers"))
+        dossiers = fitter.fit_batch(compiler._dossier_candidates)
+        return fitter, dossiers, wiki_root
+
+    def test_dossier_links_and_stubs_created(self, tmp_path):
+        fitter, dossiers, wiki_root = self._fitter_with_dossier(tmp_path)
+        assert dossiers, "expected at least one dossier from 3 same-topic notes"
+        content = dossiers[0].content
+        assert "[[sources/" in content
+        assert "[[concepts/" in content
+        assert "[[index]]" in content
+        assert list((wiki_root / "sources").glob("*.md")), "source stubs missing"
+        assert list((wiki_root / "concepts").glob("*.md")), "concept stubs missing"
+
+    def test_stub_creation_is_idempotent(self, tmp_path):
+        fitter, _, wiki_root = self._fitter_with_dossier(tmp_path)
+        stub = next((wiki_root / "concepts").glob("*.md"))
+        before = stub.read_text(encoding="utf-8")
+        stub.write_text(before + "\ncustom operator note\n", encoding="utf-8")
+        # second run must not clobber the operator's edit
+        fitter._ensure_concept_stub(stub.stem, stub.stem)
+        assert "custom operator note" in stub.read_text(encoding="utf-8")
+
+    def test_index_moc_regenerated_with_links(self, tmp_path):
+        _, dossiers, wiki_root = self._fitter_with_dossier(tmp_path)
+        index = (wiki_root / "index.md").read_text(encoding="utf-8")
+        assert "# NEXUS Archive — Map of Content" in index
+        assert "[[dossiers/" in index
+        assert "[[concepts/" in index
