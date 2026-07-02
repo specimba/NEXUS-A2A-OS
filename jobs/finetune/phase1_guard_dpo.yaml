@@ -1,0 +1,31 @@
+# Phase 1 job card — Guard DPO safety pairs with intern-s2 Oracle Judge
+# Roadmap: docs/roadmaps/FINETUNE_MERGE_ROADMAP.md
+job:
+  id: phase1-guard-dpo-v1
+  purpose: >
+    1000 DPO (chosen/rejected) pairs teaching a small guard model to emit
+    correct SAFE/UNSAFE verdicts with reasoning. Safety anchor set for the
+    phase-2 SAMM merge.
+  generator: scripts/finetune/gen_guard_dpo_pairs.py
+  judge:
+    model: intern-s2-preview
+    provider: internai            # keyRef internai in config/models.registry.json
+    rpm_limit: 30                 # paced via SlidingWindowRPMTracker
+    quota_note: 90M tokens/month operator grant — 1000 pairs << 1% of it
+  dataset:
+    output: datasets/finetune/guard_dpo_v1.jsonl   # untracked
+    smoke_sample: jobs/finetune/samples/guard_dpo_smoke.jsonl  # committed
+    target_pairs: 1000
+    balance: { safe: 0.5, unsafe: 0.5 }
+    seed: 42
+  schema:
+    prompt: guard-classification instruction over one text sample
+    chosen: correct verdict + judge-authored reasoning
+    rejected: opposite verdict + adversarial plausible-but-wrong reasoning
+    meta: { label, source_generator, judge, ts }
+  gates:
+    - 20-pair smoke reviewed by operator before batch (done 2026-07-02)
+    - every pair's chosen verdict must match ground-truth label (validator
+      inside the generator; judge outputs failing the check are retried
+      once then template-fallback)
+    - no raw provider keys anywhere in outputs
