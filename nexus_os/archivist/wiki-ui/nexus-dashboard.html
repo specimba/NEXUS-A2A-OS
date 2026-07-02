@@ -1850,17 +1850,17 @@ html, body {
       <div class="status-left">
         <div class="status-item">
           <span class="status-dot"></span>
-          <span>99 Models UP</span>
+          <span id="statusModelsUp">connecting to relay…</span>
         </div>
         <span class="status-sep"></span>
-        <span>GLM 5.1 (0.91) Active</span>
+        <span id="statusBest">—</span>
         <span class="status-sep"></span>
         <span>Vault: Encrypted</span>
         <span class="status-sep"></span>
         <span>Ping: Smart</span>
       </div>
       <div class="status-right">
-        <span>59,790 sources</span>
+        <span id="statusSources">archive: …</span>
         <span class="status-sep"></span>
         <span id="clock">00:00:00</span>
       </div>
@@ -1973,7 +1973,14 @@ html, body {
 // DATA
 // ============================================================
 
-const models = [
+// ── LIVE ARENA DATA (fetched from the Node relay :7350) ──────────────
+// The arrays below are a STATIC SNAPSHOT (2026-06-09 build) used only
+// when the relay is unreachable; loadArena() replaces them with live
+// telemetry at boot and on 🔄 Sync.
+const RELAY_API = "http://localhost:7350/api";
+let relayLive = false;
+
+const MODELS_SNAPSHOT = [
   { id: "glm-5.1", name: "GLM 5.1", provider: "Fireworks", intell: 0.91, status: "up", latency: 890, context: "202K", uptime: 99.8, votes: 3608, color: "#00e5ff" },
   { id: "claude-opus-4.6", name: "Claude Opus 4.6", provider: "Anthropic", intell: 0.91, status: "down", latency: 1200, context: "1M", uptime: 0, votes: 5788, color: "#c084fc" },
   { id: "kimi-k2.6", name: "Kimi K2.6", provider: "NVIDIA / Cloudflare", intell: 0.88, status: "up", latency: 874, context: "262K", uptime: 99.5, votes: 4753, color: "#00e5ff" },
@@ -1991,7 +1998,7 @@ const models = [
   { id: "mistral-large", name: "Mistral Large", provider: "Mistral", intell: 0.74, status: "up", latency: 450, context: "262K", uptime: 99.9, votes: 1032, color: "#00e5ff" },
 ];
 
-const providers = [
+const PROVIDERS_SNAPSHOT = [
   { name: "Mistral", up: 43, down: 0, total: 43, health: 100, quota: "1M/month", color: "#00e676" },
   { name: "Cloudflare", up: 18, down: 0, total: 18, health: 100, quota: "10K/day", color: "#f472b6" },
   { name: "OpenRouter", up: 16, down: 2, total: 18, health: 89, quota: "Rate limited", color: "#ffab00" },
@@ -2001,6 +2008,99 @@ const providers = [
   { name: "GitHub", up: 0, down: 0, total: 0, health: 0, quota: "1500/day exceeded", color: "#ff5252" },
   { name: "Cerebras", up: 0, down: 0, total: 0, health: 0, quota: "Paywalled", color: "#ff5252" },
 ];
+
+let models = MODELS_SNAPSHOT.slice();
+let providers = PROVIDERS_SNAPSHOT.slice();
+
+function _lastPing(m) {
+  const pings = m.pings || [];
+  return pings.length ? pings[pings.length - 1] : null;
+}
+
+function _successRate(m) {
+  const pings = m.pings || [];
+  if (!pings.length) return 0;
+  const ok = pings.filter((p) => String(p.code) === "200").length;
+  return Math.round((ok / pings.length) * 1000) / 10;
+}
+
+async function loadArena() {
+  try {
+    const resp = await fetch(`${RELAY_API}/models`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const live = (data.models || []).map((m) => {
+      const ping = _lastPing(m);
+      const uptime = _successRate(m);
+      return {
+        id: m.modelId,
+        name: m.label || m.modelId,
+        provider: m.providerKey || "unknown",
+        intell: Number(m.intell) || 0,
+        status: m.status === "up" ? "up" : "down",
+        latency: ping ? Math.round(ping.ms) : 0,
+        context: m.ctx || "—",
+        uptime: uptime,
+        votes: 0,
+        color: "var(--accent-primary)",
+      };
+    });
+    if (!live.length) throw new Error("relay returned 0 models");
+    live.sort((a, b) => b.intell - a.intell || a.latency - b.latency);
+    models = live;
+    providers = _aggregateProviders(live);
+    relayLive = true;
+  } catch (err) {
+    models = MODELS_SNAPSHOT.slice();
+    providers = PROVIDERS_SNAPSHOT.slice();
+    relayLive = false;
+  }
+  _updateLiveChrome();
+  renderSidebar();
+  renderPage(activePage);
+}
+
+function _aggregateProviders(live) {
+  const byProv = {};
+  for (const m of live) {
+    const p = (byProv[m.provider] ||= { name: m.provider, up: 0, down: 0, total: 0, latencies: [] });
+    p.total += 1;
+    if (m.status === "up") { p.up += 1; if (m.latency) p.latencies.push(m.latency); }
+    else p.down += 1;
+  }
+  return Object.values(byProv).map((p) => {
+    p.health = p.total ? Math.round((p.up / p.total) * 100) : 0;
+    const lat = p.latencies.sort((a, b) => a - b);
+    const med = lat.length ? lat[Math.floor(lat.length / 2)] : 0;
+    p.quota = p.up ? `${p.up} UP · ~${med}ms` : "all down";
+    p.color = p.health >= 75 ? "var(--accent-success)" : p.health >= 30 ? "var(--accent-warning)" : "var(--accent-danger)";
+    delete p.latencies;
+    return p;
+  }).sort((a, b) => b.up - a.up);
+}
+
+function _arenaStats() {
+  const up = models.filter((m) => m.status === "up");
+  const lat = up.map((m) => m.latency).filter(Boolean).sort((a, b) => a - b);
+  return {
+    total: models.length,
+    up: up.length,
+    frontierUp: up.filter((m) => m.intell >= 0.85).length,
+    best: up.length ? up.reduce((a, b) => (b.intell > a.intell ? b : a)) : null,
+    providersActive: new Set(up.map((m) => m.provider)).size,
+    medianLatency: lat.length ? lat[Math.floor(lat.length / 2)] : 0,
+  };
+}
+
+function _updateLiveChrome() {
+  const s = _arenaStats();
+  const upBadge = document.getElementById("statusModelsUp");
+  if (upBadge) upBadge.textContent = relayLive ? `${s.up} Models UP` : "RELAY OFFLINE — snapshot";
+  const bestBadge = document.getElementById("statusBest");
+  if (bestBadge) bestBadge.textContent = s.best ? `${s.best.name} (${s.best.intell.toFixed(2)}) Active` : "no healthy model";
+  const src = document.getElementById("statusSources");
+  if (src) src.textContent = wikiIndexCache ? `archive: ${wikiIndexCache.count} files` : "archive: …";
+}
 
 const timelineEvents = [
   { time: "2026-06-09 19:45", title: "Arena Scores Updated", desc: "225 models calibrated with 6,703,075 Arena votes. GLM 5.1 now #1 at 0.91.", type: "success" },
@@ -2112,7 +2212,12 @@ function renderSidebar() {
           <div class="nav-item ${item.id === activePage ? 'active' : ''}" onclick="openPage('${item.id}')">
             <span class="icon">${item.icon}</span>
             <span class="sidebar-text">${item.label}</span>
-            ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
+            ${(() => {
+              const live = item.id === "models" ? String(models.filter((m) => m.status === "up").length)
+                : item.id === "providers" ? String(providers.filter((p) => p.up > 0).length)
+                : item.badge;
+              return live ? `<span class="badge">${live}</span>` : "";
+            })()}
           </div>
         `).join('')}
       </div>
@@ -2185,50 +2290,47 @@ function renderPage(pageId) {
 // MONITORING PAGE
 // ============================================================
 function renderMonitoring() {
+  const s = _arenaStats();
+  const wikiCount = wikiIndexCache ? wikiIndexCache.count : null;
+  const upSeries = models.filter((m) => m.status === "up").slice(0, 20).map((m) => m.intell);
+  const latSeries = models.filter((m) => m.status === "up" && m.latency).slice(0, 20).map((m) => m.latency);
   return `
     <div class="animate-in">
-      <div class="page-title">📈 System Monitoring</div>
-      <div class="page-subtitle">Real-time overview of NEXUS OS health, models, and performance</div>
+      <div class="page-title">📈 System Monitoring ${relayLive ? "" : '<span style="color:var(--accent-danger);font-size:13px;font-family:var(--font-mono);">[RELAY OFFLINE — snapshot]</span>'}</div>
+      <div class="page-subtitle">Live telemetry from the Node relay :7350 — refreshed every 2 min</div>
 
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-label">🤖 Models Online</div>
-          <div class="metric-value">99</div>
-          <div class="metric-change positive">↑ +7 from yesterday</div>
-          <div class="metric-sparkline">${renderSparkline([40,55,48,60,52,58,65,70,68,75,72,80,85,82,88,90,95,92,98,99])}</div>
+          <div class="metric-value">${s.up}</div>
+          <div class="metric-change">${s.total} discovered · ${relayLive ? "live" : "cached"}</div>
+          <div class="metric-sparkline">${renderSparkline(upSeries.length > 1 ? upSeries : [0, 0])}</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">⚡ Avg Latency</div>
-          <div class="metric-value">782<span style="font-size:14px;color:var(--text-muted);">ms</span></div>
-          <div class="metric-change positive">↓ -12% vs last week</div>
-          <div class="metric-sparkline">${renderSparkline([1200,1100,1050,980,900,850,820,800,780,790,770,760,780,750,740,760,770,780,775,782])}</div>
+          <div class="metric-label">⚡ Median Latency</div>
+          <div class="metric-value">${s.medianLatency}<span style="font-size:14px;color:var(--text-muted);">ms</span></div>
+          <div class="metric-change">across online models</div>
+          <div class="metric-sparkline">${renderSparkline(latSeries.length > 1 ? latSeries : [0, 0])}</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">🎯 Best Model</div>
-          <div class="metric-value">0.91</div>
-          <div class="metric-change">GLM 5.1 (Fireworks)</div>
-          <div class="metric-sparkline">${renderSparkline([0.85,0.86,0.87,0.87,0.88,0.88,0.89,0.89,0.90,0.90,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91,0.91])}</div>
+          <div class="metric-label">🎯 Best Available</div>
+          <div class="metric-value">${s.best ? s.best.intell.toFixed(2) : "—"}</div>
+          <div class="metric-change">${s.best ? `${s.best.name} (${s.best.provider})` : "no healthy model"}</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">📊 Health Checks</div>
-          <div class="metric-value">${showSparklines ? '200' : '840'}<span style="font-size:14px;color:var(--text-muted);">/hr</span></div>
-          <div class="metric-change positive">↓ Smart Ping Active</div>
-          <div class="metric-sparkline">${renderSparkline([840,840,840,800,750,700,650,600,550,500,450,400,350,300,250,220,210,205,200,200])}</div>
+          <div class="metric-label">🏆 Frontier UP</div>
+          <div class="metric-value">${s.frontierUp}</div>
+          <div class="metric-change">intell ≥ 0.85 and healthy</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">💾 Vault Files</div>
-          <div class="metric-value">3</div>
-          <div class="metric-change">AES-256-GCM Encrypted</div>
-          <div style="margin-top:12px;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Encryption Strength</div>
-            <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
-          </div>
+          <div class="metric-label">🏢 Providers Active</div>
+          <div class="metric-value">${s.providersActive}</div>
+          <div class="metric-change">with ≥1 model online</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">📚 Sources</div>
-          <div class="metric-value">59.7K</div>
-          <div class="metric-change positive">↑ +1,590 today</div>
-          <div class="metric-sparkline">${renderSparkline([50000,51000,52000,53000,54000,55000,56000,57000,58000,59000,59500,59700,59750,59790,59790,59790,59790,59790,59790,59790])}</div>
+          <div class="metric-label">📚 Archive Entries</div>
+          <div class="metric-value">${wikiCount != null ? wikiCount : "…"}</div>
+          <div class="metric-change">${wikiCount != null ? "indexed markdown files" : "loading /wiki/api/index"}</div>
         </div>
       </div>
 
@@ -2303,10 +2405,11 @@ function renderModels() {
     case "compact": viewContent = renderModelCompact(); break;
   }
 
+  const s = _arenaStats();
   return `
     <div class="animate-in">
-      <div class="page-title">🤖 Model Arena</div>
-      <div class="page-subtitle">225 models discovered · 99 UP · Arena-calibrated scores</div>
+      <div class="page-title">🤖 Model Arena ${relayLive ? "" : '<span style="color:var(--accent-danger);font-size:13px;font-family:var(--font-mono);">[RELAY OFFLINE — snapshot]</span>'}</div>
+      <div class="page-subtitle">${s.total} models · ${s.up} UP · ${s.frontierUp} frontier healthy · live from :7350</div>
 
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
         <div class="view-switcher">
@@ -2551,6 +2654,7 @@ async function loadWikiIndex(force = false) {
       wikiIndexCache = await resp.json();
     }
     if (host) host.innerHTML = renderWikiTable();
+    _updateLiveChrome();
   } catch (err) {
     if (host) host.innerHTML = renderWikiOffline(err);
   }
@@ -3063,15 +3167,11 @@ function executeCommand(cmdId) {
 // UTILITIES
 // ============================================================
 function refreshAll() {
-  // In real implementation, this would fetch fresh data from APIs
   const btn = document.querySelector('.btn.primary');
-  if (btn) {
-    btn.innerHTML = '⏳ Syncing...';
-    setTimeout(() => {
-      btn.innerHTML = '🔄 Sync';
-      renderPage(activePage);
-    }, 1000);
-  }
+  if (btn) btn.innerHTML = '⏳ Syncing...';
+  Promise.all([loadArena(), loadWikiIndex(true)]).finally(() => {
+    if (btn) btn.innerHTML = '🔄 Sync';
+  });
 }
 
 function initCharts() {
@@ -3119,6 +3219,9 @@ renderThemeGrid();
 renderPage("monitoring");
 setInterval(updateClock, 1000);
 updateClock();
+loadArena();                      // live telemetry from the :7350 relay
+setInterval(loadArena, 120000);   // gentle 2-min refresh — the relay pings
+                                  // providers itself; this only re-reads it
 </script>
 </body>
 </html>

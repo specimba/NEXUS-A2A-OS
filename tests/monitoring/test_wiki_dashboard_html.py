@@ -68,3 +68,28 @@ class TestFalloutTheme:
 
     def test_default_current_theme(self):
         assert 'let currentTheme = "fallout-terminal"' in _html()
+
+
+class TestLiveTelemetryWiring:
+    """The dashboard pages must be live (:7350), not hardcoded fiction."""
+
+    def test_live_arena_loader_present(self):
+        html = _html()
+        assert "RELAY_API" in html
+        assert "loadArena" in html
+        assert "http://localhost:7350/api" in html
+
+    def test_fakes_demoted_to_snapshot(self):
+        html = _html()
+        assert "MODELS_SNAPSHOT" in html
+        assert "PROVIDERS_SNAPSHOT" in html
+        # the old fabricated chrome must be gone
+        assert "59,790 sources" not in html
+        assert ">99 Models UP<" not in html
+        assert "225 models discovered" not in html
+
+    def test_offline_banner_and_boot_load(self):
+        html = _html()
+        assert "RELAY OFFLINE" in html
+        assert "loadArena();" in html
+        assert "setInterval(loadArena" in html
