@@ -32,6 +32,8 @@ include = ["nexus_os*"]
 mcp = [
     "fastapi>=0.104",
     "uvicorn>=0.24",
+    "mcp>=1.0",
+    "starlette>=0.37",
 ]
 
 [tool.pyright]

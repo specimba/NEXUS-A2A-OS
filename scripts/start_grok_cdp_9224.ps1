@@ -9,7 +9,7 @@
 param(
     [int]$Port = 9224,
     [string]$ProfileDir = "$env:USERPROFILE\.nexus_chrome_grok",
-    [string]$StartUrl = "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f",
+    [string]$StartUrl = $(if ($env:NEXUS_GROK_PROJECT_CHAT_URL) { $env:NEXUS_GROK_PROJECT_CHAT_URL } elseif ($env:NEXUS_GROK_PROJECT_URL) { $env:NEXUS_GROK_PROJECT_URL } else { "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba" }),
     [switch]$ShowWindow = $false
 )
 

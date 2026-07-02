@@ -8,6 +8,8 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $serverPath = Join-Path $PSScriptRoot "grok_mcp_server_v2.py"
+$python = Join-Path $repoRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path $python)) { $python = "python" }
 
 $existing = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
 if ($existing) {
@@ -20,7 +22,7 @@ $env:GROK_HTTP_ALLOWED_HOSTS = $AllowedHosts
 $env:GROK_MCP_VERSION = "2.3.0-queue-visible"
 
 Write-Host "Starting hardened Grok MCP bridge on $HostName`:$Port" -ForegroundColor Cyan
-$server = Start-Process -WindowStyle Hidden -FilePath "python" -ArgumentList @($serverPath) -PassThru -WorkingDirectory $repoRoot
+$server = Start-Process -WindowStyle Hidden -FilePath $python -ArgumentList @($serverPath) -PassThru -WorkingDirectory $repoRoot
 Start-Sleep -Seconds 3
 
 $health = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$Port/health" -TimeoutSec 5

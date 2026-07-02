@@ -47,13 +47,19 @@ type SupervisorMemoryStatus = {
   providerCallsLastRecord?: number
 }
 
+const GROK_PROJECT_CHAT_URL =
+  process.env.NEXUS_GROK_PROJECT_CHAT_URL ||
+  process.env.NEXUS_GROK_PROJECT_URL ||
+  'https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba'
+const GROK_CDP_PORT = Number(process.env.NEXUS_GROK_CDP_PORT || '9224')
+
 const SUPERVISOR_PROFILES: SupervisorProfileStatus[] = [
   {
     sourceId: 'grok-project-nexus',
     cadenceSeconds: 10 * 60,
     requiresBridge: true,
-    cdpPort: 9224,
-    urlHint: 'https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba',
+    cdpPort: GROK_CDP_PORT,
+    urlHint: GROK_PROJECT_CHAT_URL,
     active: true,
   },
   {

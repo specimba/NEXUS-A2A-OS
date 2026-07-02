@@ -56,7 +56,7 @@ Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackend
 - **4 pre-existing bugs confirmed fixed**: NEXUSDataset constructor crash, XSS template variable mismatch, VULN_TEMPLATES expansion, deduplicate_jsonl string strategy.
 
 ### New Provider: LongCat API (Meituan)
-- **Discovery**: `ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J` from ARCHIVIST curation. OpenAI + Anthropic compatible. Base: `https://api.longcat.chat`. Model: `LongCat-2.0-Preview` (560B MoE, 128K output, beta-only, daily quota slots at 01:00/07:00/13:00/15:00 UTC).
+- **Discovery**: env `NEXUS_LONGCAT_API_KEY` (redacted from docs 2026-07-02). OpenAI + Anthropic compatible. Base: `https://api.longcat.chat`. Model: `LongCat-2.0-Preview` (560B MoE, 128K output, beta-only, daily quota slots at 01:00/07:00/13:00/15:00 UTC).
 - **Lane policy**: Teacher/eval only (`allowed_lanes=["teacher", "eval"]`). NOT core/default.
 - **Integration**: `upload/longcat_lanes.py` (173 lines), 5 CLI adapter manifests, quota guard with 429 handling. Provider registered in ModelRelay config.
 - **Status**: Code-complete. Live verification blocked on beta quota allocation.
@@ -181,7 +181,7 @@ Added 2026-06-18: Current verified state from recovery work.
 - **Tests**: 6/6 passing in `tests/governor/test_cva.py`.
 
 ### New Provider: Baseten Model APIs
-- **Key**: `eCyMkmRr.wMZu0kRh7xP7ToPikS3e60w98ONsaQU3` (account 2, live with balance). Account 1 key `vBaGsxMA...` returns 402. Third key `eCyMkmRr...` works.
+- **Key**: store in env only (`NEXUS_BASETEN_API_KEY` or operator secret store) — **never** commit literals. Prior doc leak redacted 2026-07-02.
 - **Endpoint**: `https://inference.baseten.co/v1` (OpenAI-compatible). Auth: `Api-Key` scheme.
 - **Models discovered**: 11 models including GLM 5.2 (`zai-org/GLM-5.2`, 131K ctx, $1.50/M input), Kimi K2.7 Code (`moonshotai/Kimi-K2.7-Code`, 262K ctx, tools+reasoning), DeepSeek V4 Pro, Nemotron Ultra 550B, GPT-OSS-120B.
 - **Testing**: Both GLM 5.2 and Kimi K2.7 Code verified working (0-budget test calls: 9 tokens for "hello world", 100 tokens for fibonacci).

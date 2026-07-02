@@ -21,6 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from nexus_os.nexusclaw.grok_lane_env import grok_cdp_port, grok_project_url
+
 DEFAULT_MEMORY_PATH = Path.home() / ".nexus" / "browser_ai_supervisor_memory.jsonl"
 
 
@@ -82,8 +84,8 @@ SOURCE_PROFILES: dict[str, SourceProfile] = {
         source_id="grok-project-nexus",
         cadence_seconds=10 * 60,
         requires_bridge=True,
-        cdp_port=9224,
-        url_hint="https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba",
+        cdp_port=grok_cdp_port(),
+        url_hint=grok_project_url(),
     ),
     "zo-computer-nexus": SourceProfile(
         source_id="zo-computer-nexus",
