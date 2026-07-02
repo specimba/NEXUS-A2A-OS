@@ -115,6 +115,11 @@ def _relay_request_authorized(headers) -> bool:
 
 logger = logging.getLogger("nexus.model_relay")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+try:
+    from nexus_os.security.redaction import install_log_redaction
+    install_log_redaction()  # keys must never reach relay logs (P1-10)
+except Exception:
+    pass
 
 GUARD_MODELS = [
     "special-virus:latest",

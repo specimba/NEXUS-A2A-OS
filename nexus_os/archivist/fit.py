@@ -607,6 +607,13 @@ class ArchivistFitter:
         filepath = self.output_dir / filename
 
         markdown = self.generate_wiki_markdown(dossier)
+        try:
+            # Dossiers are compiled from agent logs, which have carried live
+            # keys before (audit P0). Redact on the way to disk (P1-10).
+            from nexus_os.security.redaction import redact
+            markdown = redact(markdown)
+        except Exception:
+            pass
         filepath.write_text(markdown, encoding="utf-8")
 
         logger.info("Saved dossier: %s (topic=%s, sources=%d)", filepath, dossier.topic, len(dossier.source_records))
