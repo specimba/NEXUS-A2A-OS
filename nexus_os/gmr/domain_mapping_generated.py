@@ -5,16 +5,8 @@ GENERATED_DOMAIN_MAPPING: dict = {
         "primary": [
             {
                 "model": "zai-org/GLM-5.2",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "moonshotai/Kimi-K2.7-Code",
-                "provider": "baseten",
-                "tier": 94,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -29,7 +21,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
             },
             {
                 "model": "zai-org/GLM-5.1",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 91,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
@@ -44,9 +36,17 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "status": "up"
             },
             {
-                "model": "zai-org/GLM-4.7",
-                "provider": "baseten",
+                "model": "glm-4.7",
+                "provider": "ollama-cloud",
                 "tier": 82,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
+            },
+            {
+                "model": "north-mini-code-free",
+                "provider": "opencode",
+                "tier": 70,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -54,16 +54,16 @@ GENERATED_DOMAIN_MAPPING: dict = {
         ],
         "fallback_chain": [
             "zai-org/GLM-5.2",
-            "moonshotai/Kimi-K2.7-Code",
             "deepseek-ai/DeepSeek-V4-Flash",
-            "zai-org/GLM-5.1"
+            "zai-org/GLM-5.1",
+            "qwen3-coder:480b"
         ]
     },
     "reasoning": {
         "primary": [
             {
                 "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
@@ -121,7 +121,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
         "primary": [
             {
                 "model": "zai-org/GLM-5.2",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
@@ -129,32 +129,16 @@ GENERATED_DOMAIN_MAPPING: dict = {
             },
             {
                 "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
-                "model": "moonshotai/Kimi-K2.7-Code",
-                "provider": "baseten",
-                "tier": 94,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
                 "model": "zai-org/GLM-5.1",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 91,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "moonshotai/Kimi-K2.6",
-                "provider": "baseten",
-                "tier": 90,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -166,13 +150,29 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
+            },
+            {
+                "model": "moonshotai/Kimi-K2.6",
+                "provider": "siliconflow",
+                "tier": 90,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
+            },
+            {
+                "model": "zai-org/GLM-5",
+                "provider": "siliconflow",
+                "tier": 89,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
             }
         ],
         "fallback_chain": [
             "zai-org/GLM-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
-            "moonshotai/Kimi-K2.7-Code",
-            "zai-org/GLM-5.1"
+            "zai-org/GLM-5.1",
+            "MiniMaxAI/MiniMax-M3"
         ]
     },
     "fast": {
@@ -209,7 +209,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
         "primary": [
             {
                 "model": "zai-org/GLM-5.2",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
@@ -217,32 +217,16 @@ GENERATED_DOMAIN_MAPPING: dict = {
             },
             {
                 "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 95,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
-                "model": "moonshotai/Kimi-K2.7-Code",
-                "provider": "baseten",
-                "tier": 94,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
                 "model": "zai-org/GLM-5.1",
-                "provider": "baseten",
+                "provider": "siliconflow",
                 "tier": 91,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "moonshotai/Kimi-K2.6",
-                "provider": "baseten",
-                "tier": 90,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -254,13 +238,29 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
+            },
+            {
+                "model": "moonshotai/Kimi-K2.6",
+                "provider": "siliconflow",
+                "tier": 90,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
+            },
+            {
+                "model": "zai-org/GLM-5",
+                "provider": "siliconflow",
+                "tier": 89,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
             }
         ],
         "fallback_chain": [
             "zai-org/GLM-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
-            "moonshotai/Kimi-K2.7-Code",
-            "zai-org/GLM-5.1"
+            "zai-org/GLM-5.1",
+            "MiniMaxAI/MiniMax-M3"
         ]
     }
 }

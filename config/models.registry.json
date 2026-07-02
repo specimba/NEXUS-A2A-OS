@@ -2,114 +2,1593 @@
   "version": 1,
   "_comment": "Canonical NEXUS model/provider registry — single source of truth. KEY-FREE by design: keyRef names an apiKeys slug in ~/.modelrelay.json, resolved at runtime via nexus_os.security.secrets. Node config.generated.ts and the Python quota/chimera/ollama tables are GENERATED from this file (scripts/gen_model_registry.py); edit here, then regenerate. Seeded 2026-07-02 by scripts/import_modelrelay_config.py from the operator config, curated against ARCHIVIST model intel and web-verified provider catalogs (SiliconFlow blog: GLM-5.2 1M ctx; Baseten library: GLM-5.2 + Kimi-K2.7-Code; NVIDIA NIM docs: deepseek-ai/deepseek-v4-pro, stepfun/step-3.7-flash).",
   "providers": {
-    "openrouter": { "keyRef": "openrouter", "discoverModels": true, "status": "active", "priority": 40 },
-    "groq": { "keyRef": "groq", "discoverModels": true, "status": "active", "priority": 30, "quota": { "type": "free_tier", "notes": "rate-limited free tier; thermal-bath verifier role" } },
-    "nvidia": { "keyRef": "nvidia", "baseUrl": "https://integrate.api.nvidia.com/v1", "discoverModels": true, "status": "active", "priority": 10, "quota": { "type": "free_tier", "rpm": 40 } },
-    "cerebras": { "keyRef": "cerebras", "discoverModels": true, "status": "suspended", "priority": 50, "notes": "key expired per god-mode report v3" },
-    "codestral": { "keyRef": "codestral", "discoverModels": true, "status": "active", "priority": 45 },
-    "kilocode": { "keyRef": "kilocode", "discoverModels": true, "status": "active", "priority": 20, "quota": { "type": "daily_free", "notes": "free daily-quota lane, see priorityTiers.tier_3" } },
-    "opencode": { "keyRef": "opencode", "discoverModels": true, "status": "active", "priority": 20, "quota": { "type": "daily_free", "notes": "free daily-quota lane, see priorityTiers.tier_3" } },
-    "siliconflow": { "keyRef": "openai-compatible:siliconflow", "baseUrl": "https://api.siliconflow.com/v1", "discoverModels": false, "status": "active", "priority": 15, "notes": "reasoning models accept enable_thinking + thinking_budget (128-32768). Operator freeModelPriority tier_7 says key dead — verify with `nexusctl models verify` before trusting active." },
-    "deepinfra": { "keyRef": "openai-compatible:deepinfra", "baseUrl": "https://api.deepinfra.com/v1/openai", "discoverModels": false, "status": "suspended", "priority": 60 },
-    "fireworks": { "keyRef": "openai-compatible:fireworks", "baseUrl": "https://api.fireworks.ai/inference/v1", "discoverModels": false, "status": "suspended", "priority": 60, "notes": "412 per god-mode report" },
-    "mistral": { "keyRef": "openai-compatible:mistral", "baseUrl": "https://api.mistral.ai/v1", "discoverModels": true, "status": "active", "priority": 35 },
-    "sambanova": { "keyRef": "openai-compatible:sambanova", "baseUrl": "https://api.sambanova.ai/v1", "discoverModels": true, "status": "suspended", "priority": 55, "notes": "key existed with no provider block (orphaned, audit 2026-07-02); balance 0 per god-mode report — verify before activating" },
-    "ollama": { "keyRef": null, "baseUrl": "http://127.0.0.1:11434/v1", "discoverModels": true, "status": "active", "priority": 5, "notes": "local lane; static entries below are the SLM team residents" },
-    "ollama-cloud": { "keyRef": "ollama-cloud", "baseUrl": "https://ollama.com/v1", "discoverModels": true, "apiFormat": "openai", "status": "active", "priority": 25, "notes": "GLM-5/5.1/5.2 paywalled here (priorityTiers.tier_7)" },
-    "github": { "keyRef": "openai-compatible:github", "baseUrl": "https://models.inference.ai.azure.com", "discoverModels": true, "status": "active", "priority": 50 },
-    "cloudflare": { "keyRef": "cloudflare", "discoverModels": true, "status": "active", "priority": 25, "quota": { "type": "daily_free", "notes": "10k neurons/day; 100% health in god-mode report v3 (17-18 models incl Kimi K2.6, Nemotron 3 Super, GPT-OSS-120B)" } },
-    "scaleway": { "keyRef": "scaleway", "discoverModels": true, "status": "active", "priority": 45, "quota": { "type": "tokens", "totalTokens": 1000000, "notes": "1M free tokens, largely unspent" } },
-    "cohere": { "keyRef": "cohere", "baseUrl": "https://api.cohere.com/v1", "discoverModels": true, "status": "active", "priority": 55, "quota": { "type": "requests", "monthlyRequests": 1000 } },
-    "googleai": { "keyRef": "googleai", "discoverModels": true, "status": "active", "priority": 30, "notes": "LIVE-CORRECTED 2026-07-02: Gemini 3.5-flash/3-flash-preview/3.1-flash-lite serving on :7350 (was wrongly suspended). Flaky ~30% success traced to 5-min health pings eating the free quota — cadence now 20 min in ~/.modelrelay.json." },
-    "kiro": { "keyRef": null, "discoverModels": true, "status": "active", "priority": 22, "notes": "DISCOVERED live on :7350 2026-07-02 (claude-sonnet-4.5, claude-haiku-4.5) — auth handled by the kiro CLI session, no apiKeys slug; previously registered nowhere." },
-    "jules": { "keyRef": null, "baseUrl": "https://jules.googleapis.com/v1alpha", "authHeader": "X-Goog-Api-Key", "discoverModels": false, "status": "suspended", "priority": 70 },
-    "longcat": { "keyRef": "longcat", "baseUrl": "https://api.longcat.chat/openai", "apiFormat": "openai", "discoverModels": false, "status": "active", "priority": 12, "allowedLanes": ["teacher", "eval", "logging_fallback", "memory_fallback"], "quota": { "type": "beta_slots", "notes": "free daily beta slots released 01/07/13/15 UTC; no paid tier; operator quota currently 0 — re-request" } },
-    "internai": { "keyRef": "internai", "baseUrl": "https://chat.intern-ai.org.cn/api/v1", "apiFormat": "openai", "discoverModels": true, "status": "active", "priority": 12, "quota": { "type": "tokens", "monthlyTokens": 90000000, "rpm": 30, "notes": "90M in + 90M out per month, 300K TPM; per-lane keys; Intern Discovery adds A100/A800 fine-tune workspaces" } },
-    "novita": { "keyRef": "novita", "baseUrl": "https://api.novita.ai/v3/openai", "apiFormat": "openai", "discoverModels": true, "status": "suspended", "priority": 35, "notes": "ZERO_BALANCE — 138-model catalog incl glm-5.2, kimi-k2.7-code, qwen3.7-max; suspend until funded" },
-    "baseten": { "keyRef": "openai-compatible:baseten", "baseUrl": "https://inference.baseten.co/v1", "apiFormat": "openai", "authScheme": "Api-Key", "discoverModels": false, "status": "active", "priority": 8, "quota": { "type": "rate", "tpm": 500000, "rpm": 120 } },
-    "openmodel": { "keyRef": "openmodel", "baseUrl": "https://api.openmodel.ai/v1", "apiFormat": "openai", "discoverModels": false, "status": "pending_operator", "priority": 18, "notes": "single key unlocks OpenAI/Anthropic/Gemini formats; deepseek-v4-flash is FREE (1M ctx). Operator: confirm account + add key under apiKeys slug 'openmodel'." },
-    "zai": { "keyRef": null, "baseUrl": "https://api.z.ai/api/paas/v4", "discoverModels": false, "status": "deprecated", "priority": 90, "notes": "config.ts registered glm-5.2 here with no key — dead entry; GLM-5.2 is served via baseten/siliconflow instead" }
+    "openrouter": {
+      "keyRef": "openrouter",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 40
+    },
+    "groq": {
+      "keyRef": "groq",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 30,
+      "quota": {
+        "type": "free_tier",
+        "notes": "rate-limited free tier; thermal-bath verifier role"
+      }
+    },
+    "nvidia": {
+      "keyRef": "nvidia",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 10,
+      "quota": {
+        "type": "free_tier",
+        "rpm": 40
+      }
+    },
+    "cerebras": {
+      "keyRef": "cerebras",
+      "discoverModels": true,
+      "status": "suspended",
+      "priority": 50,
+      "notes": "Key expired; web sweep 2026-07: free tier still 1M tokens/day with no card — renew at cloud.cerebras.ai to reactivate."
+    },
+    "codestral": {
+      "keyRef": "codestral",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 45
+    },
+    "kilocode": {
+      "keyRef": "kilocode",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 20,
+      "quota": {
+        "type": "daily_free",
+        "notes": "free daily-quota lane, see priorityTiers.tier_3"
+      }
+    },
+    "opencode": {
+      "keyRef": "opencode",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 20,
+      "quota": {
+        "type": "daily_free",
+        "notes": "free daily-quota lane, see priorityTiers.tier_3"
+      }
+    },
+    "siliconflow": {
+      "keyRef": "openai-compatible:siliconflow",
+      "baseUrl": "https://api.siliconflow.com/v1",
+      "discoverModels": false,
+      "status": "active",
+      "priority": 15,
+      "notes": "CHAT VERIFIED LIVE 2026-07-02 (direct 1-token probe OK; 71 models listed incl GLM-5.2/M3/V4/K2.6). The relay-side 'No Auth' was stale state — clears on relay restart. Reasoning models accept enable_thinking + thinking_budget."
+    },
+    "deepinfra": {
+      "keyRef": "openai-compatible:deepinfra",
+      "baseUrl": "https://api.deepinfra.com/v1/openai",
+      "discoverModels": false,
+      "status": "suspended",
+      "priority": 60
+    },
+    "fireworks": {
+      "keyRef": "openai-compatible:fireworks",
+      "baseUrl": "https://api.fireworks.ai/inference/v1",
+      "discoverModels": false,
+      "status": "suspended",
+      "priority": 60,
+      "notes": "412 per god-mode report"
+    },
+    "mistral": {
+      "keyRef": "openai-compatible:mistral",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 35
+    },
+    "sambanova": {
+      "keyRef": "openai-compatible:sambanova",
+      "baseUrl": "https://api.sambanova.ai/v1",
+      "discoverModels": true,
+      "status": "suspended",
+      "priority": 55,
+      "notes": "key existed with no provider block (orphaned, audit 2026-07-02); balance 0 per god-mode report — verify before activating"
+    },
+    "ollama": {
+      "keyRef": null,
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 5,
+      "notes": "local lane; static entries below are the SLM team residents"
+    },
+    "ollama-cloud": {
+      "keyRef": "ollama-cloud",
+      "baseUrl": "https://ollama.com/v1",
+      "discoverModels": true,
+      "apiFormat": "openai",
+      "status": "active",
+      "priority": 25,
+      "notes": "FREE TIER VERIFIED 2026-07-02: minimax-m3, qwen3-coder:480b, nemotron-3-super work WITHOUT subscription; deepseek-v4-flash, kimi-k2.7-code, glm-5.2 are 403 subscription-gated. Weekly quota — probe sparingly."
+    },
+    "github": {
+      "keyRef": "openai-compatible:github",
+      "baseUrl": "https://models.inference.ai.azure.com",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 50
+    },
+    "cloudflare": {
+      "keyRef": "cloudflare",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 25,
+      "quota": {
+        "type": "daily_free",
+        "notes": "10k neurons/day; 100% health in god-mode report v3 (17-18 models incl Kimi K2.6, Nemotron 3 Super, GPT-OSS-120B)"
+      }
+    },
+    "scaleway": {
+      "keyRef": "scaleway",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 45,
+      "quota": {
+        "type": "tokens",
+        "totalTokens": 1000000,
+        "notes": "1M free tokens, largely unspent"
+      }
+    },
+    "cohere": {
+      "keyRef": "cohere",
+      "baseUrl": "https://api.cohere.com/v1",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 55,
+      "quota": {
+        "type": "requests",
+        "monthlyRequests": 1000
+      }
+    },
+    "googleai": {
+      "keyRef": "googleai",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 30,
+      "notes": "LIVE-CORRECTED 2026-07-02: Gemini 3.5-flash/3-flash-preview/3.1-flash-lite serving on :7350 (was wrongly suspended). Flaky ~30% success traced to 5-min health pings eating the free quota — cadence now 20 min in ~/.modelrelay.json."
+    },
+    "kiro": {
+      "keyRef": null,
+      "discoverModels": true,
+      "status": "active",
+      "priority": 22,
+      "notes": "DISCOVERED live on :7350 2026-07-02 (claude-sonnet-4.5, claude-haiku-4.5) — auth handled by the kiro CLI session, no apiKeys slug; previously registered nowhere."
+    },
+    "jules": {
+      "keyRef": null,
+      "baseUrl": "https://jules.googleapis.com/v1alpha",
+      "authHeader": "X-Goog-Api-Key",
+      "discoverModels": false,
+      "status": "suspended",
+      "priority": 70
+    },
+    "longcat": {
+      "keyRef": "longcat",
+      "baseUrl": "https://api.longcat.chat/openai",
+      "apiFormat": "openai",
+      "discoverModels": false,
+      "status": "active",
+      "priority": 12,
+      "allowedLanes": [
+        "teacher",
+        "eval",
+        "logging_fallback",
+        "memory_fallback"
+      ],
+      "quota": {
+        "type": "beta_slots",
+        "notes": "free daily beta slots released 01/07/13/15 UTC; no paid tier; operator quota currently 0 — re-request"
+      }
+    },
+    "internai": {
+      "keyRef": "internai",
+      "baseUrl": "https://chat.intern-ai.org.cn/api/v1",
+      "apiFormat": "openai",
+      "discoverModels": true,
+      "status": "active",
+      "priority": 12,
+      "quota": {
+        "type": "tokens",
+        "monthlyTokens": 90000000,
+        "rpm": 30,
+        "notes": "90M in + 90M out per month, 300K TPM; per-lane keys; Intern Discovery adds A100/A800 fine-tune workspaces"
+      }
+    },
+    "novita": {
+      "keyRef": "novita",
+      "baseUrl": "https://api.novita.ai/v3/openai",
+      "apiFormat": "openai",
+      "discoverModels": true,
+      "status": "suspended",
+      "priority": 35,
+      "notes": "ZERO_BALANCE — 138-model catalog incl glm-5.2, kimi-k2.7-code, qwen3.7-max; suspend until funded"
+    },
+    "baseten": {
+      "keyRef": "openai-compatible:baseten",
+      "baseUrl": "https://inference.baseten.co/v1",
+      "apiFormat": "openai",
+      "authScheme": "Api-Key",
+      "discoverModels": false,
+      "status": "suspended",
+      "priority": 8,
+      "quota": {
+        "type": "rate",
+        "tpm": 500000,
+        "rpm": 120
+      },
+      "notes": "OPERATOR 2026-07-02: 0 credit, new-account route no longer viable — lane dead until funded. GLM-5.2/K2.7-Code reachable via siliconflow instead."
+    },
+    "openmodel": {
+      "keyRef": "openmodel",
+      "baseUrl": "https://api.openmodel.ai/v1",
+      "apiFormat": "openai",
+      "discoverModels": false,
+      "status": "pending_operator",
+      "priority": 18,
+      "notes": "single key unlocks OpenAI/Anthropic/Gemini formats; deepseek-v4-flash is FREE (1M ctx). Operator: confirm account + add key under apiKeys slug 'openmodel'."
+    },
+    "zai": {
+      "keyRef": null,
+      "baseUrl": "https://api.z.ai/api/paas/v4",
+      "discoverModels": false,
+      "status": "deprecated",
+      "priority": 90,
+      "notes": "config.ts registered glm-5.2 here with no key — dead entry; GLM-5.2 is served via baseten/siliconflow instead"
+    },
+    "qwencloud": {
+      "keyRef": "qwencloud",
+      "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "apiFormat": "openai",
+      "discoverModels": true,
+      "status": "pending_operator",
+      "priority": 14,
+      "quota": {
+        "type": "tokens",
+        "perModelTokens": 1000000,
+        "notes": "1M free tokens PER eligible model, Singapore intl endpoint, 90 days from Model Studio activation (web-verified 2026-07)"
+      },
+      "notes": "OPERATOR: register Alibaba Model Studio (Singapore) and add key under apiKeys slug 'qwencloud' — unlocks every Qwen3.5/3.6/3.7 lane with per-model 1M quota."
+    },
+    "moonshot": {
+      "keyRef": "moonshot",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "discoverModels": true,
+      "status": "suspended",
+      "priority": 60,
+      "notes": "OPERATOR 2026-07-02: key stopped working — re-issue at platform.moonshot.ai before activating."
+    },
+    "zhipu": {
+      "keyRef": "zhipu",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "discoverModels": false,
+      "status": "suspended",
+      "priority": 80,
+      "notes": "OPERATOR: bigmodel.cn requires China IP for API use — unusable from this network without a compliant relay."
+    }
   },
   "models": [
-    { "id": "zai-org/GLM-5.2", "provider": "baseten", "aliases": ["glm-5.2"], "context": 1048576, "maxOutput": 16384, "free": false, "tier": 95, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier", "code"], "lanes": ["core"], "status": "active" },
-    { "id": "moonshotai/Kimi-K2.7-Code", "provider": "baseten", "aliases": ["kimi-k2.7-code"], "context": 262144, "maxOutput": 16384, "free": false, "tier": 94, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["code", "frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "zai-org/GLM-5.1", "provider": "baseten", "aliases": [], "context": 202752, "maxOutput": 16384, "free": false, "tier": 91, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier", "code"], "lanes": ["core"], "status": "active" },
-    { "id": "moonshotai/Kimi-K2.6", "provider": "baseten", "aliases": ["kimi-k2.6"], "context": 262144, "maxOutput": 16384, "free": false, "tier": 90, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier"], "lanes": ["core"], "status": "active", "notes": "avoid_due_to_tool_loop_bug per operator priority tiers" },
-    { "id": "moonshotai/Kimi-K2.5", "provider": "baseten", "aliases": [], "context": 262144, "maxOutput": 16384, "free": false, "tier": 86, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "deepseek-ai/DeepSeek-V4-Pro", "provider": "baseten", "aliases": ["deepseek-v4-pro"], "context": 1048576, "maxOutput": 16384, "free": false, "tier": 95, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B", "provider": "baseten", "aliases": [], "context": 1048576, "maxOutput": 16384, "free": false, "tier": 88, "capabilities": { "thinking": false, "tools": true, "vision": false }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "zai-org/GLM-5", "provider": "baseten", "aliases": [], "context": 202752, "maxOutput": 16384, "free": false, "tier": 89, "capabilities": { "thinking": true, "tools": true, "vision": false }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "zai-org/GLM-4.7", "provider": "baseten", "aliases": [], "context": 131072, "maxOutput": 16384, "free": false, "tier": 82, "capabilities": { "thinking": false, "tools": true, "vision": false }, "roles": ["code"], "lanes": ["core"], "status": "active" },
-    { "id": "nvidia/Nemotron-120B-A12B", "provider": "baseten", "aliases": [], "context": null, "maxOutput": null, "free": false, "tier": 75, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "openai/gpt-oss-120b", "provider": "baseten", "aliases": [], "context": 131072, "maxOutput": null, "free": false, "tier": 78, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-
-    { "id": "zai-org/GLM-5.2", "provider": "siliconflow", "aliases": [], "context": 1048576, "maxOutput": 16384, "free": true, "tier": 95, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier", "code"], "lanes": ["core"], "status": "active", "notes": "web-verified 2026-07: siliconflow.com/blog/glm-5-2-api-guide" },
-    { "id": "MiniMaxAI/MiniMax-M3", "provider": "siliconflow", "aliases": ["minimax-m3"], "context": 1048576, "maxOutput": 16384, "free": true, "tier": 90, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active", "notes": "web-verified 2026-07 on SiliconFlow reasoning catalog" },
-    { "id": "zai-org/GLM-5", "provider": "siliconflow", "aliases": [], "context": 202752, "maxOutput": 16384, "free": true, "tier": 89, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "zai-org/GLM-5.1", "provider": "siliconflow", "aliases": [], "context": 202752, "maxOutput": 16384, "free": true, "tier": 91, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier", "code"], "lanes": ["core"], "status": "active" },
-    { "id": "zai-org/GLM-4.5", "provider": "siliconflow", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 78, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "deepseek-ai/DeepSeek-V4-Flash", "provider": "siliconflow", "aliases": ["deepseek-v4-flash"], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 92, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["code", "fast"], "lanes": ["core"], "status": "active" },
-    { "id": "deepseek-ai/DeepSeek-V4-Pro", "provider": "siliconflow", "aliases": [], "context": 1048576, "maxOutput": 16384, "free": true, "tier": 95, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "MiniMaxAI/MiniMax-M2.5", "provider": "siliconflow", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 84, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "MiniMaxAI/MiniMax-M2.1", "provider": "siliconflow", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 80, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "Qwen/Qwen3-235B-A22B", "provider": "siliconflow", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 85, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "Qwen/Qwen3-32B", "provider": "siliconflow", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 72, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "moonshotai/Kimi-K2-Thinking", "provider": "siliconflow", "aliases": ["kimi-k2-thinking"], "context": 262144, "maxOutput": 16384, "free": true, "tier": 88, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "moonshotai/Kimi-K2.6", "provider": "siliconflow", "aliases": [], "context": 262144, "maxOutput": 16384, "free": true, "tier": 90, "capabilities": { "thinking": true, "thinkingBudget": true, "tools": true }, "roles": ["frontier"], "lanes": ["core"], "status": "active", "notes": "avoid_due_to_tool_loop_bug per operator priority tiers" },
-    { "id": "moonshotai/Kimi-K2-Instruct", "provider": "siliconflow", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 80, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-
-    { "id": "z-ai/glm-5.1", "provider": "nvidia", "aliases": [], "context": 202752, "maxOutput": 8192, "free": true, "tier": 91, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier", "code"], "lanes": ["core"], "status": "suspended", "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1" },
-    { "id": "minimaxai/minimax-m3", "provider": "nvidia", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 90, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active", "notes": "live-verified in NIM listing 2026-07-02" },
-    { "id": "minimaxai/minimax-m2.7", "provider": "nvidia", "aliases": [], "context": null, "maxOutput": 8192, "free": true, "tier": 82, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active", "notes": "discovered live in NIM listing 2026-07-02, previously unregistered" },
-    { "id": "deepseek-ai/deepseek-v4-flash", "provider": "nvidia", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 92, "capabilities": { "thinking": true, "tools": true }, "roles": ["code", "fast"], "lanes": ["core"], "status": "active", "notes": "discovered live in NIM listing 2026-07-02, previously unregistered" },
-    { "id": "nvidia/devstral-2-123b", "provider": "nvidia", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 82, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["core"], "status": "suspended", "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02" },
-    { "id": "moonshotai/kimi-k2-thinking", "provider": "nvidia", "aliases": [], "context": 262144, "maxOutput": 8192, "free": true, "tier": 88, "capabilities": { "thinking": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "suspended", "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (only kimi-k2.6 remains)" },
-    { "id": "nvidia/nemotron-3-ultra-550b-a55b", "provider": "nvidia", "aliases": ["nemotron-3-ultra"], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 88, "capabilities": { "tools": true }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "nvidia/nemotron-3-super-120b-a12b", "provider": "nvidia", "aliases": ["nemotron-3-super"], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 80, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active", "notes": "emergency-only per operator tier_1 never_use_as_primary" },
-    { "id": "stepfun-ai/step-3.7-flash", "provider": "nvidia", "aliases": ["step-3.7-flash", "stepfun/step-3.7-flash"], "context": 262144, "maxOutput": 8192, "free": true, "tier": 84, "capabilities": { "thinking": true, "tools": true, "vision": true }, "roles": ["fast", "reasoning"], "lanes": ["core", "visual"], "status": "active", "notes": "ID LIVE-CORRECTED 2026-07-02: NIM listing uses stepfun-ai/ prefix (docs elsewhere say stepfun/) — the exact ID-drift class this registry exists to kill; 198B MoE VLM, 256K ctx" },
-    { "id": "stepfun-ai/step-3.5-flash", "provider": "nvidia", "aliases": [], "context": null, "maxOutput": 8192, "free": true, "tier": 76, "capabilities": { "tools": true }, "roles": ["fast"], "lanes": ["core"], "status": "active", "notes": "discovered live in NIM listing 2026-07-02" },
-    { "id": "moonshotai/kimi-k2.6", "provider": "nvidia", "aliases": [], "context": 262144, "maxOutput": 8192, "free": true, "tier": 90, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier"], "lanes": ["core"], "status": "active", "notes": "live-verified in NIM listing 2026-07-02; avoid_due_to_tool_loop_bug flag applies" },
-    { "id": "qwen/qwen3.5-397b-a17b", "provider": "nvidia", "aliases": ["qwen3.5-397b"], "context": null, "maxOutput": 8192, "free": true, "tier": 86, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active", "notes": "ID LIVE-CORRECTED 2026-07-02: listing id carries the -a17b suffix" },
-    { "id": "qwen/qwen3.5-122b-a10b", "provider": "nvidia", "aliases": [], "context": null, "maxOutput": 8192, "free": true, "tier": 80, "capabilities": { "thinking": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active", "notes": "discovered live in NIM listing 2026-07-02" },
-    { "id": "deepseek-ai/deepseek-v4-pro", "provider": "nvidia", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 95, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active", "notes": "web-verified 2026-07: docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-pro" },
-
-    { "id": "LongCat-2.0-Preview", "provider": "longcat", "aliases": [], "context": 262144, "maxOutput": 131072, "free": true, "tier": 93, "capabilities": { "tools": true }, "roles": ["teacher"], "lanes": ["teacher", "eval"], "status": "active", "notes": "560B MoE; teacher/eval ONLY per operator lanes; beta slots" },
-    { "id": "intern-s2-preview", "provider": "internai", "aliases": [], "context": 262144, "maxOutput": 16384, "free": true, "tier": 85, "capabilities": { "thinking": true, "tools": true }, "roles": ["judge", "teacher", "reasoning"], "lanes": ["teacher", "eval"], "status": "active", "notes": "35B-A3B scientific reasoner; Oracle Judge for guard DPO pairs (fine-tune phase 1)" },
-    { "id": "intern-latest", "provider": "internai", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 80, "capabilities": { "thinking": true }, "roles": ["teacher"], "lanes": ["teacher", "eval"], "status": "active" },
-    { "id": "internvl2.5-latest", "provider": "internai", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 70, "capabilities": { "vision": true }, "roles": [], "lanes": ["visual", "eval"], "status": "active" },
-
-    { "id": "deepseek-v4-flash", "provider": "openmodel", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 92, "capabilities": { "thinking": true, "tools": true }, "roles": ["code", "fast"], "lanes": ["core"], "status": "pending_operator", "notes": "the only $0 model on OpenModel per operator curation; 1M ctx" },
-
-    { "id": "deepseek-v4-flash-free", "provider": "opencode", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 92, "capabilities": { "tools": true }, "roles": ["code", "fast"], "lanes": ["core"], "status": "active" },
-    { "id": "north-mini-code-free", "provider": "opencode", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 70, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["core"], "status": "active" },
-    { "id": "nemotron-3-ultra-free", "provider": "opencode", "aliases": [], "context": 1048576, "maxOutput": null, "free": true, "tier": 88, "capabilities": { "tools": true }, "roles": ["frontier"], "lanes": ["core"], "status": "active" },
-    { "id": "qwen3.6-plus-free", "provider": "opencode", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 84, "capabilities": { "thinking": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "mimo-v2.5-free", "provider": "opencode", "aliases": ["mimo-v2.5"], "context": null, "maxOutput": null, "free": true, "tier": 82, "capabilities": { "thinking": true, "tools": true }, "roles": ["reasoning"], "lanes": ["core"], "status": "active", "notes": "was orphaned: named in freeModelPriority tier_3 but registered nowhere (audit 2026-07-02)" },
-
-    { "id": "nvidia/nemotron-3-super-120b-a12b:free", "provider": "kilocode", "aliases": [], "context": 1048576, "maxOutput": null, "free": true, "tier": 80, "capabilities": { "tools": true }, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "kilo-auto/free", "provider": "kilocode", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 60, "capabilities": {}, "roles": [], "lanes": ["core"], "status": "active" },
-    { "id": "stepfun/step-3.7-flash:free", "provider": "kilocode", "aliases": [], "context": 262144, "maxOutput": null, "free": true, "tier": 84, "capabilities": { "thinking": true, "vision": true }, "roles": ["fast"], "lanes": ["core"], "status": "active" },
-    { "id": "poolside/laguna-m.1:free", "provider": "kilocode", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 70, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["core"], "status": "active" },
-
-    { "id": "functiongemma:latest", "provider": "ollama", "aliases": ["functiongemma-270m"], "context": 32768, "maxOutput": 4096, "free": true, "tier": 30, "capabilities": { "tools": true }, "roles": ["intent"], "lanes": ["local", "core"], "status": "active", "notes": "SLM team: intent classifier — 150 tokens, 92% cheaper than frontier routing (ernieMCP)" },
-    { "id": "nemotron-3-nano:4b", "provider": "ollama", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 45, "capabilities": { "tools": true }, "roles": ["fast"], "lanes": ["local", "core"], "status": "active" },
-    { "id": "qwen2.5-coder:7b", "provider": "ollama", "aliases": [], "context": 32768, "maxOutput": 8192, "free": true, "tier": 48, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["local"], "status": "active", "notes": "Nexus-OS-7B fine-tune base candidate (MODELLSSSSSS plan)" },
-    { "id": "minimax-m2.7", "provider": "ollama", "aliases": [], "context": null, "maxOutput": null, "free": true, "tier": 60, "capabilities": {}, "roles": [], "lanes": ["local"], "status": "active" },
-    { "id": "minimax-m3:cloud", "provider": "ollama-cloud", "aliases": [], "context": 1048576, "maxOutput": 8192, "free": true, "tier": 90, "capabilities": { "thinking": true, "tools": true }, "roles": ["frontier", "reasoning"], "lanes": ["core"], "status": "active" },
-    { "id": "qwen3-coder:480b", "provider": "ollama-cloud", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 86, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["core"], "status": "active" },
-    { "id": "glm-4.7", "provider": "ollama-cloud", "aliases": [], "context": 131072, "maxOutput": 8192, "free": true, "tier": 82, "capabilities": { "tools": true }, "roles": ["code"], "lanes": ["core"], "status": "active" },
-    { "id": "vibethinker-3b", "provider": "ollama", "aliases": ["VibeThinker-3B"], "context": 32768, "maxOutput": 8192, "free": true, "tier": 45, "capabilities": { "thinking": true }, "roles": ["reasoning"], "lanes": ["local", "eval"], "status": "unknown", "notes": "SLM team: tandem executor (94.3 AIME26 per papers09); pull into Ollama if absent" }
+    {
+      "id": "zai-org/GLM-5.2",
+      "provider": "baseten",
+      "aliases": [
+        "glm-5.2"
+      ],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 95,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier",
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "moonshotai/Kimi-K2.7-Code",
+      "provider": "baseten",
+      "aliases": [
+        "kimi-k2.7-code"
+      ],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 94,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "code",
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "zai-org/GLM-5.1",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 202752,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 91,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier",
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "moonshotai/Kimi-K2.6",
+      "provider": "baseten",
+      "aliases": [
+        "kimi-k2.6"
+      ],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "tools": false,
+        "vision": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended",
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+    },
+    {
+      "id": "moonshotai/Kimi-K2.5",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 86,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Pro",
+      "provider": "baseten",
+      "aliases": [
+        "deepseek-v4-pro"
+      ],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 95,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 88,
+      "capabilities": {
+        "thinking": false,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "zai-org/GLM-5",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 202752,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 89,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "zai-org/GLM-4.7",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 16384,
+      "free": false,
+      "tier": 82,
+      "capabilities": {
+        "thinking": false,
+        "tools": true,
+        "vision": false
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "nvidia/Nemotron-120B-A12B",
+      "provider": "baseten",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": false,
+      "tier": 75,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "openai/gpt-oss-120b",
+      "provider": "baseten",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": null,
+      "free": false,
+      "tier": 78,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended"
+    },
+    {
+      "id": "zai-org/GLM-5.2",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 95,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "web-verified 2026-07: siliconflow.com/blog/glm-5-2-api-guide"
+    },
+    {
+      "id": "MiniMaxAI/MiniMax-M3",
+      "provider": "siliconflow",
+      "aliases": [
+        "minimax-m3"
+      ],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "web-verified 2026-07 on SiliconFlow reasoning catalog"
+    },
+    {
+      "id": "zai-org/GLM-5",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 202752,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 89,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "zai-org/GLM-5.1",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 202752,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 91,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "constraints": {
+        "maxConcurrent": 1,
+        "noParallelSubagents": true,
+        "rpmHint": 4
+      }
+    },
+    {
+      "id": "zai-org/GLM-4.5",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 78,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Flash",
+      "provider": "siliconflow",
+      "aliases": [
+        "deepseek-v4-flash"
+      ],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 92,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "code",
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Pro",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 95,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "constraints": {
+        "maxConcurrent": 1,
+        "noParallelSubagents": true,
+        "rpmHint": 4
+      }
+    },
+    {
+      "id": "MiniMaxAI/MiniMax-M2.5",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 84,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "MiniMaxAI/MiniMax-M2.1",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "Qwen/Qwen3-235B-A22B",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 85,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "Qwen/Qwen3-32B",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 72,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "moonshotai/Kimi-K2-Thinking",
+      "provider": "siliconflow",
+      "aliases": [
+        "kimi-k2-thinking"
+      ],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 88,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "moonshotai/Kimi-K2.6",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "thinkingBudget": true,
+        "tools": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+    },
+    {
+      "id": "moonshotai/Kimi-K2-Instruct",
+      "provider": "siliconflow",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "z-ai/glm-5.1",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 202752,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 91,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended",
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1"
+    },
+    {
+      "id": "minimaxai/minimax-m3",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "live-verified in NIM listing 2026-07-02 OPERATOR: frequent 429 exhaustion — serial use only, no parallel subagent fan-out, ~4 RPM ceiling. NIM requires thinking.type=enabled param.",
+      "constraints": {
+        "maxConcurrent": 1,
+        "noParallelSubagents": true,
+        "rpmHint": 4
+      }
+    },
+    {
+      "id": "minimaxai/minimax-m2.7",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 82,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered"
+    },
+    {
+      "id": "deepseek-ai/deepseek-v4-flash",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 92,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "code",
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered"
+    },
+    {
+      "id": "nvidia/devstral-2-123b",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 82,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended",
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02"
+    },
+    {
+      "id": "moonshotai/kimi-k2-thinking",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 88,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "suspended",
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (only kimi-k2.6 remains)"
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "provider": "nvidia",
+      "aliases": [
+        "nemotron-3-ultra"
+      ],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 88,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b",
+      "provider": "nvidia",
+      "aliases": [
+        "nemotron-3-super"
+      ],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "emergency-only per operator tier_1 never_use_as_primary"
+    },
+    {
+      "id": "stepfun-ai/step-3.7-flash",
+      "provider": "nvidia",
+      "aliases": [
+        "step-3.7-flash",
+        "stepfun/step-3.7-flash"
+      ],
+      "context": 262144,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 84,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": true
+      },
+      "roles": [
+        "fast"
+      ],
+      "lanes": [
+        "core",
+        "visual"
+      ],
+      "status": "active",
+      "notes": "ID LIVE-CORRECTED 2026-07-02: NIM listing uses stepfun-ai/ prefix (docs elsewhere say stepfun/) — the exact ID-drift class this registry exists to kill; 198B MoE VLM, 256K ctx OPERATOR: solid utility model but NOT frontier-trusted for main coding/architecture — fast lane only."
+    },
+    {
+      "id": "stepfun-ai/step-3.5-flash",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 76,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "discovered live in NIM listing 2026-07-02"
+    },
+    {
+      "id": "moonshotai/kimi-k2.6",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "tools": false
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+    },
+    {
+      "id": "qwen/qwen3.5-397b-a17b",
+      "provider": "nvidia",
+      "aliases": [
+        "qwen3.5-397b"
+      ],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 86,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "ID LIVE-CORRECTED 2026-07-02: listing id carries the -a17b suffix"
+    },
+    {
+      "id": "qwen/qwen3.5-122b-a10b",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "discovered live in NIM listing 2026-07-02"
+    },
+    {
+      "id": "deepseek-ai/deepseek-v4-pro",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 95,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "web-verified 2026-07: docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-pro OPERATOR: frequent 429 exhaustion — serial use only, no parallel subagent fan-out, ~4 RPM ceiling.",
+      "constraints": {
+        "maxConcurrent": 1,
+        "noParallelSubagents": true,
+        "rpmHint": 4
+      }
+    },
+    {
+      "id": "LongCat-2.0-Preview",
+      "provider": "longcat",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 131072,
+      "free": true,
+      "tier": 93,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "teacher"
+      ],
+      "lanes": [
+        "teacher",
+        "eval"
+      ],
+      "status": "active",
+      "notes": "560B MoE; teacher/eval ONLY per operator lanes; beta slots"
+    },
+    {
+      "id": "intern-s2-preview",
+      "provider": "internai",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 85,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "judge",
+        "teacher",
+        "reasoning"
+      ],
+      "lanes": [
+        "teacher",
+        "eval"
+      ],
+      "status": "active",
+      "notes": "35B-A3B scientific reasoner; Oracle Judge for guard DPO pairs (fine-tune phase 1)"
+    },
+    {
+      "id": "intern-latest",
+      "provider": "internai",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "thinking": true
+      },
+      "roles": [
+        "teacher"
+      ],
+      "lanes": [
+        "teacher",
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "internvl2.5-latest",
+      "provider": "internai",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 70,
+      "capabilities": {
+        "vision": true
+      },
+      "roles": [],
+      "lanes": [
+        "visual",
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "provider": "openmodel",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 92,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "code",
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "pending_operator",
+      "notes": "the only $0 model on OpenModel per operator curation; 1M ctx"
+    },
+    {
+      "id": "deepseek-v4-flash-free",
+      "provider": "opencode",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 92,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code",
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "north-mini-code-free",
+      "provider": "opencode",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 70,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "nemotron-3-ultra-free",
+      "provider": "opencode",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": null,
+      "free": true,
+      "tier": 88,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "qwen3.6-plus-free",
+      "provider": "opencode",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 84,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "mimo-v2.5-free",
+      "provider": "opencode",
+      "aliases": [
+        "mimo-v2.5"
+      ],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 82,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "was orphaned: named in freeModelPriority tier_3 but registered nowhere (audit 2026-07-02)"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "provider": "kilocode",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": null,
+      "free": true,
+      "tier": 80,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "kilo-auto/free",
+      "provider": "kilocode",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 60,
+      "capabilities": {},
+      "roles": [],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "stepfun/step-3.7-flash:free",
+      "provider": "kilocode",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": null,
+      "free": true,
+      "tier": 84,
+      "capabilities": {
+        "thinking": true,
+        "vision": true
+      },
+      "roles": [
+        "fast"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "poolside/laguna-m.1:free",
+      "provider": "kilocode",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 70,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "functiongemma:latest",
+      "provider": "ollama",
+      "aliases": [
+        "functiongemma-270m"
+      ],
+      "context": 32768,
+      "maxOutput": 4096,
+      "free": true,
+      "tier": 30,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "intent"
+      ],
+      "lanes": [
+        "local",
+        "core"
+      ],
+      "status": "active",
+      "notes": "SLM team: intent classifier — 150 tokens, 92% cheaper than frontier routing (ernieMCP)"
+    },
+    {
+      "id": "nemotron-3-nano:4b",
+      "provider": "ollama",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 45,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "fast"
+      ],
+      "lanes": [
+        "local",
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "qwen2.5-coder:7b",
+      "provider": "ollama",
+      "aliases": [],
+      "context": 32768,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 48,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "local"
+      ],
+      "status": "active",
+      "notes": "Nexus-OS-7B fine-tune base candidate (MODELLSSSSSS plan)"
+    },
+    {
+      "id": "minimax-m2.7",
+      "provider": "ollama",
+      "aliases": [],
+      "context": null,
+      "maxOutput": null,
+      "free": true,
+      "tier": 60,
+      "capabilities": {},
+      "roles": [],
+      "lanes": [
+        "local"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "minimax-m3:cloud",
+      "provider": "ollama-cloud",
+      "aliases": [],
+      "context": 1048576,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 90,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "qwen3-coder:480b",
+      "provider": "ollama-cloud",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 86,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "glm-4.7",
+      "provider": "ollama-cloud",
+      "aliases": [],
+      "context": 131072,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 82,
+      "capabilities": {
+        "tools": true
+      },
+      "roles": [
+        "code"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "vibethinker-3b",
+      "provider": "ollama",
+      "aliases": [
+        "VibeThinker-3B"
+      ],
+      "context": 32768,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 45,
+      "capabilities": {
+        "thinking": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "local",
+        "eval"
+      ],
+      "status": "unknown",
+      "notes": "SLM team: tandem executor (94.3 AIME26 per papers09); pull into Ollama if absent"
+    }
   ],
   "priorityTiers": {
     "tier_1_primary_rotation": {
       "note": "PRIMARY 2-MODEL ROTATION - GLM 5.1 <-> Nemotron Ultra (NOT Super; Super is emergency only). Persistence > variety for memory continuity.",
-      "models": ["nvidia:z-ai/glm-5.1", "nvidia:nvidia/nemotron-3-ultra-550b-a55b"],
+      "models": [
+        "nvidia:z-ai/glm-5.1",
+        "nvidia:nvidia/nemotron-3-ultra-550b-a55b"
+      ],
       "rotation_trigger": "rate_limit_429 OR quota_exhausted",
-      "never_use_as_primary": ["nvidia:nvidia/nemotron-3-super-120b-a12b"]
+      "never_use_as_primary": [
+        "nvidia:nvidia/nemotron-3-super-120b-a12b"
+      ]
     },
     "tier_2_safe_fallback": {
       "note": "Safety net for logging/memory consistency - stable persistent models for non-flashy critical work.",
-      "models": ["longcat:LongCat-2.0-Preview", "internai:intern-s2-preview"]
+      "models": [
+        "longcat:LongCat-2.0-Preview",
+        "internai:intern-s2-preview"
+      ]
     },
     "tier_3_daily_quota_priority": {
       "note": "Use first in day - daily quota depletes at UTC midnight. Tracked in ~/.nexus_pi/state/quota_tracker.json",
@@ -125,18 +1604,52 @@
         "kilocode:poolside/laguna-m.1:free"
       ]
     },
-    "tier_4_specialist": ["ollama-cloud:qwen3-coder:480b", "ollama-cloud:glm-4.7"],
-    "tier_6_emergency_only": ["kilocode:nvidia/nemotron-3-super-120b-a12b:free", "ollama-cloud:minimax-m3:cloud"],
-    "avoid_due_to_tool_loop_bug": ["kimi-k2.6"]
+    "tier_4_specialist": [
+      "ollama-cloud:qwen3-coder:480b",
+      "ollama-cloud:glm-4.7"
+    ],
+    "tier_6_emergency_only": [
+      "kilocode:nvidia/nemotron-3-super-120b-a12b:free",
+      "ollama-cloud:minimax-m3:cloud"
+    ],
+    "avoid_due_to_tool_loop_bug": [
+      "kimi-k2.6"
+    ]
   },
   "teams": {
-    "god-code": ["moonshotai/Kimi-K2.7-Code", "zai-org/GLM-5.2", "deepseek-ai/DeepSeek-V4-Flash", "qwen3-coder:480b"],
-    "god-reason": ["deepseek-ai/DeepSeek-V4-Pro", "moonshotai/Kimi-K2-Thinking", "minimaxai/minimax-m3"],
-    "god-1m": ["nvidia/nemotron-3-ultra-550b-a55b", "minimaxai/minimax-m3", "deepseek-ai/deepseek-v4-pro"],
-    "god-fast": ["stepfun/step-3.7-flash", "nemotron-3-nano:4b"],
-    "tandem": { "coordinator": "role:frontier", "executor": "vibethinker-3b" },
-    "intent": ["functiongemma:latest"],
-    "judge": ["intern-s2-preview"],
-    "teacher": ["LongCat-2.0-Preview", "intern-s2-preview"]
+    "god-code": [
+      "moonshotai/Kimi-K2.7-Code",
+      "zai-org/GLM-5.2",
+      "deepseek-ai/DeepSeek-V4-Flash",
+      "qwen3-coder:480b"
+    ],
+    "god-reason": [
+      "deepseek-ai/DeepSeek-V4-Pro",
+      "moonshotai/Kimi-K2-Thinking",
+      "minimaxai/minimax-m3"
+    ],
+    "god-1m": [
+      "nvidia/nemotron-3-ultra-550b-a55b",
+      "minimaxai/minimax-m3",
+      "deepseek-ai/deepseek-v4-pro"
+    ],
+    "god-fast": [
+      "stepfun/step-3.7-flash",
+      "nemotron-3-nano:4b"
+    ],
+    "tandem": {
+      "coordinator": "role:frontier",
+      "executor": "vibethinker-3b"
+    },
+    "intent": [
+      "functiongemma:latest"
+    ],
+    "judge": [
+      "intern-s2-preview"
+    ],
+    "teacher": [
+      "LongCat-2.0-Preview",
+      "intern-s2-preview"
+    ]
   }
 }

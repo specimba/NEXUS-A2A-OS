@@ -3,7 +3,7 @@
   "cloud_profiles": [
     {
       "name": "zai-org/GLM-5.2",
-      "provider": "baseten",
+      "provider": "siliconflow",
       "quality_score": 0.95,
       "max_context": 1048576,
       "supports_thinking": true,
@@ -14,7 +14,7 @@
     },
     {
       "name": "deepseek-ai/DeepSeek-V4-Pro",
-      "provider": "baseten",
+      "provider": "siliconflow",
       "quality_score": 0.95,
       "max_context": 1048576,
       "supports_thinking": true,
@@ -32,17 +32,6 @@
       "roles": [
         "frontier",
         "reasoning"
-      ]
-    },
-    {
-      "name": "moonshotai/Kimi-K2.7-Code",
-      "provider": "baseten",
-      "quality_score": 0.94,
-      "max_context": 262144,
-      "supports_thinking": true,
-      "roles": [
-        "code",
-        "frontier"
       ]
     },
     {
@@ -80,23 +69,13 @@
     },
     {
       "name": "zai-org/GLM-5.1",
-      "provider": "baseten",
+      "provider": "siliconflow",
       "quality_score": 0.91,
       "max_context": 202752,
       "supports_thinking": true,
       "roles": [
         "frontier",
         "code"
-      ]
-    },
-    {
-      "name": "moonshotai/Kimi-K2.6",
-      "provider": "baseten",
-      "quality_score": 0.9,
-      "max_context": 262144,
-      "supports_thinking": true,
-      "roles": [
-        "frontier"
       ]
     },
     {
@@ -108,6 +87,16 @@
       "roles": [
         "frontier",
         "reasoning"
+      ]
+    },
+    {
+      "name": "moonshotai/Kimi-K2.6",
+      "provider": "siliconflow",
+      "quality_score": 0.9,
+      "max_context": 262144,
+      "supports_thinking": true,
+      "roles": [
+        "frontier"
       ]
     },
     {
@@ -144,20 +133,10 @@
     },
     {
       "name": "zai-org/GLM-5",
-      "provider": "baseten",
+      "provider": "siliconflow",
       "quality_score": 0.89,
       "max_context": 202752,
       "supports_thinking": true,
-      "roles": [
-        "frontier"
-      ]
-    },
-    {
-      "name": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B",
-      "provider": "baseten",
-      "quality_score": 0.88,
-      "max_context": 1048576,
-      "supports_thinking": false,
       "roles": [
         "frontier"
       ]
@@ -188,16 +167,6 @@
       "quality_score": 0.88,
       "max_context": 1048576,
       "supports_thinking": false,
-      "roles": [
-        "frontier"
-      ]
-    },
-    {
-      "name": "moonshotai/Kimi-K2.5",
-      "provider": "baseten",
-      "quality_score": 0.86,
-      "max_context": 262144,
-      "supports_thinking": true,
       "roles": [
         "frontier"
       ]
@@ -256,17 +225,6 @@
       ]
     },
     {
-      "name": "stepfun-ai/step-3.7-flash",
-      "provider": "nvidia",
-      "quality_score": 0.84,
-      "max_context": 262144,
-      "supports_thinking": true,
-      "roles": [
-        "fast",
-        "reasoning"
-      ]
-    },
-    {
       "name": "qwen3.6-plus-free",
       "provider": "opencode",
       "quality_score": 0.84,
@@ -274,16 +232,6 @@
       "supports_thinking": true,
       "roles": [
         "reasoning"
-      ]
-    },
-    {
-      "name": "zai-org/GLM-4.7",
-      "provider": "baseten",
-      "quality_score": 0.82,
-      "max_context": 131072,
-      "supports_thinking": false,
-      "roles": [
-        "code"
       ]
     },
     {

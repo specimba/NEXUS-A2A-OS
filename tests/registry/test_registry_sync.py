@@ -68,9 +68,12 @@ class TestChimeraConsumer:
         from nexus_os.twave.chimera_router_v2 import DEFAULT_PROFILES, Tier
 
         cloud = {p.name for p in DEFAULT_PROFILES if p.tier == Tier.CLOUD}
-        assert "zai-org/GLM-5.2" in cloud
-        assert "moonshotai/Kimi-K2.7-Code" in cloud
+        assert "zai-org/GLM-5.2" in cloud            # siliconflow, chat-verified live
         assert "deepseek-ai/DeepSeek-V4-Flash" in cloud
+        # Kimi-K2.7-Code's only lane (baseten) is suspended (0 credit,
+        # operator 2026-07-02) — a dead frontier must NOT linger in the
+        # routable cloud tier.
+        assert "moonshotai/Kimi-K2.7-Code" not in cloud
 
     def test_local_hand_authored_profiles_survive(self):
         from nexus_os.twave.chimera_router_v2 import DEFAULT_PROFILES

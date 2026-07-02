@@ -22,7 +22,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "quotaRemaining": 120,
     "costPer1m": 0.0,
     "latencyMs": 400,
-    "status": "up",
+    "status": "down",
     "tier": 50,
     "priority": 8,
     "isFree": true,
@@ -217,6 +217,27 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "envKey": "MISTRAL_API_KEY",
     "keyRef": "openai-compatible:mistral"
   },
+  "moonshot": {
+    "id": "moonshot",
+    "name": "moonshot",
+    "provider": "moonshot",
+    "baseUrl": "https://api.moonshot.ai/v1",
+    "chatPath": "/chat/completions",
+    "modelsPath": "/models",
+    "authType": "bearer",
+    "quotaType": "free_tier",
+    "quotaRemaining": "varies",
+    "costPer1m": 0.0,
+    "latencyMs": 400,
+    "status": "down",
+    "tier": 50,
+    "priority": 60,
+    "isFree": true,
+    "isLocal": false,
+    "models": [],
+    "envKey": "MOONSHOT_API_KEY",
+    "keyRef": "moonshot"
+  },
   "novita": {
     "id": "novita",
     "name": "novita",
@@ -349,6 +370,27 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "envKey": "OPENMODEL_API_KEY",
     "keyRef": "openmodel"
   },
+  "qwencloud": {
+    "id": "qwencloud",
+    "name": "qwencloud",
+    "provider": "qwencloud",
+    "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    "chatPath": "/chat/completions",
+    "modelsPath": "/models",
+    "authType": "bearer",
+    "quotaType": "free_tier",
+    "quotaRemaining": "varies",
+    "costPer1m": 0.0,
+    "latencyMs": 400,
+    "status": "down",
+    "tier": 50,
+    "priority": 14,
+    "isFree": true,
+    "isLocal": false,
+    "models": [],
+    "envKey": "QWENCLOUD_API_KEY",
+    "keyRef": "qwencloud"
+  },
   "sambanova": {
     "id": "sambanova",
     "name": "sambanova",
@@ -405,6 +447,27 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     ],
     "envKey": "SILICONFLOW_API_KEY",
     "keyRef": "openai-compatible:siliconflow"
+  },
+  "zhipu": {
+    "id": "zhipu",
+    "name": "zhipu",
+    "provider": "zhipu",
+    "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+    "chatPath": "/chat/completions",
+    "modelsPath": "/models",
+    "authType": "bearer",
+    "quotaType": "free_tier",
+    "quotaRemaining": "varies",
+    "costPer1m": 0.0,
+    "latencyMs": 400,
+    "status": "down",
+    "tier": 50,
+    "priority": 80,
+    "isFree": true,
+    "isLocal": false,
+    "models": [],
+    "envKey": "ZHIPU_API_KEY",
+    "keyRef": "zhipu"
   }
 }
 
@@ -423,7 +486,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/moonshotai/Kimi-K2.5",
@@ -439,7 +502,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/moonshotai/Kimi-K2.6",
@@ -451,11 +514,11 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "contextWindow": 262144,
     "latencyMsTypical": 500,
     "supportsVision": false,
-    "supportsFunctionCalling": true,
+    "supportsFunctionCalling": false,
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/moonshotai/Kimi-K2.7-Code",
@@ -471,7 +534,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B",
@@ -487,7 +550,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/nvidia/Nemotron-120B-A12B",
@@ -503,7 +566,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/openai/gpt-oss-120b",
@@ -519,7 +582,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/zai-org/GLM-4.7",
@@ -535,7 +598,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/zai-org/GLM-5",
@@ -551,7 +614,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/zai-org/GLM-5.1",
@@ -567,7 +630,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "baseten/zai-org/GLM-5.2",
@@ -583,7 +646,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": false,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "internai/intern-latest",
@@ -739,7 +802,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "contextWindow": 262144,
     "latencyMsTypical": 500,
     "supportsVision": false,
-    "supportsFunctionCalling": true,
+    "supportsFunctionCalling": false,
     "supportsStreaming": true,
     "isFree": true,
     "isLocal": false,
@@ -1171,7 +1234,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "contextWindow": 262144,
     "latencyMsTypical": 500,
     "supportsVision": false,
-    "supportsFunctionCalling": true,
+    "supportsFunctionCalling": false,
     "supportsStreaming": true,
     "isFree": true,
     "isLocal": false,
