@@ -221,6 +221,80 @@
   --heatmap-high: #2aa198;
 }
 
+/* ---------- THEME 9: FALLOUT TERMINAL (Default) ---------- */
+[data-theme="fallout-terminal"] {
+  --bg-void: #060a06;
+  --bg-deep: #081008;
+  --bg-base: #0b140c;
+  --bg-raised: #0f1a10;
+  --bg-surface: #122013;
+  --bg-hover: #172817;
+  --bg-active: #1c301c;
+  --text-primary: #4aff7f;
+  --text-secondary: #2fae57;
+  --text-muted: #1e7a3c;
+  --text-dim: #145227;
+  --accent-primary: #4aff7f;
+  --accent-secondary: #2fae57;
+  --accent-tertiary: #c8ffd4;
+  --accent-success: #4aff7f;
+  --accent-warning: #ffb641;
+  --accent-danger: #ff5b4a;
+  --border-subtle: rgba(74,255,127,0.08);
+  --border-soft: rgba(74,255,127,0.14);
+  --border-medium: rgba(74,255,127,0.22);
+  --glow-primary: 0 0 18px rgba(74,255,127,0.22);
+  --chart-line: #4aff7f;
+  --chart-fill: rgba(74,255,127,0.08);
+  --heatmap-low: #0a2a12;
+  --heatmap-mid: #2fae57;
+  --heatmap-high: #4aff7f;
+  --font-display: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-body: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+}
+
+/* CRT layers — scoped to fallout-terminal only; other themes untouched.
+   Kept classy: faint scanlines, soft vignette, glow on headings only,
+   one slow breathe cycle. All motion behind prefers-reduced-motion. */
+body[data-theme="fallout-terminal"]::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,0.13) 2px 3px);
+}
+body[data-theme="fallout-terminal"]::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,0.38) 100%);
+}
+body[data-theme="fallout-terminal"] h1,
+body[data-theme="fallout-terminal"] h2,
+body[data-theme="fallout-terminal"] h3,
+body[data-theme="fallout-terminal"] .page-title,
+body[data-theme="fallout-terminal"] .sidebar-header {
+  text-shadow: 0 0 6px rgba(74,255,127,0.35);
+}
+body[data-theme="fallout-terminal"] .cursor-blink {
+  display: inline-block;
+  color: var(--accent-primary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  body[data-theme="fallout-terminal"]::before {
+    animation: crt-breathe 9s ease-in-out infinite;
+  }
+  body[data-theme="fallout-terminal"] .cursor-blink {
+    animation: cursor-blink 1.1s steps(2, start) infinite;
+  }
+}
+@keyframes crt-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.985; } }
+@keyframes cursor-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
 /* ============================================================
    BASE STYLES
    ============================================================ */
@@ -1714,7 +1788,7 @@ html, body {
 .gap-16 { gap: 16px; }
 </style>
 </head>
-<body data-theme="nexus-cyan">
+<body data-theme="fallout-terminal">
 
 <div class="app" id="app">
   <!-- Sidebar -->
@@ -1955,7 +2029,8 @@ const navSections = [
 ];
 
 const themes = [
-  { id: "nexus-cyan", name: "NEXUS Cyan", desc: "Default cyan/blue gradient", primary: "#00e5ff", secondary: "#2979ff" },
+  { id: "fallout-terminal", name: "Fallout Terminal", desc: "Phosphor green CRT — NEXUS default", primary: "#4aff7f", secondary: "#2fae57" },
+  { id: "nexus-cyan", name: "NEXUS Cyan", desc: "Cyan/blue gradient", primary: "#00e5ff", secondary: "#2979ff" },
   { id: "obsidian-purple", name: "Obsidian Purple", desc: "Deep purple elegance", primary: "#c084fc", secondary: "#8b5cf6" },
   { id: "matrix-green", name: "Matrix Green", desc: "Neon green terminal", primary: "#39ff14", secondary: "#00d26a" },
   { id: "amber-alert", name: "Amber Alert", desc: "Warm orange warning tones", primary: "#ff9100", secondary: "#ff6d00" },
@@ -1973,7 +2048,7 @@ let openTabs = ["monitoring"];
 let selectedCommand = 0;
 let compactMode = false;
 let showSparklines = true;
-let currentTheme = "nexus-cyan";
+let currentTheme = "fallout-terminal";
 let modelViewMode = "cards"; // cards, table, heatmap, timeline
 
 // ============================================================
@@ -1997,6 +2072,23 @@ function setTheme(themeId) {
   renderThemeGrid();
   // Re-render active page to pick up new colors
   renderPage(activePage);
+}
+
+// ── ASCII terminal kit (fallout-terminal accents) ──
+function asciiFrame(title, width = 46) {
+  const label = ` ${String(title).toUpperCase()} `;
+  const bar = "─".repeat(Math.max(2, width - label.length - 2));
+  return `┌─${label}${bar}┐`;
+}
+
+function asciiMeter(value01, slots = 10) {
+  const v = Math.max(0, Math.min(1, Number(value01) || 0));
+  const filled = Math.round(v * slots);
+  return "▓".repeat(filled) + "░".repeat(slots - filled);
+}
+
+function asciiTreePrefix(isLast) {
+  return isLast ? "└─ " : "├─ ";
 }
 
 // ============================================================
