@@ -77,8 +77,11 @@ def bayesian_posterior(successes: int, failures: int, prior_alpha: float = 10.0,
 
 def non_compensatory_penalty(raw_delta: float, critical: bool = False, floor: float = -20.0) -> float:
     """Non-compensatory critical block (arXiv:2511.10400).
-    If critical, forces a minimum penalty that cannot be compensated by other gains.
+    If critical, forces AT LEAST the floor penalty (delta <= floor) — it can
+    never be softened by positive contributions elsewhere in the delta.
+    (Was ``max(raw_delta, floor)``, which capped penalties at -20 instead of
+    forcing them: the exact inverse of the framework §1.2 CRITICAL rule.)
     """
     if critical:
-        return max(raw_delta, floor)
+        return min(raw_delta, floor)
     return raw_delta

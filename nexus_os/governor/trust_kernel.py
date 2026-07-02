@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
 from nexus_os.governor.trust_engine_v2 import CDRStage
+from nexus_os.governor.trust_formulas import logistic_scale
 from nexus_os.governor.trust_scoring import (
     AgentStatus,
     FindingState,
@@ -28,6 +29,12 @@ from nexus_os.governor.trust_scoring import (
 )
 
 logger = logging.getLogger(__name__)
+
+#: NEXUS Trust Framework §3.1 — trust is asymptotic; hard cap 99.5 display.
+TRUST_CAP = 0.995
+#: NEXUS Trust Framework §1.2 — a hard fail / R>Rcrit escalation costs at
+#: least 20 display points, non-compensable by accumulated positive mass.
+NON_COMPENSATORY_DROP = 0.20
 
 
 class TrustDecisionKind(Enum):
@@ -382,12 +389,29 @@ class TrustKernel:
         beta = previous.beta
         weight = max(score.Qeff, min(max(event.Q, 0.0), 1.0) * 0.5, 0.10)
         if score.score is not None:
-            alpha += weight * max(score.score, 0.0)
+            # Anti-grinding (framework §3.1): positive evidence is throttled
+            # by the inverted logistic of the CURRENT trust, so per-success
+            # gains shrink as trust rises — volume alone cannot buy high
+            # trust. Negative evidence is never throttled.
+            grind_throttle = logistic_scale(previous.trust * 100.0)
+            alpha += weight * max(score.score, 0.0) * grind_throttle
             beta += weight * (max(-score.score, 0.0) + (0.5 if event.hard_fail else 0.0))
         elif score.finding_state == FindingState.HELD:
             beta += weight * max(event.R, 0.1)
 
         trust = alpha / (alpha + beta) if (alpha + beta) else 0.5
+        # Non-compensatory floor (§1.2) and asymptotic cap (§3.1). When a
+        # clamp fires, the posterior mass is rebalanced to the enforced
+        # value so future updates evolve from it; when no clamp fires the
+        # posterior is left bit-identical.
+        enforced = min(trust, TRUST_CAP)
+        if event.hard_fail or score.finding_state == FindingState.ESCALATED:
+            enforced = min(enforced, max(0.0, previous.trust - NON_COMPENSATORY_DROP))
+        if enforced != trust:
+            mass = alpha + beta
+            alpha = enforced * mass
+            beta = mass - alpha
+            trust = enforced
         regression = event.hard_fail or (score.score is not None and score.score < 0) or score.finding_state in {
             FindingState.HELD,
             FindingState.ESCALATED,

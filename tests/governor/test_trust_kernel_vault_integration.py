@@ -60,8 +60,12 @@ class TestVaultIntegration:
             tk.record_event(TrustEvent(agent_id="bad-agent", lane="code", action="write", outcome="fail",
                                        hard_fail=True, R=1.0, Q=0.1, U=0.0))
         decision = tk.evaluate("bad-agent", "write", lane="code")
-        # 3 hard fails → Cascade stage → QUARANTINE for side-effect actions
-        assert decision.decision == TrustDecisionKind.QUARANTINE
+        # 3 hard fails at >= 20 display points each (framework §1.2
+        # non-compensatory floor, restored 2026-07-02): 0.5 -> 0.3 -> 0.1,
+        # trust < 0.15 -> CDR COLLAPSE -> DENY (stronger than the old
+        # soft-nudge Cascade/QUARANTINE behavior this test used to pin).
+        assert decision.decision == TrustDecisionKind.DENY
+        assert tk.get_snapshot("bad-agent", "code").cdr_stage == "Collapse"
 
     def test_vault_persist_with_multiple_agents(self):
         tk = _trust_kernel(vault=True)
@@ -105,8 +109,10 @@ class TestVaultDecisionRouting:
             tk.record_event(TrustEvent(agent_id="dead-agent", lane="code", action="write",
                                       outcome="fail", hard_fail=True, R=1.0, Q=0.0, U=0.0))
         decision = tk.evaluate("dead-agent", "write", lane="code", context={"side_effect": True})
-        # 10 hard fails → Cascade stage → QUARANTINE
-        assert decision.decision == TrustDecisionKind.QUARANTINE
+        # 10 hard fails at the non-compensatory floor collapse trust to ~0
+        # -> CDR COLLAPSE -> DENY (framework §1.2, restored 2026-07-02).
+        assert decision.decision == TrustDecisionKind.DENY
+        assert tk.get_snapshot("dead-agent", "code").trust < 0.15
 
     def test_deny_for_hard_fail_context(self):
         tk = _trust_kernel(vault=True)
