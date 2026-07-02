@@ -133,3 +133,11 @@ unsloth_compiled_cache/
 *.ckpt
 *.npy
 *.npz
+
+# Runtime SQLite databases — live daemon state, never track (full-audit P0;
+# untracked 2026-07-02: .nexus/governance-rest.db, db/custom.db,
+# nexus_governance.db, nexus_os/benchmark/history.db, nexus_os/mcp/nexus_mcp.db)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
