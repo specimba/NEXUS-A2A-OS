@@ -104,3 +104,52 @@ class TestGeneratedTs:
     def test_ts_marks_zai_deprecated(self):
         ts = (REPO / "src" / "lib" / "modelrelay" / "config.generated.ts").read_text(encoding="utf-8")
         assert '"zai"' in ts.split("DEPRECATED_PROVIDERS")[1].split("\n")[0]
+
+
+class TestDomainMappingConsumer:
+    def test_generated_entries_are_role_compatible_and_active(self):
+        """Every generated domain entry must carry a role matching its
+        domain and be registry-active on an active provider."""
+        from nexus_os.gmr.domain_mapping_generated import GENERATED_DOMAIN_MAPPING
+
+        DOMAIN_ROLES = {
+            "code": ("code",), "reasoning": ("reasoning",),
+            "research": ("frontier",), "fast": ("fast",),
+            "security": ("judge", "guard"), "general": ("frontier",),
+        }
+        by_id = {}
+        for m in REGISTRY["models"]:
+            by_id.setdefault(m["id"], []).append(m)
+        prov_status = {k: v["status"] for k, v in REGISTRY["providers"].items()}
+
+        for domain, cfg in GENERATED_DOMAIN_MAPPING.items():
+            for entry in cfg["primary"]:
+                candidates = [
+                    m for m in by_id.get(entry["model"], [])
+                    if m["provider"] == entry["provider"]
+                ]
+                assert candidates, f"{domain}: {entry['model']} not in registry"
+                m = candidates[0]
+                assert m["status"] == "active"
+                assert prov_status[m["provider"]] == "active"
+                assert any(r in m.get("roles", []) for r in DOMAIN_ROLES[domain]), (
+                    f"{domain}: {m['id']} roles {m.get('roles')} lack {DOMAIN_ROLES[domain]}"
+                )
+
+    def test_merged_mapping_keeps_locals_and_gains_frontiers(self):
+        from nexus_os.gmr.domain_mapping import DOMAIN_MAPPING
+
+        code_models = [e["model"] for e in DOMAIN_MAPPING["code"]["primary"]]
+        assert "osman-coder" in code_models
+        assert "zai-org/GLM-5.2" in code_models
+        # stale display-string literals must be gone
+        for domain in DOMAIN_MAPPING.values():
+            for e in domain["primary"]:
+                assert e["model"] != "Trinity Large Preview"
+                assert e["model"] != "GLM 5"
+
+    def test_fast_lane_locals_lead(self):
+        from nexus_os.gmr.domain_mapping import DOMAIN_MAPPING
+
+        first = DOMAIN_MAPPING["fast"]["primary"][0]
+        assert first["status"] == "local"

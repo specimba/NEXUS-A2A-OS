@@ -1,34 +1,36 @@
-# src\nexus_os\gmr\domain_mapping.py
-# GMR Domain → Model Mapping (wired from real model data in ROTATION_TABLE.md + models_registry.json)
+# GMR Domain -> Model Mapping.
+#
+# Two layers, merged at import:
+# - LOCAL_DOMAIN_MAPPING (hand-authored): the resident local/Ollama custom
+#   models (osman-* family, Bonsai) the registry doesn't model.
+# - GENERATED_DOMAIN_MAPPING: role-tagged cloud/frontier entries generated
+#   from config/models.registry.json (scripts/gen_model_registry.py) —
+#   replaces the stale hand-edited literals ("GLM 5", "Trinity Large
+#   Preview") that named retired display strings instead of model ids.
+#
+# Merge order: locals FIRST in every domain — the NEXUS posture is
+# SLM-team-first with deliberate escalation to frontier cloud models
+# (which follow, tier-sorted, as the escalation/fallback tier). Fallback
+# chains: local chain + generated chain.
 
-DOMAIN_MAPPING = {
+from nexus_os.gmr.domain_mapping_generated import GENERATED_DOMAIN_MAPPING
+
+LOCAL_DOMAIN_MAPPING = {
     "code": {
         "primary": [
             {"model": "osman-coder", "provider": "ollama", "tier": 40, "latency_ms": 50, "cost_per_1m": 0, "status": "local"},
-            {"model": "Devstral 2 123B", "provider": "nvidia", "tier": 86, "latency_ms": 542, "cost_per_1m": 4.0, "status": "up"},
-            {"model": "Qwen3 Coder 480B", "provider": "nvidia", "tier": 82, "latency_ms": 9897, "cost_per_1m": 8.0, "status": "up"},
-            {"model": "GPT OSS 120B", "provider": "nvidia", "tier": 58, "latency_ms": 398, "cost_per_1m": 3.0, "status": "up"},
-            {"model": "Codestral", "provider": "codestral", "tier": 53, "latency_ms": 464, "cost_per_1m": 2.0, "status": "up"},
         ],
-        "fallback_chain": ["osman-coder", "qwen2.5-coder:7b", "Codestral", "GPT OSS 20B"]
+        "fallback_chain": ["osman-coder", "qwen2.5-coder:7b"],
     },
     "reasoning": {
         "primary": [
-            {"model": "internai/intern-s2-preview", "provider": "internai", "tier": 95, "latency_ms": 250, "cost_per_1m": 0.0, "status": "up"},
-            {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
-            {"model": "Kimi K2 Thinking", "provider": "nvidia", "tier": 84, "latency_ms": 709, "cost_per_1m": 4.0, "status": "up"},
-            {"model": "Qwen3 80B Thinking", "provider": "nvidia", "tier": 72, "latency_ms": 522, "cost_per_1m": 3.0, "status": "up"},
             {"model": "osman-reasoning", "provider": "ollama", "tier": 40, "latency_ms": 80, "cost_per_1m": 0, "status": "local"},
         ],
-        "fallback_chain": ["osman-reasoning", "qwen3:8b", "Qwen3 80B Thinking"]
+        "fallback_chain": ["osman-reasoning", "qwen3:8b"],
     },
     "research": {
-        "primary": [
-            {"model": "GLM 5", "provider": "nvidia", "tier": 97, "latency_ms": 4539, "cost_per_1m": 5.0, "status": "up"},
-            {"model": "Kimi K2.5", "provider": "openai-compatible:fireworks", "tier": 95, "latency_ms": 2288, "cost_per_1m": 4.0, "status": "up"},
-            {"model": "Nemotron 3 Super", "provider": "opencode", "tier": 60, "latency_ms": 1275, "cost_per_1m": 2.0, "status": "up"},
-        ],
-        "fallback_chain": ["GLM 5", "Nemotron 3 Super", "osman-reasoning"]
+        "primary": [],
+        "fallback_chain": ["osman-reasoning"],
     },
     "fast": {
         "primary": [
@@ -36,23 +38,34 @@ DOMAIN_MAPPING = {
             {"model": "Bonsai 4B IQ1_S", "provider": "ollama", "tier": 40, "latency_ms": 15, "cost_per_1m": 0, "status": "local"},
             {"model": "locooperator", "provider": "ollama", "tier": 40, "latency_ms": 30, "cost_per_1m": 0, "status": "local"},
         ],
-        "fallback_chain": ["Bonsai 4B", "osman-fast", "locooperator"]
+        "fallback_chain": ["Bonsai 4B", "osman-fast", "locooperator"],
     },
     "security": {
-        "primary": [
-            {"model": "internai/intern-s2-preview", "provider": "internai", "tier": 95, "latency_ms": 250, "cost_per_1m": 0.0, "status": "up"},
-            {"model": "Trinity Large Preview", "provider": "opencode", "tier": 97, "latency_ms": 1707, "cost_per_1m": 5.0, "status": "up"},
-            {"model": "MiniMax M2.5", "provider": "opencode", "tier": 99, "latency_ms": 1224, "cost_per_1m": 6.0, "status": "up"},
-        ],
-        "fallback_chain": ["Trinity Large Preview", "GLM 5", "osman-reasoning"]
+        "primary": [],
+        "fallback_chain": ["osman-reasoning"],
     },
     "general": {
         "primary": [
             {"model": "osman-agent", "provider": "ollama", "tier": 40, "latency_ms": 50, "cost_per_1m": 0, "status": "local"},
-            {"model": "MiniMax M2.5", "provider": "opencode", "tier": 99, "latency_ms": 1224, "cost_per_1m": 6.0, "status": "up"},
         ],
-        "fallback_chain": ["osman-agent", "qwen3.5:4b"]
-    }
+        "fallback_chain": ["osman-agent", "qwen3.5:4b"],
+    },
 }
 
-print("[GMR] Domain mapping loaded with real model data from registry")
+
+def _merge() -> dict:
+    merged: dict = {}
+    for domain in LOCAL_DOMAIN_MAPPING:
+        local = LOCAL_DOMAIN_MAPPING[domain]
+        generated = GENERATED_DOMAIN_MAPPING.get(domain, {"primary": [], "fallback_chain": []})
+        primary = local["primary"] + generated["primary"]
+        chain = local["fallback_chain"] + generated["fallback_chain"]
+        seen: set = set()
+        merged[domain] = {
+            "primary": primary,
+            "fallback_chain": [m for m in chain if not (m in seen or seen.add(m))],
+        }
+    return merged
+
+
+DOMAIN_MAPPING = _merge()
