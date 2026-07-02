@@ -7,7 +7,17 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
-from nexus_os.bridge.server import create_app
+from nexus_os.bridge.server import BridgeServer, create_app
+from nexus_os.governor.kaiju_auth import AuthResult, Decision
+
+
+class _DenyingGovernor:
+    def __init__(self):
+        self.calls = []
+
+    def check_access(self, **kwargs):
+        self.calls.append(kwargs)
+        return AuthResult(Decision.DENY, "canonical denial", kwargs.get("trace_id"))
 
 
 @pytest.fixture()
@@ -62,7 +72,6 @@ class TestGovernanceEndpoints:
         assert "agents" in data
         assert "recent_proposals" in data
         assert data["service"] == "nexus-governance"
-        assert data["rest_wrapper_only"] is True
 
     def test_governance_proposals(self, client):
         resp = client.get("/governance/proposals")
@@ -102,3 +111,23 @@ class TestGovernanceEndpoints:
         assert data["status"] == "recorded"
         assert data["vap_logged"] is True
         assert data["durable_storage"] == "sqlite"
+
+def test_dashboard_proposal_uses_canonical_governor(tmp_path):
+    governor = _DenyingGovernor()
+    bridge = BridgeServer(
+        governor=governor,
+        db_path=str(tmp_path / "governance-parity.db"),
+    )
+    client = TestClient(create_app(bridge=bridge))
+    response = client.post(
+        "/skills/propose",
+        json={
+            "skill": "custom.operation",
+            "params": {"intent": "verify canonical parity"},
+            "agent_id": "test-agent",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "denied"
+    assert governor.calls[0]["action"] == "custom.operation"

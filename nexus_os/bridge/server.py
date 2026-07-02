@@ -106,11 +106,12 @@ def jsonrpc_error(code: int, message: str, trace_id: Optional[str] = None, data:
 class _GovernanceRestWrapper:
     """Small SQLite-backed governance facade for dashboard/API compatibility."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, governor=None):
         resolved = db_path or os.environ.get("NEXUS_MCP_DB") or str(
             Path.cwd() / ".nexus" / "governance-rest.db"
         )
         self.db_path = str(Path(resolved).resolve())
+        self.governor = governor
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         self.conn.row_factory = sqlite3.Row
@@ -183,7 +184,7 @@ class _GovernanceRestWrapper:
         provenance: str = "rest",
     ) -> Dict[str, Any]:
         proposal_id = f"PROP-{uuid.uuid4().hex[:12]}"
-        status = self._proposal_status(skill)
+        status = self._proposal_status(skill, params or {}, agent_id)
         verdict = (
             "TRUST_DENY"
             if status == "denied"
@@ -211,14 +212,32 @@ class _GovernanceRestWrapper:
         self.conn.commit()
         return {**row, "params": params or {}}
 
-    @staticmethod
-    def _proposal_status(skill: str) -> str:
-        dangerous = {"secret.expose", "system.wipe", "model.delete", "fine_tune.auto"}
-        if skill in dangerous:
-            return "denied"
-        if skill.startswith(("vault.", "memory.", "deploy.")):
+    def _proposal_status(
+        self,
+        skill: str,
+        params: Dict[str, Any],
+        agent_id: str,
+    ) -> str:
+        if self.governor is None:
             return "needs_review"
-        return "approved"
+        from nexus_os.governor.kaiju_auth import Decision
+
+        result = self.governor.check_access(
+            agent_id=agent_id,
+            project_id=str(params.get("project_id", "nexus-os")),
+            action=skill,
+            scope=str(params.get("scope", "project")),
+            intent=str(params.get("intent", f"propose dashboard skill {skill}")),
+            impact=str(params.get("impact", "medium")),
+            clearance=str(params.get("clearance", "contributor")),
+            trace_id=str(params.get("trace_id", "")) or None,
+            context={"source": "dashboard_governance_rest", "proposal_only": True},
+        )
+        if result.decision == Decision.ALLOW:
+            return "approved"
+        if result.decision == Decision.DENY:
+            return "denied"
+        return "needs_review"
 
     def get_proposal(self, proposal_id: str) -> Optional[Dict[str, Any]]:
         row = self.conn.execute("SELECT * FROM proposals WHERE id=?", (proposal_id,)).fetchone()
@@ -360,7 +379,7 @@ class BridgeServer:
         self.governor = governor
         self.executor = executor or MockExecutor()
         self.token_guard = token_guard or TokenGuard(db_path=db_path)
-        self.governance = _GovernanceRestWrapper(db_path)
+        self.governance = _GovernanceRestWrapper(db_path, governor=self.governor)
 
 
     # â”€â”€ Token Guard Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -844,7 +863,7 @@ def create_app(
 
     app = FastAPI(title="Nexus OS A2A Bridge", version="1.0.0")
     server = bridge or BridgeServer(db_path=governance_db_path)
-    governance = _GovernanceRestWrapper(governance_db_path) if governance_db_path else None
+    governance = server.governance if (bridge is not None or governance_db_path) else None
 
     @app.post("/tasks/submit")
     async def submit_task(request: Request):
@@ -988,7 +1007,6 @@ def create_app(
                 "deployment_gate": _get_deployment_status(),
                 "service": "nexus-governance",
                 "version": "2.0.0-REST",
-                "rest_wrapper_only": True,
                 "governance_db_path": governance.db_path,
                 "trust_source": "canonical_trust_kernel",
             },
