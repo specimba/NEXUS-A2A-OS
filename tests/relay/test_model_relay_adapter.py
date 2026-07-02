@@ -277,9 +277,127 @@ class TestModelRelayAdapterCallChat:
         with patch("nexus_os.relay.model_relay_adapter.urllib.request.urlopen", return_value=FakeResponse()):
             status, provider, text = adapter._call_chat(relay_req, "http://localhost:7350")
 
-        assert status == "ok"
-        assert provider == "m"
-        assert text == ""
+        assert status == "error:malformed_response"
+        assert provider == "unknown"
+        assert text is None
+
+
+# ---------------------------------------------------------------------------
+# Guard enforcement: circuit breaker, RPM quota, context fit
+# ---------------------------------------------------------------------------
+
+class TestGuardEnforcement:
+    @pytest.fixture
+    def relay_req(self):
+        return RelayRequest(model="test-model", prompt="hello", max_tokens=50)
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_open_tier_is_skipped_not_hammered(self, mock_call, relay_req):
+        from nexus_os.relay.circuit_breaker import ProviderCircuitBreaker
+
+        breaker = ProviderCircuitBreaker(failure_threshold=1)
+        breaker.record_failure("relay:primary")  # trips OPEN at threshold 1
+        mock_call.return_value = ("ok", "god-model", "hello")
+        adapter = ModelRelayAdapter(circuit_breaker=breaker)
+
+        result = adapter.execute(relay_req)
+
+        assert result.status == "ok"
+        assert result.attempts[0]["tier"] == "primary"
+        assert result.attempts[0]["status"] == "error:circuit_open"
+        assert result.attempts[1]["tier"] == "godmode"
+        # _call_chat must never have been invoked for the OPEN primary tier
+        called_urls = [c.args[1] for c in mock_call.call_args_list]
+        assert adapter.primary_url not in called_urls
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_tier_failures_trip_breaker_per_tier(self, mock_call, relay_req):
+        from nexus_os.relay.circuit_breaker import ProviderCircuitBreaker, ProviderState
+
+        breaker = ProviderCircuitBreaker(failure_threshold=2)
+        mock_call.side_effect = [
+            Exception("down"), ("ok", "m", "x"),   # execute 1: primary fails
+            Exception("down"), ("ok", "m", "x"),   # execute 2: primary fails again -> OPEN
+        ]
+        adapter = ModelRelayAdapter(circuit_breaker=breaker)
+        adapter.execute(relay_req)
+        adapter.execute(relay_req)
+
+        assert breaker.state("relay:primary") == ProviderState.OPEN
+        assert breaker.state("relay:godmode") == ProviderState.CLOSED
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_malformed_200_fails_over_to_next_tier(self, mock_call, relay_req):
+        mock_call.side_effect = [
+            ("error:malformed_response", "unknown", None),
+            ("ok", "god-model", "recovered"),
+        ]
+        adapter = ModelRelayAdapter()
+        result = adapter.execute(relay_req)
+        assert result.status == "ok"
+        assert result.provider == "god-model"
+        assert result.attempts[0]["status"] == "error:malformed_response"
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_rpm_exhausted_returns_error_without_dispatch(self, mock_call, relay_req):
+        from nexus_os.relay.quota import SlidingWindowRPMTracker
+
+        tracker = SlidingWindowRPMTracker(rpm_limit=2)
+        tracker.record_request()
+        tracker.record_request()
+        adapter = ModelRelayAdapter(rpm_tracker=tracker)
+
+        result = adapter.execute(relay_req)
+
+        assert result.status == "error:rpm_exhausted"
+        assert result.attempts[0]["tier"] == "rpm_guard"
+        assert result.attempts[0]["retry_after_seconds"] > 0
+        mock_call.assert_not_called()
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_rpm_pacing_sleeps_briefly(self, mock_call, relay_req):
+        from nexus_os.relay.quota import SlidingWindowRPMTracker
+
+        tracker = SlidingWindowRPMTracker(rpm_limit=10, backoff_threshold=0.5)
+        for _ in range(6):  # 60% > 50% threshold -> proactive backoff
+            tracker.record_request()
+        mock_call.return_value = ("ok", "m", "x")
+        adapter = ModelRelayAdapter(rpm_tracker=tracker)
+
+        with patch("nexus_os.relay.model_relay_adapter.time.sleep") as mock_sleep:
+            result = adapter.execute(relay_req)
+
+        assert result.status == "ok"
+        mock_sleep.assert_called_once()
+        assert 0 < mock_sleep.call_args.args[0] <= ModelRelayAdapter.MAX_PACING_SLEEP_SECONDS
+        # dispatched request must be counted in the window
+        assert tracker.state()["current_count"] == 7
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_context_overflow_fails_without_dispatch(self, mock_call):
+        # zai-org/GLM-5 window is 32,768; ~50K-token prompt cannot fit.
+        req = RelayRequest(model="zai-org/GLM-5", prompt="x" * 200_000, max_tokens=512)
+        adapter = ModelRelayAdapter()
+        result = adapter.execute(req)
+        assert result.status == "error:context_overflow"
+        assert result.attempts == []
+        mock_call.assert_not_called()
+
+    @patch.object(ModelRelayAdapter, "_call_chat")
+    def test_completion_budget_clamped_to_window(self, mock_call):
+        # ~25K-token prompt in the 32,768 window leaves < 30K completion room.
+        prompt = "x" * 100_000  # ~25K estimated tokens
+        req = RelayRequest(model="zai-org/GLM-5", prompt=prompt, max_tokens=30_000)
+        mock_call.return_value = ("ok", "m", "x")
+        adapter = ModelRelayAdapter()
+
+        result = adapter.execute(req)
+
+        assert result.status == "ok"
+        sent_request = mock_call.call_args.args[0]
+        est_input = len(prompt.encode("utf-8")) // 4
+        assert sent_request.max_tokens == 32_768 - est_input - 100
+        assert sent_request.max_tokens < 30_000
 
 
 # ---------------------------------------------------------------------------
