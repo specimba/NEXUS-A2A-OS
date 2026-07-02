@@ -102,9 +102,15 @@ def get_router() -> PathRouter:
 def route_to_path(operation: str):
     """Decorator to route function to execution path."""
     def wrapper(func: Callable) -> Callable:
-        def run(*args, **kwargs):
+        def run_hot(*args, **kwargs):
             return get_router().execute_hot(lambda: func(*args, **kwargs))
-        return run if get_router().route(operation) == ExecutionPath.HOT else get_router().execute_warm(lambda: func(*args, **kwargs))
+
+        def run_warm(*args, **kwargs):
+            # The warm branch used to call execute_warm at decoration time
+            # with a lambda over undefined args/kwargs -> NameError on call.
+            return get_router().execute_warm(lambda: func(*args, **kwargs))
+
+        return run_hot if get_router().route(operation) == ExecutionPath.HOT else run_warm
     return wrapper
 
 

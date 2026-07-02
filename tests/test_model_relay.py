@@ -1,6 +1,7 @@
 import importlib
 
 import pytest
+import requests
 
 from nexus_os.relay import model_relay
 

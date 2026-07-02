@@ -26,8 +26,11 @@ import os
 import sys
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
+
+if TYPE_CHECKING:  # create_app imports fastapi lazily at runtime
+    from fastapi import FastAPI
 
 logger = logging.getLogger(__name__)
 

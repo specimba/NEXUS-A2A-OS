@@ -80,10 +80,11 @@ def main():
     tracker.set_dry_run(args.dry_run)
 
     print(f"\n[GENERATION] {args.tokens} tokens...")
+    action = {"t_eff": decision.temperature}
     for i in range(args.tokens):
         action = tracker.step(
             position=i,
-            current_temperature=decision.temperature if i == 0 else action["t_eff"],
+            current_temperature=action["t_eff"],
         )
         mode_icon = {"discrete": "D", "latent": "L", "explore": "E", "abstain": "A"}[action["mode"]]
         if action["is_hallucinating"]:

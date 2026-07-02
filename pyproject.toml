@@ -36,6 +36,26 @@ mcp = [
     "starlette>=0.37",
 ]
 
+[tool.ruff]
+# The repo uses 3.12+ syntax (PEP 701 f-strings in relay dashboards).
+target-version = "py312"
+extend-exclude = [
+    "vendor",
+    "nexus_os_backup_untracked",
+    "nexus_os_shadow_backup",
+    "nexus_os_untracked_backup",
+    "backups",
+    "scratch",
+    "nexus-os-v2",
+    "nexus-os-v2-hf",
+    "unsloth_compiled_cache",
+]
+
+[tool.ruff.lint]
+# CI gates on runtime-fatal classes only (undefined names, syntax errors,
+# comparison bugs); style classes stay advisory until the backlog shrinks.
+select = ["E9", "F63", "F7", "F82"]
+
 [tool.pyright]
 exclude = [
     "**/node_modules",

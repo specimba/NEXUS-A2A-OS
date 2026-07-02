@@ -1,0 +1,35 @@
+# NEXUS OS minimal CI (roadmap P1-9).
+#
+# Committed while the branch is local-only: this activates automatically on
+# the first push once the operator makes the history-rewrite decision.
+# Mirror locally with: pwsh scripts/ci_local.ps1
+name: ci
+
+on:
+  push:
+    branches: ["main", "codex/**"]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      # Gate on runtime-fatal classes only (select list in pyproject.toml).
+      - run: ruff check nexus_os/ nexusctl/ nexus_cli_ctl/ src/ tests/
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . && pip install pytest-asyncio
+      # Core suite; live/long-running tests are opt-in via the slow marker.
+      - run: python -m pytest tests/ -q -m "not slow" --ignore=tests/benchmarks

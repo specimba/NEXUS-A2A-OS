@@ -38,8 +38,9 @@ def main():
     tracker = LandauGinzburgTrackerV2(category=args.category, enable_edt=decision.use_edt, enable_lead=decision.use_lead,
         enable_epr=decision.use_epr, enable_led=decision.use_led, enable_ckplug=decision.use_ckplug)
     tracker.set_dry_run(args.dry_run)
+    action = {"t_eff": decision.temperature}
     for i in range(args.tokens):
-        action = tracker.step(position=i, current_temperature=decision.temperature if i == 0 else action["t_eff"])
+        action = tracker.step(position=i, current_temperature=action["t_eff"])
     report = tracker.get_report()
     print(f"[REPORT] tokens={report.tokens_generated}, halluc={report.hallucination_detected}, cooling={len(report.cooling_events)}")
 
