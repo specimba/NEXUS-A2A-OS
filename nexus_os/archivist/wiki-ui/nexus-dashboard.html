@@ -1967,6 +1967,7 @@ html, body {
   </div>
 </div>
 
+<script src="/wiki/vendor/marked.min.js"></script>
 <script>
 // ============================================================
 // DATA
@@ -2520,55 +2521,198 @@ function renderProviders() {
 // ============================================================
 // WIKI PAGES
 // ============================================================
+// ============================================================
+// LIVE WIKI (fed by the 7356 server's /wiki/api endpoints)
+// ============================================================
+let wikiIndexCache = null;
+let wikiFilter = { query: "", category: null };
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function renderWikiIndex() {
+  loadWikiIndex();
   return `
     <div class="animate-in">
-      <div class="page-title">📋 NEXUS Archivist Wiki</div>
-      <div class="page-subtitle">Karpathy-style 3-layer wiki system · 15 pages · 59,790 sources</div>
-
-      <div class="badge-row" style="margin-bottom:24px;">
-        <span class="badge badge-primary">99 Models UP</span>
-        <span class="badge badge-success">Arena Calibrated</span>
-        <span class="badge badge-blue">Vault Encrypted</span>
-        <span class="badge badge-success">Smart Ping Active</span>
-      </div>
-
-      <div class="card-grid">
-        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-security')">
-          <div class="card-title">🔒 Security</div>
-          <div class="card-body">Vault encryption, threat intelligence, MITRE ATT&CK mapping, CVE tracking.</div>
-        </div>
-        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-agents')">
-          <div class="card-title">🤖 Agents</div>
-          <div class="card-body">Cross-platform agent sync, TrustEngine v2.2, boot protocol.</div>
-        </div>
-        <div class="card" style="cursor:pointer;" onclick="openPage('wiki-benchmark')">
-          <div class="card-title">📊 Benchmarking</div>
-          <div class="card-body">Arena-calibrated intelligence scores, calibration formula, auto-refresh.</div>
-        </div>
-        <div class="card">
-          <div class="card-title">🚀 Boot Sync</div>
-          <div class="card-body">60-second agent onboarding. Read boot.md → schema.md → index.md.</div>
-        </div>
-      </div>
-
-      <h2 style="font-size:20px;font-weight:600;margin:32px 0 16px;color:var(--text-primary);">Architecture</h2>
-      <div class="chart-container">
-        <pre style="background:transparent;border:none;padding:0;color:var(--text-secondary);font-size:13px;line-height:1.8;">
-┌─────────────────┐
-│   SCHEMA LAYER    │  ← Agent behavior, rules, conventions
-│   (boot.md)       │
-├─────────────────┤
-│   WIKI LAYER      │  ← LLM-generated markdown, cross-references
-│  (15 pages)       │
-├─────────────────┤
-│   RAW LAYER       │  ← Immutable file pointers
-│  (59,790 sources) │
-└─────────────────┘
-        </pre>
-      </div>
+      <div class="page-title">▚ NEXUS ARCHIVE — LIVE INDEX <span class="cursor-blink">█</span></div>
+      <div class="page-subtitle" style="font-family:var(--font-mono);">dossiers · sources · concepts · docs — served from /wiki/api</div>
+      <div id="wikiLive"><pre style="color:var(--text-muted);">&gt;&gt; QUERYING ARCHIVE ...</pre></div>
     </div>
   `;
+}
+
+async function loadWikiIndex(force = false) {
+  const host = document.getElementById("wikiLive");
+  try {
+    if (!wikiIndexCache || force) {
+      const resp = await fetch("/wiki/api/index");
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      wikiIndexCache = await resp.json();
+    }
+    if (host) host.innerHTML = renderWikiTable();
+  } catch (err) {
+    if (host) host.innerHTML = renderWikiOffline(err);
+  }
+}
+
+function renderWikiOffline(err) {
+  return `
+    <div class="card" style="border-color:var(--accent-danger);">
+      <pre style="background:transparent;border:none;color:var(--accent-danger);font-family:var(--font-mono);">
+${asciiFrame("ARCHIVE OFFLINE", 52)}
+&gt;&gt; NO CARRIER — /wiki/api unreachable (${escapeHtml(err && err.message ? err.message : err)})
+&gt;&gt; start the server:  node scripts/serve_dashboard_7356.js
+&gt;&gt; cached snapshot below reflects the last hardcoded build.</pre>
+    </div>
+    <div class="card-grid" style="margin-top:16px;">
+      <div class="card"><div class="card-title">🔒 Security</div><div class="card-body">Vault encryption, threat intel (cached snapshot).</div></div>
+      <div class="card"><div class="card-title">🤖 Agents</div><div class="card-body">TrustEngine, boot protocol (cached snapshot).</div></div>
+    </div>
+  `;
+}
+
+function renderWikiTable() {
+  const data = wikiIndexCache;
+  const q = wikiFilter.query.toLowerCase();
+  let files = data.files;
+  if (wikiFilter.category) files = files.filter((f) => f.category === wikiFilter.category);
+  if (q) {
+    files = files.filter((f) =>
+      f.title.toLowerCase().includes(q) ||
+      f.slug.toLowerCase().includes(q) ||
+      (f.frontmatter.tags || []).some((t) => t.toLowerCase().includes(q))
+    );
+  }
+  files = files.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  const shown = files.slice(0, 200);
+
+  const chips = data.categories.map((c) => `
+    <span class="badge ${wikiFilter.category === c ? "badge-primary" : ""}"
+          style="cursor:pointer;font-family:var(--font-mono);"
+          onclick="setWikiCategory('${escapeHtml(c)}')">${escapeHtml(c)}</span>`).join(" ");
+
+  const rows = shown.map((f) => {
+    const conf = f.frontmatter.confidence;
+    const pri = f.frontmatter.priority;
+    const meter = conf != null ? asciiMeter(conf) : "··········";
+    const priStr = pri != null
+      ? `<span style="color:${pri >= 100 ? "var(--accent-warning)" : "var(--text-secondary)"}">${String(pri).padStart(3)}</span>`
+      : "  ·";
+    return `<tr style="cursor:pointer;" onclick="openWikiSlug('${escapeHtml(f.slug)}')">
+      <td style="font-family:var(--font-mono);">${escapeHtml(f.title).slice(0, 46)}</td>
+      <td style="font-family:var(--font-mono);color:var(--text-muted);">${escapeHtml(f.category)}</td>
+      <td style="font-family:var(--font-mono);color:var(--text-muted);">${escapeHtml((f.updatedAt || "").slice(0, 10))}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-primary);" title="confidence ${conf ?? "n/a"}">${meter}</td>
+      <td style="font-family:var(--font-mono);text-align:right;">${priStr}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <pre style="background:transparent;border:none;color:var(--text-secondary);font-family:var(--font-mono);margin-bottom:8px;">${asciiFrame(`${files.length} ENTRIES / ${data.count} INDEXED`, 52)}</pre>
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input id="wikiSearch" type="text" placeholder="&gt; grep archive..." value="${escapeHtml(wikiFilter.query)}"
+             style="background:var(--bg-raised);border:1px solid var(--border-soft);color:var(--text-primary);padding:6px 10px;border-radius:var(--radius-sm);font-family:var(--font-mono);width:260px;"
+             oninput="setWikiQuery(this.value)" />
+      ${wikiFilter.category ? `<span class="badge badge-warning" style="cursor:pointer;font-family:var(--font-mono);" onclick="setWikiCategory(null)">✕ ${escapeHtml(wikiFilter.category)}</span>` : ""}
+    </div>
+    <div class="badge-row" style="margin-bottom:16px;flex-wrap:wrap;">${chips}</div>
+    <table class="data-table">
+      <thead><tr>
+        <th style="font-family:var(--font-mono);">├─ TITLE</th>
+        <th style="font-family:var(--font-mono);">CATEGORY</th>
+        <th style="font-family:var(--font-mono);">UPDATED</th>
+        <th style="font-family:var(--font-mono);">CONF</th>
+        <th style="font-family:var(--font-mono);text-align:right;">PRI</th>
+      </tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" style="color:var(--text-muted);">no matches</td></tr>'}</tbody>
+    </table>
+  `;
+}
+
+function setWikiQuery(q) {
+  wikiFilter.query = q;
+  const host = document.getElementById("wikiLive");
+  if (host && wikiIndexCache) {
+    // preserve input focus: replace only the table portion by re-render + refocus
+    const pos = document.getElementById("wikiSearch")?.selectionStart ?? q.length;
+    host.innerHTML = renderWikiTable();
+    const input = document.getElementById("wikiSearch");
+    if (input) { input.focus(); input.setSelectionRange(pos, pos); }
+  }
+}
+
+function setWikiCategory(c) {
+  wikiFilter.category = c;
+  const host = document.getElementById("wikiLive");
+  if (host && wikiIndexCache) host.innerHTML = renderWikiTable();
+}
+
+function resolveWikiLink(target) {
+  if (!wikiIndexCache) return null;
+  const t = target.toLowerCase().replace(/\.md$/, "");
+  const stem = (s) => s.toLowerCase().replace(/\.md$/, "").split("/").pop();
+  let hit = wikiIndexCache.files.find((f) => f.slug.toLowerCase().replace(/\.md$/, "") === t);
+  if (!hit) hit = wikiIndexCache.files.find((f) => stem(f.slug) === t.split("/").pop());
+  if (!hit) hit = wikiIndexCache.files.find((f) => f.title.toLowerCase() === t);
+  return hit ? hit.slug : null;
+}
+
+function wikilinkPass(md) {
+  return md.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, target, label) => {
+    const text = label || target;
+    const slug = resolveWikiLink(target.trim());
+    if (!slug) return `<span style="color:var(--text-muted);" title="unresolved link">${escapeHtml(text)}</span>`;
+    return `<a href="#" style="color:var(--accent-tertiary);" onclick="openWikiSlug('${escapeHtml(slug)}');return false;">${escapeHtml(text)}</a>`;
+  });
+}
+
+function parseFrontmatterJs(md) {
+  if (!md.startsWith("---")) return { meta: {}, body: md };
+  const end = md.indexOf("\n---", 3);
+  if (end === -1) return { meta: {}, body: md };
+  const meta = {};
+  for (const line of md.slice(3, end).split("\n")) {
+    const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+    if (m) meta[m[1]] = m[2].trim();
+  }
+  return { meta, body: md.slice(end + 4) };
+}
+
+async function openWikiSlug(slug) {
+  const content = document.getElementById("contentArea");
+  content.innerHTML = `<div class="animate-in"><pre style="color:var(--text-muted);">&gt;&gt; RETRIEVING ${escapeHtml(slug)} ...</pre></div>`;
+  try {
+    if (!wikiIndexCache) {
+      const idx = await fetch("/wiki/api/index");
+      if (idx.ok) wikiIndexCache = await idx.json();
+    }
+    const resp = await fetch(`/wiki/api/page/${encodeURIComponent(slug).replace(/%2F/g, "/")}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.text();
+    const { meta, body } = parseFrontmatterJs(raw);
+    // escape raw HTML before markdown parse (imported paper content hygiene)
+    const safe = body.replace(/</g, "&lt;");
+    const linked = wikilinkPass(safe);
+    const rendered = (typeof marked !== "undefined" && marked.parse)
+      ? marked.parse(linked, { mangle: false, headerIds: false })
+      : `<pre style="white-space:pre-wrap;">${linked}</pre>`;
+    const metaRows = Object.entries(meta).slice(0, 10).map(
+      ([k, v]) => `<tr><td style="color:var(--text-muted);font-family:var(--font-mono);">${escapeHtml(k)}</td><td style="font-family:var(--font-mono);">${escapeHtml(v).slice(0, 120)}</td></tr>`
+    ).join("");
+    content.innerHTML = `
+      <div class="animate-in">
+        <div style="margin-bottom:12px;">
+          <a href="#" onclick="openPage('wiki-index');return false;" style="color:var(--accent-primary);font-family:var(--font-mono);">&lt;&lt; BACK TO ARCHIVE</a>
+        </div>
+        <div class="page-title" style="font-family:var(--font-mono);">▚ ${escapeHtml(meta.title || slug)}</div>
+        ${metaRows ? `<div class="card" style="margin:12px 0;"><pre style="background:transparent;border:none;color:var(--text-secondary);font-family:var(--font-mono);margin:0 0 6px;">${asciiFrame("METADATA", 40)}</pre><table class="data-table">${metaRows}</table></div>` : ""}
+        <div class="card"><div class="card-body" style="line-height:1.7;">${rendered}</div></div>
+      </div>
+    `;
+  } catch (err) {
+    content.innerHTML = renderWikiOffline(err);
+  }
 }
 
 function renderWikiSecurity() {

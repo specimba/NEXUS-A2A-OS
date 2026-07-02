@@ -110,3 +110,19 @@ class TestWikiPage:
         with pytest.raises(urllib.error.HTTPError) as exc:
             urllib.request.urlopen(f"{server_url}/wiki/api/page/docs/secrets/x.md", timeout=10)
         assert exc.value.code == 404
+
+
+class TestBrowseAssets:
+    def test_vendored_marked_served(self, server_url):
+        with urllib.request.urlopen(f"{server_url}/wiki/vendor/marked.min.js", timeout=10) as resp:
+            body = resp.read()
+        assert resp.status == 200
+        assert b"marked" in body[:200]
+
+    def test_dashboard_references_live_api(self, server_url):
+        with urllib.request.urlopen(f"{server_url}/wiki/", timeout=10) as resp:
+            html = resp.read().decode("utf-8")
+        assert "/wiki/api/index" in html
+        assert "/wiki/vendor/marked.min.js" in html
+        assert "ARCHIVE OFFLINE" in html  # offline fallback panel exists
+        assert "wikilinkPass" in html     # [[wikilink]] click-through wired
