@@ -29,9 +29,12 @@ from collections import defaultdict
 CONFIG_PATH = Path.home() / ".modelrelay.json"
 SUSPEND_PATH = Path(__file__).parent / ".nvidia_suspended.json"
 DEPRECATED_PATH = Path(__file__).parent / ".nvidia_deprecated.json"
-# Hard-fail default: no committed key fallback. The previously hardcoded
-# key was leaked in git history and must be rotated (audit 2026-07-02).
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
+# No committed key fallback (the previously hardcoded key leaked into git
+# history, audit 2026-07-02). Resolution: env -> ~/.nexus/secrets.json ->
+# ~/.modelrelay.json apiKeys.nvidia, via the central secrets module.
+from nexus_os.security.secrets import get_secret
+
+NVIDIA_API_KEY = get_secret("NVIDIA_API_KEY")
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/models"
 
 # --- Data structures ---

@@ -21,6 +21,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from nexus_os.security.secrets import get_secret
 import urllib.request
 import urllib.error
 
@@ -168,7 +170,7 @@ def load_providers() -> list[ProviderConfig]:
     # LongCat (under providers)
     if "longcat" in providers:
         lc = providers["longcat"]
-        key = lc.get("api_key", api_keys.get("longcat", os.environ.get("LONGCAT_API_KEY", "")))
+        key = lc.get("api_key", api_keys.get("longcat", get_secret("LONGCAT_API_KEY")))
         base = lc.get("baseUrl", "https://api.longcat.chat/openai")
         models = lc.get("models", ["LongCat-2.0-Preview"])
         for m in models:
@@ -180,7 +182,7 @@ def load_providers() -> list[ProviderConfig]:
     # Baseten (could be at root level or under providers.openai-compatible:baseten)
     bt = root_providers.get("baseten") or providers.get("openai-compatible:baseten") or providers.get("baseten")
     if bt:
-        key = bt.get("api_key", api_keys.get("baseten", api_keys.get("openai-compatible:baseten", os.environ.get("BASETEN_API_KEY", ""))))
+        key = bt.get("api_key", api_keys.get("baseten", api_keys.get("openai-compatible:baseten", get_secret("BASETEN_API_KEY"))))
         base = bt.get("baseUrl", "https://inference.baseten.co/v1")
         for m in ["zai-org/GLM-5.2", "moonshotai/Kimi-K2.7-Code", "zai-org/GLM-5.1"]:
             if m in bt.get("models", []):
