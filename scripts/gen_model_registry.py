@@ -232,9 +232,22 @@ def emit_domains(registry: dict) -> str:
                 "status": "local" if local else "up",
             })
         entries.sort(key=lambda e: -e["tier"])
+        # One slot per model FAMILY: the same frontier served by several
+        # providers (e.g. DeepSeek-V4-Pro on baseten+siliconflow+nvidia)
+        # must not crowd out distinct models; provider failover is the
+        # rotator's job, not the domain list's.
+        deduped, seen_ids = [], set()
+        for e in entries:
+            fam = e["model"].lower().rsplit("/", 1)[-1]
+            for suffix in (":cloud", ":free", "-free"):
+                fam = fam.removesuffix(suffix)
+            if fam in seen_ids:
+                continue
+            seen_ids.add(fam)
+            deduped.append(e)
         domains[domain] = {
-            "primary": entries[:6],
-            "fallback_chain": [e["model"] for e in entries[:4]],
+            "primary": deduped[:6],
+            "fallback_chain": [e["model"] for e in deduped[:4]],
         }
     return (
         f'"""{HEADER}"""\n\n'

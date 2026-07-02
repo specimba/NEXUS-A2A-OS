@@ -28,7 +28,11 @@ def test_internai_provider_is_registered_across_python_layers():
     assert PROVIDERS["internai"]["chat_path"] == "/chat/completions"
     assert PROVIDERS["internai"]["auth_type"] == "bearer"
     assert "intern-s2-preview" in FALLBACK_CHAINS["reasoning"]
-    assert DOMAIN_MAPPING["reasoning"]["primary"][0]["model"] == "internai/intern-s2-preview"
+    # Membership, not position: DOMAIN_MAPPING is now generated from the
+    # canonical registry with locals-first ordering (SLM-team posture);
+    # intern-s2 remains a reasoning-domain member via its reasoning role.
+    reasoning_models = [e["model"] for e in DOMAIN_MAPPING["reasoning"]["primary"]]
+    assert "intern-s2-preview" in reasoning_models
     assert DOMAIN_MAPPING["security"]["primary"][0]["provider"] == "internai"
 
 

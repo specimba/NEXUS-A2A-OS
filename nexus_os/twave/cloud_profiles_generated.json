@@ -234,6 +234,18 @@
       ]
     },
     {
+      "name": "intern-s2-preview",
+      "provider": "internai",
+      "quality_score": 0.85,
+      "max_context": 262144,
+      "supports_thinking": true,
+      "roles": [
+        "judge",
+        "teacher",
+        "reasoning"
+      ]
+    },
+    {
       "name": "MiniMaxAI/MiniMax-M2.5",
       "provider": "siliconflow",
       "quality_score": 0.84,
