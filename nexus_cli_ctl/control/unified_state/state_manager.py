@@ -4,8 +4,11 @@ Central state coordination for CLI Terminal, Browser Dashboard,
 NEXUSCLAW Brain, Wiki/DoppelGround, and external integrations.
 """
 import asyncio
+import hmac
 import json
 import logging
+import os
+import secrets as _secrets
 import time
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +24,29 @@ STATE_DIR = Path.home() / ".nexus_pi" / "state"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE = STATE_DIR / "unified_state.json"
+
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def get_state_token() -> str:
+    """Shared secret for the state API.
+
+    Resolution: NEXUS_STATE_TOKEN env, else a token file under STATE_DIR
+    (auto-generated on first use so local clients — dashboard, nexusctl —
+    can read it). The auto-file only establishes local trust; non-loopback
+    binds additionally require the env token (see start()).
+    """
+    env = os.environ.get("NEXUS_STATE_TOKEN")
+    if env:
+        return env
+    token_file = STATE_DIR / ".state_token"
+    if token_file.exists():
+        tok = token_file.read_text(encoding="utf-8").strip()
+        if tok:
+            return tok
+    tok = _secrets.token_hex(32)
+    token_file.write_text(tok, encoding="utf-8")
+    return tok
 
 
 @dataclass
@@ -45,7 +71,10 @@ class UnifiedStateManager:
     HTTP_PORT = 8766
     # NOTE: These ports must be registered in PortRegistry.CANONICAL_PORTS
 
-    def __init__(self):
+    def __init__(self, ws_port: Optional[int] = None, http_port: Optional[int] = None):
+        self.ws_port = ws_port if ws_port is not None else self.WS_PORT
+        self.http_port = http_port if http_port is not None else self.HTTP_PORT
+        self._token = get_state_token()
         self._state: Dict[str, Any] = {}
         self._subscribers: Dict[str, List[Callable]] = defaultdict(list)
         self._ws_clients: Set[web.WebSocketResponse] = set()
@@ -108,10 +137,23 @@ class UnifiedStateManager:
         except Exception as e:
             logger.warning(f"Failed to save state: {e}")
 
-    async def start(self):
-        """Start the unified state manager (WebSocket + HTTP servers)"""
+    async def start(self, host: Optional[str] = None):
+        """Start the unified state manager (WebSocket + HTTP servers).
+
+        Binds loopback by default (audit finding: 0.0.0.0 exposed the full
+        governed state, unauthenticated, to any LAN peer). A non-loopback
+        bind hard-fails unless NEXUS_STATE_TOKEN is explicitly set — the
+        auto-generated token file is local-trust only.
+        """
         if self._running:
             return
+
+        host = host or os.environ.get("NEXUS_STATE_BIND", "127.0.0.1")
+        if host not in LOOPBACK_HOSTS and not os.environ.get("NEXUS_STATE_TOKEN"):
+            raise RuntimeError(
+                f"Refusing to bind state manager on {host!r}: non-loopback exposure "
+                "requires an explicit NEXUS_STATE_TOKEN (hard-fail default)."
+            )
         self._running = True
 
         # WebSocket server for real-time updates
@@ -119,9 +161,9 @@ class UnifiedStateManager:
         self._ws_app.router.add_get('/ws', self._handle_ws)
         self._ws_runner = web.AppRunner(self._ws_app)
         await self._ws_runner.setup()
-        ws_site = web.TCPSite(self._ws_runner, '0.0.0.0', self.WS_PORT)
+        ws_site = web.TCPSite(self._ws_runner, host, self.ws_port)
         await ws_site.start()
-        logger.info(f"WebSocket server started on port {self.WS_PORT}")
+        logger.info(f"WebSocket server started on {host}:{self.ws_port}")
 
         # HTTP API for state queries
         self._http_app = web.Application()
@@ -130,9 +172,9 @@ class UnifiedStateManager:
         self._http_app.router.add_post('/publish', self._handle_http_publish)
         self._http_runner = web.AppRunner(self._http_app)
         await self._http_runner.setup()
-        http_site = web.TCPSite(self._http_runner, '0.0.0.0', self.HTTP_PORT)
+        http_site = web.TCPSite(self._http_runner, host, self.http_port)
         await http_site.start()
-        logger.info(f"HTTP API started on port {self.HTTP_PORT}")
+        logger.info(f"HTTP API started on {host}:{self.http_port}")
 
     async def stop(self):
         """Stop the state manager"""
@@ -227,8 +269,17 @@ class UnifiedStateManager:
             return dict(self._state.get(section, {}))
         return dict(self._state)
 
+    def _is_authorized(self, request) -> bool:
+        supplied = (request.headers.get("X-Nexus-State-Token")
+                    or request.query.get("token", ""))
+        return bool(supplied) and hmac.compare_digest(supplied, self._token)
+
     async def _handle_ws(self, request):
         """WebSocket handler for dashboard connections"""
+        # Auth BEFORE the handshake: unauthenticated clients must never
+        # receive initial_state or gain the publish path.
+        if not self._is_authorized(request):
+            return web.json_response({"error": "unauthorized"}, status=401)
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self._ws_clients.add(ws)
@@ -259,6 +310,8 @@ class UnifiedStateManager:
 
     async def _handle_http_state(self, request):
         """HTTP handler for state queries"""
+        if not self._is_authorized(request):
+            return web.json_response({"error": "unauthorized"}, status=401)
         section = request.query.get("section")
         state = self.get_state(section) if section else self._state
         return web.json_response(state)
@@ -274,6 +327,8 @@ class UnifiedStateManager:
 
     async def _handle_http_publish(self, request):
         """HTTP handler for publishing state changes"""
+        if not self._is_authorized(request):
+            return web.json_response({"error": "unauthorized"}, status=401)
         try:
             data = await request.json()
             await self.publish(
