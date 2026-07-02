@@ -57,6 +57,17 @@
       ]
     },
     {
+      "name": "deepseek-ai/deepseek-v4-flash",
+      "provider": "nvidia",
+      "quality_score": 0.92,
+      "max_context": 1048576,
+      "supports_thinking": true,
+      "roles": [
+        "code",
+        "fast"
+      ]
+    },
+    {
       "name": "deepseek-v4-flash-free",
       "provider": "opencode",
       "quality_score": 0.92,
@@ -70,17 +81,6 @@
     {
       "name": "zai-org/GLM-5.1",
       "provider": "baseten",
-      "quality_score": 0.91,
-      "max_context": 202752,
-      "supports_thinking": true,
-      "roles": [
-        "frontier",
-        "code"
-      ]
-    },
-    {
-      "name": "z-ai/glm-5.1",
-      "provider": "nvidia",
       "quality_score": 0.91,
       "max_context": 202752,
       "supports_thinking": true,
@@ -173,16 +173,6 @@
       ]
     },
     {
-      "name": "moonshotai/kimi-k2-thinking",
-      "provider": "nvidia",
-      "quality_score": 0.88,
-      "max_context": 262144,
-      "supports_thinking": true,
-      "roles": [
-        "reasoning"
-      ]
-    },
-    {
       "name": "nvidia/nemotron-3-ultra-550b-a55b",
       "provider": "nvidia",
       "quality_score": 0.88,
@@ -213,7 +203,7 @@
       ]
     },
     {
-      "name": "qwen/qwen3.5-397b",
+      "name": "qwen/qwen3.5-397b-a17b",
       "provider": "nvidia",
       "quality_score": 0.86,
       "max_context": 32768,
@@ -254,7 +244,7 @@
       ]
     },
     {
-      "name": "stepfun/step-3.7-flash",
+      "name": "stepfun-ai/step-3.7-flash",
       "provider": "nvidia",
       "quality_score": 0.84,
       "max_context": 262144,
@@ -285,16 +275,6 @@
       ]
     },
     {
-      "name": "nvidia/devstral-2-123b",
-      "provider": "nvidia",
-      "quality_score": 0.82,
-      "max_context": 131072,
-      "supports_thinking": false,
-      "roles": [
-        "code"
-      ]
-    },
-    {
       "name": "mimo-v2.5-free",
       "provider": "opencode",
       "quality_score": 0.82,
@@ -312,6 +292,16 @@
       "supports_thinking": false,
       "roles": [
         "code"
+      ]
+    },
+    {
+      "name": "qwen/qwen3.5-122b-a10b",
+      "provider": "nvidia",
+      "quality_score": 0.8,
+      "max_context": 32768,
+      "supports_thinking": true,
+      "roles": [
+        "reasoning"
       ]
     },
     {

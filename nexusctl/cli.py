@@ -1055,7 +1055,12 @@ def main() -> int:
                           help="Show pipeline stage status")
 
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
+    models.add_argument("action", nargs="?", choices=["verify"],
+                        help="verify: diff canonical registry vs live provider listings vs health sidecar")
     models.add_argument("--refresh", action="store_true", help="Force upstream cache refresh before listing")
+    models.add_argument("--provider", help="(verify) probe only this provider slug")
+    models.add_argument("--no-chat-probe", action="store_true",
+                        help="(verify) skip 1-token chat probes for listing absentees")
     models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (opencode, kilo, cline, hermes, mimo)")
     models_sync.add_argument("--refresh", action="store_true", help="Force upstream cache refresh first")
     models_sync.add_argument("--dry-run", action="store_true", help="Preview without writing")
@@ -1141,6 +1146,9 @@ def main() -> int:
     if args.command == "pipeline":
         return run_pipeline(args)
     if args.command == "models":
+        if getattr(args, "action", None) == "verify":
+            from nexusctl.models_cli import run_models_verify
+            return run_models_verify(provider=args.provider, no_chat_probe=args.no_chat_probe)
         return run_models_list(args.refresh)
     if args.command == "a2a-channels":
         return run_a2a_channels(args)

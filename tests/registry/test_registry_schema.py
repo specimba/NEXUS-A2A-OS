@@ -133,9 +133,9 @@ class TestArsenalRegressions:
         ("baseten", "moonshotai/Kimi-K2.7-Code"),
         ("siliconflow", "zai-org/GLM-5.2"),
         ("siliconflow", "MiniMaxAI/MiniMax-M3"),
-        ("nvidia", "stepfun/step-3.7-flash"),
+        ("nvidia", "stepfun-ai/step-3.7-flash"),
         ("nvidia", "deepseek-ai/deepseek-v4-pro"),
-        ("nvidia", "qwen/qwen3.5-397b"),
+        ("nvidia", "qwen/qwen3.5-397b-a17b"),
         ("opencode", "mimo-v2.5-free"),
         ("ollama", "functiongemma:latest"),
     ])

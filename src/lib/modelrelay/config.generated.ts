@@ -256,15 +256,19 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "isFree": true,
     "isLocal": false,
     "models": [
+      "deepseek-ai/deepseek-v4-flash",
       "deepseek-ai/deepseek-v4-pro",
+      "minimaxai/minimax-m2.7",
       "minimaxai/minimax-m3",
       "moonshotai/kimi-k2-thinking",
       "moonshotai/kimi-k2.6",
       "nvidia/devstral-2-123b",
       "nvidia/nemotron-3-super-120b-a12b",
       "nvidia/nemotron-3-ultra-550b-a55b",
-      "qwen/qwen3.5-397b",
-      "stepfun/step-3.7-flash",
+      "qwen/qwen3.5-122b-a10b",
+      "qwen/qwen3.5-397b-a17b",
+      "stepfun-ai/step-3.5-flash",
+      "stepfun-ai/step-3.7-flash",
       "z-ai/glm-5.1"
     ],
     "envKey": "NVIDIA_API_KEY",
@@ -646,6 +650,22 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
+    "modelId": "nvidia/deepseek-ai/deepseek-v4-flash",
+    "provider": "nvidia",
+    "name": "deepseek-ai/deepseek-v4-flash",
+    "tier": 92,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 1048576,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
     "modelId": "nvidia/deepseek-ai/deepseek-v4-pro",
     "provider": "nvidia",
     "name": "deepseek-ai/deepseek-v4-pro",
@@ -653,6 +673,22 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
     "contextWindow": 1048576,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "nvidia/minimaxai/minimax-m2.7",
+    "provider": "nvidia",
+    "name": "minimaxai/minimax-m2.7",
+    "tier": 82,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
     "latencyMsTypical": 500,
     "supportsVision": false,
     "supportsFunctionCalling": true,
@@ -691,7 +727,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": true,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "nvidia/moonshotai/kimi-k2.6",
@@ -723,7 +759,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": true,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "nvidia/nvidia/nemotron-3-super-120b-a12b",
@@ -758,9 +794,25 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
-    "modelId": "nvidia/qwen/qwen3.5-397b",
+    "modelId": "nvidia/qwen/qwen3.5-122b-a10b",
     "provider": "nvidia",
-    "name": "qwen/qwen3.5-397b",
+    "name": "qwen/qwen3.5-122b-a10b",
+    "tier": 80,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "nvidia/qwen/qwen3.5-397b-a17b",
+    "provider": "nvidia",
+    "name": "qwen/qwen3.5-397b-a17b",
     "tier": 86,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
@@ -774,9 +826,25 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
-    "modelId": "nvidia/stepfun/step-3.7-flash",
+    "modelId": "nvidia/stepfun-ai/step-3.5-flash",
     "provider": "nvidia",
-    "name": "stepfun/step-3.7-flash",
+    "name": "stepfun-ai/step-3.5-flash",
+    "tier": 76,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "nvidia/stepfun-ai/step-3.7-flash",
+    "provider": "nvidia",
+    "name": "stepfun-ai/step-3.7-flash",
     "tier": 84,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
@@ -803,7 +871,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "supportsStreaming": true,
     "isFree": true,
     "isLocal": false,
-    "status": "up"
+    "status": "down"
   },
   {
     "modelId": "ollama/functiongemma:latest",

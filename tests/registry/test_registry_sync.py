@@ -36,7 +36,7 @@ class TestQuotaConsumer:
             "moonshotai/Kimi-K2.7-Code",
             "deepseek-ai/DeepSeek-V4-Flash",
             "deepseek-ai/deepseek-v4-pro",
-            "stepfun/step-3.7-flash",
+            "stepfun-ai/step-3.7-flash",
             "MiniMaxAI/MiniMax-M3",
             "Qwen/Qwen3-235B-A22B",
         ):
@@ -99,7 +99,7 @@ class TestGeneratedTs:
         ts = (REPO / "src" / "lib" / "modelrelay" / "config.generated.ts").read_text(encoding="utf-8")
         assert "baseten/zai-org/GLM-5.2" in ts
         assert "baseten/moonshotai/Kimi-K2.7-Code" in ts
-        assert "nvidia/stepfun/step-3.7-flash" in ts
+        assert "nvidia/stepfun-ai/step-3.7-flash" in ts
 
     def test_ts_marks_zai_deprecated(self):
         ts = (REPO / "src" / "lib" / "modelrelay" / "config.generated.ts").read_text(encoding="utf-8")
