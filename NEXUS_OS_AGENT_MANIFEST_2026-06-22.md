@@ -137,7 +137,7 @@ Pattern: 1-3 successful calls → `ResourceExhausted: All workers are busy` for 
 | Cerebras | `https://api.cerebras.ai/v1` | ✅ | 2 models, fast |
 | Scaleway | `151783b4-00a3-48cf-906b-6f702670373f` | ✅ | 17 models |
 | Cohere | `https://api.cohere.com/v1` | ✅ | 20 models |
-| Intern AI | `https://chat.intern-ai.org.cn/api/v1` | ✅ **90M tokens/mo** | `sk-Jysx5j8506PGfX9KiNZ5sqJOGzL01vV245mo1S9pNp96fr0D` |
+| Intern AI | `https://chat.intern-ai.org.cn/api/v1` | ✅ **90M tokens/mo** | `${NEXUS_INTERNAI_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->` |
 
 ---
 

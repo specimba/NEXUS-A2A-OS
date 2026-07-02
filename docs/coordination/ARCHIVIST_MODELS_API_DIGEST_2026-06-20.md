@@ -24,7 +24,7 @@
 | Slot release windows (UTC) | 01:00, 07:00, 13:00, 15:00 UTC (Phase 2 Beta); legacy slots at 09:00/21:00 UTC+8 | `2006…txt:75,98-102` |
 | Retired models (effective 2026-05-29) | LongCat-Flash-Chat, LongCat-Flash-Thinking, LongCat-Flash-Thinking-2601, LongCat-Flash-Lite, LongCat-Flash-Omni-2603, LongCat-Flash-Chat-2602-Exp | `2006…txt:75,76` |
 | Code provisioning examples | Codex TOML, OpenCode JSON config, OpenAI/Anthropic SDK with custom `base_url` | `2006…txt:128-235,344-358` |
-| Exposed API key (treated UNVERIFIED) | `ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J` | `2006…txt:115-116` |
+| Exposed API key (treated UNVERIFIED) | `${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->` | `2006…txt:115-116` |
 
 **NEXUS integration touchpoints (read-only references, no code edits executed):**
 

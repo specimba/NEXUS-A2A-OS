@@ -29,7 +29,9 @@ from collections import defaultdict
 CONFIG_PATH = Path.home() / ".modelrelay.json"
 SUSPEND_PATH = Path(__file__).parent / ".nvidia_suspended.json"
 DEPRECATED_PATH = Path(__file__).parent / ".nvidia_deprecated.json"
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "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")
+# Hard-fail default: no committed key fallback. The previously hardcoded
+# key was leaked in git history and must be rotated (audit 2026-07-02).
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/models"
 
 # --- Data structures ---
@@ -96,6 +98,8 @@ class NvidiaRefresher:
 
     def check_model(self, model_id: str) -> dict:
         """Check if a single NVIDIA model is accessible."""
+        if not NVIDIA_API_KEY:
+            return {"status": "error", "model_id": model_id, "error": "NVIDIA_API_KEY not set (no committed fallback)"}
         url = f"https://integrate.api.nvidia.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"}
         payload = {

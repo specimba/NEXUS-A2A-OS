@@ -76,7 +76,7 @@ Six platforms, one bridge:
 **You already have:**
 - `specimba/sandbox-ef149183` (private, secrets set, Gradio MCP ready)
 - `build-small-hackathon/GRM-2.6-Opus` (cloned with ZeroGPU access, 55GB model loads in 83s)
-- `HF_TOKEN=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` (read+write)
+- `HF_TOKEN=${HF_TOKEN}  <!-- literal redacted 2026-07-02; REVOKE (was read+write) -->` (read+write)
 - `nexus-os-v2/nexus_os_v2/` (26 real detector files, 4700 lines — NOT wired yet)
 - `openenv/coding_env`, `terminus_env`, `tbench2` (free agentic environments)
 - Community GPU grant available ("Apply for a community GPU grant" in Space settings)

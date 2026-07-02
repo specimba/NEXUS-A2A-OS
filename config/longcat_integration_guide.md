@@ -33,7 +33,7 @@ requires_openai_auth = true
 Edit `~/.codex/auth.json`:
 ```json
 {
-  "OPENAI_API_KEY": "ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J"  # Store securely in Vault!
+  "OPENAI_API_KEY": "${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->"  # Store securely in Vault!
 }
 ```
 
@@ -48,7 +48,7 @@ Edit `Users/***/.config/opencode/opencode.json`:
       "name": "LongCat",
       "options": {
         "baseURL": "https://api.longcat.chat/openai",
-        "apiKey": "ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J"  # Store securely in Vault!
+        "apiKey": "${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->"  # Store securely in Vault!
       },
       "models": {
         "LongCat-2.0-Preview": {
@@ -66,7 +66,7 @@ For local ModelRelay instances, the LongCat provider is added to the routing tab
 {
   "providers": {
     "openai-compatible:longcat": {
-      "apiKey": "ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J",
+      "apiKey": "${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->",
       "baseURL": "https://api.longcat.chat/openai/v1",
       "models": ["LongCat-2.0-Preview"]
     }
