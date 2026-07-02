@@ -201,6 +201,7 @@ class ModelRelay:
             and (p.memory_gb <= self.router.vram_gb or p.tier.value == 'cloud')
         ]
         self._fallback_models = ["minimax-m3:cloud", "nemotron-3-nano:4b", "functiongemma:latest"]
+        self._coger = None  # lazy CogER for GMR auto-mode (model == "auto-gmr")
         self._model_health: Dict[str, bool] = {}
         self._model_stats: Dict[str, ModelStats] = {}
         self._available_ollama_models: List[str] = []
@@ -286,6 +287,27 @@ class ModelRelay:
         healthy = [m for m in self._healthy_models() if m != exclude]
         return healthy[0] if healthy else None
 
+    #: GMR auto-mode: COGER level -> (quality_target, latency_budget_ms)
+    #: handed to ChimeraRouterV2. COGER is the outer strategy classifier;
+    #: Chimera stays the intra-level model/temperature selector.
+    GMR_LEVEL_TARGETS = {
+        "L1": (0.70, 2000),    # No-Think: direct fast/local tier
+        "L2": (0.82, 8000),    # Think: CoT-capable mid tier
+        "L3": (0.92, 30000),   # Extend: deep-reasoning tier
+        "L4": (0.92, 30000),   # Delegate: tool work advised (see relay_info)
+    }
+
+    def _gmr_classify(self, prompt: str) -> str:
+        """Zero-cost COGER heuristic L1-L4 classification; degrades to L2."""
+        try:
+            if self._coger is None:
+                from nexus_os.gmr.coger import CogER
+                self._coger = CogER()
+            return self._coger.classify_complexity_heuristically(prompt)
+        except Exception as e:
+            logger.debug(f"GMR classification unavailable, defaulting to L2: {e}")
+            return "L2"
+
     async def proxy_completion(self, request_data: dict) -> dict:
         messages = request_data.get("messages", [{"role": "user", "content": ""}])
         if not isinstance(messages, list) or not messages:
@@ -312,12 +334,29 @@ class ModelRelay:
         if max_tokens < 100:
             max_tokens = 256
 
-        quality_target = request_data.get("quality_target")
-        latency_budget_ms = request_data.get("latency_budget_ms")
+        explicit_quality = request_data.get("quality_target")
+        explicit_latency = request_data.get("latency_budget_ms")
+        quality_target = explicit_quality
+        latency_budget_ms = explicit_latency
         if quality_target is None or latency_budget_ms is None:
             auto_q, auto_l = detect_complexity(prompt)
             quality_target = quality_target if quality_target is not None else auto_q
             latency_budget_ms = latency_budget_ms if latency_budget_ms is not None else auto_l
+
+        gmr_level = None
+        if model == "auto-gmr":
+            # GMR auto-mode pre-stage (revival of nexus_os/gmr as the relay's
+            # strategy layer): COGER classifies L1-L4, the level maps to
+            # Chimera routing targets. Level targets override only the
+            # heuristic defaults — explicit caller values always win. Plain
+            # "auto" keeps the Chimera-only path unchanged.
+            gmr_level = self._gmr_classify(prompt)
+            level_q, level_l = self.GMR_LEVEL_TARGETS[gmr_level]
+            if explicit_quality is None:
+                quality_target = level_q
+            if explicit_latency is None:
+                latency_budget_ms = level_l
+            model = "auto"
 
         if model == "auto":
             decision = self.router.route(
@@ -386,6 +425,11 @@ class ModelRelay:
                     "latency_ms": round(latency_ms, 1),
                     "quality_target": quality_target,
                     "latency_budget_ms": latency_budget_ms,
+                    **({"gmr_level": gmr_level} if gmr_level else {}),
+                    # L4 = COGER "Delegate": the request wants external
+                    # tools/files; the relay answered text-only, so the
+                    # caller should route through a tool-capable lane.
+                    **({"gmr_delegation_advised": True} if gmr_level == "L4" else {}),
                 },
             }
         except Exception as e:
