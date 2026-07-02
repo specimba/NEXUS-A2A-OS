@@ -197,7 +197,8 @@ class OracleJudge:
         return line
 
 
-def generate_pairs(count: int, seed: int = 42, offline: bool = False) -> list:
+def generate_pairs(count: int, seed: int = 42, offline: bool = False):
+    """Yield DPO pairs one at a time so callers can persist incrementally."""
     samples = _sample_texts(count, seed)
     judge = None if offline else OracleJudge()
     if judge is not None and not judge.available():
@@ -205,11 +206,10 @@ def generate_pairs(count: int, seed: int = 42, offline: bool = False) -> list:
         judge = None
     rng = random.Random(seed)
 
-    pairs = []
     for i, s in enumerate(samples):
         label = s["label"]
         chosen = judge.author_chosen(s["text"], label) if judge else rng.choice(CHOSEN_FALLBACK[label])
-        pairs.append({
+        yield {
             "prompt": GUARD_PROMPT.format(text=s["text"]),
             "chosen": chosen,
             "rejected": rng.choice(REJECTED_TEMPLATES[label]),
@@ -219,12 +219,11 @@ def generate_pairs(count: int, seed: int = 42, offline: bool = False) -> list:
                 "judge": JUDGE_MODEL if judge else "offline-template",
                 "pair_index": i,
             },
-        })
+        }
         if judge and (i + 1) % 25 == 0:
-            print(f"  {i + 1}/{count} pairs (judge calls={judge.calls}, fallbacks={judge.fallbacks})")
+            print(f"  {i + 1}/{count} pairs (judge calls={judge.calls}, fallbacks={judge.fallbacks})", flush=True)
     if judge:
         print(f"Judge usage: {judge.calls} calls, {judge.fallbacks} template fallbacks")
-    return pairs
 
 
 def main() -> int:
@@ -233,19 +232,35 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--offline", action="store_true", help="template-only, no judge calls")
+    ap.add_argument("--resume", action="store_true",
+                    help="append to --out, generating only the pairs still missing to reach --count")
     args = ap.parse_args()
 
-    pairs = generate_pairs(args.count, seed=args.seed, offline=args.offline)
+    existing = 0
+    if args.resume and args.out.exists():
+        existing = sum(1 for line in args.out.open(encoding="utf-8") if line.strip())
+        if existing >= args.count:
+            print(f"{args.out} already has {existing} pairs (target {args.count}) — nothing to do")
+            return 0
 
-    # Validator gate (job card): every chosen verdict matches ground truth.
-    for p in pairs:
-        assert p["chosen"].upper().startswith(f"VERDICT: {p['meta']['label']}"), p["meta"]
+    remaining = args.count - existing
+    # Seed offset keeps resumed chunks sampling fresh texts, not repeats.
+    pairs = generate_pairs(remaining, seed=args.seed + existing, offline=args.offline)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    with args.out.open("w", encoding="utf-8") as f:
+    mode = "a" if (args.resume and existing) else "w"
+    written = 0
+    # Incremental writes: a killed run keeps everything generated so far
+    # (the first batch attempt died at a tool timeout and lost 100% of its
+    # work because output was buffered to the end).
+    with args.out.open(mode, encoding="utf-8") as f:
         for p in pairs:
+            # Validator gate (job card): chosen verdict matches ground truth.
+            assert p["chosen"].upper().startswith(f"VERDICT: {p['meta']['label']}"), p["meta"]
             f.write(json.dumps(p, ensure_ascii=False) + "\n")
-    print(f"Wrote {len(pairs)} DPO pairs -> {args.out}")
+            f.flush()
+            written += 1
+    print(f"Wrote {written} DPO pairs (total ~{existing + written}) -> {args.out}")
     return 0
 
 
