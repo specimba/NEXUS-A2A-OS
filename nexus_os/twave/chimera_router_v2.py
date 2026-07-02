@@ -114,17 +114,40 @@ DEFAULT_PROFILES = [
                                   supports_speculative=True, supports_eagle3=True,
                                   supports_dflash=True, supports_megakernels=True),
                  tuple(TemperaturePolicy)),
-    ModelProfile("gpt-4-turbo", Tier.CLOUD, None, "api", 0.0,
-                 50.0, 20.0, 0.88, 0.0, 128000,
-                 ModelCapabilities(supports_black_box=True, has_logprobs=True,
-                                  has_temperature_control=True, has_top_p_control=True),
-                 (TemperaturePolicy.FIXED, TemperaturePolicy.EDT, TemperaturePolicy.EAD)),
-    ModelProfile("claude-3-5-sonnet", Tier.CLOUD, None, "api", 0.0,
-                 60.0, 25.0, 0.87, 0.0, 200000,
-                 ModelCapabilities(supports_black_box=True, has_temperature_control=True,
-                                  has_top_p_control=True),
-                 (TemperaturePolicy.FIXED, TemperaturePolicy.EDT)),
 ]
+
+
+def _load_generated_cloud_profiles() -> List[ModelProfile]:
+    """Cloud-tier API profiles generated from config/models.registry.json.
+
+    Local hardware profiles above stay hand-authored — they encode VRAM
+    and white-box decoding capabilities the registry doesn't model. The
+    cloud API tier is data-driven so retired models (gpt-4-turbo,
+    claude-3-5-sonnet lived here until 2026-07-02) cannot linger and new
+    frontier entries arrive by regenerating from the registry.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    path = _Path(__file__).resolve().parent / "cloud_profiles_generated.json"
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    profiles = []
+    for entry in data.get("cloud_profiles", []):
+        profiles.append(ModelProfile(
+            entry["name"], Tier.CLOUD, None, "api", 0.0,
+            40.0, 15.0, float(entry.get("quality_score", 0.8)), 0.0,
+            int(entry.get("max_context", 32768)),
+            ModelCapabilities(supports_black_box=True, has_temperature_control=True,
+                              has_top_p_control=True),
+            (TemperaturePolicy.FIXED, TemperaturePolicy.EDT, TemperaturePolicy.EAD),
+        ))
+    return profiles
+
+
+DEFAULT_PROFILES.extend(_load_generated_cloud_profiles())
 
 @dataclass
 class ERNIESuggestion:

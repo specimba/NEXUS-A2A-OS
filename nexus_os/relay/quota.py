@@ -145,7 +145,14 @@ class SlidingWindowRPMTracker:
         }
 
 
-KNOWN_CONTEXT_LIMITS: dict[str, int] = {
+from nexus_os.relay.quota_limits_generated import (
+    KNOWN_CONTEXT_LIMITS as _GENERATED_LIMITS,
+)
+
+# Hand-authored entries predating the canonical registry
+# (config/models.registry.json). On collision the SMALLER window wins —
+# a conservative clamp can never overshoot the provider's real limit.
+_LEGACY_LIMITS: dict[str, int] = {
     "z-ai/glm-5.1": 202752,
     "zai-org/GLM-5.1": 202752,
     "minimaxai/minimax-m3": 524288,
@@ -155,6 +162,15 @@ KNOWN_CONTEXT_LIMITS: dict[str, int] = {
     "nvidia/devstral-2-123b": 131072,
     "zai-org/GLM-5": 32768,
     "nvidia/nemotron-3-ultra-550b-a55b": 1048576,
+}
+
+KNOWN_CONTEXT_LIMITS: dict[str, int] = {
+    key: min(
+        v
+        for v in (_LEGACY_LIMITS.get(key), _GENERATED_LIMITS.get(key))
+        if v is not None
+    )
+    for key in {*_LEGACY_LIMITS, *_GENERATED_LIMITS}
 }
 
 

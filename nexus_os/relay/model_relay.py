@@ -62,6 +62,7 @@ except Exception:
 import uvicorn
 
 from nexus_os.twave.chimera_router_v2 import ChimeraRouterV2, Tier, TemperaturePolicy
+from nexus_os.relay.ollama_map_generated import OLLAMA_CLOUD_MODELS, OLLAMA_MODEL_MAP
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434").rstrip("/")
 OLLAMA_BASE_URL = OLLAMA_HOST if OLLAMA_HOST.startswith(("http://", "https://")) else f"http://{OLLAMA_HOST}"
@@ -453,6 +454,8 @@ class ModelRelay:
         }
 
     def _map_to_ollama(self, model_name: str) -> str:
+        # Hardware-quirk mappings stay hand-authored; the registry-generated
+        # map (aliases + local/cloud ids) layers on top and wins.
         mapping = {
             "functiongemma-270m": "functiongemma:latest",
             "qwen2.5-3b-instruct-q4_k_m": "qwen2.5-coder:7b",
@@ -460,6 +463,7 @@ class ModelRelay:
             "minimax-m3:cloud": "minimax-m3:cloud",
             "minimax-m3": "minimax-m3:cloud",
             "minimax-m2.7": "minimax-m2.7",
+            **OLLAMA_MODEL_MAP,
         }
         m = mapping.get(model_name)
         if m:
@@ -677,7 +681,7 @@ async def list_models():
             "owned_by": "ollama",
             "healthy": relay._model_health.get(m, False),
         })
-    for m in ["minimax-m3:cloud", "minimax-m2.7"]:
+    for m in ["minimax-m3:cloud", "minimax-m2.7", *OLLAMA_CLOUD_MODELS]:
         if m not in [x["id"] for x in oai_models]:
             oai_models.append({
                 "id": m,
