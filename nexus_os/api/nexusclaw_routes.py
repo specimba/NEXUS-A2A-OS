@@ -7,6 +7,7 @@ All endpoints are rate-limited and trust-gated.
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
@@ -76,15 +77,16 @@ async def get_nexusclaw_status():
         
         pool_stats = pool.stats()
         orch_status = orchestrator.status()
-        
+        by_status = pool_stats.get("by_status", {})
+
         return {
             "status": "operational",
             "stats": {
                 "agentPool": {
                     "total": pool_stats.get("total_agents", 0),
-                    "online": pool_stats.get("online_agents", 0),
-                    "busy": pool_stats.get("busy_agents", 0),
-                    "error": pool_stats.get("error_agents", 0),
+                    "online": by_status.get("online", 0),
+                    "busy": by_status.get("busy", 0),
+                    "error": by_status.get("halted", 0) + by_status.get("offline", 0),
                 },
                 "brainstorm": {
                     "activeSessions": orch_status.active_brainstorms,
@@ -92,8 +94,8 @@ async def get_nexusclaw_status():
                     "pendingVotes": 0,
                 },
                 "trustEngine": {
-                    "avgTrust": 75.0,  # TODO: Calculate from trust engine
-                    "degradedAgents": 0,
+                    "avgTrust": round(pool_stats.get("avg_trust", 0.0), 2),
+                    "degradedAgents": by_status.get("degraded", 0),
                 },
             },
         }
@@ -111,7 +113,7 @@ async def submit_intervention(
 ):
     """Submit operator intervention command to swarm."""
     try:
-        intervention_id = f"intervene-{intervention_id}"
+        intervention_id = f"intervene-{uuid.uuid4().hex[:12]}"
         
         # TODO: Route to orchestrator for execution
         logger.info(
