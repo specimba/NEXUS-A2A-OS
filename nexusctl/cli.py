@@ -891,61 +891,55 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
     stages = []
     errors = []
+    records = []
     compiler = None
+    dossiers = []
 
-    # Stage 1: Import
+    # Stage 1: Import (new 3-stage pipeline; produces ImportRecords the
+    # compile stage actually consumes — the legacy scan_directory results
+    # were never fed forward)
     if not skip_import:
         try:
-            from nexus_os.archivist.archivist import scan_directory
-            results = scan_directory(str(import_dir))
-            count = len(results)
-            stages.append({"stage": "import", "ok": True, "files": count})
-            print(_json.dumps({"stage": "import", "ok": True, "files": count}))
+            from nexus_os.archivist.import_stage import ArchivistImporter
+            watched = [str(import_dir)] if args.import_dir else None
+            importer = ArchivistImporter(watched_dirs=watched)
+            records = importer.import_batch()
+            stages.append({"stage": "import", "ok": True, "files": len(records)})
+            print(_json.dumps({"stage": "import", "ok": True, "files": len(records)}))
         except Exception as e:
             stages.append({"stage": "import", "ok": False, "error": str(e)})
             errors.append(f"import: {e}")
             print(_json.dumps({"stage": "import", "ok": False, "error": str(e)}))
 
-    # Stage 2: Compile
+    # Stage 2: Compile (compile_batch; the previously called compile_all()
+    # never existed — this stage errored on every run)
     if not skip_compile:
         try:
             from nexus_os.archivist.compile import ArchivistCompiler
             compiler = ArchivistCompiler()
-            records = compiler.compile_all()
-            stages.append({"stage": "compile", "ok": True, "records": len(records)})
-            print(_json.dumps({"stage": "compile", "ok": True, "records": len(records)}))
+            compiled = compiler.compile_batch(records) if records else []
+            stages.append({
+                "stage": "compile", "ok": True,
+                "records": len(compiled),
+                "dossier_topics": len(compiler._dossier_candidates),
+            })
+            print(_json.dumps({
+                "stage": "compile", "ok": True,
+                "records": len(compiled),
+                "dossier_topics": len(compiler._dossier_candidates),
+            }))
         except Exception as e:
             stages.append({"stage": "compile", "ok": False, "error": str(e)})
             errors.append(f"compile: {e}")
             print(_json.dumps({"stage": "compile", "ok": False, "error": str(e)}))
 
-    # Stage 3: Fit
+    # Stage 3: Fit (dossier synthesis from the compiler's per-topic
+    # candidates — the previously read compiler.compiled never existed)
     if not skip_fit:
         try:
             from nexus_os.archivist.fit import ArchivistFitter
             fitter = ArchivistFitter()
-            grouped: dict = {}
-            if compiler is not None and hasattr(compiler, 'compiled'):
-                for r in compiler.compiled:
-                    for tag in r.topic_tags or ["general"]:
-                        grouped.setdefault(tag, []).append(r)
-            if not grouped:
-                for cache_path in [compiled_dir / "all_records.json", pipeline_dir / "all_records.json"]:
-                    if cache_path.exists():
-                        import json as _json2
-                        from nexus_os.archivist.compile import CompiledRecord
-                        data = _json2.loads(cache_path.read_text(encoding="utf-8"))
-                        for r_data in data:
-                            for tag in r_data.get("topic_tags", ["general"]):
-                                grouped.setdefault(tag, []).append(
-                                    CompiledRecord(
-                                        import_record=r_data.get("import_record", {}),
-                                        quality_score=r_data.get("quality_score", 0.5),
-                                        topic_tags=r_data.get("topic_tags", ["general"]),
-                                        citation_links=r_data.get("citation_links", []),
-                                    )
-                                )
-                        break
+            grouped = compiler._dossier_candidates if compiler is not None else {}
             dossiers = fitter.fit_batch(grouped) if grouped else []
             stages.append({
                 "stage": "fit", "ok": True,
@@ -962,8 +956,22 @@ def run_pipeline(args: argparse.Namespace) -> int:
             errors.append(f"fit: {e}")
             print(_json.dumps({"stage": "fit", "ok": False, "error": str(e)}))
 
+    # Stage 4: Bridge dossiers into the vault SEMANTIC channel — the only
+    # writer that populates source_dossier_id; previously had no caller.
+    if dossiers:
+        try:
+            from nexus_os.archivist.doppelground_bridge import get_bridge
+            results = get_bridge().bridge_dossiers(dossiers)
+            accepted = sum(1 for r in results if r.accepted)
+            stages.append({"stage": "bridge", "ok": True, "accepted": accepted, "total": len(results)})
+            print(_json.dumps({"stage": "bridge", "ok": True, "accepted": accepted, "total": len(results)}))
+        except Exception as e:
+            stages.append({"stage": "bridge", "ok": False, "error": str(e)})
+            errors.append(f"bridge: {e}")
+            print(_json.dumps({"stage": "bridge", "ok": False, "error": str(e)}))
+
     summary = {
-        "pipeline": "import → compile → fit",
+        "pipeline": "import → compile → fit → bridge",
         "stages": stages,
         "errors": errors,
         "ok": len(errors) == 0,

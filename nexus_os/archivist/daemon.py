@@ -172,6 +172,18 @@ class ArchivistDaemon:
         # TODO: Use ArchivistCompiler.get_all_dossier_candidates() instead of private attr
         dossiers = self.fitter.fit_batch(self.compiler._dossier_candidates)
 
+        # Bridge stage: dossiers into the vault SEMANTIC channel. Without
+        # this call the fit output never reached the vault (the bridge had
+        # no production caller and SEMANTIC received zero dossiers).
+        if dossiers:
+            try:
+                from nexus_os.archivist.doppelground_bridge import get_bridge
+                results = get_bridge().bridge_dossiers(dossiers)
+                accepted = sum(1 for r in results if r.accepted)
+                logger.info("Bridged %d/%d dossiers into vault SEMANTIC", accepted, len(dossiers))
+            except Exception as e:
+                logger.error("Dossier bridge failed: %s", e)
+
         # Checkpoint
         self.save_checkpoint(
             len(records),
