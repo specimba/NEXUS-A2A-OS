@@ -1,0 +1,10 @@
+{
+  "readableLineLength": true,
+  "strictLineBreaks": false,
+  "showFrontmatter": true,
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "concepts",
+  "attachmentFolderPath": "sources",
+  "useMarkdownLinks": false
+}

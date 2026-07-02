@@ -1,0 +1,11 @@
+{
+  "file-explorer": true,
+  "global-search": true,
+  "graph": true,
+  "backlink": true,
+  "outgoing-link": true,
+  "tag-pane": true,
+  "outline": true,
+  "switcher": true,
+  "command-palette": true
+}

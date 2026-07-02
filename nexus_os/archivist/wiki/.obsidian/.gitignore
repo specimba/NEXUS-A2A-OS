@@ -1,0 +1,4 @@
+# Obsidian per-machine state — never commit
+workspace.json
+workspace-mobile.json
+cache/

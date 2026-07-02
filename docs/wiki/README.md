@@ -37,3 +37,16 @@ docs/wiki/
 - `C:\Users\speci.000\Downloads\DERDDRE\v4\handbook\07_WIKI_AND_REVIEWGROUND.md`
 - `C:\Users\speci.000\Downloads\DERDDRE\v4\dashboard\static\src\pages\Wiki.jsx`
 - `docs/handoff/NEXUS_VISIBLE_LAYERS_ACTIVE_INTEGRATION_BLUEPRINT_2026-05-26.md`
+
+## Obsidian integration (2026-07-02)
+
+The canonical intel vault is `nexus_os/archivist/wiki/` — open THAT folder
+directly as an Obsidian vault. It carries a committed `.obsidian/` config
+(graph color groups: dossiers green, sources amber, entities cyan, concepts
+violet; core plugins only, no community plugins; `workspace.json` is
+git-ignored per machine). Dossiers emit `[[wikilinks]]` to source and
+concept stub pages, and `index.md` is the regenerated Map of Content —
+graph view works with zero plugins.
+
+The `obsidian/` subdirectory here (`docs/wiki/obsidian/`) is a deprecated
+export slot: exporting copies would drift from the pipeline-written canon.
