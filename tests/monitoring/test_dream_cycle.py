@@ -2,7 +2,7 @@
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -144,8 +144,12 @@ class TestPruneStale:
         assert result == []
 
     def test_iso_string_parse(self):
+        # A timestamp within TTL must survive; derive it from now so the
+        # test does not expire on the calendar (a hardcoded 2026-06-26
+        # date here started failing 72h later).
         dc = DreamCycle(ttl_hours=72)
-        entry = _make_entry(timestamp=datetime.fromisoformat("2026-06-26T00:00:00+00:00").timestamp())
+        recent = datetime.now(timezone.utc) - timedelta(hours=1)
+        entry = _make_entry(timestamp=recent.timestamp())
         result = dc._prune_stale([entry])
         assert len(result) == 1
 
