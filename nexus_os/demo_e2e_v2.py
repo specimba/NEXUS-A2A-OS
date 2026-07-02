@@ -1,7 +1,7 @@
 import sys, argparse
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from nexus_os.chimera_router_v2 import (
+from nexus_os.twave.chimera_router_v2 import (
     ChimeraRouterV2, ERNIEInterface, ERNIESuggestion, TemperaturePolicy, Tier
 )
 from twave.landau_ginzburg_tracker_v2 import LandauGinzburgTrackerV2

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import numpy as np
 import requests
 
-from nexus_os.chimera_router_v2 import (
+from nexus_os.twave.chimera_router_v2 import (
     ChimeraRouterV2, ERNIEInterface, TemperaturePolicy, Tier
 )
 from twave.landau_ginzburg_tracker_v2 import (
