@@ -51,6 +51,10 @@ class CalibratedHallucinationDetector:
         bebop_weight: float = 0.15,
         bebop_tau: float = 0.40,
         high_sensitivity: bool = False,
+        tokenhd_weight: float = 0.0,
+        tokenhd_threshold: float = 0.5,
+        tokenhd_classifier: Any = None,
+        tokenhd_window: int = 64,
     ):
         """
         Args:
@@ -59,6 +63,16 @@ class CalibratedHallucinationDetector:
                          double-count a high-drift case alongside the EPR.
             bebop_tau: TV-distance threshold that maps to ~0.5 risk score.
             high_sensitivity: If True, tightens thresholds for more aggressive detection.
+            tokenhd_weight: 0.0 keeps the supervised TokenHD lane dark
+                         (default — the trained detector doesn't exist yet).
+                         When > 0 a classifier is resolved (explicit arg,
+                         else NEXUS_TOKENHD_ENDPOINT) and its risk fuses in
+                         at this weight. The lane fails safe to 0 on any
+                         classifier error.
+            tokenhd_threshold: binarization threshold for flagged tokens.
+            tokenhd_classifier: explicit TokenHDClassifier (tests/dev).
+            tokenhd_window: rolling window of recent token texts scored per
+                         assessment (TokenHD reads free-form text, not logits).
         """
         self.base_threshold = threshold
         self.bebop_weight = float(bebop_weight)
@@ -73,6 +87,17 @@ class CalibratedHallucinationDetector:
         self.a2a_channel = a2a_channel
         self.adaptive = adaptive
 
+        # TokenHD supervised lane (papers10) — dark unless weighted AND a
+        # classifier resolves. Window holds recent RESPONSE token texts.
+        self.tokenhd_weight = float(tokenhd_weight)
+        self.tokenhd_threshold = float(tokenhd_threshold)
+        self._tokenhd_classifier = None
+        if self.tokenhd_weight > 0.0:
+            from nexus_os.monitoring.tokenhd_lane import resolve_classifier
+            self._tokenhd_classifier = resolve_classifier(tokenhd_classifier)
+        self._tokenhd_window: deque[str] = deque(maxlen=tokenhd_window)
+        self._tokenhd_context: str = ""
+
         self._tracker = None
         self._epr = None
         self._calibration_history: deque[dict[str, Any]] = deque(maxlen=calibration_window)
@@ -86,6 +111,10 @@ class CalibratedHallucinationDetector:
             "bebop_weight": self.bebop_weight,
             "bebop_tau": self.bebop_tau,
             "bebop_contributions": 0,
+            "tokenhd_weight": self.tokenhd_weight,
+            "tokenhd_enabled": self._tokenhd_classifier is not None,
+            "tokenhd_contributions": 0,
+            "tokenhd_failures": 0,
         }
         self._load_calibration()
 
@@ -134,6 +163,11 @@ class CalibratedHallucinationDetector:
     def flush_calibration(self):
         """Force-persist calibration state (call at end of a generation)."""
         self._save_calibration(force=True)
+
+    def reset_tokenhd_window(self, context_text: str | None = None):
+        """Clear the TokenHD text window at a generation boundary."""
+        self._tokenhd_window.clear()
+        self._tokenhd_context = context_text or ""
 
     def _emit_a2a(self, message: str, topic: str = "hallucination"):
         if not self.a2a_channel:
@@ -185,11 +219,17 @@ class CalibratedHallucinationDetector:
         temperature: float = 1.0,
         topk_probs: list[float] | None = None,
         hidden_state: Any = None,
+        token_text: str | None = None,
+        context_text: str | None = None,
     ) -> dict[str, Any]:
         """Assess hallucination risk for current token position.
 
         Uses the LG tracker's EPR + order parameters, applies calibrated
         threshold, returns risk level with evidence.
+
+        token_text/context_text feed the supervised TokenHD lane (papers10),
+        which scores the rolling window of decoded RESPONSE text — pass the
+        decoded token string alongside its logits when the lane is enabled.
         """
         self._stats["total_assessments"] += 1
         t0 = time.time()
@@ -258,6 +298,41 @@ class CalibratedHallucinationDetector:
             except Exception as exc:
                 logger.debug("Bebop assessment skipped: %s", exc)
 
+        # TokenHD (papers10) supervised token-level lane — flag-gated,
+        # fail-safe: any classifier error contributes exactly 0.
+        tokenhd_risk = 0.0
+        tokenhd_signal = None
+        if context_text is not None:
+            self._tokenhd_context = context_text
+        if token_text is not None:
+            self._tokenhd_window.append(token_text)
+        if (
+            self._tokenhd_classifier is not None
+            and self.tokenhd_weight > 0.0
+            and self._tokenhd_window
+        ):
+            try:
+                from nexus_os.monitoring.tokenhd_lane import (
+                    assess_tokenhd,
+                    risk_score_from_tokenhd,
+                )
+                tokenhd_signal = assess_tokenhd(
+                    self._tokenhd_context,
+                    list(self._tokenhd_window),
+                    self._tokenhd_classifier,
+                    threshold=self.tokenhd_threshold,
+                )
+                tokenhd_risk = risk_score_from_tokenhd(tokenhd_signal)
+                if tokenhd_signal.flagged_indices:
+                    raw_risk_score += self.tokenhd_weight * tokenhd_risk
+                    reasons.append(
+                        f"tokenhd_flagged_{len(tokenhd_signal.flagged_indices)}"
+                    )
+                    self._stats["tokenhd_contributions"] += 1
+            except Exception as exc:
+                self._stats["tokenhd_failures"] += 1
+                logger.debug("TokenHD assessment skipped: %s", exc)
+
         raw_risk_score = min(1.0, raw_risk_score)
         current_threshold = self._get_effective_threshold()
 
@@ -290,6 +365,18 @@ class CalibratedHallucinationDetector:
                 "class": bebop_class,
                 "tv": round(bebop_signal.tv, 3) if bebop_signal else None,
                 "weight": self.bebop_weight,
+            },
+            "tokenhd": {
+                "enabled": self._tokenhd_classifier is not None,
+                "risk": round(tokenhd_risk, 3),
+                "flagged": (
+                    len(tokenhd_signal.flagged_indices) if tokenhd_signal else 0
+                ),
+                "spans": tokenhd_signal.spans if tokenhd_signal else [],
+                "max_score": (
+                    round(tokenhd_signal.max_score, 3) if tokenhd_signal else None
+                ),
+                "weight": self.tokenhd_weight,
             },
             "tracker_report": {
                 "mode": (latest_lg.effective_temperature if latest_lg else None),
