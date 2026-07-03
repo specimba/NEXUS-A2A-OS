@@ -20,11 +20,9 @@ _ORIG_MODULES = {
 }
 
 if "pytest" not in sys.modules and "PYTEST_CURRENT_TEST" not in os.environ:
-    
-    # Only execute mock stubs if NOT running under pytest to prevent global sys.modules pollution
-    if "pytest" not in sys.modules and "PYTEST_CURRENT_TEST" not in os.environ:
-sys.path.insert(0, "src")
-sys.path.insert(0, ".")
+    # Only execute mock stubs outside pytest to prevent sys.modules pollution.
+    sys.path.insert(0, "src")
+    sys.path.insert(0, ".")
     
     # Stub FastAPI/pydantic/uvicorn so we can import the service logic
     # without installing the full web framework stack.
