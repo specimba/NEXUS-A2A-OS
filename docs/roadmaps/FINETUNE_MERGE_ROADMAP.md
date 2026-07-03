@@ -27,6 +27,22 @@ speculative drafts, and Intern Discovery multi-GPU fine-tune workspaces.
 - Job card: `jobs/finetune/phase1_guard_dpo.yaml`. Offline mode
   (`--offline`) produces template-authored pairs for CI/tests.
 
+### Phase 1b — RIFT rebalance (2026-07-03) ✅
+- The 1000-pair batch deduped to 375 unique pairs, imbalanced 247 SAFE /
+  128 UNSAFE. Per RIFT (papers09, arXiv 2601.09253) negatives are
+  REPURPOSED, not discarded: `nexus_os/finetune/rift.py` implements the
+  stabilized reward-weighted loss (log objective for positives, bounded
+  linear surrogate for negatives — no gradient explosion as suppression
+  succeeds) and inverse-frequency class weighting.
+- `scripts/finetune/rift_rebalance_guard_pairs.py` emits
+  `datasets/finetune/guard_rift_v1.jsonl` (untracked): 750 records,
+  chosen at +1.0·w_c / rejected at −0.2·w_c (paper's MGPO asymmetry),
+  SAFE/UNSAFE effective |reward| mass equalized at 225.0/225.0.
+- Tests: `tests/finetune/test_rift.py` (boundedness, gradient-stability
+  vs naive signed loss, mass equalization, script e2e + idempotence).
+- Phase-2 training consumes this via a TRL custom loss (`rift_loss`,
+  per-token logprobs + completion mask).
+
 ### Phase 2 — SAMM guard merge (local RTX 4070 / Lightning T4)
 - TIES-merge `qwen2.5-1.5b` guard candidate with SAMM loss
   (`L_safety + 0.3·L_expert`, α=0.3) via mergekit; phase-1 DPO pairs are
