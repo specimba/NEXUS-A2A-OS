@@ -45,6 +45,7 @@ const navItems: { id: NexusTab; label: string; icon: React.ReactNode; badge?: st
   { id: 'stresslab', label: 'StressLab', icon: <FlaskConical className="h-4 w-4" />, badge: 'ISC' },
   { id: 'gmr', label: 'GMR Router', icon: <Router className="h-4 w-4" /> },
   { id: 'governor', label: 'Governor', icon: <Shield className="h-4 w-4" /> },
+  { id: 'sentinel', label: 'Sentinel Cases', icon: <Shield className="h-4 w-4" />, badge: 'NATIVE' },
   { id: 'vault', label: 'Vault', icon: <Database className="h-4 w-4" /> },
   { id: 'swarm', label: 'Swarm', icon: <Bug className="h-4 w-4" /> },
   { id: 'nexusclaw', label: 'NEXUSCLAW', icon: <Brain className="h-4 w-4" /> },

@@ -60,6 +60,7 @@ class PortRegistry:
         7355: "modelrelay_python",
         7356: "static_dashboard",
         7357: "god_mode_proxy",
+        8000: "a2a_execution_bridge",
         8765: "state_manager_ws",
         8766: "state_manager_http",
         11434: "ollama_default",

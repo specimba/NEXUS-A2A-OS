@@ -20,6 +20,7 @@ import { McpHubTab } from './tabs/mcp-hub-tab'
 import { BrainStatusTab } from './tabs/brain-status-tab'
 import { ConfigTab } from './tabs/config-tab'
 import { WikiTab } from './tabs/wiki-tab'
+import { SentinelTab } from './tabs/sentinel-tab'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const tabComponents: Record<string, React.ComponentType> = {
@@ -40,6 +41,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   'brain-status': BrainStatusTab,
   config: ConfigTab,
   wiki: WikiTab,
+  sentinel: SentinelTab,
 }
 
 export const staggerContainer = {

@@ -21,13 +21,14 @@ Hard conclusion: `7352` is no longer ambiguous. If a process on `7352` returns a
 | `7355` | `modelrelay_python` | Python ModelRelay fallback/internal | Fallback relay and internal health only. |
 | `7356` | `static_dashboard` | Static HTML dashboard | Dashboard viewer only. |
 | `7357` | `god_mode_proxy` | God Mode Proxy | Proxy lane only; never Brain API or ModelRelay. |
+| `8000` | `a2a_execution_bridge` | Governed A2A execution transport | Signed task execution only; reached through Brain API authorization. |
 | `11434` | `ollama_default` | Local Ollama default | Default local Ollama only. |
 | `11435` | `ollama_guard` | Guard-model Ollama lane | Guard models only. |
 | `11436` | `nexusclaw_ollama_lane` | NexusClaw/NemoClaw Ollama lane | Claw lane only. |
 
 ## Non-Negotiable Rules
 
-- Do not bind any new service to ports `7350` through `7357` unless it matches the table above.
+- Do not bind any new service to reserved ports unless it matches the table above.
 - Do not use `7352` for ModelRelay, dashboards, static HTML, proxy experiments, MCP bridges, or browser sandboxes.
 - Do not "temporarily" repurpose a reserved port. Use an ephemeral port above `20000` and document the owner if a throwaway test is required.
 - Do not trust old logs, old markdown, or external AI chat claims for port ownership. Verify live code and `PortRegistry` first.
@@ -58,6 +59,7 @@ Expected ownership for the critical relay/backend split:
 3. Start static dashboard on `7356`.
 4. Start Next.js dashboard on `3001` only when active development needs it.
 5. Start optional proxy/bridge lanes (`7353`, `7354`, `7357`) only after their owners are confirmed.
+6. Start the governed A2A execution bridge on `8000` only when signed execution is required.
 
 ## Adoption Gate
 

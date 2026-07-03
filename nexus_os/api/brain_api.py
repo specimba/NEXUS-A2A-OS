@@ -446,6 +446,7 @@ async def root():
             "integrations": "/api/integrations",
             "relay": "/api/relay/health",
             "models": "/api/models",
+            "sentinel": "/api/sentinel/cases",
         }
     }
 
@@ -1227,6 +1228,14 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         ws_manager.disconnect(conn_id)
 
+
+# Native Sentinel routes share the Brain API authentication contract.
+from nexus_os.sentinel.api import router as sentinel_router
+
+brain_app.include_router(
+    sentinel_router,
+    dependencies=[Depends(verify_api_key)],
+)
 
 # ── Server Entry Point ─────────────────────────────────────────────────────────
 
