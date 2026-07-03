@@ -22,16 +22,24 @@ References:
 - NEXUS Trust Framework: docs/research/NEXUS_TRUST_FRAMEWORK.md
 """
 
+import json
 import logging
+import os
 import time
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Dict, Optional, List
 from collections import defaultdict
 
 from nexus_os.execution_paths import ExecutionPath, get_router
 
 logger = logging.getLogger(__name__)
+
+#: P2-5: encrypted-at-rest snapshot of all channel buffers.
+CHANNELS_ENC_PATH = Path(os.path.expanduser("~")) / ".nexus" / "memory_channels.enc"
+#: AAD binds the ciphertext to its purpose (and version).
+CHANNELS_ENC_AAD = b"nexus-memory-channels-v1"
 
 
 class MemoryChannel(Enum):
@@ -777,6 +785,97 @@ class MemoryChannelManager:
                 buf.clear()  # type: ignore
         return cleared
     
+    # ------------------------------------------------------------------
+    # P2-5: encrypted-at-rest persistence (AES-256-GCM via vault_encrypt)
+    # ------------------------------------------------------------------
+
+    def save_to_disk(self, path: "Path | None" = None) -> bool:
+        """Snapshot every channel buffer to disk, AES-256-GCM encrypted.
+
+        Fail-closed: without a master key (NEXUS_VAULT_KEY env or the
+        auto-generated ~/.nexus/vault.key) nothing is written — channel
+        content never touches disk in plaintext. Returns True on write.
+        """
+        try:
+            from nexus_os.security.vault_encrypt import encrypt_bytes, load_master_key
+        except Exception:
+            logger.warning("vault_encrypt unavailable; channel snapshot skipped")
+            return False
+        key = load_master_key(generate=True)
+        if key is None:
+            logger.warning("No vault master key; channel snapshot skipped (fail-closed)")
+            return False
+
+        payload: Dict[str, Dict[str, list]] = {}
+        for agent_id, channels in self._buffers.items():
+            payload[agent_id] = {}
+            for channel, records in channels.items():
+                if not records:
+                    continue
+                serialized = []
+                for r in records:
+                    d = asdict(r)
+                    d["channel"] = r.channel.value
+                    serialized.append(d)
+                payload[agent_id][channel.value] = serialized
+
+        target = Path(path) if path else CHANNELS_ENC_PATH
+        blob = encrypt_bytes(
+            json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            key,
+            CHANNELS_ENC_AAD,
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(blob)
+        return True
+
+    def load_from_disk(self, path: "Path | None" = None) -> int:
+        """Restore channel buffers from the encrypted snapshot.
+
+        Returns the number of records restored (0 if no snapshot, no key,
+        or GCM authentication fails — tampered snapshots load nothing).
+        Loaded records REPLACE the in-memory buffers for the agents
+        present in the snapshot.
+        """
+        source = Path(path) if path else CHANNELS_ENC_PATH
+        if not source.exists():
+            return 0
+        try:
+            from nexus_os.security.vault_encrypt import decrypt_bytes, load_master_key
+        except Exception:
+            return 0
+        key = load_master_key(generate=False)
+        if key is None:
+            return 0
+        try:
+            payload = json.loads(
+                decrypt_bytes(source.read_bytes(), key, CHANNELS_ENC_AAD)
+            )
+        except Exception:
+            logger.warning("Channel snapshot failed authentication/decryption; ignored")
+            return 0
+
+        restored = 0
+        for agent_id, channels in payload.items():
+            for channel_value, records in channels.items():
+                try:
+                    channel = MemoryChannel(channel_value)
+                except ValueError:
+                    continue
+                rebuilt = []
+                for d in records:
+                    d = dict(d)
+                    d["channel"] = channel
+                    try:
+                        rebuilt.append(ChannelRecord(**d))
+                    except TypeError:
+                        # Forward-compat: drop unknown fields from newer writers
+                        known = {f.name for f in ChannelRecord.__dataclass_fields__.values()}
+                        rebuilt.append(ChannelRecord(**{k: v for k, v in d.items() if k in known}))
+                self._buffers[agent_id][channel] = rebuilt
+                restored += len(rebuilt)
+        return restored
+
     def get_execution_path(self, channel: MemoryChannel) -> ExecutionPath:
         """Map channel to execution path (HOT/WARM/COLD)."""
         if channel in {MemoryChannel.SENSORY, MemoryChannel.WORKING, MemoryChannel.TRUST}:

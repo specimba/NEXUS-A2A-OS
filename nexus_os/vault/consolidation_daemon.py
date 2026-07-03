@@ -216,6 +216,14 @@ class LightMemConsolidationDaemon:
         stats.extend(self._stage_episodic_to_semantic(agent_id))
 
         self._stats.extend(stats)
+
+        # P2-5: snapshot all channel buffers encrypted at rest after each
+        # consolidation cycle (fail-closed no-op when no vault key exists).
+        try:
+            self.manager.save_to_disk()
+        except Exception:
+            logger.warning("Encrypted channel snapshot failed", exc_info=True)
+
         logger.info(
             "Consolidation complete: %d stages, %d total records read, %d written",
             len(stats),

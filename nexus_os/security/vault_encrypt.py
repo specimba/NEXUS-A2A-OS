@@ -31,6 +31,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 VAULT_DIR = Path(__file__).parent.parent.parent / "vault" / "secrets"
 VAULT_INDEX = VAULT_DIR / ".vault_index.json"
 KEY_ENV_VAR = "NEXUS_VAULT_KEY"
+KEY_FILE = Path(os.path.expanduser("~")) / ".nexus" / "vault.key"
 
 
 def derive_key(master_key: bytes, salt: bytes) -> bytes:
@@ -44,31 +45,72 @@ def derive_key(master_key: bytes, salt: bytes) -> bytes:
     return hkdf.derive(master_key)
 
 
-def encrypt_file(filepath: Path, master_key: bytes) -> dict:
-    """Encrypt a single file with AES-256-GCM."""
-    plaintext = filepath.read_bytes()
+# --- Library API (P2-5: importable primitives, not just the CLI) ---
+
+def encrypt_bytes(plaintext: bytes, master_key: bytes, associated_data: bytes = b"") -> bytes:
+    """AES-256-GCM encrypt. Returns salt(16) + nonce(12) + ciphertext blob."""
     salt = os.urandom(16)
     key = derive_key(master_key, salt)
     nonce = os.urandom(12)
-    
-    aesgcm = AESGCM(key)
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext, associated_data)
+    return salt + nonce + ciphertext
+
+
+def decrypt_bytes(blob: bytes, master_key: bytes, associated_data: bytes = b"") -> bytes:
+    """Inverse of encrypt_bytes. Raises on tamper/wrong key (GCM auth)."""
+    salt, nonce, ciphertext = blob[:16], blob[16:28], blob[28:]
+    key = derive_key(master_key, salt)
+    return AESGCM(key).decrypt(nonce, ciphertext, associated_data)
+
+
+def load_master_key(generate: bool = False) -> "bytes | None":
+    """Resolve the vault master key: NEXUS_VAULT_KEY env → ~/.nexus/vault.key.
+
+    With generate=True a missing key is created and stored in the key file
+    (same pattern as the P1 state/brain token files). Returns None when no
+    key is available and generation is disabled — callers must treat that
+    as \"do not write plaintext anywhere\".
+    """
+    key_hex = os.environ.get(KEY_ENV_VAR)
+    if key_hex:
+        try:
+            return bytes.fromhex(key_hex.strip())
+        except ValueError:
+            return None
+    try:
+        if KEY_FILE.exists():
+            return bytes.fromhex(KEY_FILE.read_text(encoding="utf-8").strip())
+        if generate:
+            key = os.urandom(32)
+            KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            KEY_FILE.write_text(key.hex(), encoding="utf-8")
+            return key
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def encrypt_file(filepath: Path, master_key: bytes) -> dict:
+    """Encrypt a single file with AES-256-GCM."""
+    plaintext = filepath.read_bytes()
     associated_data = filepath.name.encode()  # Bind ciphertext to filename
-    ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data)
-    
+    blob = encrypt_bytes(plaintext, master_key, associated_data)
+    salt, nonce = blob[:16], blob[16:28]
+
     # Write encrypted file
     encrypted_path = filepath.with_suffix(filepath.suffix + ".enc")
-    encrypted_path.write_bytes(salt + nonce + ciphertext)
-    
+    encrypted_path.write_bytes(blob)
+
     # Remove plaintext (if encrypted successfully)
     filepath.unlink()
-    
+
     return {
         "original": filepath.name,
         "encrypted": encrypted_path.name,
         "salt": base64.b64encode(salt).decode(),
         "nonce": base64.b64encode(nonce).decode(),
         "size_original": len(plaintext),
-        "size_encrypted": len(ciphertext) + 28,  # salt + nonce + overhead
+        "size_encrypted": len(blob) - 28,  # salt + nonce excluded
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -76,16 +118,8 @@ def encrypt_file(filepath: Path, master_key: bytes) -> dict:
 def decrypt_file(encrypted_path: Path, master_key: bytes, original_name: str) -> bool:
     """Decrypt a single file."""
     data = encrypted_path.read_bytes()
-    salt = data[:16]
-    nonce = data[16:28]
-    ciphertext = data[28:]
-    
-    key = derive_key(master_key, salt)
-    aesgcm = AESGCM(key)
-    
-    associated_data = original_name.encode()
     try:
-        plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data)
+        plaintext = decrypt_bytes(data, master_key, original_name.encode())
         original_path = encrypted_path.with_suffix(encrypted_path.suffix.replace(".enc", ""))
         original_path.write_bytes(plaintext)
         encrypted_path.unlink()
