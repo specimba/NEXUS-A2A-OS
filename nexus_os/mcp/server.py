@@ -155,9 +155,9 @@ class TrustKernelMCPAdapter:
             return fallback
 
     def _create_kernel(self) -> Any:
-        from nexus_os.governor.trust_kernel import TrustKernel
+        from nexus_os.governor.trust_kernel import get_trust_kernel
 
-        self.kernel = TrustKernel()
+        self.kernel = get_trust_kernel()
         return self.kernel
 
     @staticmethod

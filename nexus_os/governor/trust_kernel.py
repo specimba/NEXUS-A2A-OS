@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import threading
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -545,6 +547,46 @@ class TrustKernel:
         self._snapshots[key] = snapshot
         return snapshot
 
+    def ensure_bootstrap_prior(
+        self,
+        agent_id: str,
+        lane: str = "general",
+        prior_trust: float = 50.0,
+        weight: float = 6.0,
+    ) -> TrustSnapshot:
+        """Seed a Beta prior for an agent that has no recorded evidence.
+
+        `prior_trust` is on the 0-100 display scale. Priors are opinions,
+        not evidence: once any event has been recorded for the agent/lane
+        the existing posterior is returned untouched. While evidence_count
+        is still zero a re-registration MAY reseed the prior (last opinion
+        wins), keeping registration deterministic. The seeded posterior
+        carries `weight` pseudo-observations, so early real events move
+        trust meaningfully without erasing the prior outright.
+        """
+        snapshot = self.get_snapshot(agent_id, lane)
+        if snapshot.evidence_count > 0:
+            return snapshot
+
+        p = self._clamp(prior_trust / 100.0)
+        p = min(p, TRUST_CAP)
+        weight = max(float(weight), 1.0)
+        alpha = max(p * weight, 1e-6)
+        beta = max((1.0 - p) * weight, 1e-6)
+        seeded = TrustSnapshot(
+            agent_id=agent_id,
+            lane=snapshot.lane,
+            trust=round(p, 4),
+            alpha=round(alpha, 6),
+            beta=round(beta, 6),
+            evidence_count=0,
+            authority_band=self._derive_authority_band(p, CDRStage.NORMAL, 0),
+            last_updated=datetime.now(timezone.utc).isoformat(),
+        )
+        self._snapshots[(agent_id, seeded.lane)] = seeded
+        self._persist_snapshot(seeded)
+        return seeded
+
     @staticmethod
     def coerce_lane(lane: Optional[str]) -> Lane:
         if isinstance(lane, Lane):
@@ -798,3 +840,46 @@ class TrustKernel:
             return max(0.0, min(1.0, float(value)))
         except (TypeError, ValueError):
             return 0.0
+
+
+# ── Process-wide singleton ─────────────────────────────────────────────
+#
+# Production code used to instantiate bare TrustKernel() in several places
+# (COGER, MCP server, memory broker), each with its own in-memory snapshot
+# cache — three disagreeing "canonical" trust states per process. The
+# singleton unifies them. Storage: NEXUS_TRUST_DB (or NEXUS_GOVERNANCE_DB)
+# selects a SQLite file; unset keeps the kernel in-memory + vault-channel
+# mirrored, matching the previous default behavior.
+
+_kernel_singleton: Optional[TrustKernel] = None
+_kernel_lock = threading.Lock()
+
+
+def _default_kernel() -> TrustKernel:
+    db = None
+    db_path = os.environ.get("NEXUS_TRUST_DB") or os.environ.get("NEXUS_GOVERNANCE_DB")
+    if db_path:
+        try:
+            from nexus_os.db.manager import DatabaseManager, DBConfig
+            db = DatabaseManager(DBConfig(db_path=db_path, passphrase="", encrypted=False))
+        except Exception as exc:  # pragma: no cover - env-specific
+            logger.warning("TrustKernel DB unavailable (%s); using in-memory kernel", exc)
+            db = None
+    return TrustKernel(db=db)
+
+
+def get_trust_kernel() -> TrustKernel:
+    """Return the process-wide TrustKernel singleton (lazy, thread-safe)."""
+    global _kernel_singleton
+    if _kernel_singleton is None:
+        with _kernel_lock:
+            if _kernel_singleton is None:
+                _kernel_singleton = _default_kernel()
+    return _kernel_singleton
+
+
+def set_trust_kernel(kernel: Optional[TrustKernel]) -> None:
+    """Replace the singleton (tests / explicit wiring). None resets to lazy."""
+    global _kernel_singleton
+    with _kernel_lock:
+        _kernel_singleton = kernel

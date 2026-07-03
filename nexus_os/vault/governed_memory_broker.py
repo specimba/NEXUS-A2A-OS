@@ -23,6 +23,7 @@ from nexus_os.governor.trust_kernel import (
     ResourceBudgetClass,
     TrustKernel,
     TrustResourceBudget,
+    get_trust_kernel,
 )
 from nexus_os.vault.memory import MemoryEntry, SuperLocalMemory, get_memory
 from nexus_os.vault.memory_channels import MemoryChannelManager, get_manager
@@ -120,7 +121,7 @@ class GovernedMemoryBroker:
         semantic_memory: Optional[SemanticMemory] = None,
         config: Optional[GovernedMemoryBrokerConfig] = None,
     ) -> None:
-        self.trust_kernel = trust_kernel or TrustKernel()
+        self.trust_kernel = trust_kernel or get_trust_kernel()
         self.hot_memory = hot_memory or get_memory()
         self.channel_memory = channel_memory or get_manager()
         self.semantic_memory = semantic_memory

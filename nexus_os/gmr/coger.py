@@ -280,8 +280,8 @@ class CogER:
         if trust_score is not None:
             return trust_score
         try:
-            from nexus_os.governor.trust_kernel import TrustKernel
-            kernel = TrustKernel()
+            from nexus_os.governor.trust_kernel import get_trust_kernel
+            kernel = get_trust_kernel()
             snapshot = kernel.get_snapshot("coger", "general")
             return snapshot.trust * 100.0  # trust is 0.0-1.0, score is 0-100
         except Exception:

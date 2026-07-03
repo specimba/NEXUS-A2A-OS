@@ -189,8 +189,8 @@ class TestCogERTrustBudget:
 
     def test_resolve_trust_score_none_fallback(self):
         coger = CogER()
-        # When TrustKernel is unavailable, falls back to conservative 40.0
-        with patch("nexus_os.governor.trust_kernel.TrustKernel", side_effect=RuntimeError("no db")):
+        # When the TrustKernel singleton is unavailable, falls back to 40.0
+        with patch("nexus_os.governor.trust_kernel.get_trust_kernel", side_effect=RuntimeError("no db")):
             score = coger._resolve_trust_score(None)
             assert score == 40.0
 

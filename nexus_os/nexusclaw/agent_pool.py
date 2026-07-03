@@ -172,13 +172,54 @@ class AgentPool:
         self,
         memory_channels: Optional[MemoryChannelManager] = None,
         skill_auditor: Optional[Any] = None,
+        trust_kernel: Optional[Any] = None,
     ) -> None:
         self._agents: Dict[str, AgentRecord] = {}
         self._capabilities_index: Dict[str, Set[str]] = {}  # capability_name -> {agent_ids}
         self._lane_index: Dict[str, Set[str]] = {}  # lane -> {agent_ids}
         self.memory_channels = memory_channels or get_manager()
         self._skill_auditor = skill_auditor
+        self._trust_kernel_override = trust_kernel
+        self._kernel_failed = False
         self._lock = threading.RLock()
+
+    # ------------------------------------------------------------------
+    # TrustKernel read-through (P2-2)
+    #
+    # The kernel is the single trust store. Pool records only MIRROR the
+    # kernel posterior (0-1 → 0-100 display); registration seeds are
+    # bootstrap priors, not truth, and update_trust records evidence
+    # instead of assigning a score.
+    # ------------------------------------------------------------------
+
+    def _kernel(self):
+        if self._trust_kernel_override is not None:
+            return self._trust_kernel_override
+        if self._kernel_failed:
+            return None
+        try:
+            from nexus_os.governor.trust_kernel import get_trust_kernel
+            return get_trust_kernel()
+        except Exception:
+            self._kernel_failed = True
+            logger.warning(
+                "TrustKernel unavailable; agent_pool falls back to local trust floats"
+            )
+            return None
+
+    def _refresh_trust(self, agent: AgentRecord) -> None:
+        """Mirror the kernel posterior into the record, if the kernel has state."""
+        kernel = self._kernel()
+        if kernel is None:
+            return
+        try:
+            snap = kernel.get_snapshot(agent.agent_id, agent.lane)
+            # Only mirror when the kernel actually holds a seeded prior or
+            # evidence — never stomp a record with the blank 0.5 default.
+            if snap.evidence_count > 0 or snap.alpha != 1.0 or snap.beta != 1.0:
+                agent.trust_score = round(snap.trust * 100.0, 2)
+        except Exception:
+            logger.debug("Trust refresh failed for %s", agent.agent_id, exc_info=True)
 
     # ------------------------------------------------------------------
     # Registration
@@ -216,6 +257,21 @@ class AgentPool:
 
             self._agents[agent.agent_id] = agent
             self._index_agent(agent)
+
+            # P2-2: the record's trust_score is a bootstrap prior only —
+            # seed it into the TrustKernel and mirror the posterior back.
+            kernel = self._kernel()
+            if kernel is not None:
+                try:
+                    snap = kernel.ensure_bootstrap_prior(
+                        agent.agent_id, agent.lane, prior_trust=agent.trust_score,
+                    )
+                    agent.trust_score = round(snap.trust * 100.0, 2)
+                except Exception:
+                    logger.debug(
+                        "TrustKernel prior seed failed for %s", agent.agent_id,
+                        exc_info=True,
+                    )
 
             # Write to META channel for audit
             self._log_to_memory(agent, "registered")
@@ -257,14 +313,60 @@ class AgentPool:
             return agent
 
     def update_trust(self, agent_id: str, trust_score: float) -> Optional[AgentRecord]:
-        """Update an agent's trust score."""
+        """Record a trust observation for an agent.
+
+        P2-2: the TrustKernel is the single trust store. The score is
+        recorded as observed evidence (Q = score/100) and the record
+        mirrors the kernel's resulting posterior — an absolute score can
+        no longer be assigned directly, so anti-grinding throttles, the
+        non-compensatory floor, and the 99.5 cap all apply. If the kernel
+        is unavailable the old clamped float assignment remains as a
+        degraded fallback.
+        """
         with self._lock:
             agent = self._agents.get(agent_id)
             if not agent:
                 return None
 
-            agent.trust_score = max(0.0, min(100.0, trust_score))
-            self._log_to_memory(agent, f"trust_update:{trust_score:.1f}")
+            target = max(0.0, min(100.0, trust_score))
+            kernel = self._kernel()
+            if kernel is not None:
+                try:
+                    from nexus_os.governor.trust_kernel import TrustEvent
+                    # Direction is carried by the risk/drift terms: a target
+                    # below the current mirror is an observed regression
+                    # (R/D_minus proportional to the drop), a target at or
+                    # above it is a positive quality observation. Q is the
+                    # quality of the OBSERVATION — for regressions it stays
+                    # at a credible 0.7 (a low target used as Q would gate
+                    # its own effect to zero). Single observations are
+                    # deliberately damped by the equation until evidence
+                    # accumulates (anti-grinding works in both directions).
+                    drop = max(0.0, (agent.trust_score - target) / 100.0)
+                    snap = kernel.record_event(TrustEvent(
+                        agent_id=agent_id,
+                        lane=agent.lane,
+                        event_type="agent_pool_observation",
+                        action="update_trust",
+                        outcome="regression" if drop > 0 else "observed",
+                        Q=0.7 if drop > 0 else target / 100.0,
+                        R=drop,
+                        D_minus=drop,
+                        source="agent_pool",
+                    ))
+                    agent.trust_score = round(snap.trust * 100.0, 2)
+                    self._log_to_memory(
+                        agent, f"trust_update:kernel:{agent.trust_score:.1f}"
+                    )
+                    return agent
+                except Exception:
+                    logger.debug(
+                        "TrustKernel trust update failed for %s", agent_id,
+                        exc_info=True,
+                    )
+
+            agent.trust_score = target
+            self._log_to_memory(agent, f"trust_update:{target:.1f}")
             return agent
 
     def set_skill_auditor(self, auditor: Any) -> None:
@@ -277,9 +379,12 @@ class AgentPool:
     # ------------------------------------------------------------------
 
     def get(self, agent_id: str) -> Optional[AgentRecord]:
-        """Get an agent by ID."""
+        """Get an agent by ID (trust mirrored from the kernel)."""
         with self._lock:
-            return self._agents.get(agent_id)
+            agent = self._agents.get(agent_id)
+            if agent is not None:
+                self._refresh_trust(agent)
+            return agent
 
     def list_all(self) -> List[AgentRecord]:
         """List all registered agents."""
@@ -290,6 +395,8 @@ class AgentPool:
         """List agents that are available (online or degraded) and trusted."""
         with self._lock:
             threshold = min_trust if min_trust is not None else self.MIN_TRUST_FOR_COORDINATION
+            for a in self._agents.values():
+                self._refresh_trust(a)
             agents = [
                 a for a in self._agents.values()
                 if a.is_available and a.is_trusted(threshold)
@@ -309,7 +416,9 @@ class AgentPool:
             agent_ids = self._capabilities_index.get(capability_name, set())
             agents = [self._agents[aid] for aid in agent_ids if aid in self._agents]
 
-            # Filter by availability and trust
+            # Filter by availability and trust (kernel-mirrored)
+            for a in agents:
+                self._refresh_trust(a)
             min_trust = min_trust if min_trust is not None else self.MIN_TRUST_FOR_COORDINATION
             agents = [a for a in agents if a.is_available and a.is_trusted(min_trust)]
 
