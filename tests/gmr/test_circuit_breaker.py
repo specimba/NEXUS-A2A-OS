@@ -1,6 +1,8 @@
 """tests/gmr/test_circuit_breaker.py — AdaptiveCircuitBreaker state machine tests"""
+import json
 import time
 import pytest
+from pathlib import Path
 from unittest.mock import patch
 
 from nexus_os.gmr.circuit_breaker import AdaptiveCircuitBreaker, CircuitState
@@ -149,3 +151,48 @@ class TestSuccessWhileClosed:
         cb.record_success()
         assert cb.state == CircuitState.CLOSED
         assert cb._failure_count == 0
+
+
+# ── P2-4: sync_from_relay breaker-state propagation ─────────────────
+
+
+class TestSyncFromRelay:
+    def test_sync_opens_gmr_when_relay_has_dead_providers(self, tmp_path):
+        relay_file = tmp_path / "relay_circuit.json"
+        relay_file.write_text(json.dumps({
+            "ollama-cloud": {"state": "open", "failure_count": 5},
+            "openrouter": {"state": "closed"},
+        }))
+        cb = AdaptiveCircuitBreaker()
+        result = cb.sync_from_relay(str(relay_file))
+        assert result["synced"] is True
+        assert "ollama-cloud" in result["dead_providers"]
+        assert cb.state == CircuitState.OPEN
+
+    def test_sync_no_change_when_relay_all_healthy(self, tmp_path):
+        relay_file = tmp_path / "relay_circuit.json"
+        relay_file.write_text(json.dumps({
+            "ollama-cloud": {"state": "closed"},
+        }))
+        cb = AdaptiveCircuitBreaker()
+        result = cb.sync_from_relay(str(relay_file))
+        assert result["synced"] is True
+        assert result["dead_providers"] == {}
+        assert cb.state == CircuitState.CLOSED
+
+    def test_sync_missing_relay_file(self):
+        cb = AdaptiveCircuitBreaker()
+        result = cb.sync_from_relay("/nonexistent/file.json")
+        assert result["synced"] is False
+        assert result["reason"] == "relay_state_not_found"
+
+    def test_sync_only_opens_when_gmr_is_closed(self, tmp_path):
+        relay_file = tmp_path / "relay_circuit.json"
+        relay_file.write_text(json.dumps({
+            "provider-a": {"state": "open"},
+        }))
+        cb = AdaptiveCircuitBreaker()
+        cb.record_failure()  # already open
+        result = cb.sync_from_relay(str(relay_file))
+        assert result["synced"] is True
+        assert cb._state == CircuitState.OPEN

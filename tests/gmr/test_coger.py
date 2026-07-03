@@ -146,11 +146,12 @@ class TestCogER:
         # Let's mock LLMPeerReview.flipped_triple_scoring to return a mocked dictionary of scores directly
         coger = CogER()
         
-        # Patch flipped_triple_scoring to return scores favoring Candidate 2 (orig_index = 1)
+        # Patch flipped_triple_scoring to return (judge_idx, score) pairs
+        # favoring Candidate 2 (orig_index = 1)
         mock_scores = {
-            0: [3.0, 3.2],
-            1: [4.8, 4.9],
-            2: [3.5, 3.6]
+            0: [(0, 3.0), (1, 3.2)],
+            1: [(0, 4.8), (1, 4.9)],
+            2: [(0, 3.5), (1, 3.6)]
         }
         
         with patch.object(coger.peer_review, "flipped_triple_scoring", return_value=mock_scores):
@@ -176,3 +177,45 @@ class TestCogER:
         assert res["level"] == "L4"
         assert res["strategy"] == "Tool-Enhanced"
         assert "Trust gate blocked" in res["response"] or "Blocked by Progent" in res["response"]
+
+
+# ── P2-3: trust budget + fail-closed ──────────────────────────────────
+
+
+class TestCogERTrustBudget:
+    def test_resolve_trust_score_explicit(self):
+        coger = CogER()
+        assert coger._resolve_trust_score(85.0) == 85.0
+
+    def test_resolve_trust_score_none_fallback(self):
+        coger = CogER()
+        # When TrustKernel is unavailable, falls back to conservative 40.0
+        with patch("nexus_os.governor.trust_kernel.TrustKernel", side_effect=RuntimeError("no db")):
+            score = coger._resolve_trust_score(None)
+            assert score == 40.0
+
+    def test_route_default_trust_not_100(self):
+        """route() with no trust_score should NOT default to 100.0."""
+        coger = CogER()
+        # Patch _resolve_trust_score to verify it's called with None
+        with patch.object(coger, "_resolve_trust_score", return_value=40.0) as mock_resolve:
+            with patch.object(coger, "_call_direct_slm", return_value="ok"):
+                coger.route("hello", level="L1")
+            mock_resolve.assert_not_called()  # L1 doesn't use trust
+
+    def test_l3_no_candidates_returns_error(self):
+        """L3 with all models failing returns error, not fabricated answer."""
+        coger = CogER()
+        with patch.object(coger, "_call_model", return_value=None):
+            res = coger.route("Analyze this complex system", level="L3")
+            assert "Error" in res["response"]
+            assert "degraded" in res["strategy"]
+
+    def test_l4_fail_closed_on_bridge_and_client_failure(self):
+        """L4 tool delegation fails closed — error string, not fabrication."""
+        coger = CogER()
+        with patch("nexus_os.bridge.gross_bridge.GrossMCPBridge", side_effect=RuntimeError("bridge down")):
+            with patch("nexus_os.bridge.intern_discovery.InternDiscoveryClient", side_effect=RuntimeError("client down")):
+                res = coger.route("Run chemical safety assessment for aspirin", trust_score=95.0)
+                assert res["level"] == "L4"
+                assert "Execution Blocked" in res["response"]

@@ -99,10 +99,14 @@ class LLMPeerReview:
         self,
         user_prompt: str,
         candidates: List[str],
-    ) -> Dict[int, List[float]]:
+    ) -> Dict[int, List[Tuple[int, float]]]:
         """Perform the flipped-triple scoring trick.
 
-        Returns a dictionary mapping candidate original index to lists of scores.
+        Returns a dictionary mapping candidate original index to a list of
+        (judge_index, score) pairs. Judge attribution is explicit: scores
+        used to be re-partitioned downstream by `k % num_judges`, which
+        scrambled attribution (each judge appends two consecutive scores
+        per triplet, and failed judge calls shift the sequence).
         """
         num_candidates = len(candidates)
         if num_candidates == 0:
@@ -114,8 +118,8 @@ class LLMPeerReview:
         random.shuffle(indices)
         shuffled_cands = [candidates[i] for i in indices]
 
-        # Init scores container: candidate original index -> list of scores
-        scores: Dict[int, List[float]] = {i: [] for i in range(num_candidates)}
+        # Init scores container: candidate original index -> (judge, score) pairs
+        scores: Dict[int, List[Tuple[int, float]]] = {i: [] for i in range(num_candidates)}
 
         # If we have fewer than 3 candidates, pad with empty responses or evaluate pointwise
         if num_candidates < 3:
@@ -124,15 +128,15 @@ class LLMPeerReview:
             while len(padded_cands) < 3:
                 padded_cands.append("")
             # Evaluate the triplet once and flipped once per judge
-            for judge in self._judges:
+            for j_idx, judge in enumerate(self._judges):
                 res1 = self._call_judge(judge, user_prompt, padded_cands[0], padded_cands[1], padded_cands[2])
                 res2 = self._call_judge(judge, user_prompt, padded_cands[2], padded_cands[1], padded_cands[0])
                 if res1 and res2:
                     # Map back to original indices
                     for j, orig_idx in enumerate(indices):
-                        scores[orig_idx].append(res1[j])
+                        scores[orig_idx].append((j_idx, res1[j]))
                         # Flipped index mapping: res2 has index 2 - j mapping back to orig_idx
-                        scores[orig_idx].append(res2[2 - j])
+                        scores[orig_idx].append((j_idx, res2[2 - j]))
             return scores
 
         # 2. Slide window of size 3 (triplets)
@@ -142,20 +146,20 @@ class LLMPeerReview:
             orig_a, orig_b, orig_c = indices[idx_a], indices[idx_b], indices[idx_c]
             cand_a, cand_b, cand_c = shuffled_cands[idx_a], shuffled_cands[idx_b], shuffled_cands[idx_c]
 
-            for judge in self._judges:
+            for j_idx, judge in enumerate(self._judges):
                 # Normal slide rating
                 res_normal = self._call_judge(judge, user_prompt, cand_a, cand_b, cand_c)
                 # Flipped rating
                 res_flipped = self._call_judge(judge, user_prompt, cand_c, cand_b, cand_a)
 
                 if res_normal:
-                    scores[orig_a].append(res_normal[0])
-                    scores[orig_b].append(res_normal[1])
-                    scores[orig_c].append(res_normal[2])
+                    scores[orig_a].append((j_idx, res_normal[0]))
+                    scores[orig_b].append((j_idx, res_normal[1]))
+                    scores[orig_c].append((j_idx, res_normal[2]))
                 if res_flipped:
-                    scores[orig_a].append(res_flipped[2])
-                    scores[orig_b].append(res_flipped[1])
-                    scores[orig_c].append(res_flipped[0])
+                    scores[orig_a].append((j_idx, res_flipped[2]))
+                    scores[orig_b].append((j_idx, res_flipped[1]))
+                    scores[orig_c].append((j_idx, res_flipped[0]))
 
         return scores
 
@@ -232,23 +236,21 @@ class LLMPeerReview:
         # Compute averages or weighted averages
         final_scores = {}
         if use_weighted:
-            # Reorganize scores into candidate-judge matrix
-            # scores[cand_idx] is a list of scores. Since each candidate was rated
-            # twice per judge per triplet, we average by judge.
+            # Reorganize scores into candidate-judge matrix using the
+            # explicit judge attribution carried in each (judge, score)
+            # pair. The old positional re-partition (k % num_judges)
+            # scrambled attribution whenever a judge appended two scores
+            # per triplet or a judge call failed.
             num_judges = len(self._judges)
             num_cands = len(candidates)
             matrix = [[3.0] * num_judges for _ in range(num_cands)]
 
             for c_idx in range(num_cands):
-                cand_scores = scores[c_idx]
-                # Re-partition cand_scores by judge
-                # For N candidates, each judge rated each candidate 2 * (triplets involving candidate) times
-                # Simply cycle through judges
-                for j_idx in range(num_judges):
-                    # Gather scores belonging to judge j_idx
-                    judge_vals = [cand_scores[k] for k in range(len(cand_scores)) if k % num_judges == j_idx]
-                    if judge_vals:
-                        matrix[c_idx][j_idx] = sum(judge_vals) / len(judge_vals)
+                by_judge: Dict[int, List[float]] = {}
+                for j_idx, val in scores[c_idx]:
+                    by_judge.setdefault(j_idx, []).append(val)
+                for j_idx, judge_vals in by_judge.items():
+                    matrix[c_idx][j_idx] = sum(judge_vals) / len(judge_vals)
 
             weights = self.compute_judge_weights(matrix)
             for c_idx in range(num_cands):
@@ -256,7 +258,9 @@ class LLMPeerReview:
         else:
             # Simple average of all scores gathered per candidate
             for c_idx, s_list in scores.items():
-                final_scores[c_idx] = sum(s_list) / len(s_list) if s_list else 1.0
+                final_scores[c_idx] = (
+                    sum(val for _, val in s_list) / len(s_list) if s_list else 1.0
+                )
 
         best_idx = max(final_scores, key=final_scores.get)
         logger.info("Selected candidate index %d with score %.3f", best_idx, final_scores[best_idx])

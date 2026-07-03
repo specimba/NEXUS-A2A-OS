@@ -150,10 +150,11 @@ class CogER:
                 user_content=query,
                 max_tokens=512
             )
-            # If ModelRelay fails, generate dummy variations for fallback testing
-            if not ans:
-                ans = f"[{model} candidate answer] solved step-by-step for: {query}"
-            candidates.append(ans)
+            # P2-3: Never fabricate candidates — empty strings are filtered
+            # out downstream rather than polluting the ensemble with
+            # synthetic hallucinations.
+            if ans:
+                candidates.append(ans)
         return candidates
 
     def _extract_tool_call_heuristically(self, query: str) -> Tuple[Optional[str], Dict[str, Any]]:
@@ -269,8 +270,26 @@ class CogER:
         except Exception:
             return None, {}
 
-    def _handle_tool_delegation(self, query: str, trust_score: float = 100.0) -> str:
+    def _resolve_trust_score(self, trust_score: float | None) -> float:
+        """Resolve trust score from caller or TrustKernel singleton.
+
+        P2-3: The old default of 100.0 meant every COGER invocation ran
+        with maximum trust, bypassing the governor's trust gates. Unknown
+        callers get a conservative 40.0 budget.
+        """
+        if trust_score is not None:
+            return trust_score
+        try:
+            from nexus_os.governor.trust_kernel import TrustKernel
+            kernel = TrustKernel()
+            snapshot = kernel.get_snapshot("coger", "general")
+            return snapshot.trust * 100.0  # trust is 0.0-1.0, score is 0-100
+        except Exception:
+            return 40.0
+
+    def _handle_tool_delegation(self, query: str, trust_score: float | None = None) -> str:
         """L4 Cognitive Tool-Assisted Reasoning delegation (CoTool)."""
+        trust = self._resolve_trust_score(trust_score)
         tool_name, arguments = self._extract_tool_call_heuristically(query)
         if not tool_name:
             tool_name, arguments = self._extract_tool_call_llm(query)
@@ -278,14 +297,15 @@ class CogER:
         if not tool_name:
             return f"Error: No matching scientific tool could be extracted from query: '{query}'"
             
-        # Try to execute via GrossMCPBridge
+        # P2-3: L4 fail-closed — both bridge and direct client failures
+        # return error strings, never fabricated results.
         try:
             from nexus_os.bridge.gross_bridge import GrossMCPBridge
             bridge = GrossMCPBridge()
             reg = bridge.register()
             if reg.success:
                 logger.info("CogER: Successfully registered GrossMCPBridge for CoTool execution.")
-                result = bridge.call_tool(tool_name, arguments, trust_score=trust_score)
+                result = bridge.call_tool(tool_name, arguments, trust_score=trust)
                 if result.blocked:
                     return f"Execution Blocked: {result.reason}"
                 if result.is_error:
@@ -294,14 +314,13 @@ class CogER:
         except Exception as e:
             logger.debug("CogER: Failed to execute via GrossMCPBridge (%s), falling back to direct client", e)
             
-        # Fall back to direct InternDiscoveryClient if bridge is not running
         try:
             from nexus_os.bridge.intern_discovery import InternDiscoveryClient
             client = InternDiscoveryClient()
             high_governance_tools = {"chemical_safety_assessment", "drug_warning_report"}
-            if tool_name in high_governance_tools and trust_score < 90.0:
+            if tool_name in high_governance_tools and trust < 90.0:
                 return (
-                    f"Execution Blocked: Trust gate blocked: trust={trust_score:.1f} < "
+                    f"Execution Blocked: Trust gate blocked: trust={trust:.1f} < "
                     f"threshold=90.0 for governance tool '{tool_name}'"
                 )
             result = client.call_scp_tool(tool_name, arguments)
@@ -309,9 +328,10 @@ class CogER:
                 return f"Execution Error: {result.error_message}"
             return json.dumps(result.result, indent=2)
         except Exception as e:
-            return f"Error: Failed to instantiate scientific tool client for '{tool_name}': {e}"
+            # P2-3: fail-closed — clear error, no silent fabrication
+            return f"Execution Blocked: Both GrossMCPBridge and InternDiscoveryClient failed for '{tool_name}': {e}"
 
-    def route(self, query: str, level: Optional[str] = None, use_llm: bool = False, trust_score: float = 100.0) -> Dict[str, Any]:
+    def route(self, query: str, level: Optional[str] = None, use_llm: bool = False, trust_score: float | None = None) -> Dict[str, Any]:
         """Route the query to the optimal strategy based on complexity level."""
         if not level:
             level = self.classify_complexity(query, use_llm=use_llm)
@@ -324,9 +344,14 @@ class CogER:
             strategy = "Tandem Routing"
         elif level == "L3":
             candidates = self._generate_ensemble_candidates(query)
-            best_response, _ = self.peer_review.select_best(query, candidates, use_weighted=True)
-            response = best_response
-            strategy = "Peer-Review Swarm"
+            if not candidates:
+                # P2-3: no fabricated fallback — fail with clear error
+                response = f"Error: All L3 ensemble models failed to produce candidates for: {query[:80]}"
+                strategy = "Peer-Review Swarm (degraded)"
+            else:
+                best_response, _ = self.peer_review.select_best(query, candidates, use_weighted=True)
+                response = best_response
+                strategy = "Peer-Review Swarm"
         else:  # L4
             response = self._handle_tool_delegation(query, trust_score=trust_score)
             strategy = "Tool-Enhanced"
