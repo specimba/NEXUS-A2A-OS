@@ -258,6 +258,8 @@ class LightMemConsolidationDaemon:
                     "source": src,
                     "timestamp": r.timestamp if hasattr(r, "timestamp") else datetime.now(timezone.utc).isoformat(),
                     "compressed_from": compressed.get(src, {}).get("compressed_from", 0) + 1,
+                    # MemLineage: derivation carries every merged source id
+                    "parent_ids": compressed.get(src, {}).get("parent_ids", []) + [r.record_id],
                 }
 
             for content in compressed.values():
@@ -265,6 +267,7 @@ class LightMemConsolidationDaemon:
                     self.manager.append_working(
                         agent_id=aid,
                         content=content["content"],
+                        parent_ids=content["parent_ids"],
                     )
                     written_count += 1
                 except Exception as e:
@@ -316,6 +319,7 @@ class LightMemConsolidationDaemon:
                         outcome="consolidated",  # Derived from WORKING memory
                         duration_ms=0.0,
                         token_count=r.tokens if hasattr(r, "tokens") else 0,
+                        parent_ids=[r.record_id],
                     )
                     written_count += 1
                 except Exception as e:
@@ -365,13 +369,24 @@ class LightMemConsolidationDaemon:
             # Write top concepts to SEMANTIC channel
             for concept, freq in sorted(concepts.items(), key=lambda x: x[1], reverse=True)[:5]:
                 try:
-                    self.manager.append_semantic(
+                    # Writer authority, not content trust: the daemon is a
+                    # SYSTEM writer (same convention as the episodic/task
+                    # legacy-trusted shim). trust_score=50.0 was below the
+                    # SEMANTIC gate (65), so stage 3 had NEVER actually
+                    # written — every append was silently denied while
+                    # written_count still incremented. Content-level
+                    # trustworthiness is what the lineage taint carries.
+                    written = self.manager.append_semantic(
                         agent_id=aid,
                         content=f"Concept: {concept} (freq={freq}) extracted from {read_count} episodic records",
                         topic_tags=[concept],
-                        trust_score=50.0,  # Default trust for semantic extraction
+                        trust_score=100.0,
+                        parent_ids=[rec.record_id for rec in records[:50]],
                     )
-                    written_count += 1
+                    if written is not None:
+                        written_count += 1
+                    else:
+                        dropped_count += 1
                 except Exception as e:
                     logger.warning("Failed to write SEMANTIC for %s: %s", aid, e)
                     dropped_count += 1

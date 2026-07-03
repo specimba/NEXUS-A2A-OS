@@ -123,6 +123,11 @@ class ChannelRecord:
     last_access: Optional[float] = None  # Timestamp of last read
     persistence_score: float = 0.5  # 0.0 (fade) to 1.0 (eidetic), auto-adjusted by access frequency
     
+    # Memory chain-of-custody (MemLineage, arXiv 2605.14421)
+    origin: str = "internal"          # external | internal | system
+    parent_ids: List[str] = field(default_factory=list)
+    tainted: bool = False             # derived: external origin or tainted ancestor
+
     # Common metadata
     trace_id: Optional[str] = None
     project_id: Optional[str] = None
@@ -243,6 +248,31 @@ class MemoryChannelManager:
             return
         if len(buf) > self.MAX_RECORDS_PER_CHANNEL:
             self._buffers[agent_id][channel] = buf[-self.MAX_RECORDS_PER_CHANNEL:]
+
+    def _record_lineage(self, record: "ChannelRecord", origin: str,
+                        parent_ids: Optional[List[str]]) -> None:
+        """MemLineage: attach a derivation edge and computed taint.
+
+        Taint propagates max-of-strong-edges (external origin or any
+        tainted/unknown ancestor). Lineage failures never block the
+        write - but the record then stays at its declared origin's
+        conservative default (external -> tainted).
+        """
+        record.origin = origin
+        record.parent_ids = list(parent_ids or [])
+        try:
+            from nexus_os.vault.lineage import get_lineage_log
+            entry = get_lineage_log().record(
+                entry_id=record.record_id,
+                agent_id=record.agent_id,
+                channel=record.channel.value,
+                origin=origin,
+                parent_ids=record.parent_ids,
+            )
+            record.tainted = entry.tainted
+        except Exception:
+            record.tainted = origin == "external"
+            logger.debug("Lineage recording failed", exc_info=True)
     
     # ── SENSORY Channel (0) ─────────────────────────────────────
     
@@ -254,11 +284,15 @@ class MemoryChannelManager:
         topic_tags: Optional[List[str]] = None,
         threat_flags: Optional[List[str]] = None,
         trace_id: Optional[str] = None,
+        origin: str = "external",
+        parent_ids: Optional[List[str]] = None,
     ) -> Optional[ChannelRecord]:
         """Append a SENSORY record (pre-filtered raw input).
         
         Trust gate: 0 (open to all agents).
         Execution path: HOT (0.02s SLA).
+        Lineage: SENSORY is the external ingress - origin defaults to
+        "external" (tainted) unless the caller declares otherwise.
         """
         record = ChannelRecord(
             channel=MemoryChannel.SENSORY,
@@ -269,6 +303,7 @@ class MemoryChannelManager:
             threat_flags=threat_flags or [],
             trace_id=trace_id,
         )
+        self._record_lineage(record, origin, parent_ids)
         self._buffers[agent_id][MemoryChannel.SENSORY].append(record)
         self._maybe_prune(agent_id, MemoryChannel.SENSORY)
         logger.debug(f"SENSORY: {agent_id} → compressed={compression_ratio:.2f}")
@@ -281,6 +316,8 @@ class MemoryChannelManager:
         agent_id: str,
         content: str,
         trace_id: Optional[str] = None,
+        origin: str = "internal",
+        parent_ids: Optional[List[str]] = None,
     ) -> Optional[ChannelRecord]:
         """Append a WORKING record (active context window).
         
@@ -294,6 +331,7 @@ class MemoryChannelManager:
             content=content,
             trace_id=trace_id,
         )
+        self._record_lineage(record, origin, parent_ids)
         self._buffers[agent_id][MemoryChannel.WORKING].append(record)
         # WORKING channel auto-prunes: keep only last 50 entries
         if len(self._buffers[agent_id][MemoryChannel.WORKING]) > 50:
@@ -315,6 +353,8 @@ class MemoryChannelManager:
         trace_id: Optional[str] = None,
         project_id: Optional[str] = None,
         trust_score: float = 0.0,
+        origin: str = "internal",
+        parent_ids: Optional[List[str]] = None,
     ) -> Optional[ChannelRecord]:
         """Append an EPISODIC record (task outcome).
 
@@ -338,6 +378,7 @@ class MemoryChannelManager:
             trace_id=trace_id,
             project_id=project_id,
         )
+        self._record_lineage(record, origin, parent_ids)
         self._buffers[agent_id][MemoryChannel.EPISODIC].append(record)
         self._maybe_prune(agent_id, MemoryChannel.EPISODIC)
         
@@ -387,6 +428,8 @@ class MemoryChannelManager:
         source_dossier_id: Optional[str] = None,
         trust_score: float = 0.0,
         trace_id: Optional[str] = None,
+        origin: str = "internal",
+        parent_ids: Optional[List[str]] = None,
     ) -> Optional[ChannelRecord]:
         """Append a SEMANTIC record (abstracted knowledge, ARCHIVIST dossiers).
         
@@ -404,6 +447,7 @@ class MemoryChannelManager:
             topic_tags=topic_tags or [],
             trace_id=trace_id,
         )
+        self._record_lineage(record, origin, parent_ids)
         self._buffers[agent_id][MemoryChannel.SEMANTIC].append(record)
 
         # Also write to semantic backend (ChromaDB/hybrid) if configured
