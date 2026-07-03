@@ -183,6 +183,25 @@ class MonitorDaemon:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    def _run_breaker_sync(self) -> dict[str, Any]:
+        """P2-4 seam consumer: propagate relay dead-provider knowledge to
+        the GMR circuit breaker. The relay server persists breaker state
+        to ~/.modelrelay.circuit.json (RELAY_BREAKER_PERSIST); this check
+        is the production caller sync_from_relay never had.
+        """
+        try:
+            from nexus_os.gmr.circuit_breaker import AdaptiveCircuitBreaker
+            breaker = AdaptiveCircuitBreaker()
+            report = breaker.sync_from_relay()
+            if report.get("synced") and report.get("dead_providers"):
+                logger.warning(
+                    "GMR breaker synced %d dead providers from relay state",
+                    len(report["dead_providers"]),
+                )
+            return {"ok": True, "result": report}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
     def _run_key_rotation_check(self) -> dict[str, Any]:
         try:
             from nexusctl.rotate_keys import cmd_health_check
@@ -206,6 +225,7 @@ class MonitorDaemon:
             "hallucination_detector": self._run_hallucination_check,
             "mcp_gateway": self._run_mcp_gateway_check,
             "provider_health": self._run_provider_health_check,
+            "breaker_sync": self._run_breaker_sync,
             "key_rotation": self._run_key_rotation_check,
         }
 

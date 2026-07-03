@@ -20,10 +20,16 @@ class ProviderState(Enum):
 
 
 class ProviderCircuitBreaker:
-    def __init__(self, failure_threshold: int = 3, cooldown_seconds: float = 60.0, max_cooldown: float = 3600.0, persist: bool = False):
+    def __init__(self, failure_threshold: int = 3, cooldown_seconds: float = 60.0, max_cooldown: float = 3600.0, persist: "bool | None" = None):
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
         self.max_cooldown = max_cooldown
+        # P2-4 seam: persistence feeds the GMR breaker's sync_from_relay
+        # (~/.modelrelay.circuit.json). Default resolves from
+        # RELAY_BREAKER_PERSIST so the relay SERVER writes state while
+        # library/test constructions stay side-effect free.
+        if persist is None:
+            persist = os.environ.get("RELAY_BREAKER_PERSIST", "0") == "1"
         self.persist = persist
         self._state: dict[str, ProviderState] = {}
         self._failures: dict[str, int] = {}

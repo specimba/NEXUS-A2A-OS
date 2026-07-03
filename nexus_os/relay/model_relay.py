@@ -1405,6 +1405,9 @@ th {{ background: #161b22; color: #8b949e; text-transform: uppercase; font-size:
 
 
 if __name__ == "__main__":
+    # P2-4 seam: the serving relay persists breaker state so the GMR
+    # breaker (and monitor daemon) can sync dead-provider knowledge.
+    os.environ.setdefault("RELAY_BREAKER_PERSIST", "1")
     _validate_bind(RELAY_BIND, RELAY_TOKEN)
     logger.info(f"Starting Nexus ModelRelay v2.2 on {RELAY_BIND}:{STARTUP_PORT}")
     uvicorn.run(app, host=RELAY_BIND, port=STARTUP_PORT)

@@ -114,3 +114,45 @@ class TestHallucinationAlerts:
         result = daemon._run_hallucination_check()
         assert result["ok"] is True
         assert stub_bus.published == []
+
+
+class TestBreakerSync:
+    """P2-4 seam: relay breaker state file → GMR breaker via the daemon."""
+
+    def test_relay_open_providers_open_gmr_breaker(self, fake_home, tmp_path, monkeypatch):
+        # sync_from_relay resolves ~ via expanduser, not Path.home()
+        monkeypatch.setenv("USERPROFILE", str(fake_home))
+        monkeypatch.setenv("HOME", str(fake_home))
+        # Relay server persisted an OPEN provider
+        relay_state = fake_home / ".modelrelay.circuit.json"
+        relay_state.write_text(json.dumps({
+            "nvidia": {"state": "open", "failure_count": 3},
+        }), encoding="utf-8")
+        # Keep the GMR breaker's own persistence in the fake home too
+        import nexus_os.gmr.circuit_breaker as gcb
+        monkeypatch.setattr(gcb, "CIRCUIT_STATE_FILE", fake_home / ".gmr_circuit.json")
+        daemon = MonitorDaemon()
+        result = daemon._run_breaker_sync()
+        assert result["ok"] is True
+        assert result["result"]["synced"] is True
+        assert "nvidia" in result["result"]["dead_providers"]
+        assert result["result"]["gmr_state"] == "open"
+
+    def test_no_relay_state_is_clean_noop(self, fake_home, monkeypatch):
+        import nexus_os.gmr.circuit_breaker as gcb
+        monkeypatch.setattr(gcb, "CIRCUIT_STATE_FILE", fake_home / ".gmr_circuit.json")
+        daemon = MonitorDaemon()
+        result = daemon._run_breaker_sync()
+        assert result["ok"] is True
+        assert result["result"]["synced"] is False
+        assert result["result"]["reason"] == "relay_state_not_found"
+
+
+class TestRelayBreakerPersistDefault:
+    def test_persist_resolves_from_env(self, monkeypatch, fake_home):
+        from nexus_os.relay.circuit_breaker import ProviderCircuitBreaker
+        monkeypatch.delenv("RELAY_BREAKER_PERSIST", raising=False)
+        assert ProviderCircuitBreaker().persist is False  # library default
+        monkeypatch.setenv("RELAY_BREAKER_PERSIST", "1")
+        assert ProviderCircuitBreaker().persist is True   # server default
+        assert ProviderCircuitBreaker(persist=False).persist is False  # explicit wins
