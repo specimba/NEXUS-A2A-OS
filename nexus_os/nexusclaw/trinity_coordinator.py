@@ -16,9 +16,9 @@ Mapping to NEXUS OS:
     Verifier = governor/trust_kernel_v2.py (gate)
 
 Worker pool (initial):
-    Thinker: nim/z-ai/glm-5.1 (best frontier planner)
-    Worker complex: nim/z-ai/glm-5.1 or nim/nvidia/nemotron-3-ultra
-    Worker specialist: opencode/deepseek-v4-flash-free or longcat/LongCat-2.0-Preview
+    Thinker: nim/nvidia/nemotron-3-ultra-550b-a55b (active serial NIM lane)
+    Worker complex: nim/nvidia/nemotron-3-ultra or nim/minimaxai/minimax-m3
+    Worker specialist: opencode/deepseek-v4-flash-free or longcat/LongCat-2.0
     Worker fast: groq/llama-3.3-70b-versatile (236ms)
     Verifier: nim/nvidia/nemotron-3-ultra + LLM-PeerReview ensemble
 
@@ -116,13 +116,6 @@ class TrinityWorkflow:
 
 WORKER_POOL: Dict[str, Dict[str, Any]] = {
     # THINKER candidates — best frontier planners
-    "nim/z-ai/glm-5.1": {
-        "role_hint": Role.THINKER,
-        "intell": 0.91,
-        "ctx_k": 202,
-        "latency_ms": 2765,
-        "lane": "teacher",
-    },
     # WORKER complex candidates
     "nim/nvidia/nemotron-3-ultra-550b-a55b": {
         "role_hint": Role.WORKER,
@@ -146,7 +139,7 @@ WORKER_POOL: Dict[str, Dict[str, Any]] = {
         "latency_ms": 1400,
         "lane": "specialist",
     },
-    "longcat:LongCat-2.0-Preview": {
+    "longcat:LongCat-2.0": {
         "role_hint": Role.WORKER,
         "intell": 0.80,
         "ctx_k": 128,
@@ -180,7 +173,7 @@ WORKER_POOL: Dict[str, Dict[str, Any]] = {
 
 
 def pick_default_thinker() -> str:
-    return "nim/z-ai/glm-5.1"
+    return "nim/nvidia/nemotron-3-ultra-550b-a55b"
 
 
 def pick_default_worker(task_hint: str = "") -> str:
@@ -192,7 +185,7 @@ def pick_default_worker(task_hint: str = "") -> str:
         return "groq:llama-3.3-70b-versatile"
     if any(w in hint for w in ["long", "context", "large"]):
         return "ollama-cloud:minimax-m3"
-    return "nim/z-ai/glm-5.1"
+    return "nim/nvidia/nemotron-3-ultra-550b-a55b"
 
 
 def pick_default_verifier() -> str:
@@ -243,9 +236,9 @@ def build_thinker_prompt(task_description: str, history: List[TrinityDecision]) 
         return (
             "You are the THINKER in a 3-role Trinity workflow.\n"
             "Your job: decompose the task into 1-5 concrete subtasks.\n"
-            "For each subtask, specify: model_hint (nim/z-ai/glm-5.1, ollama-cloud:minimax-m3, "
+            "For each subtask, specify: model_hint (nim/nvidia/nemotron-3-ultra-550b-a55b, ollama-cloud:minimax-m3, "
             "opencode/deepseek-v4-flash-free, groq:llama-3.3-70b-versatile, "
-            "longcat:LongCat-2.0-Preview, internai:intern-s2-preview), "
+            "longcat:LongCat-2.0, internai:intern-s2-preview), "
             "what the subtask does, what the Verifier should check.\n\n"
             f"Task: {task_description}\n\n"
             "Output as JSON list of subtasks."

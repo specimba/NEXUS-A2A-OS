@@ -104,6 +104,8 @@ function classifyIntent(prompt: string): IntentCategory {
 // ─── Model Scoring ────────────────────────────────────────────────────────
 
 function scoreModel(model: ModelInfo, intent: IntentCategory, stratConfig: typeof ROUTING_STRATEGIES[string], health: ProviderHealth | undefined): number {
+  if (model.status !== 'up') return 0
+
   const latencyInv = 1000 / (model.latencyMsTypical + 1)
   const costInv = model.costPer1mInput + model.costPer1mOutput > 0
     ? 1 / (model.costPer1mInput + model.costPer1mOutput + 0.01)
@@ -141,6 +143,22 @@ function supportsIntent(model: ModelInfo, intent: IntentCategory): boolean {
   }
 }
 
+function isEligibleModelId(modelId: string): boolean {
+  const model = MODELS.find(candidate => candidate.modelId === modelId)
+  if (!model || model.status !== 'up') return false
+
+  const health = providerHealth.get(model.provider)
+  if (health && health.state !== 'up' && health.state !== 'degraded') return false
+
+  const quota = providerQuotas.get(model.provider)
+  return !quota?.isExhausted
+}
+
+function eligibleFallbacks(intent: IntentCategory): string[] {
+  return (FALLBACK_CHAINS[intent] || FALLBACK_CHAINS.general || [])
+    .filter(isEligibleModelId)
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────
 
 export function routeRequest(prompt: string, strategy: string = DEFAULT_STRATEGY): RouteResult {
@@ -159,19 +177,20 @@ export function routeRequest(prompt: string, strategy: string = DEFAULT_STRATEGY
     .sort((a, b) => b.score - a.score)
 
   if (scored.length === 0) {
-    // Fallback
-    const fallback = FALLBACK_CHAINS[intent] || FALLBACK_CHAINS.general
+    const fallback = eligibleFallbacks(intent)
     return {
       requestId: `relay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-      primaryModel: fallback[0],
+      primaryModel: fallback[0] || '',
       fallbackChain: fallback.slice(1),
-      provider: 'fallback',
+      provider: fallback.length > 0 ? 'fallback' : 'none',
       intent,
       strategy,
       score: 0,
       estimatedLatencyMs: 999,
       estimatedCost: 0,
-      reasoning: 'No candidates available, using hard fallback',
+      reasoning: fallback.length > 0
+        ? 'No scored candidates available, using an eligible configured fallback'
+        : 'No eligible model or fallback is available',
     }
   }
 
@@ -182,7 +201,7 @@ export function routeRequest(prompt: string, strategy: string = DEFAULT_STRATEGY
     .map(e => e.model.modelId)
 
   // Add from domain mapping fallback
-  const domainFallbacks = FALLBACK_CHAINS[intent] || []
+  const domainFallbacks = eligibleFallbacks(intent)
   for (const fid of domainFallbacks) {
     if (!fallbackChain.includes(fid) && fid !== best.model.modelId) {
       fallbackChain.push(fid)

@@ -1,9 +1,9 @@
 # LongCat API Integration & Advantage Guide
 
-This guide details the integration and unique advantages of using **LongCat-2.0-Preview** within the NEXUS OS agent ecosystem.
+This guide details the integration and unique advantages of using **LongCat-2.0** within the NEXUS OS agent ecosystem.
 
 ## 1. The LongCat Advantage
-The **LongCat-2.0-Preview** model provides significant advantages for long-session multi-agent workflows:
+The **LongCat-2.0** model provides significant advantages for long-session multi-agent workflows:
 - **128k Output Limit**: Supports generating extremely long responses, trace trajectories, and detailed reports without output truncation.
 - **High-Performance Agentic Reasoning**: Outperforms generalist models of similar size in task-planning and multi-turn tool-calling environments.
 - **OpenAI/Anthropic Protocol Compatibility**: Operates natively under standard OpenAI and Anthropic API formats, allowing seamless integration.
@@ -11,7 +11,7 @@ The **LongCat-2.0-Preview** model provides significant advantages for long-sessi
 ## 2. API Endpoint Specifications
 - **OpenAI-Compatible Base URL**: `https://api.longcat.chat/openai/v1`
 - **Anthropic-Compatible Base URL**: `https://api.longcat.chat/anthropic`
-- **Model Name**: `LongCat-2.0-Preview`
+- **Model Name**: `LongCat-2.0`
 
 ## 3. Configuration Setup
 
@@ -19,7 +19,7 @@ The **LongCat-2.0-Preview** model provides significant advantages for long-sessi
 Edit `~/.codex/config.toml`:
 ```toml
 model_provider = "codex"
-model = "LongCat-2.0-Preview"
+model = "LongCat-2.0"
 disable_response_storage = true
 web_search = "disabled"
 
@@ -51,8 +51,8 @@ Edit `Users/***/.config/opencode/opencode.json`:
         "apiKey": "${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->"  # Store securely in Vault!
       },
       "models": {
-        "LongCat-2.0-Preview": {
-          "name": "LongCat-2.0-Preview"
+        "LongCat-2.0": {
+          "name": "LongCat-2.0"
         }
       }
     }
@@ -68,7 +68,7 @@ For local ModelRelay instances, the LongCat provider is added to the routing tab
     "openai-compatible:longcat": {
       "apiKey": "${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->",
       "baseURL": "https://api.longcat.chat/openai/v1",
-      "models": ["LongCat-2.0-Preview"]
+      "models": ["LongCat-2.0"]
     }
   }
 }

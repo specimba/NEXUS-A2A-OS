@@ -61,6 +61,8 @@ class TestProbe:
 
     def test_absentee_gets_chat_probe_and_survives(self, refresher):
         chat_ok = MagicMock(ok=True)
+        chat_ok.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}], "usage": {"total_tokens": 1}}
         with patch("nexus_os.relay.provider_refresher.requests.get",
                    return_value=_listing_response(["model-a"])), \
              patch("nexus_os.relay.provider_refresher.requests.post", return_value=chat_ok):
@@ -68,6 +70,16 @@ class TestProbe:
         assert result.missing_from_listing == ["model-gone"]
         assert result.chat_confirmed == ["model-gone"]
         assert refresher.health["models"]["testprov:model-gone"]["status"] == "active"
+
+    def test_empty_completion_is_not_confirmed(self, refresher):
+        empty = MagicMock(ok=True)
+        empty.json.return_value = {
+            "choices": [{"message": {"content": ""}}], "usage": {"total_tokens": 1}}
+        with patch("nexus_os.relay.provider_refresher.requests.get",
+                   return_value=_listing_response(["model-a"])), \
+             patch("nexus_os.relay.provider_refresher.requests.post", return_value=empty):
+            result = refresher.probe_provider("testprov")
+        assert result.chat_confirmed == []
 
     def test_discovery_only_provider_skipped_gracefully(self, refresher):
         result = refresher.probe_provider("discovery-only")
@@ -117,6 +129,19 @@ class TestStateMachine:
                    return_value=_listing_response(["model-a", "model-gone"])):
             refresher.probe_provider("testprov", chat_probe_absentees=False)
         assert refresher.health["models"]["testprov:model-gone"]["status"] == "active"
+
+    def test_dry_run_does_not_write_sidecar(self, registry_file, tmp_path, monkeypatch):
+        monkeypatch.setenv("TESTPROV_API_KEY", "test-key-value")
+        sidecar = tmp_path / "dry-run-health.json"
+        dry = ProviderRefresher(
+            registry_path=registry_file,
+            sidecar_path=sidecar,
+            persist=False,
+        )
+        with patch("nexus_os.relay.provider_refresher.requests.get",
+                   return_value=_listing_response(["model-a", "model-gone"])):
+            dry.probe_provider("testprov", chat_probe_absentees=False)
+        assert not sidecar.exists()
 
     def test_sidecar_never_touches_registry(self, refresher, registry_file):
         before = registry_file.read_text(encoding="utf-8")

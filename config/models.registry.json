@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "_comment": "Canonical NEXUS model/provider registry — single source of truth. KEY-FREE by design: keyRef names an apiKeys slug in ~/.modelrelay.json, resolved at runtime via nexus_os.security.secrets. Node config.generated.ts and the Python quota/chimera/ollama tables are GENERATED from this file (scripts/gen_model_registry.py); edit here, then regenerate. Seeded 2026-07-02 by scripts/import_modelrelay_config.py from the operator config, curated against ARCHIVIST model intel and web-verified provider catalogs (SiliconFlow blog: GLM-5.2 1M ctx; Baseten library: GLM-5.2 + Kimi-K2.7-Code; NVIDIA NIM docs: deepseek-ai/deepseek-v4-pro, stepfun/step-3.7-flash).",
   "providers": {
     "openrouter": {
@@ -26,7 +26,9 @@
       "priority": 10,
       "quota": {
         "type": "free_tier",
-        "rpm": 40
+        "rpm": 8,
+        "maxConcurrent": 1,
+        "noParallelSubagents": true
       }
     },
     "cerebras": {
@@ -182,7 +184,7 @@
       "keyRef": "longcat",
       "baseUrl": "https://api.longcat.chat/openai",
       "apiFormat": "openai",
-      "discoverModels": false,
+      "discoverModels": true,
       "status": "active",
       "priority": 12,
       "allowedLanes": [
@@ -192,8 +194,15 @@
         "memory_fallback"
       ],
       "quota": {
-        "type": "beta_slots",
-        "notes": "free daily beta slots released 01/07/13/15 UTC; no paid tier; operator quota currently 0 — re-request"
+        "type": "token_pack",
+        "allocationTokens": 65000000,
+        "targetTokens": 58500000,
+        "reserveTokens": 6500000,
+        "requiresVerification": true,
+        "initialRpm": 6,
+        "maxRpm": 12,
+        "maxConcurrent": 1,
+        "notes": "LongCat-2.0 partnership allocation; verify remaining balance and 30-day expiry before non-probe traffic"
       }
     },
     "internai": {
@@ -206,8 +215,13 @@
       "quota": {
         "type": "tokens",
         "monthlyTokens": 90000000,
-        "rpm": 30,
-        "notes": "90M in + 90M out per month, 300K TPM; per-lane keys; Intern Discovery adds A100/A800 fine-tune workspaces"
+        "targetTokens": 81000000,
+        "reserveTokens": 9000000,
+        "requiresVerification": true,
+        "rpm": 20,
+        "documentedRpm": 30,
+        "maxConcurrent": 1,
+        "notes": "Operator-reported allocation; verify reset and remaining balance before non-probe traffic"
       }
     },
     "novita": {
@@ -1134,10 +1148,10 @@
       }
     },
     {
-      "id": "LongCat-2.0-Preview",
+      "id": "LongCat-2.0",
       "provider": "longcat",
       "aliases": [],
-      "context": 262144,
+      "context": 1000000,
       "maxOutput": 131072,
       "free": true,
       "tier": 93,
@@ -1152,7 +1166,7 @@
         "eval"
       ],
       "status": "active",
-      "notes": "560B MoE; teacher/eval ONLY per operator lanes; beta slots"
+      "notes": "Current production LongCat agentic/coding model; Preview is retired and must never be an automatic fallback"
     },
     {
       "id": "intern-s2-preview",
@@ -1199,11 +1213,11 @@
       "status": "active"
     },
     {
-      "id": "internvl2.5-latest",
+      "id": "internvl3.5-latest",
       "provider": "internai",
       "aliases": [],
-      "context": null,
-      "maxOutput": null,
+      "context": 32768,
+      "maxOutput": 16384,
       "free": true,
       "tier": 70,
       "capabilities": {
@@ -1214,7 +1228,8 @@
         "visual",
         "eval"
       ],
-      "status": "active"
+      "status": "active",
+      "notes": "Provider alias currently resolving to internvl3.5-241b-a28b"
     },
     {
       "id": "deepseek-v4-flash",
@@ -1569,6 +1584,105 @@
       ],
       "status": "unknown",
       "notes": "SLM team: tandem executor (94.3 AIME26 per papers09); pull into Ollama if absent"
+    },
+    {
+      "id": "intern-s1-pro",
+      "provider": "internai",
+      "aliases": [],
+      "context": 262144,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 82,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "teacher",
+        "reasoning"
+      ],
+      "lanes": [
+        "teacher",
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "intern-s1",
+      "provider": "internai",
+      "aliases": [],
+      "context": 32768,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 75,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "intern-s1-mini",
+      "provider": "internai",
+      "aliases": [],
+      "context": 32768,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 70,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "internvl3.5-241b-a28b",
+      "provider": "internai",
+      "aliases": [],
+      "context": 32768,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 78,
+      "capabilities": {
+        "vision": true
+      },
+      "roles": [],
+      "lanes": [
+        "visual",
+        "eval"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "internvl-latest",
+      "provider": "internai",
+      "aliases": [],
+      "context": 32768,
+      "maxOutput": 16384,
+      "free": true,
+      "tier": 72,
+      "capabilities": {
+        "vision": true
+      },
+      "roles": [],
+      "lanes": [
+        "visual",
+        "eval"
+      ],
+      "status": "active",
+      "notes": "Provider alias currently resolving to internvl3.5-241b-a28b"
     }
   ],
   "priorityTiers": {
@@ -1586,7 +1700,7 @@
     "tier_2_safe_fallback": {
       "note": "Safety net for logging/memory consistency - stable persistent models for non-flashy critical work.",
       "models": [
-        "longcat:LongCat-2.0-Preview",
+        "longcat:LongCat-2.0",
         "internai:intern-s2-preview"
       ]
     },
@@ -1648,7 +1762,7 @@
       "intern-s2-preview"
     ],
     "teacher": [
-      "LongCat-2.0-Preview",
+      "LongCat-2.0",
       "intern-s2-preview"
     ]
   }

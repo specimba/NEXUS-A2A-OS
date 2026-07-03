@@ -17,7 +17,7 @@ Usage:
     from nexus_os.model_relay.fugu_dispatch import FuguDispatcher, TaskFeatures
 
     dispatcher = FuguDispatcher()
-    dispatcher.record_worker_outcome("nim/z-ai/glm-5.1", "code_review", success=True, latency_ms=1200)
+    dispatcher.record_worker_outcome("nim/nvidia/nemotron-3-ultra-550b-a55b", "code_review", success=True, latency_ms=1200)
     probs = dispatcher.compute_soft_targets(task_type="code_review")
     chosen = dispatcher.dispatch(task_features, candidates, exclude=None)
 """
@@ -376,16 +376,16 @@ if __name__ == "__main__":
     dispatcher = FuguDispatcher()
     # Simulate some outcomes
     samples = [
-        ("nim/z-ai/glm-5.1", "code_review", True, 2700),
-        ("nim/z-ai/glm-5.1", "code_review", True, 2500),
-        ("nim/z-ai/glm-5.1", "code_review", False, 3000),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "code_review", True, 2700),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "code_review", True, 2500),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "code_review", False, 3000),
         ("opencode/deepseek-v4-flash-free", "code_review", True, 1400),
         ("opencode/deepseek-v4-flash-free", "code_review", True, 1500),
         ("ollama-cloud:minimax-m3", "long_ctx", True, 1300),
         ("ollama-cloud:minimax-m3", "long_ctx", True, 1100),
-        ("nim/z-ai/glm-5.1", "math", True, 2400),
-        ("nim/z-ai/glm-5.1", "math", True, 2200),
-        ("nim/z-ai/glm-5.1", "math", True, 2600),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "math", True, 2400),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "math", True, 2200),
+        ("nim/nvidia/nemotron-3-ultra-550b-a55b", "math", True, 2600),
         ("groq:llama-3.3-70b-versatile", "general", True, 240),
         ("groq:llama-3.3-70b-versatile", "general", True, 220),
         ("groq:llama-3.3-70b-versatile", "general", False, 280),
@@ -404,7 +404,7 @@ if __name__ == "__main__":
     ]:
         features = TaskFeatures.from_prompt(prompt)
         candidates = [
-            "nim/z-ai/glm-5.1",
+            "nim/nvidia/nemotron-3-ultra-550b-a55b",
             "opencode/deepseek-v4-flash-free",
             "ollama-cloud:minimax-m3",
             "groq:llama-3.3-70b-versatile",

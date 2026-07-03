@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from nexus_os.model_relay.provider_budget import ProviderBudgetLedger
+
 QUOTA_STATE_PATH = Path("~/.nexus_pi/state/quota_tracker.json").expanduser()
 
 # Known daily quota limits (estimated from docs/observations)
@@ -53,17 +55,22 @@ KNOWN_QUOTAS = {
         "daily_token_limit": 1000000,
         "reset_at_utc": "00:00",
     },
-    "longcat": {
-        "daily_call_limit": 200,
-        "burst_tokens_per_call": 32000,
-        "reset_at_utc": "Phase 2 Beta slots: 01/07/13/15 UTC",
-    },
+    "longcat": {"note": "delegated to durable provider budget ledger"},
+    "internai": {"note": "delegated to durable provider budget ledger"},
+    "nvidia": {"note": "delegated to durable provider budget ledger"},
     "siliconflow": {
         "note": "DEAD — key invalid 2026-06-22",
     },
     "openai-compatible:fireworks": {
         "note": "DEAD — billing suspended 2026-06-18",
     },
+}
+
+GOVERNED_PROVIDER_ALIASES = {
+    "longcat": "longcat",
+    "internai": "internai",
+    "nvidia": "nvidia",
+    "nim": "nvidia",
 }
 
 
@@ -81,8 +88,13 @@ class ProviderUsage:
 class QuotaTracker:
     """Track daily usage and rotation priority for rate-limited providers."""
 
-    def __init__(self, state_path: Path = QUOTA_STATE_PATH):
+    def __init__(
+        self,
+        state_path: Path = QUOTA_STATE_PATH,
+        budget_ledger: ProviderBudgetLedger | None = None,
+    ):
         self.state_path = state_path
+        self.budget_ledger = budget_ledger or ProviderBudgetLedger()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.usage: Dict[str, ProviderUsage] = {}
         self._load()
@@ -124,7 +136,9 @@ class QuotaTracker:
     def record_call(
         self, provider: str, model: str, tokens: int = 0, error: Optional[str] = None
     ) -> None:
-        """Record a completed (or failed) API call."""
+        """Record legacy provider usage; governed calls are reconciled at dispatch."""
+        if provider in GOVERNED_PROVIDER_ALIASES:
+            return
         if provider not in self.usage:
             self.usage[provider] = ProviderUsage(provider=provider)
         u = self.usage[provider]
@@ -139,6 +153,22 @@ class QuotaTracker:
 
     def get_status(self, provider: str) -> Dict[str, Any]:
         """Return usage stats for a provider."""
+        governed = GOVERNED_PROVIDER_ALIASES.get(provider)
+        if governed:
+            status = self.budget_ledger.status(governed)
+            available = (
+                status["enabled"]
+                and status["balance_verified"]
+                and status["cooldown_remaining_seconds"] == 0
+                and (status["target_remaining_tokens"] is None or status["target_remaining_tokens"] > 0)
+            )
+            return {
+                **status,
+                "provider": provider,
+                "durable_provider": governed,
+                "selection_available": available,
+                "selection_only": True,
+            }
         u = self.usage.get(provider)
         if u is None:
             return {"provider": provider, "calls_today": 0, "tokens_today": 0}
@@ -166,7 +196,14 @@ class QuotaTracker:
         return {p: self.get_status(p) for p in KNOWN_QUOTAS}
 
     def get_remaining_for_today(self, provider: str) -> int:
-        """Returns remaining call quota for provider (or -1 if unlimited)."""
+        """Returns remaining selection capacity; dispatch owns reservations."""
+        governed = GOVERNED_PROVIDER_ALIASES.get(provider)
+        if governed:
+            status = self.get_status(provider)
+            if not status["selection_available"]:
+                return 0
+            remaining = status["target_remaining_tokens"]
+            return int(remaining if remaining is not None else status["current_rpm"])
         limits = KNOWN_QUOTAS.get(provider, {})
         cap = limits.get("daily_call_limit")
         if cap is None:

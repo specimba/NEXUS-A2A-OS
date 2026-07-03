@@ -172,7 +172,7 @@ def load_providers() -> list[ProviderConfig]:
         lc = providers["longcat"]
         key = lc.get("api_key", api_keys.get("longcat", get_secret("LONGCAT_API_KEY")))
         base = lc.get("baseUrl", "https://api.longcat.chat/openai")
-        models = lc.get("models", ["LongCat-2.0-Preview"])
+        models = lc.get("models", ["LongCat-2.0"])
         for m in models:
             result.append(ProviderConfig(
                 name="longcat", display_name=f"LongCat ({m})",
@@ -400,9 +400,9 @@ def generate_report(session: BenchmarkSession, providers: list[ProviderConfig]):
     lines.append("\n---\n")
     lines.append("## LongCat Premium Feedback Report\n")
     lines.append("*Prepared for LongCat premium tester program*\n")
-    lc_stats = model_stats.get("longcat_LongCat-2.0-Preview") or model_stats.get("LongCat (LongCat-2.0-Preview)")
+    lc_stats = model_stats.get("longcat_LongCat-2.0") or model_stats.get("LongCat (LongCat-2.0)")
     if lc_stats:
-        lines.append(f"- **Model:** LongCat-2.0-Preview")
+        lines.append(f"- **Model:** LongCat-2.0")
         lines.append(f"- **Total tokens consumed:** {lc_stats['total_tokens']}")
         lines.append(f"- **Tasks completed:** {lc_stats['completed']}/{lc_stats['completed']+lc_stats['errors']}")
         lines.append(f"- **Average quality score:** {lc_stats['avg_score']:.2f}/10")

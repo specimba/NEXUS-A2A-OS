@@ -3,7 +3,7 @@
  */
 import type { ProviderConfig, ModelInfo } from './config'
 
-export const REGISTRY_VERSION = 1
+export const REGISTRY_VERSION = 2
 
 // Providers the registry retired — the merge facade must drop their
 // legacy config.ts entries (e.g. the dead keyless zai/glm-5.2 block).
@@ -136,7 +136,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "modelsPath": "/models",
     "authType": "bearer",
     "quotaType": "free_tier",
-    "quotaRemaining": 30,
+    "quotaRemaining": 20,
     "costPer1m": 0.0,
     "latencyMs": 400,
     "status": "up",
@@ -146,8 +146,13 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "isLocal": false,
     "models": [
       "intern-latest",
+      "intern-s1",
+      "intern-s1-mini",
+      "intern-s1-pro",
       "intern-s2-preview",
-      "internvl2.5-latest"
+      "internvl-latest",
+      "internvl3.5-241b-a28b",
+      "internvl3.5-latest"
     ],
     "envKey": "INTERNAI_API_KEY",
     "keyRef": "internai"
@@ -191,7 +196,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "isFree": true,
     "isLocal": false,
     "models": [
-      "LongCat-2.0-Preview"
+      "LongCat-2.0"
     ],
     "envKey": "LONGCAT_API_KEY",
     "keyRef": "longcat"
@@ -268,7 +273,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "modelsPath": "/models",
     "authType": "bearer",
     "quotaType": "free_tier",
-    "quotaRemaining": 40,
+    "quotaRemaining": 8,
     "costPer1m": 0.0,
     "latencyMs": 400,
     "status": "up",
@@ -665,6 +670,54 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
+    "modelId": "internai/intern-s1",
+    "provider": "internai",
+    "name": "intern-s1",
+    "tier": 75,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "internai/intern-s1-mini",
+    "provider": "internai",
+    "name": "intern-s1-mini",
+    "tier": 70,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "internai/intern-s1-pro",
+    "provider": "internai",
+    "name": "intern-s1-pro",
+    "tier": 82,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 262144,
+    "latencyMsTypical": 500,
+    "supportsVision": false,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
     "modelId": "internai/intern-s2-preview",
     "provider": "internai",
     "name": "intern-s2-preview",
@@ -681,9 +734,41 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
-    "modelId": "internai/internvl2.5-latest",
+    "modelId": "internai/internvl-latest",
     "provider": "internai",
-    "name": "internvl2.5-latest",
+    "name": "internvl-latest",
+    "tier": 72,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": true,
+    "supportsFunctionCalling": false,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "internai/internvl3.5-241b-a28b",
+    "provider": "internai",
+    "name": "internvl3.5-241b-a28b",
+    "tier": 78,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 32768,
+    "latencyMsTypical": 500,
+    "supportsVision": true,
+    "supportsFunctionCalling": false,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
+    "modelId": "internai/internvl3.5-latest",
+    "provider": "internai",
+    "name": "internvl3.5-latest",
     "tier": 70,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
@@ -697,13 +782,13 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
-    "modelId": "longcat/LongCat-2.0-Preview",
+    "modelId": "longcat/LongCat-2.0",
     "provider": "longcat",
-    "name": "LongCat-2.0-Preview",
+    "name": "LongCat-2.0",
     "tier": 93,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
-    "contextWindow": 262144,
+    "contextWindow": 1000000,
     "latencyMsTypical": 500,
     "supportsVision": false,
     "supportsFunctionCalling": true,

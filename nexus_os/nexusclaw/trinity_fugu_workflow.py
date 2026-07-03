@@ -359,7 +359,7 @@ class TrinityFuguWorkflow:
     def _pick_worker_with_fugu(self, features: TaskFeatures, task_type: str) -> str:
         """Use Fugu soft-target dispatch to pick the next Worker."""
         worker_candidates = [
-            "nim/z-ai/glm-5.1",
+            "nim/nvidia/nemotron-3-ultra-550b-a55b",
             "ollama-cloud:minimax-m3",
             "opencode/deepseek-v4-flash-free",
             "groq:llama-3.3-70b-versatile",

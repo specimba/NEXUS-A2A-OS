@@ -62,7 +62,8 @@ def _key_for(prov: dict) -> str:
 class ProviderRefresher:
     """Registry-driven liveness prober with a persistent health sidecar."""
 
-    def __init__(self, registry_path: Path = REGISTRY_PATH, sidecar_path: Path = HEALTH_SIDECAR):
+    def __init__(self, registry_path: Path = REGISTRY_PATH, sidecar_path: Path = HEALTH_SIDECAR, *, persist: bool = True):
+        self.persist = persist
         self.registry_path = registry_path
         self.sidecar_path = sidecar_path
         self.registry = json.loads(registry_path.read_text(encoding="utf-8"))
@@ -77,6 +78,8 @@ class ProviderRefresher:
             return {"models": {}, "providers": {}}
 
     def _save_sidecar(self) -> None:
+        if not self.persist:
+            return
         self.sidecar_path.parent.mkdir(parents=True, exist_ok=True)
         self.sidecar_path.write_text(
             json.dumps(self.health, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -104,10 +107,11 @@ class ProviderRefresher:
         listed: List[str] = []
         try:
             resp = requests.get(f"{base}{prov.get('modelsPath', '/models')}", headers=headers, timeout=PROBE_TIMEOUT_S)
-            if resp.ok:
-                data = resp.json()
-                items = data.get("data", data if isinstance(data, list) else [])
-                listed = [m.get("id", "") for m in items if isinstance(m, dict)]
+            if not resp.ok:
+                return ProbeResult(provider=slug, reachable=False, error=f"HTTP {resp.status_code}")
+            data = resp.json()
+            items = data.get("data", data if isinstance(data, list) else [])
+            listed = [m.get("id", "") for m in items if isinstance(m, dict)]
         except (requests.RequestException, ValueError) as exc:
             return ProbeResult(provider=slug, reachable=False, error=f"{exc.__class__.__name__}: {exc}")
 
@@ -141,8 +145,17 @@ class ProviderRefresher:
                 json={"model": model_id, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
                 timeout=PROBE_TIMEOUT_S,
             )
-            return resp.ok
-        except requests.RequestException:
+            if not resp.ok:
+                return False
+            data = resp.json()
+            choices = data.get("choices") if isinstance(data, dict) else None
+            if not choices:
+                return False
+            message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+            content = message.get("content") if isinstance(message, dict) else None
+            usage = data.get("usage") or {}
+            return bool(content and usage.get("total_tokens"))
+        except (requests.RequestException, ValueError, TypeError, AttributeError):
             return False
 
     # ── State machine (nvidia_refresher semantics, generalized) ───

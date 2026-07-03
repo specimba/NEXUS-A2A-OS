@@ -2,7 +2,7 @@
   "schema": "nexus.modelrelay-routing.v1",
   "provider": "longcat",
   "baseURL": "${LONGCAT_BASE_URL:-https://api.longcat.chat/openai/v1}",
-  "model": "LongCat-2.0-Preview",
+  "model": "LongCat-2.0",
   "keyEnvOrder": ["LONGCAT_HERMES_API_KEY", "LONGCAT_MODELRELAY_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
   "allowedLanes": ["teacher", "eval", "probe"],
   "deniedLanes": ["core", "autonomous_tool_execution"],

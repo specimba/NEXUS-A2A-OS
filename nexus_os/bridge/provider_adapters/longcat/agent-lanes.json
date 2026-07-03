@@ -9,6 +9,6 @@
     "claw": ["LONGCAT_CLAW_API_KEY", "LONGCAT_ZO_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"],
     "zo": ["LONGCAT_ZO_API_KEY", "LONGCAT_CLAW_API_KEY", "NEXUS_LONGCAT_API_KEY", "LONGCAT_API_KEY"]
   },
-  "model": "LongCat-2.0-Preview",
+  "model": "LongCat-2.0",
   "secretPolicy": "env-only-no-archivist-key-copy"
 }

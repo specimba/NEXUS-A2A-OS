@@ -4,7 +4,7 @@ Smart model selection with:
 1. Persistent memory handoff (intro on pick-up, outro on swap)
 2. Quota-aware rotation (use OpenCode/KiloCode first in day, save for later)
 3. Model continuity preference (don't switch mid-task unless forced)
-4. GLM 5.1 ↔ Nemotron Ultra primary rotation (NOT Super unless emergency)
+4. Verified active frontier providers rotate without suspended-model fallback
 5. LongCat + InternAI as safe logging/memory fallbacks
 6. OpenRouter FUSION as high-stakes task option
 
@@ -39,17 +39,15 @@ from nexus_os.model_relay.fugu_dispatch import FuguDispatcher, TaskFeatures
 
 # ── Tier definitions ───────────────────────────────────────────────────────────
 
-# Tier 1: PRIMARY ROTATION (GLM 5.1 ↔ Nemotron Ultra)
-# The user explicitly stated: "we need proper memory introduction... taking notes"
-# and "persist... with same model types, rotating in the middle of the coding"
-# So primary = 2-model rotation. Neither GLM 5.1 nor Nemotron Ultra is "alternative";
-# they are the PRIMARY pair.
+# Tier 1: PRIMARY ROTATION. Permanent NIM failures are excluded; transient
+# availability is handled by the durable budget and provider health gates.
 TIER_PRIMARY = {
     "name": "primary_rotation",
     "models": [
-        ("nim", "z-ai/glm-5.1", "NVIDIA NIM GLM 5.1 — 91% intell, 202k ctx, best frontier"),
-        ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — newer GLM, reasoning opt-in, 131k ctx, $1.50/M input"),
-        ("nim", "nvidia/nemotron-3-ultra-550b-a55b", "NVIDIA NIM Nemotron 3 Ultra — 550B MoE, 1M ctx, Mamba-Transformer hybrid"),
+        ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — reasoning opt-in, 131k ctx"),
+        ("nim", "nvidia/nemotron-3-ultra-550b-a55b", "NVIDIA NIM Nemotron 3 Ultra — 550B MoE, 1M ctx"),
+        ("nim", "minimaxai/minimax-m3", "NVIDIA NIM MiniMax M3 — active serial fallback"),
+        ("nim", "qwen/qwen3.5-122b-a10b", "NVIDIA NIM Qwen3.5 122B — active serial fallback"),
     ],
     "rotation_strategy": "alternate_on_quota_or_rate_limit",
     "fallback_after_both_exhausted": "TIER_FALLBACK",
@@ -61,7 +59,7 @@ TIER_PRIMARY = {
 TIER_FALLBACK = {
     "name": "safe_fallback",
     "models": [
-        ("longcat", "LongCat-2.0-Preview", "LongCat — 560B MoE, 128K output, beta-only, OpenAI+Anthropic compatible"),
+        ("longcat", "LongCat-2.0", "LongCat — 1M context, 128K output, OpenAI+Anthropic compatible"),
         ("internai", "intern-s2-preview", "Intern AI — Shanghai Lab, 256K context, thinking_mode, OpenAI+Claude compatible"),
     ],
     "purpose": "logging + memory consistency (no random new models, no 0-cached entries)",
@@ -88,7 +86,7 @@ TIER_SPECIALIST = {
 TIER_EVAL = {
     "name": "evaluation_pool",
     "models": [
-        ("longcat", "LongCat-2.0-Preview", "LongCat — 560B MoE, 128K output, benchmark judge"),
+        ("longcat", "LongCat-2.0", "LongCat — 560B MoE, 128K output, benchmark judge"),
         ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — reasoning scorer, $1.50/M input"),
         ("baseten", "moonshotai/Kimi-K2.7-Code", "Baseten Kimi K2.7 Code — code+reasoning evaluator"),
     ],
@@ -401,13 +399,18 @@ class PersistentRouter:
                     continue
                 if self._is_degraded(provider, model):
                     continue
-                return provider, model, f"Primary exhausted → fallback {provider}:{model}"
+                if self.quota.is_quota_exhausted(provider):
+                    continue
+                return provider, model, f"Primary exhausted -> fallback {provider}:{model}"
 
-        if tier == "primary" and TIER_FALLBACK["models"]:
-            fallback_provider, fallback_model, fallback_reason = TIER_FALLBACK["models"][0]
-            return fallback_provider, fallback_model, "Last-resort fallback (degraded allowed)"
+        for fallback_provider, fallback_model, _ in TIER_FALLBACK["models"]:
+            if f"{fallback_provider}:{fallback_model}" == exclude:
+                continue
+            if self.quota.is_quota_exhausted(fallback_provider):
+                continue
+            return fallback_provider, fallback_model, "Last-resort governed fallback"
 
-        return TIER_FALLBACK["models"][0][0], TIER_FALLBACK["models"][0][1], "Last resort fallback"
+        raise RuntimeError("No quota-eligible model is available for this tier")
 
     def _infer_tier(self, model: str, provider: str) -> str:
         for tier_name, tier_def in [

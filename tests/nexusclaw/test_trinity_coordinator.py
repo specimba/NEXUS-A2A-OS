@@ -90,7 +90,7 @@ class TestTermination:
 
 class TestWorkerPool:
     def test_thinker_default(self):
-        assert pick_default_thinker() == "nim/z-ai/glm-5.1"
+        assert pick_default_thinker() == "nim/nvidia/nemotron-3-ultra-550b-a55b"
 
     def test_verifier_default(self):
         assert pick_default_verifier() == "nim/nvidia/nemotron-3-ultra-550b-a55b"
@@ -105,13 +105,13 @@ class TestWorkerPool:
         assert pick_default_worker("long context document analysis") == "ollama-cloud:minimax-m3"
 
     def test_worker_default(self):
-        assert pick_default_worker("") == "nim/z-ai/glm-5.1"
+        assert pick_default_worker("") == "nim/nvidia/nemotron-3-ultra-550b-a55b"
 
     def test_worker_pool_has_required_roles(self):
-        assert "nim/z-ai/glm-5.1" in WORKER_POOL
+        assert "nim/z-ai/glm-5.1" not in WORKER_POOL
         assert "nim/nvidia/nemotron-3-ultra-550b-a55b" in WORKER_POOL
         assert "opencode/deepseek-v4-flash-free" in WORKER_POOL
-        assert "longcat:LongCat-2.0-Preview" in WORKER_POOL
+        assert "longcat:LongCat-2.0" in WORKER_POOL
         assert "internai:intern-s2-preview" in WORKER_POOL
         assert "groq:llama-3.3-70b-versatile" in WORKER_POOL
         assert "ollama-cloud:minimax-m3" in WORKER_POOL

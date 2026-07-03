@@ -47,26 +47,25 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
   },
   nvidia: {
     id: 'nvidia',
-    name: 'NVIDIA NIM',
+    name: 'NVIDIA NIM (serial governed lane)',
     provider: 'nvidia',
     baseUrl: 'https://integrate.api.nvidia.com',
     chatPath: '/v1/chat/completions',
     modelsPath: '/v1/models',
     authType: 'bearer',
-    quotaType: 'free_tier',
-    quotaRemaining: 'varies',
+    quotaType: 'requests',
+    quotaRemaining: '8 RPM serial ceiling',
     costPer1m: 0.0,
     latencyMs: 200,
     status: 'up',
-    tier: 90,
+    tier: 91,
     priority: 2,
     isFree: true,
     isLocal: false,
     models: [
-      'nemotron-4-340b-instruct',
-      'llama-3.1-405b-instruct',
-      'mistral-large',
-      'llama-3.3-70b-instruct',
+      'minimaxai/minimax-m3',
+      'nvidia/nemotron-3-ultra-550b-a55b',
+      'qwen/qwen3.5-122b-a10b',
     ],
     envKey: 'NVIDIA_API_KEY',
   },
@@ -216,7 +215,7 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
   },
   siliconflow: {
     id: 'siliconflow',
-    name: 'SiliconFlow',
+    name: 'SiliconFlow (12 free models)',
     provider: 'siliconflow',
     baseUrl: 'https://api.siliconflow.cn',
     chatPath: '/v1/chat/completions',
@@ -224,14 +223,27 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     authType: 'bearer',
     quotaType: 'free_tier',
     quotaRemaining: 'free_tier',
-    costPer1m: 0.3,
-    latencyMs: 180,
+    costPer1m: 0.0,
+    latencyMs: 400,
     status: 'up',
-    tier: 70,
-    priority: 10,
-    isFree: false,
+    tier: 91,
+    priority: 3,
+    isFree: true,
     isLocal: false,
-    models: ['deepseek-v3', 'qwen2.5-72b'],
+    models: [
+      'zai-org/GLM-5',
+      'zai-org/GLM-5.1',
+      'zai-org/GLM-4.5',
+      'deepseek-ai/DeepSeek-V4-Flash',
+      'deepseek-ai/DeepSeek-V4-Pro',
+      'MiniMaxAI/MiniMax-M2.5',
+      'MiniMaxAI/MiniMax-M2.1',
+      'Qwen/Qwen3-235B-A22B',
+      'Qwen/Qwen3-32B',
+      'moonshotai/Kimi-K2-Thinking',
+      'moonshotai/Kimi-K2.6',
+      'moonshotai/Kimi-K2-Instruct',
+    ],
     envKey: 'SILICONFLOW_API_KEY',
   },
   mistral: {
@@ -360,12 +372,12 @@ export const INTENT_KEYWORDS: Record<IntentCategory, string[]> = {
 // ─── Fallback Chains ─────────────────────────────────────────────────────
 
 export const FALLBACK_CHAINS: Record<string, string[]> = {
-  code: ['zai/glm-5.2', 'nvidia/llama-3.3-70b-instruct', 'openrouter/deepseek-chat-v3-0324', 'codestral/codestral-latest'],
-  reasoning: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/google/gemini-2.5-pro-preview', 'sambanova/DeepSeek-V3'],
-  research: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
-  speed: ['groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b', 'groq/mixtral-8x7b-32768'],
-  general: ['zai/glm-5.2', 'openrouter/nvidia/llama-3.3-nemotron-super-128k', 'groq/llama-3.3-70b-versatile'],
-  security: ['zai/glm-5.2', 'nvidia/nemotron-4-340b-instruct', 'sambanova/DeepSeek-V3'],
+  code: ['longcat/LongCat-2.0', 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', 'siliconflow/deepseek-ai/DeepSeek-V4-Flash'],
+  reasoning: ['internai/intern-s2-preview', 'nvidia/minimaxai/minimax-m3', 'siliconflow/zai-org/GLM-5.1'],
+  research: ['longcat/LongCat-2.0', 'internai/intern-s2-preview', 'nvidia/qwen/qwen3.5-122b-a10b'],
+  speed: ['siliconflow/deepseek-ai/DeepSeek-V4-Flash', 'groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b'],
+  general: ['nvidia/minimaxai/minimax-m3', 'siliconflow/zai-org/GLM-5', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
+  security: ['nvidia/nvidia/nemotron-3-ultra-550b-a55b', 'internai/intern-s2-preview', 'openrouter/google/gemini-2.5-pro-preview'],
 }
 
 // ─── Model Registry ──────────────────────────────────────────────────────
@@ -390,11 +402,11 @@ export interface ModelInfo {
 export const MODELS: ModelInfo[] = [
   // ── Z-AI (Primary) ────────────────────────────────────────────────
   { modelId: 'zai/glm-5.2', provider: 'zai', name: 'GLM-5.2', tier: 99, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 300, supportsVision: true, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  // ── NVIDIA NIM ─────────────────────────────────────────────────────
-  { modelId: 'nvidia/nemotron-4-340b-instruct', provider: 'nvidia', name: 'Nemotron-4 340B', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  { modelId: 'nvidia/llama-3.1-405b-instruct', provider: 'nvidia', name: 'Llama 3.1 405B', tier: 88, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 220, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  { modelId: 'nvidia/llama-3.3-70b-instruct', provider: 'nvidia', name: 'Llama 3.3 70B', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 4096, latencyMsTypical: 180, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  { modelId: 'nvidia/mistral-large', provider: 'nvidia', name: 'Mistral Large (NIM)', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32000, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  // ── NVIDIA NIM (8 RPM ceiling; one request globally; no parallel retry) ──
+  { modelId: 'nvidia/z-ai/glm-5.1', provider: 'nvidia', name: 'GLM-5.1 (NIM, suspended)', tier: 91, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 202752, latencyMsTypical: 2765, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
+  { modelId: 'nvidia/minimaxai/minimax-m3', provider: 'nvidia', name: 'MiniMax M3 (NIM)', tier: 92, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 524288, latencyMsTypical: 4500, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'nvidia/nvidia/devstral-2-123b', provider: 'nvidia', name: 'Devstral 2 123B (NIM, suspended)', tier: 82, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 131072, latencyMsTypical: 1800, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
+  { modelId: 'nvidia/moonshotai/kimi-k2-thinking', provider: 'nvidia', name: 'Kimi K2 Thinking (NIM, suspended)', tier: 93, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 262144, latencyMsTypical: 3200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
   // ── OpenRouter Free/Low-Cost ───────────────────────────────────────
   { modelId: 'openrouter/nvidia/llama-3.3-nemotron-super-128k', provider: 'openrouter', name: 'Nemotron Super 128K', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   { modelId: 'openrouter/deepseek/deepseek-chat-v3-0324', provider: 'openrouter', name: 'DeepSeek Chat V3', tier: 82, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 180, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
@@ -415,9 +427,14 @@ export const MODELS: ModelInfo[] = [
   // ── Fireworks ──────────────────────────────────────────────────────
   { modelId: 'fireworks/llama-3.1-70b', provider: 'fireworks', name: 'Llama 3.1 70B (Fireworks)', tier: 74, costPer1mInput: 0.2, costPer1mOutput: 0.2, contextWindow: 128000, latencyMsTypical: 140, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: false, isLocal: false, status: 'up' },
   { modelId: 'fireworks/qwen2.5-72b', provider: 'fireworks', name: 'Qwen2.5 72B (Fireworks)', tier: 76, costPer1mInput: 0.2, costPer1mOutput: 0.2, contextWindow: 32768, latencyMsTypical: 150, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: false, isLocal: false, status: 'up' },
-  // ── SiliconFlow ────────────────────────────────────────────────────
-  { modelId: 'siliconflow/deepseek-v3', provider: 'siliconflow', name: 'DeepSeek V3 (SiliconFlow)', tier: 70, costPer1mInput: 0.3, costPer1mOutput: 0.3, contextWindow: 64000, latencyMsTypical: 180, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: false, isLocal: false, status: 'up' },
-  { modelId: 'siliconflow/qwen2.5-72b', provider: 'siliconflow', name: 'Qwen2.5 72B (SiliconFlow)', tier: 72, costPer1mInput: 0.3, costPer1mOutput: 0.3, contextWindow: 32768, latencyMsTypical: 190, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: false, isLocal: false, status: 'up' },
+  // ── SiliconFlow (12 free models, tier 91, key rotated 2026-06-28) ──
+  { modelId: 'siliconflow/zai-org/GLM-5', provider: 'siliconflow', name: 'GLM-5 (SF)', tier: 95, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 400, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/zai-org/GLM-5.1', provider: 'siliconflow', name: 'GLM-5.1 (SF)', tier: 96, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 202752, latencyMsTypical: 450, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/deepseek-ai/DeepSeek-V4-Flash', provider: 'siliconflow', name: 'DeepSeek V4 Flash (SF)', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 120, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/deepseek-ai/DeepSeek-V4-Pro', provider: 'siliconflow', name: 'DeepSeek V4 Pro (SF)', tier: 90, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 65536, latencyMsTypical: 350, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/MiniMaxAI/MiniMax-M2.5', provider: 'siliconflow', name: 'MiniMax M2.5 (SF)', tier: 80, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 300, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/Qwen/Qwen3-235B-A22B', provider: 'siliconflow', name: 'Qwen3 235B MoE (SF)', tier: 88, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 500, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'siliconflow/moonshotai/Kimi-K2-Thinking', provider: 'siliconflow', name: 'Kimi K2 Thinking (SF)', tier: 93, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 65536, latencyMsTypical: 600, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   // ── Mistral ────────────────────────────────────────────────────────
   { modelId: 'mistral/mistral-medium', provider: 'mistral', name: 'Mistral Medium', tier: 82, costPer1mInput: 0.4, costPer1mOutput: 0.4, contextWindow: 32000, latencyMsTypical: 220, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: false, isLocal: false, status: 'up' },
   // ── Codestral ──────────────────────────────────────────────────────

@@ -19,7 +19,7 @@ Do not copy keys from ARCHIVIST or Downloads curation files into this repo.
 
 ## Model
 
-- `LongCat-2.0-Preview`
+- `LongCat-2.0`
 - Base URL: `https://api.longcat.chat/openai/v1`
 - Chat path: `/chat/completions`
 

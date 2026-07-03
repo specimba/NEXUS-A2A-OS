@@ -16,7 +16,7 @@
     "research": {
       "primary": "internai/intern-s2-preview",
       "lane": "hermes",
-      "fallbacks": ["internai/intern-latest", "internai/internvl2.5-latest"]
+      "fallbacks": ["internai/intern-latest", "internai/internvl3.5-latest"]
     },
     "security": {
       "primary": "internai/intern-s2-preview",
@@ -29,7 +29,7 @@
       "fallbacks": ["internai/intern-s2-preview", "ollama/osman-agent"]
     },
     "vision": {
-      "primary": "internai/internvl2.5-latest",
+      "primary": "internai/internvl3.5-latest",
       "lane": "claw",
       "fallbacks": ["internai/intern-s2-preview"]
     }

@@ -594,6 +594,15 @@ def run_models_list(refresh: bool) -> int:
     _json_print(payload)
     return 0 if (state.get("god_proxy_alive") or state.get("node_relay_alive")) else 2
 
+def run_quota_command(args: argparse.Namespace) -> int:
+    """`nexusctl quota` — durable provider budget controls."""
+    from nexusctl.provider_quota_cli import run_quota
+
+    code, payload = run_quota(args)
+    _json_print(payload)
+    return code
+
+
 
 def run_dream_cycle() -> int:
     """`nexusctl dream-cycle` — memory consolidation."""
@@ -1055,12 +1064,30 @@ def main() -> int:
                           help="Show pipeline stage status")
 
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
-    models.add_argument("action", nargs="?", choices=["verify"],
-                        help="verify: diff canonical registry vs live provider listings vs health sidecar")
+    models.add_argument("action", nargs="?", choices=["verify", "reconcile", "status"],
+                        help="verify/reconcile/status canonical registry and provider listings")
     models.add_argument("--refresh", action="store_true", help="Force upstream cache refresh before listing")
     models.add_argument("--provider", help="(verify) probe only this provider slug")
     models.add_argument("--no-chat-probe", action="store_true",
                         help="(verify) skip 1-token chat probes for listing absentees")
+    models.add_argument("--dry-run", action="store_true", help="Do not persist provider health state")
+    models.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    quota = subparsers.add_parser("quota", help="Durable provider token, RPM, and cooldown controls")
+    quota_sub = quota.add_subparsers(dest="quota_command")
+    quota_sub.required = True
+    quota_status = quota_sub.add_parser("status", help="Show all provider quota state")
+    quota_status.add_argument("--json", action="store_true")
+    quota_verify = quota_sub.add_parser("verify", help="Record verified account quota telemetry")
+    quota_verify.add_argument("--provider", required=True, choices=["longcat", "internai", "nvidia"])
+    quota_verify.add_argument("--remaining-tokens", type=int)
+    quota_verify.add_argument("--reset-at")
+    quota_verify.add_argument("--expires-at")
+    quota_verify.add_argument("--source", default="operator")
+    quota_verify.add_argument("--json", action="store_true")
+    quota_plan = quota_sub.add_parser("plan", help="Calculate protected utilization schedule")
+    quota_plan.add_argument("--provider", required=True, choices=["longcat", "internai", "nvidia"])
+    quota_plan.add_argument("--json", action="store_true")
     models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (opencode, kilo, cline, hermes, mimo)")
     models_sync.add_argument("--refresh", action="store_true", help="Force upstream cache refresh first")
     models_sync.add_argument("--dry-run", action="store_true", help="Preview without writing")
@@ -1149,7 +1176,15 @@ def main() -> int:
         if getattr(args, "action", None) == "verify":
             from nexusctl.models_cli import run_models_verify
             return run_models_verify(provider=args.provider, no_chat_probe=args.no_chat_probe)
+        if getattr(args, "action", None) == "reconcile":
+            from nexusctl.models_cli import run_models_reconcile
+            return run_models_reconcile(provider=args.provider, dry_run=args.dry_run)
+        if getattr(args, "action", None) == "status":
+            from nexusctl.models_cli import run_models_status
+            return run_models_status(provider=args.provider)
         return run_models_list(args.refresh)
+    if args.command == "quota":
+        return run_quota_command(args)
     if args.command == "a2a-channels":
         return run_a2a_channels(args)
     if args.command == "dream-cycle":

@@ -8,6 +8,7 @@ from upload.intern_ai_lanes import INTERN_AI_LANES, resolve_intern_ai_key
 from upload.models_registry import ModelsRegistry
 from upload.quota_guard import QuotaGuard
 
+from nexus_os.model_relay.provider_budget import ProviderBudgetLedger
 
 class _Response:
     status_code = 200
@@ -40,18 +41,21 @@ def test_internai_models_expose_agent_capabilities():
     registry = ModelsRegistry()
     models = {model.model_id: model for model in registry.get_by_provider("internai")}
 
-    assert {"internai/intern-s2-preview", "internai/intern-latest", "internai/internvl2.5-latest"} <= set(models)
+    assert {"internai/intern-s2-preview", "internai/intern-latest", "internai/internvl3.5-latest"} <= set(models)
     assert models["internai/intern-s2-preview"].context_window == 256000
     assert models["internai/intern-s2-preview"].supports_function_calling
-    assert models["internai/internvl2.5-latest"].supports_vision
+    assert models["internai/internvl3.5-latest"].supports_vision
 
 
-def test_internai_quota_is_initialized():
-    quota = QuotaGuard().get_quota("internai")
+def test_internai_quota_is_initialized(tmp_path):
+    ledger = ProviderBudgetLedger(tmp_path / "quota.sqlite3")
+    quota = QuotaGuard(budget_ledger=ledger).get_quota("internai")
 
     assert quota is not None
-    assert quota.quota_type == "requests"
-    assert quota.daily_limit == 43200
+    assert quota.quota_type == "tokens"
+    assert quota.daily_limit is None
+    assert quota.budget_verified is False
+    assert quota.is_exhausted is True
 
 
 def test_internai_lane_key_resolution_prefers_surface_specific_key(monkeypatch):
@@ -65,7 +69,7 @@ def test_internai_lane_key_resolution_prefers_surface_specific_key(monkeypatch):
     assert resolve_intern_ai_key("kilocode").env_var == "INTERN_API_KEY_2"
 
 
-def test_gateway_sends_internai_bearer_auth_and_thinking_mode(monkeypatch):
+def test_gateway_sends_internai_bearer_auth_and_thinking_mode(monkeypatch, tmp_path):
     captured = {}
 
     def fake_post(url, headers, json, timeout):
@@ -75,7 +79,7 @@ def test_gateway_sends_internai_bearer_auth_and_thinking_mode(monkeypatch):
     monkeypatch.setenv("INTERN_API_KEY", "test-intern-token")
     monkeypatch.setattr("requests.post", fake_post)
 
-    gateway = ModelRelayGateway()
+    gateway = ModelRelayGateway(ProviderBudgetLedger(tmp_path / "quota.sqlite3"))
     result = gateway._call_provider(
         "internai/intern-s2-preview",
         "internai",
@@ -91,7 +95,7 @@ def test_gateway_sends_internai_bearer_auth_and_thinking_mode(monkeypatch):
     assert "stop" not in captured["json"]
 
 
-def test_gateway_uses_internai_provider_lane_key(monkeypatch):
+def test_gateway_uses_internai_provider_lane_key(monkeypatch, tmp_path):
     captured = {}
 
     def fake_post(url, headers, json, timeout):
@@ -102,7 +106,7 @@ def test_gateway_uses_internai_provider_lane_key(monkeypatch):
     monkeypatch.setenv("INTERN_KILOCODE_API_KEY", "kilocode-token")
     monkeypatch.setattr("requests.post", fake_post)
 
-    gateway = ModelRelayGateway()
+    gateway = ModelRelayGateway(ProviderBudgetLedger(tmp_path / "quota.sqlite3"))
     result = gateway._call_provider(
         "internai/intern-s2-preview",
         "internai",

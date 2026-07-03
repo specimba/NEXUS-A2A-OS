@@ -10,9 +10,9 @@
     "chatPath": "/chat/completions"
   },
   "models": {
-    "teacher": "LongCat-2.0-Preview",
-    "eval": "LongCat-2.0-Preview",
-    "probe": "LongCat-2.0-Preview"
+    "teacher": "LongCat-2.0",
+    "eval": "LongCat-2.0",
+    "probe": "LongCat-2.0"
   },
   "capabilities": {
     "chat": true,

@@ -15,7 +15,7 @@ material and must not be committed, copied into docs, or archived into NEXUS.
 - Default quota: 30 requests/min/user
 - Agent model: `intern-s2-preview`
 - General model: `intern-latest`
-- Vision model: `internvl2.5-latest`
+- Vision model: `internvl3.5-latest`
 - Do not send `stop`
 - Send `thinking_mode: true` for Intern-S2, Intern-S1 Pro, Intern-S1, and Intern-S1 Mini
 

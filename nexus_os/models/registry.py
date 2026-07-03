@@ -264,14 +264,14 @@ class ModelRegistry:
         # Register new curated models
         registry.register_provider(
             name="longcat",
-            models=["LongCat-2.0-Preview"],
+            models=["LongCat-2.0"],
             base_url="https://api.longcat.chat/openai/v1",
             api_key_env="NEXUS_LONGCAT_API_KEY",
             priority=1,
             status="healthy"
         )
         registry.register_model(
-            name="LongCat-2.0-Preview",
+            name="LongCat-2.0",
             provider="longcat",
             tier=98,
             latency_ms=1000,

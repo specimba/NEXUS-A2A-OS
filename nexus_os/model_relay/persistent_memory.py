@@ -384,11 +384,11 @@ if __name__ == "__main__":
     tid = start_task(
         title="Test Persistent Memory Demo",
         description="Demonstrate model handoff intro/outro system",
-        model="nim/z-ai/glm-5.1",
+        model="nim/nvidia/nemotron-3-ultra-550b-a55b",
         provider="nvidia",
     )
     record_progress(tid, add_finding="Built MemoryBus singleton")
-    record_progress(tid, add_decision={"by_model": "nim/z-ai/glm-5.1", "decision": "Use persistent memory for context", "reason": "Avoid context loss on model swap"})
+    record_progress(tid, add_decision={"by_model": "nim/nvidia/nemotron-3-ultra-550b-a55b", "decision": "Use persistent memory for context", "reason": "Avoid context loss on model swap"})
     record_progress(tid, set_next_steps=["Build quota tracker", "Wire into ModelRelay router"])
     print(f"Created task {tid}")
     print("---")

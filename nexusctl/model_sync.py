@@ -201,7 +201,7 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
     if lc:
         api_keys = mrelay.get("apiKeys", {})
         key = lc.get("api_key", api_keys.get("longcat", ""))
-        models = {m: {"name": f"LongCat {m}"} for m in (lc.get("models") or ["LongCat-2.0-Preview"])}
+        models = {m: {"name": f"LongCat {m}"} for m in (lc.get("models") or ["LongCat-2.0"])}
         entries["longcat"] = {
             "name": "LongCat (direct)",
             "npm": "@ai-sdk/openai-compatible",
@@ -228,18 +228,22 @@ def _build_relay_provider_entries(state: dict[str, Any]) -> dict[str, dict[str, 
             "models": models,
         }
 
-    # 4. NVIDIA NIM direct provider (Minimax M3, Kimi K2, Devstral 2, etc.)
+    # 4. NVIDIA NIM direct provider (serial governed active catalog)
     nv = mrelay.get("providers", {}).get("nvidia")
     if nv:
         api_keys = mrelay.get("apiKeys", {})
         key = nv.get("api_key", api_keys.get("nvidia", ""))
-        nv_models = nv.get("models") or ["nvidia/minimax-m3", "nvidia/devstral-2-123b", "nvidia/kimi-k2-thinking"]
+        nv_models = nv.get("models") or [
+            "minimaxai/minimax-m3",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+            "qwen/qwen3.5-122b-a10b",
+        ]
         models = {}
         for m in nv_models:
             mkey = m.split("/")[-1]
             models[m] = {"name": f"NVIDIA {mkey}"}
         entries["nvidia-nim"] = {
-            "name": "NVIDIA NIM (Minimax M3, Devstral 2, Kimi K2, GLM-5 variants)",
+            "name": "NVIDIA NIM (serial active catalog; 8 RPM ceiling)",
             "npm": "@ai-sdk/openai-compatible",
             "options": {
                 "baseURL": nv.get("baseUrl", "https://integrate.api.nvidia.com/v1"),

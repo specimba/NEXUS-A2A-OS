@@ -100,7 +100,7 @@ def test_provider_health_periodic_loop_is_disabled_by_default() -> None:
 def test_curated_models_do_not_enter_core_resident_lane() -> None:
     registry = ModelRegistry.load_default()
 
-    longcat = registry.get_model("LongCat-2.0-Preview")
+    longcat = registry.get_model("LongCat-2.0")
     fastcontext = registry.get_model("FastContext-1.0-4B-SFT")
     vibethinker = registry.get_model("VibeThinker-3B")
 
@@ -108,6 +108,7 @@ def test_curated_models_do_not_enter_core_resident_lane() -> None:
     assert longcat.role == "teacher"
     assert "core" not in longcat.allowed_lanes
     assert "teacher" in longcat.allowed_lanes
+    assert registry.get_model("LongCat-2.0-Preview") is None
 
     assert fastcontext is not None
     assert fastcontext.role == "probe"

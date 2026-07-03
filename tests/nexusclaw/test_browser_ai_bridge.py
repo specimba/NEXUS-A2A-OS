@@ -4,7 +4,7 @@ from tools.browser_ai_supervisor.external_browser_ai_director import CycleObserv
 
 class FakeHermesDecision:
     selected_model = "internai-free-director"
-    fallback_models = ["longcat-preview", "deepseek-v4-flash-free"]
+    fallback_models = ["longcat-2.0", "deepseek-v4-flash-free"]
     domain = "security"
     complexity = "standard"
 

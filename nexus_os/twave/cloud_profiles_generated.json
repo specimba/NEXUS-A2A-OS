@@ -255,9 +255,30 @@
       ]
     },
     {
+      "name": "intern-s1-pro",
+      "provider": "internai",
+      "quality_score": 0.82,
+      "max_context": 262144,
+      "supports_thinking": true,
+      "roles": [
+        "teacher",
+        "reasoning"
+      ]
+    },
+    {
       "name": "qwen/qwen3.5-122b-a10b",
       "provider": "nvidia",
       "quality_score": 0.8,
+      "max_context": 32768,
+      "supports_thinking": true,
+      "roles": [
+        "reasoning"
+      ]
+    },
+    {
+      "name": "intern-s1",
+      "provider": "internai",
+      "quality_score": 0.75,
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -282,6 +303,16 @@
       "supports_thinking": false,
       "roles": [
         "code"
+      ]
+    },
+    {
+      "name": "intern-s1-mini",
+      "provider": "internai",
+      "quality_score": 0.7,
+      "max_context": 32768,
+      "supports_thinking": true,
+      "roles": [
+        "reasoning"
       ]
     }
   ]

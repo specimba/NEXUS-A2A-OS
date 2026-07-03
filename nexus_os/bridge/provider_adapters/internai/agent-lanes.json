@@ -19,7 +19,7 @@
       "key_env_order": ["INTERN_MODELRELAY_API_KEY", "INTERN_API_KEY", "INTERN_API_KEY_2"],
       "default_model": "intern-latest",
       "fallback_model": "intern-s2-preview",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": false
     },
     "hermes": {
@@ -27,7 +27,7 @@
       "key_env_order": ["INTERN_HERMES_API_KEY", "INTERN_API_KEY", "INTERN_API_KEY_2"],
       "default_model": "intern-s2-preview",
       "fallback_model": "intern-latest",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": true
     },
     "opencode": {
@@ -35,7 +35,7 @@
       "key_env_order": ["INTERN_OPENCODE_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
       "default_model": "intern-s2-preview",
       "fallback_model": "intern-latest",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": true
     },
     "kilocode": {
@@ -43,7 +43,7 @@
       "key_env_order": ["INTERN_KILOCODE_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
       "default_model": "intern-s2-preview",
       "fallback_model": "intern-latest",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": true
     },
     "claw": {
@@ -51,7 +51,7 @@
       "key_env_order": ["INTERN_CLAW_API_KEY", "INTERN_ZO_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
       "default_model": "intern-s2-preview",
       "fallback_model": "intern-latest",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": true
     },
     "zo": {
@@ -59,7 +59,7 @@
       "key_env_order": ["INTERN_ZO_API_KEY", "INTERN_CLAW_API_KEY", "INTERN_API_KEY_2", "INTERN_API_KEY"],
       "default_model": "intern-s2-preview",
       "fallback_model": "intern-latest",
-      "vision_model": "internvl2.5-latest",
+      "vision_model": "internvl3.5-latest",
       "thinking_mode": true
     }
   },
