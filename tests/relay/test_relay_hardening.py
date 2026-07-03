@@ -444,9 +444,10 @@ class TestPerTokenAssessment:
             def assess(self, *, position, temperature, topk_probs):
                 self.calls += 1
                 # Second token is the risky one
+                # CHD contract: {"risk": level, "score": float, "reasons": [...]}
                 if position == 1:
-                    return {"risk_level": "high", "risk_score": 0.9, "reasons": ["spike"]}
-                return {"risk_level": "low", "risk_score": 0.1, "reasons": []}
+                    return {"risk": "high", "score": 0.9, "reasons": ["spike"]}
+                return {"risk": "low", "score": 0.1, "reasons": []}
 
         det = _Detector()
         monkeypatch.setattr(type(relay), "_get_hallucination_detector", lambda self: det)

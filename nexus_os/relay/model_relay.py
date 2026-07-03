@@ -730,12 +730,13 @@ class ModelRelay:
                     temperature=temperature,
                     topk_probs=topk_probs,
                 )
-                if worst is None or result.get("risk_score", 0.0) > worst.get("risk_score", 0.0):
+                # CHD returns {"risk": level, "score": float, ...}
+                if worst is None or result.get("score", 0.0) > worst.get("score", 0.0):
                     worst = result
 
             verdict = {
-                "risk_level": worst.get("risk_level", "unknown"),
-                "risk_score": round(worst.get("risk_score", 0.0), 4),
+                "risk_level": worst.get("risk", "unknown"),
+                "risk_score": round(worst.get("score", 0.0), 4),
                 "reasons": worst.get("reasons", []),
                 "tokens_assessed": len(sequences),
             }

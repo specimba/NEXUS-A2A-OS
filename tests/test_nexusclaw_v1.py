@@ -68,6 +68,16 @@ from nexus_os.nexusclaw.worklog import WorklogSystem
 # Fixtures
 # ------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def isolated_trust_kernel():
+    """P2-2: AgentPool reads trust through the process-wide TrustKernel
+    singleton. Give every test a fresh in-memory kernel so priors and
+    evidence never leak between tests."""
+    from nexus_os.governor.trust_kernel import TrustKernel, set_trust_kernel
+    set_trust_kernel(TrustKernel(vault_enabled=False))
+    yield
+    set_trust_kernel(None)
+
 @pytest.fixture
 def fresh_pool():
     """Fresh AgentPool instance for isolation."""
@@ -148,15 +158,23 @@ class TestAgentPool:
         assert not agent.is_available
 
     def test_update_trust(self, populated_pool):
+        """P2-2: update_trust records a kernel observation and mirrors the
+        posterior — an absolute score can no longer be assigned, so a
+        single low observation is damped (anti-grinding both ways)."""
+        from nexus_os.governor.trust_kernel import get_trust_kernel
         populated_pool.update_trust("nexus-governor", 42.0)
         agent = populated_pool.get("nexus-governor")
-        assert agent.trust_score == 42.0
+        snap = get_trust_kernel().get_snapshot("nexus-governor", "governance")
+        assert snap.evidence_count == 1  # round-trip: pool → kernel
+        assert agent.trust_score == pytest.approx(snap.trust * 100.0, abs=0.01)
+        assert agent.trust_score != 42.0  # no direct assignment anymore
 
     def test_trust_clamping(self, populated_pool):
+        """Posterior stays inside [0, 99.5] regardless of raw targets."""
         populated_pool.update_trust("nexus-governor", 150.0)
-        assert populated_pool.get("nexus-governor").trust_score == 100.0
+        assert 0.0 <= populated_pool.get("nexus-governor").trust_score <= 99.5
         populated_pool.update_trust("nexus-governor", -10.0)
-        assert populated_pool.get("nexus-governor").trust_score == 0.0
+        assert 0.0 <= populated_pool.get("nexus-governor").trust_score <= 99.5
 
     def test_register_external_api(self, fresh_pool):
         agent = fresh_pool.register_external_api(
@@ -177,7 +195,8 @@ class TestAgentPool:
         agent = fresh_pool.register_human("human-admin", "Admin User", "governance")
         assert agent.agent_id == "human-admin"
         assert agent.agent_type == AgentType.HUMAN
-        assert agent.trust_score == 100.0
+        # P2-2: trust is asymptotic (HARDWALL cap 99.5) — even humans
+        assert agent.trust_score == 99.5
 
     def test_find_by_capability(self, populated_pool):
         agents = populated_pool.find_by_capability("kaiju_auth")
@@ -185,9 +204,12 @@ class TestAgentPool:
         assert agents[0].agent_id == "nexus-governor"
 
     def test_find_by_capability_trust_filter(self, populated_pool):
-        populated_pool.update_trust("nexus-governor", 20.0)
+        # P2-2: set canonical low-trust state by reseeding the kernel prior
+        # (no evidence yet, so the prior is re-seedable)
+        from nexus_os.governor.trust_kernel import get_trust_kernel
+        get_trust_kernel().ensure_bootstrap_prior("nexus-governor", "governance", 20.0)
         agents = populated_pool.find_by_capability("kaiju_auth", min_trust=50.0)
-        assert len(agents) == 0  # Governor trust dropped below 50
+        assert len(agents) == 0  # Governor trust below 50
 
     def test_find_by_lanes(self, populated_pool):
         agents = populated_pool.find_by_lanes({"governance"})
@@ -443,7 +465,8 @@ class TestMessageBus:
         assert "not found" in (result.delivery_error or "").lower()
 
     def test_message_trust_too_low(self, populated_pool, fresh_bus):
-        populated_pool.update_trust("nexus-governor", 10.0)
+        from nexus_os.governor.trust_kernel import get_trust_kernel
+        get_trust_kernel().ensure_bootstrap_prior("nexus-governor", "governance", 10.0)
         msg = NexusMessage(
             message_id="msg-4",
             sender_id="nexus-governor",
@@ -458,8 +481,9 @@ class TestMessageBus:
         assert "trust" in (result.delivery_error or "").lower()
 
     def test_high_risk_message_blocked(self, populated_pool, fresh_bus):
-        # Vault trust is 90, but let's drop it below 70
-        populated_pool.update_trust("nexus-vault", 60.0)
+        # Vault trust is 90, but let's drop it below 70 (kernel prior reseed)
+        from nexus_os.governor.trust_kernel import get_trust_kernel
+        get_trust_kernel().ensure_bootstrap_prior("nexus-vault", "memory", 60.0)
         msg = NexusMessage(
             message_id="msg-5",
             sender_id="nexus-governor",
@@ -839,7 +863,8 @@ class TestOrchestrator:
     def test_register_human(self, fresh_orchestrator):
         agent = fresh_orchestrator.register_human("admin-1", "Admin")
         assert agent.agent_type == AgentType.HUMAN
-        assert agent.trust_score == 100.0
+        # P2-2: trust is asymptotic (HARDWALL cap 99.5) — even humans
+        assert agent.trust_score == 99.5
 
     def test_submit_task(self, fresh_orchestrator):
         task = NexusClawTaskEnvelope(
@@ -1001,8 +1026,13 @@ class TestOrchestrator:
         assert fresh_orchestrator.agent_pool.get("nexus-governor").status == AgentStatus.BUSY
 
     def test_update_agent_trust(self, fresh_orchestrator):
+        # P2-2: records a kernel observation and mirrors the posterior
+        from nexus_os.governor.trust_kernel import get_trust_kernel
         fresh_orchestrator.update_agent_trust("nexus-governor", 42.0)
-        assert fresh_orchestrator.agent_pool.get("nexus-governor").trust_score == 42.0
+        snap = get_trust_kernel().get_snapshot("nexus-governor", "governance")
+        assert snap.evidence_count == 1
+        agent = fresh_orchestrator.agent_pool.get("nexus-governor")
+        assert agent.trust_score == pytest.approx(snap.trust * 100.0, abs=0.01)
 
     def test_sync_memory_context(self, fresh_orchestrator):
         ctx = fresh_orchestrator.sync_memory_context("nexus-governor", "test query")
