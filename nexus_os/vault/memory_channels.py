@@ -718,6 +718,16 @@ class MemoryChannelManager:
                     continue
                 if record.persistence_score >= 0.8 and rank < 7 and channel not in (MemoryChannel.PROCEDURAL, MemoryChannel.TRUST, MemoryChannel.META):
                     target = next(c for c, r in channel_rank.items() if r == rank + 1)
+                    # Audit fix (P2-6): upward migration is a WRITE into the
+                    # target channel and must clear the same trust gate as a
+                    # direct append — otherwise access-frequency grinding
+                    # promotes low-trust content into PROCEDURAL/TRUST.
+                    agent_trust = self.get_latest_trust(agent_id)
+                    display_trust = (agent_trust * 100.0 if agent_trust is not None and agent_trust <= 1.0
+                                     else (agent_trust or 0.0))
+                    if display_trust < CHANNEL_WRITE_TRUST[target]:
+                        survivors.append(record)
+                        continue
                     self._buffers[agent_id][target].append(record)
                     migrated_ids.add(f"{target.value}:{id(record)}")
                     migrations[target.value] = migrations.get(target.value, 0) + 1

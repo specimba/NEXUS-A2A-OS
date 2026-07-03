@@ -354,8 +354,11 @@ class ChromaBackend(SemanticBackend):
             content = documents_list[i] if i < len(documents_list) else ""
             distance = distances_list[i] if i < len(distances_list) else 0.0
             meta = metadatas_list[i] if i < len(metadatas_list) else {}
-            # Chroma returns L2 distance; convert to cosine similarity score
-            score = 1.0 / (1.0 + distance) if distance else 0.0
+            # Chroma returns L2 distance; convert to a similarity score.
+            # Audit fix (P2-6): the old `if distance else 0.0` gave an
+            # EXACT match (distance 0) the worst score instead of the
+            # best — perfect hits ranked last.
+            score = 1.0 / (1.0 + max(float(distance or 0.0), 0.0))
 
             mapped.append(SemanticResult(
                 id=doc_id,

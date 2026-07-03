@@ -139,7 +139,10 @@ class PersistentMemoryTracks:
 
     def record_governance_event(self, agent_id: str, event_type: str, detail: str = ""):
         if agent_id not in self.governance_memory:
-            self.governance_memory[agent_id] = {"events": [], "flags": set()}
+            # Audit fix (P2-6): flags was a set(), which json.dumps in
+            # _save() cannot serialize — the very first governance event
+            # for an agent crashed persistence. Deduped list instead.
+            self.governance_memory[agent_id] = {"events": [], "flags": []}
         self.governance_memory[agent_id]["events"].append({
             "type": event_type, "detail": detail, "timestamp": time.time(),
         })
