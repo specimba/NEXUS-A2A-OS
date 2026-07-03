@@ -561,3 +561,91 @@ class TestEdgeCases:
             tracker.step(position=i, logits=logits, current_temperature=0.7,
                          layer_logits=layer_logits)
         assert len(tracker._led_depths) == 5
+
+
+# ---------------------------------------------------------------------------
+# P2-1 en-route fixes: spectral recursion + logits-processor cooling
+# ---------------------------------------------------------------------------
+class TestSpectralFallbackRecursion:
+    """apply_loopwm_wrapper used to fall back through stabilize_tracker_run,
+    which re-entered the wrapper with the same series and recursed until
+    RecursionError. Smooth series (adjacent segment means differing by <1.0)
+    always have spectral radius > 1, so the common case crashed."""
+
+    def test_smooth_series_no_recursion(self):
+        from nexus_os.twave.spectral_stability import stabilize_tracker_run
+        series = [0.7, 0.75, 0.8, 0.72, 0.71, 0.74, 0.76, 0.73]
+        out, rep = stabilize_tracker_run(series, use_loopwm=True)
+        assert len(out) == len(series)
+        assert all(isinstance(v, float) for v in out)
+
+    def test_spectral_fail_falls_back_with_report(self):
+        from nexus_os.twave.spectral_stability import (
+            SpectralBounds,
+            apply_loopwm_wrapper,
+        )
+        series = [0.7, 0.75, 0.8, 0.72, 0.71, 0.74, 0.76, 0.73]
+        out, meta = apply_loopwm_wrapper(series, bounds=SpectralBounds())
+        assert meta["mode"] == "fallback_clip_smooth"
+        assert meta["fallback_reason"] == "spectral_radius_too_large"
+        assert "report" in meta
+        assert len(out) == len(series)
+
+    def test_insufficient_segments_no_recursion(self):
+        from nexus_os.twave.spectral_stability import (
+            SpectralBounds,
+            apply_loopwm_wrapper,
+        )
+        out, meta = apply_loopwm_wrapper([0.7, 0.8, 0.9], bounds=SpectralBounds())
+        assert meta["mode"] == "fallback_clip_smooth"
+        assert meta["reason"] == "insufficient_segments"
+        assert len(out) == 3
+
+    def test_report_path_via_tracker(self):
+        tracker = LandauGinzburgTrackerV2()
+        tracker.set_dry_run(True)
+        for i in range(12):
+            tracker.step(position=i, current_temperature=0.7)
+        report = tracker.get_report(apply_spectral_bounds=True)
+        assert report.stability_report is not None
+        # Must not have crashed; bounded states overlaid in place.
+        assert len(report.lg_states) == 12
+
+
+class TestLogitsProcessorCooling:
+    """Cooling used to mutate _current_temp before computing the scale
+    factor (ratio always 1.0 → no-op), and ABSTAIN's t_eff=0 multiplied
+    every logit by zero, turning detected hallucinations into uniform
+    random sampling."""
+
+    def _processor(self, t_eff):
+        pytest.importorskip("transformers")
+        tracker = LandauGinzburgTrackerV2()
+        proc = tracker.logits_processor()
+        proc.tracker = _StubTracker(t_eff)
+        return proc
+
+    def test_cooling_sharpens_not_noop(self):
+        proc = self._processor(t_eff=0.35)
+        scores = np.array([[2.0, 1.0, 0.5]])
+        out = proc(None, scores)
+        # prev temp 0.7 / new temp 0.35 = 2.0 → logits doubled (sharper)
+        assert np.allclose(out, scores * 2.0)
+        assert proc._current_temp == pytest.approx(0.35)
+
+    def test_abstain_never_zeroes_logits(self):
+        proc = self._processor(t_eff=0.0)
+        scores = np.array([[2.0, 1.0, 0.5]])
+        out = proc(None, scores)
+        assert not np.allclose(out, 0.0)
+        # Floored at 0.01 → strong sharpening, not information loss
+        assert np.all(np.abs(out) >= np.abs(scores))
+        assert proc._current_temp == pytest.approx(0.01)
+
+
+class _StubTracker:
+    def __init__(self, t_eff):
+        self._t_eff = t_eff
+
+    def step(self, position, logits, current_temperature):
+        return {"cool": True, "t_eff": self._t_eff, "mode": "ABSTAIN"}

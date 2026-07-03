@@ -79,6 +79,7 @@ class TrackerReport:
     mode_transitions: Optional[List[Tuple[int, DecodingMode, DecodingMode]]] = None
     led_depth_selected: Optional[List[int]] = None
     edt_temperature_schedule: Optional[List[float]] = None
+    stability_report: Optional[Dict[str, Any]] = None
 
 # ---- EDT ----
 class EDTController:
@@ -485,6 +486,7 @@ class LandauGinzburgTrackerV2:
             mode_transitions=self.lead.transitions if self.enable_lead and self.lead else None,
             led_depth_selected=self._led_depths if self._led_depths else None,
             edt_temperature_schedule=self._edt_schedule if self._edt_schedule else None,
+            stability_report=stability_report,
         )
 
     def reset(self):
@@ -513,9 +515,17 @@ class LandauGinzburgTrackerV2:
                 logits = scores[0].cpu().numpy() if hasattr(scores, 'cpu') else np.array(scores[0])
                 action = self.tracker.step(position=self._token_idx, logits=logits, current_temperature=self._current_temp)
                 if action["cool"]:
-                    self._current_temp = action["t_eff"]
-                    scale_factor = action["t_eff"] / max(self._current_temp, 0.01)
+                    # Cooling sharpens the distribution: scale logits by
+                    # prev_temp/new_temp (>1 when cooling). The old code
+                    # mutated _current_temp first, making the ratio 1.0
+                    # (cooling no-op) — except ABSTAIN (t_eff=0), which
+                    # multiplied every logit by 0 and turned a detected
+                    # hallucination into uniform random sampling. Floor
+                    # the new temperature instead of zeroing.
+                    new_temp = max(action["t_eff"], 0.01)
+                    scale_factor = self._current_temp / new_temp
                     scores = scores * scale_factor
+                    self._current_temp = new_temp
                 self._token_idx += 1
                 return scores
         return _LGLogitsProcessor(self)

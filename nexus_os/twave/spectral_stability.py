@@ -150,9 +150,11 @@ def apply_loopwm_wrapper(
         if seg:
             segments.append(seg)
 
-    # Fallback if too few segments
+    # Fallback if too few segments. Call _stabilize_empirical directly:
+    # routing through stabilize_tracker_run can re-enter this wrapper and
+    # recurse without bound (the series is unchanged between calls).
     if len(segments) < 2:
-        out, rep = stabilize_tracker_run(t_eff_series, bounds=bounds)
+        out, rep = _stabilize_empirical(t_eff_series, bounds=bounds)
         meta = {
             "mode": "fallback_clip_smooth",
             "spectral_radius": None,
@@ -191,11 +193,15 @@ def apply_loopwm_wrapper(
     }
 
     if spectral_radius >= 1.0:
-        # Spectral check failed — fall back to empirical clip+smooth
-        out, rep = stabilize_tracker_run(t_eff_series, bounds=bounds)
+        # Spectral check failed — fall back to empirical clip+smooth.
+        # Must NOT go through stabilize_tracker_run here: with the same
+        # ≥8-length series it re-enters this wrapper, recomputes the same
+        # spectral radius, and recurses until RecursionError.
+        out, rep = _stabilize_empirical(t_eff_series, bounds=bounds)
         meta["mode"] = "fallback_clip_smooth"
         meta["spectral_radius"] = spectral_radius
         meta["fallback_reason"] = "spectral_radius_too_large"
+        meta["report"] = rep.to_dict()
         return out, meta
 
     # Spectral check passed — reconstruct bounded series via ZOH linear system

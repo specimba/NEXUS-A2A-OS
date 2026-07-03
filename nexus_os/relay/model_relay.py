@@ -14,6 +14,7 @@ v2.2 additions:
 
 import os, json, time, logging, threading, asyncio, hmac
 from collections import deque
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 import requests
 try:
@@ -80,6 +81,10 @@ HEALTH_TTL_S = int(os.environ.get("RELAY_HEALTH_TTL", "300"))
 HEALTH_NEG_TTL_S = int(os.environ.get("RELAY_HEALTH_NEG_TTL", "60"))
 LATENCY_WINDOW_SIZE = 20
 STARTUP_PORT = int(os.environ.get("RELAY_PORT", "7355"))
+
+# P2-7: relay writes non-low hallucination verdicts here for the monitor
+# daemon to consume and alert on.
+HALLUCINATION_VERDICTS_PATH = Path(os.path.expanduser("~")) / ".nexus" / "hallucination_verdicts.jsonl"
 
 # Audit fix (model_relay.py:991): the relay used to bind 0.0.0.0 with no
 # auth layer, exposing chat/guard/metrics to the whole network segment.
@@ -593,6 +598,12 @@ class ModelRelay:
             if key in request_data:
                 ollama_payload[key] = request_data[key]
 
+        # P2-1: request logprobs so the hallucination detector gets real
+        # token-level entropy (was synthetic dry-run before this slice).
+        _request_logprobs = request_data.get("logprobs", True)
+        if _request_logprobs:
+            ollama_payload.setdefault("options", {})["logprobs"] = 10
+
         t0 = time.time()
         try:
             resp = requests.post(OLLAMA_CHAT_URL, json=ollama_payload, timeout=(30, 120))
@@ -605,6 +616,12 @@ class ModelRelay:
             usage = data.get("usage", {})
             latency_ms = (time.time() - t0) * 1000
             self._model_stats.setdefault(ollama_model, ModelStats()).record_success(latency_ms)
+
+            # ── P2-1: logprobs → hallucination detector ──────────
+            hallucination_verdict = self._assess_logprobs(
+                data, temperature or 0.7, model=ollama_model,
+            )
+
             result_msg = {"role": "assistant", "content": content}
             if tool_calls:
                 result_msg["tool_calls"] = tool_calls
@@ -622,10 +639,8 @@ class ModelRelay:
                     "quality_target": quality_target,
                     "latency_budget_ms": latency_budget_ms,
                     **({"gmr_level": gmr_level} if gmr_level else {}),
-                    # L4 = COGER "Delegate": the request wants external
-                    # tools/files; the relay answered text-only, so the
-                    # caller should route through a tool-capable lane.
                     **({"gmr_delegation_advised": True} if gmr_level == "L4" else {}),
+                    **({"hallucination": hallucination_verdict} if hallucination_verdict else {}),
                 },
             }
         except Exception as e:
@@ -683,6 +698,139 @@ class ModelRelay:
             if model_name.lower() in fallback.lower():
                 return fallback
         return "minimax-m3:cloud"
+
+    # ── P2-1: logprobs → hallucination detector ──────────────────────
+
+    def _assess_logprobs(self, data: dict, temperature: float,
+                         model: str | None = None) -> dict | None:
+        """Run per-token hallucination assessment over the response logprobs.
+
+        Handles two response shapes:
+        - OpenAI-compatible: data.choices[0].logprobs.content[i].top_logprobs
+        - Ollama-native:    data.logprobs  (dict[token] = logprob)
+
+        Every token's top-k distribution is fed to the detector (the LG
+        tracker is stateful across positions); the returned verdict is the
+        worst token's, so a single high-entropy token flags the response.
+        Returns a verdict dict or None on any parsing/assessment failure.
+        """
+        try:
+            sequences = self._extract_logprob_sequences(data)
+            if not sequences:
+                return None
+
+            detector = self._get_hallucination_detector()
+            if detector is None:
+                return None
+
+            worst = None
+            for pos, topk_probs in enumerate(sequences):
+                result = detector.assess(
+                    position=pos,
+                    temperature=temperature,
+                    topk_probs=topk_probs,
+                )
+                if worst is None or result.get("risk_score", 0.0) > worst.get("risk_score", 0.0):
+                    worst = result
+
+            verdict = {
+                "risk_level": worst.get("risk_level", "unknown"),
+                "risk_score": round(worst.get("risk_score", 0.0), 4),
+                "reasons": worst.get("reasons", []),
+                "tokens_assessed": len(sequences),
+            }
+            self._persist_hallucination_verdict(verdict, model=model)
+            return verdict
+        except Exception as e:
+            logger.debug(f"Hallucination assessment skipped: {e}")
+            return None
+
+    def _extract_logprob_sequences(self, data: dict) -> list[list[float]]:
+        """Per-token normalized probability vectors from the response.
+
+        Returns one probability vector per generated token (OpenAI shape),
+        or a single-element list for the Ollama-native aggregate shape.
+        """
+        # Path 1: OpenAI-compatible (relay's primary API surface)
+        choices = data.get("choices", [])
+        if choices:
+            logprobs_obj = choices[0].get("logprobs")
+            if logprobs_obj:
+                sequences: list[list[float]] = []
+                for tok in logprobs_obj.get("content", []):
+                    top = tok.get("top_logprobs", [])
+                    if top:
+                        raw = [t.get("logprob", -100.0) for t in top]
+                        sequences.append(self._normalize_logprobs(raw))
+                if sequences:
+                    return sequences
+
+        # Path 2: Ollama-native (live_demo.py precedent)
+        lp_dict = data.get("logprobs")
+        if isinstance(lp_dict, dict) and lp_dict:
+            return [self._normalize_logprobs(list(lp_dict.values()))]
+
+        return []
+
+    def _extract_logprobs(self, data: dict) -> list[float] | None:
+        """Last token's normalized probability vector, or None if unavailable."""
+        sequences = self._extract_logprob_sequences(data)
+        return sequences[-1] if sequences else None
+
+    @staticmethod
+    def _normalize_logprobs(raw_logprobs: list[float]) -> list[float]:
+        """Convert log-probabilities to a normalized probability distribution."""
+        import math
+        max_lp = max(raw_logprobs)
+        probs = [math.exp(lp - max_lp) for lp in raw_logprobs]
+        total = sum(probs)
+        if total <= 0:
+            return [1.0 / len(probs)] * len(probs)
+        return [p / total for p in probs]
+
+    def _get_hallucination_detector(self):
+        """Lazy-initialize the calibrated hallucination detector."""
+        if not hasattr(self, "_hallucination_detector"):
+            self._hallucination_detector = None
+            try:
+                from nexus_os.monitoring.calibrated_hallucination_detector import (
+                    CalibratedHallucinationDetector,
+                )
+                self._hallucination_detector = CalibratedHallucinationDetector(
+                    adaptive=True,
+                    bebop_weight=0.15,
+                )
+            except Exception as e:
+                logger.debug(f"Hallucination detector unavailable: {e}")
+        return self._hallucination_detector
+
+    def _persist_hallucination_verdict(self, verdict: dict, model: str | None = None):
+        """Append a hallucination verdict to the shared JSONL file.
+
+        Low-risk verdicts are skipped here (self-guarding, so every caller
+        gets the same contract). The monitor daemon tails this file and
+        emits A2A alerts for medium/high-risk verdicts.
+        """
+        if verdict.get("risk_level") == "low":
+            return
+        try:
+            import datetime
+            HALLUCINATION_VERDICTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            entry = {
+                **verdict,
+                "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "model": model,
+            }
+            with open(HALLUCINATION_VERDICTS_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, default=str) + "\n")
+            # Keep file bounded: retain last 500 entries
+            if HALLUCINATION_VERDICTS_PATH.stat().st_size > 512_000:
+                lines = HALLUCINATION_VERDICTS_PATH.read_text(encoding="utf-8").splitlines()
+                HALLUCINATION_VERDICTS_PATH.write_text(
+                    "\n".join(lines[-500:]) + "\n", encoding="utf-8",
+                )
+        except Exception as e:
+            logger.debug(f"Hallucination verdict persist failed: {e}")
 
     # ── Guard Pipeline ──────────────────────────────────────────────
 

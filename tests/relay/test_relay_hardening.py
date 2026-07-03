@@ -11,6 +11,7 @@ Four findings in nexus_os/relay/model_relay.py:
 from __future__ import annotations
 
 import sys
+import json
 import time
 from pathlib import Path
 
@@ -213,3 +214,251 @@ class TestBindAndAuth:
         assert client.get("/v1/models").status_code == 401
         assert client.get("/v1/models", headers={"X-Api-Key": "sekret"}).status_code == 200
         assert client.get("/v1/models", headers={"Authorization": "Bearer sekret"}).status_code == 200
+
+
+# ── P2-1: LG relay logprobs feed ──────────────────────────────────────
+
+
+class TestLogprobsFeed:
+    """Verify logprobs are requested, parsed, and fed to the hallucination
+    detector (was synthetic dry-run before this slice)."""
+
+    @pytest.mark.asyncio
+    async def test_logprobs_requested_in_payload(self, relay, monkeypatch):
+        """Ollama payload includes logprobs option."""
+        captured = {}
+
+        class _Resp:
+            ok = True
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}], "usage": {}}
+
+        def _capture(url, json=None, **kw):
+            captured.update(json or {})
+            return _Resp()
+
+        monkeypatch.setattr(ModelRelay, "health_check", lambda self, m: True)
+        monkeypatch.setattr(model_relay.requests, "post", _capture)
+        await relay.proxy_completion(
+            {"model": "auto", "messages": [{"role": "user", "content": "hi"}]}
+        )
+        assert captured.get("options", {}).get("logprobs") == 10
+
+    @pytest.mark.asyncio
+    async def test_logprobs_disabled_when_opt_out(self, relay, monkeypatch):
+        """Caller can disable logprobs via logprobs=False."""
+        captured = {}
+
+        class _Resp:
+            ok = True
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}], "usage": {}}
+
+        def _capture(url, json=None, **kw):
+            captured.update(json or {})
+            return _Resp()
+
+        monkeypatch.setattr(ModelRelay, "health_check", lambda self, m: True)
+        monkeypatch.setattr(model_relay.requests, "post", _capture)
+        await relay.proxy_completion(
+            {"model": "auto", "messages": [{"role": "user", "content": "hi"}], "logprobs": False}
+        )
+        assert "logprobs" not in captured.get("options", {})
+
+    @pytest.mark.asyncio
+    async def test_hallucination_verdict_in_relay_info(self, relay, monkeypatch):
+        """When Ollama returns logprobs, relay_info includes hallucination verdict."""
+        class _Resp:
+            ok = True
+            def raise_for_status(self):
+                pass
+            def json(self):
+                # Simulate OpenAI-compatible logprobs response
+                return {
+                    "choices": [{
+                        "message": {"content": "hello"},
+                        "finish_reason": "stop",
+                        "logprobs": {
+                            "content": [{"top_logprobs": [
+                                {"token": "hello", "logprob": -0.5},
+                                {"token": "hi", "logprob": -1.0},
+                                {"token": "hey", "logprob": -2.0},
+                            ]}]
+                        },
+                    }],
+                    "usage": {},
+                }
+
+        monkeypatch.setattr(ModelRelay, "health_check", lambda self, m: True)
+        monkeypatch.setattr(model_relay.requests, "post", lambda *a, **k: _Resp())
+        result = await relay.proxy_completion(
+            {"model": "auto", "messages": [{"role": "user", "content": "hi"}]}
+        )
+        # Hallucination verdict should be present (low risk for normal response)
+        vi = result["relay_info"]
+        assert "hallucination" in vi
+        assert "risk_level" in vi["hallucination"]
+        assert vi["hallucination"]["risk_score"] >= 0.0
+
+    def test_extract_logprobs_openai_format(self, relay):
+        data = {
+            "choices": [{
+                "logprobs": {
+                    "content": [{"top_logprobs": [
+                        {"logprob": -0.1}, {"logprob": -1.0}, {"logprob": -3.0},
+                    ]}]
+                }
+            }]
+        }
+        probs = relay._extract_logprobs(data)
+        assert probs is not None
+        assert len(probs) == 3
+        assert abs(sum(probs) - 1.0) < 1e-6
+        assert probs[0] > probs[1] > probs[2]
+
+    def test_extract_logprobs_ollama_native(self, relay):
+        data = {"logprobs": {"hello": -0.5, "world": -1.5, "!": -3.0}}
+        probs = relay._extract_logprobs(data)
+        assert probs is not None
+        assert len(probs) == 3
+        assert abs(sum(probs) - 1.0) < 1e-6
+
+    def test_extract_logprobs_missing_returns_none(self, relay):
+        assert relay._extract_logprobs({"choices": [{"message": {"content": "ok"}}]}) is None
+        assert relay._extract_logprobs({}) is None
+
+    def test_normalize_logprobs(self):
+        raw = [-1.0, -2.0, -4.0]
+        probs = model_relay.ModelRelay._normalize_logprobs(raw)
+        assert abs(sum(probs) - 1.0) < 1e-6
+        assert probs[0] > probs[1] > probs[2]
+
+    @pytest.mark.asyncio
+    async def test_hallucination_assessment_graceful_failure(self, relay, monkeypatch):
+        """If detector throws, relay still returns the response."""
+        class _Resp:
+            ok = True
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {
+                    "choices": [{
+                        "message": {"content": "ok"},
+                        "finish_reason": "stop",
+                        "logprobs": {"content": [{"top_logprobs": [{"logprob": -0.5}]}]},
+                    }],
+                    "usage": {},
+                }
+
+        monkeypatch.setattr(ModelRelay, "health_check", lambda self, m: True)
+        monkeypatch.setattr(model_relay.requests, "post", lambda *a, **k: _Resp())
+        # Force detector to throw
+        monkeypatch.setattr(
+            ModelRelay, "_get_hallucination_detector",
+            lambda self: (_ for _ in ()).throw(RuntimeError("detector down")),
+        )
+        result = await relay.proxy_completion(
+            {"model": "auto", "messages": [{"role": "user", "content": "hi"}]}
+        )
+        # Response still comes back, just no hallucination key
+        assert result["choices"][0]["message"]["content"] == "ok"
+        assert "hallucination" not in result["relay_info"]
+
+
+# ── P2-7: verdict persistence + monitor daemon consumption ──────────────
+
+
+class TestVerdictPersistence:
+    """Relay persists non-low verdicts; monitor daemon consumes them."""
+
+    def test_persist_writes_jsonl(self, relay, tmp_path, monkeypatch):
+        monkeypatch.setattr(model_relay, "HALLUCINATION_VERDICTS_PATH", tmp_path / "v.jsonl")
+        relay._persist_hallucination_verdict({"risk_level": "high", "risk_score": 0.85, "reasons": ["high_epr"]})
+        lines = (tmp_path / "v.jsonl").read_text().strip().splitlines()
+        assert len(lines) == 1
+        entry = json.loads(lines[0])
+        assert entry["risk_level"] == "high"
+        assert "ts" in entry
+
+    def test_persist_skips_low(self, relay, tmp_path, monkeypatch):
+        monkeypatch.setattr(model_relay, "HALLUCINATION_VERDICTS_PATH", tmp_path / "v.jsonl")
+        relay._persist_hallucination_verdict({"risk_level": "low", "risk_score": 0.05, "reasons": []})
+        assert not (tmp_path / "v.jsonl").exists()
+
+    @pytest.mark.asyncio
+    async def test_high_risk_verdict_persisted(self, relay, monkeypatch, tmp_path):
+        monkeypatch.setattr(model_relay, "HALLUCINATION_VERDICTS_PATH", tmp_path / "v.jsonl")
+        monkeypatch.setattr(ModelRelay, "health_check", lambda self, m: True)
+
+        class _Resp:
+            ok = True
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {
+                    "choices": [{
+                        "message": {"content": "hmm"},
+                        "finish_reason": "stop",
+                        "logprobs": {"content": [{"top_logprobs": [
+                            {"logprob": -0.01}, {"logprob": -0.02}, {"logprob": -0.03},
+                        ]}]},
+                    }],
+                    "usage": {},
+                }
+
+        monkeypatch.setattr(model_relay.requests, "post", lambda *a, **k: _Resp())
+        result = await relay.proxy_completion(
+            {"model": "auto", "messages": [{"role": "user", "content": "hi"}]}
+        )
+        # If risk is not low, file should exist
+        vi = result["relay_info"].get("hallucination", {})
+        if vi.get("risk_level") != "low":
+            assert (tmp_path / "v.jsonl").exists()
+
+
+class TestPerTokenAssessment:
+    """P2-1 repair: every token's top-k feeds the detector; verdict is the
+    worst token's, and the model name is threaded into persistence."""
+
+    def test_sequences_extracted_per_token(self, relay):
+        data = {"choices": [{"logprobs": {"content": [
+            {"top_logprobs": [{"logprob": -0.01}, {"logprob": -4.0}]},
+            {"top_logprobs": [{"logprob": -0.7}, {"logprob": -0.8}]},
+            {"top_logprobs": [{"logprob": -0.05}, {"logprob": -3.5}]},
+        ]}}]}
+        sequences = relay._extract_logprob_sequences(data)
+        assert len(sequences) == 3
+        for vec in sequences:
+            assert sum(vec) == pytest.approx(1.0, abs=1e-6)
+
+    def test_worst_token_wins(self, relay, monkeypatch, tmp_path):
+        monkeypatch.setattr(model_relay, "HALLUCINATION_VERDICTS_PATH", tmp_path / "v.jsonl")
+
+        class _Detector:
+            def __init__(self):
+                self.calls = 0
+            def assess(self, *, position, temperature, topk_probs):
+                self.calls += 1
+                # Second token is the risky one
+                if position == 1:
+                    return {"risk_level": "high", "risk_score": 0.9, "reasons": ["spike"]}
+                return {"risk_level": "low", "risk_score": 0.1, "reasons": []}
+
+        det = _Detector()
+        monkeypatch.setattr(type(relay), "_get_hallucination_detector", lambda self: det)
+        data = {"choices": [{"logprobs": {"content": [
+            {"top_logprobs": [{"logprob": -0.01}, {"logprob": -4.0}]},
+            {"top_logprobs": [{"logprob": -0.7}, {"logprob": -0.8}]},
+            {"top_logprobs": [{"logprob": -0.05}, {"logprob": -3.5}]},
+        ]}}]}
+        verdict = relay._assess_logprobs(data, 0.7, model="qwen3:8b")
+        assert det.calls == 3
+        assert verdict["risk_level"] == "high"
+        assert verdict["risk_score"] == pytest.approx(0.9)
+        assert verdict["tokens_assessed"] == 3
+        entry = json.loads((tmp_path / "v.jsonl").read_text().strip())
+        assert entry["model"] == "qwen3:8b"
