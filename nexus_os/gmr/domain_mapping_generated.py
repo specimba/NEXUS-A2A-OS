@@ -4,9 +4,9 @@ GENERATED_DOMAIN_MAPPING: dict = {
     "code": {
         "primary": [
             {
-                "model": "zai-org/GLM-5.2",
-                "provider": "siliconflow",
-                "tier": 95,
+                "model": "z-ai/glm-5.2",
+                "provider": "nvidia",
+                "tier": 96,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -53,7 +53,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
             }
         ],
         "fallback_chain": [
-            "zai-org/GLM-5.2",
+            "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Flash",
             "zai-org/GLM-5.1",
             "qwen3-coder:480b"
@@ -61,6 +61,14 @@ GENERATED_DOMAIN_MAPPING: dict = {
     },
     "reasoning": {
         "primary": [
+            {
+                "model": "z-ai/glm-5.2",
+                "provider": "nvidia",
+                "tier": 96,
+                "latency_ms": 500,
+                "cost_per_1m": 1.0,
+                "status": "up"
+            },
             {
                 "model": "deepseek-ai/DeepSeek-V4-Pro",
                 "provider": "siliconflow",
@@ -100,29 +108,21 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
-            },
-            {
-                "model": "intern-s2-preview",
-                "provider": "internai",
-                "tier": 85,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
             }
         ],
         "fallback_chain": [
+            "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
             "MiniMaxAI/MiniMax-M3",
-            "moonshotai/Kimi-K2-Thinking",
-            "qwen/qwen3.5-397b-a17b"
+            "moonshotai/Kimi-K2-Thinking"
         ]
     },
     "research": {
         "primary": [
             {
-                "model": "zai-org/GLM-5.2",
-                "provider": "siliconflow",
-                "tier": 95,
+                "model": "z-ai/glm-5.2",
+                "provider": "nvidia",
+                "tier": 96,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -169,7 +169,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
             }
         ],
         "fallback_chain": [
-            "zai-org/GLM-5.2",
+            "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
             "zai-org/GLM-5.1",
             "MiniMaxAI/MiniMax-M3"
@@ -208,9 +208,9 @@ GENERATED_DOMAIN_MAPPING: dict = {
     "general": {
         "primary": [
             {
-                "model": "zai-org/GLM-5.2",
-                "provider": "siliconflow",
-                "tier": 95,
+                "model": "z-ai/glm-5.2",
+                "provider": "nvidia",
+                "tier": 96,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -257,7 +257,7 @@ GENERATED_DOMAIN_MAPPING: dict = {
             }
         ],
         "fallback_chain": [
-            "zai-org/GLM-5.2",
+            "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
             "zai-org/GLM-5.1",
             "MiniMaxAI/MiniMax-M3"

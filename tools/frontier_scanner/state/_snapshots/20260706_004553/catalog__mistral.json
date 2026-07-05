@@ -1,0 +1,9 @@
+{
+  "error": "http_401",
+  "fetched_at": 1783287955.6169236,
+  "model_ids": [],
+  "provider": "mistral",
+  "raw_count": 0,
+  "source_url": "https://api.mistral.ai/v1/models",
+  "status": "http_error"
+}

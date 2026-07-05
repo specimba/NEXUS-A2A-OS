@@ -1,0 +1,19 @@
+{
+  "baseline_age_seconds": 122.90958023071289,
+  "baseline_path": "tools\\frontier_scanner\\state\\catalog__github.json",
+  "disappeared_ids": [],
+  "new_ids": [],
+  "provider": "github",
+  "reason": "",
+  "snapshot_age_seconds": 0.4172217845916748,
+  "stable_ids": [
+    "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1",
+    "azureml://registries/azure-openai/models/gpt-4o/versions/2",
+    "azureml://registries/azure-openai/models/text-embedding-3-large/versions/1",
+    "azureml://registries/azure-openai/models/text-embedding-3-small/versions/1",
+    "azureml://registries/azureml-cohere/models/Cohere-embed-v3-english/versions/3",
+    "azureml://registries/azureml-cohere/models/Cohere-embed-v3-multilingual/versions/3",
+    "azureml://registries/azureml-meta/models/Meta-Llama-3.1-405B-Instruct/versions/1",
+    "azureml://registries/azureml-meta/models/Meta-Llama-3.1-8B-Instruct/versions/1"
+  ]
+}

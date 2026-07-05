@@ -1,0 +1,9 @@
+{
+  "error": "http_404",
+  "fetched_at": 1783287956.1448267,
+  "model_ids": [],
+  "provider": "codestral",
+  "raw_count": 0,
+  "source_url": "https://codestral.mistral.ai/v1/models",
+  "status": "http_error"
+}

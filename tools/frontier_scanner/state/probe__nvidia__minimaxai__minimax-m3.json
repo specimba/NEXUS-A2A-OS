@@ -1,0 +1,11 @@
+{
+  "artifacts_path": "",
+  "decision": "pass",
+  "error": null,
+  "finished_at": 1783288874.9632235,
+  "latency_ms": 55953,
+  "model_id": "minimaxai/minimax-m3",
+  "provider": "nvidia",
+  "response_excerpt": "# Three Signals a Scheduler Should Monitor\n\nWhen a frontier model receives a partner-level allocated quota with a 30-day rolling expiry, the scheduler needs to balance **fairness**, **utilization**, a",
+  "status_code": 200
+}

@@ -1,0 +1,9 @@
+{
+  "error": null,
+  "fetched_at": 1783288622.3972797,
+  "model_ids": [],
+  "provider": "codestral",
+  "raw_count": 0,
+  "source_url": "https://codestral.mistral.ai/v1/models",
+  "status": "no_list_endpoint"
+}

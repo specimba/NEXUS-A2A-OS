@@ -63,9 +63,14 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     isFree: true,
     isLocal: false,
     models: [
-      'minimaxai/minimax-m3',
-      'nvidia/nemotron-3-ultra-550b-a55b',
-      'qwen/qwen3.5-122b-a10b',
+      'nvidia/minimaxai/minimax-m3',
+      'nvidia/nvidia/nemotron-3-ultra-550b-a55b',
+      'nvidia/z-ai/glm-5.2',
+      'nvidia/nvidia/nemotron-3-super-120b-a12b',
+      'nvidia/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+      'nvidia/qwen/qwen3-next-80b-a3b-instruct',
+      'nvidia/deepseek-ai/deepseek-v4-pro',
+      'nvidia/qwen/qwen3.5-122b-a10b',
     ],
     envKey: 'NVIDIA_API_KEY',
   },
@@ -372,8 +377,8 @@ export const INTENT_KEYWORDS: Record<IntentCategory, string[]> = {
 // ─── Fallback Chains ─────────────────────────────────────────────────────
 
 export const FALLBACK_CHAINS: Record<string, string[]> = {
-  code: ['longcat/LongCat-2.0', 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', 'siliconflow/deepseek-ai/DeepSeek-V4-Flash'],
-  reasoning: ['internai/intern-s2-preview', 'nvidia/minimaxai/minimax-m3', 'siliconflow/zai-org/GLM-5.1'],
+  code: ['longcat/LongCat-2.0', 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', 'nvidia/z-ai/glm-5.2', 'siliconflow/deepseek-ai/DeepSeek-V4-Flash'],
+  reasoning: ['longcat/LongCat-2.0', 'internai/intern-s2-preview', 'nvidia/z-ai/glm-5.2', 'nvidia/minimaxai/minimax-m3'],
   research: ['longcat/LongCat-2.0', 'internai/intern-s2-preview', 'nvidia/qwen/qwen3.5-122b-a10b'],
   speed: ['siliconflow/deepseek-ai/DeepSeek-V4-Flash', 'groq/llama-3.3-70b-versatile', 'cerebras/llama-3.3-70b'],
   general: ['nvidia/minimaxai/minimax-m3', 'siliconflow/zai-org/GLM-5', 'openrouter/nvidia/llama-3.3-nemotron-super-128k'],
@@ -403,10 +408,17 @@ export const MODELS: ModelInfo[] = [
   // ── Z-AI (Primary) ────────────────────────────────────────────────
   { modelId: 'zai/glm-5.2', provider: 'zai', name: 'GLM-5.2', tier: 99, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 300, supportsVision: true, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   // ── NVIDIA NIM (8 RPM ceiling; one request globally; no parallel retry) ──
-  { modelId: 'nvidia/z-ai/glm-5.1', provider: 'nvidia', name: 'GLM-5.1 (NIM, suspended)', tier: 91, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 202752, latencyMsTypical: 2765, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
+  // LIVE-FIX 2026-07-03: removed dead `nvidia/z-ai/glm-5.1` (proper ID is `z-ai/glm-5.1`); 
+  //                       removed `nvidia/nvidia/devstral-2-123b` (404, never existed);
+  //                       removed `nvidia/moonshotai/kimi-k2-thinking` (410 EOL);
+  //                       ADDED live models verified 2026-07-03: glm-5.2, nemotron-3-nano-omni-30b-reasoning, qwen3-next-80b-a3b.
+  { modelId: 'nvidia/z-ai/glm-5.2', provider: 'nvidia', name: 'GLM-5.2 (NIM, Tier-0)', tier: 96, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 202752, latencyMsTypical: 4500, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   { modelId: 'nvidia/minimaxai/minimax-m3', provider: 'nvidia', name: 'MiniMax M3 (NIM)', tier: 92, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 524288, latencyMsTypical: 4500, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
-  { modelId: 'nvidia/nvidia/devstral-2-123b', provider: 'nvidia', name: 'Devstral 2 123B (NIM, suspended)', tier: 82, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 131072, latencyMsTypical: 1800, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
-  { modelId: 'nvidia/moonshotai/kimi-k2-thinking', provider: 'nvidia', name: 'Kimi K2 Thinking (NIM, suspended)', tier: 93, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 262144, latencyMsTypical: 3200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'down' },
+  { modelId: 'nvidia/nvidia/nemotron-3-ultra-550b-a55b', provider: 'nvidia', name: 'Nemotron-3-Ultra-550B (NIM)', tier: 88, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 1048576, latencyMsTypical: 7000, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'nvidia/nvidia/nemotron-3-super-120b-a12b', provider: 'nvidia', name: 'Nemotron-3-Super-120B (NIM, LIVE 2026-07-03)', tier: 80, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 1048576, latencyMsTypical: 1800, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'nvidia/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', provider: 'nvidia', name: 'Nemotron-3-Nano-Omni-30B-Reasoning (NIM, LIVE 2026-07-03)', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 65536, latencyMsTypical: 1200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'nvidia/qwen/qwen3-next-80b-a3b-instruct', provider: 'nvidia', name: 'Qwen3-Next-80B-A3B (NIM, LIVE 2026-07-03)', tier: 84, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 32768, latencyMsTypical: 1800, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
+  { modelId: 'nvidia/deepseek-ai/deepseek-v4-pro', provider: 'nvidia', name: 'DeepSeek-V4-Pro (NIM, LIVE 2026-07-03)', tier: 95, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 1048576, latencyMsTypical: 5000, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   // ── OpenRouter Free/Low-Cost ───────────────────────────────────────
   { modelId: 'openrouter/nvidia/llama-3.3-nemotron-super-128k', provider: 'openrouter', name: 'Nemotron Super 128K', tier: 85, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 128000, latencyMsTypical: 200, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },
   { modelId: 'openrouter/deepseek/deepseek-chat-v3-0324', provider: 'openrouter', name: 'DeepSeek Chat V3', tier: 82, costPer1mInput: 0, costPer1mOutput: 0, contextWindow: 64000, latencyMsTypical: 180, supportsVision: false, supportsFunctionCalling: true, supportsStreaming: true, isFree: true, isLocal: false, status: 'up' },

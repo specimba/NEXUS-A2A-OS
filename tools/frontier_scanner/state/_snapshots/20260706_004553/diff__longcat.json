@@ -1,0 +1,12 @@
+{
+  "baseline_age_seconds": 5775.868460893631,
+  "baseline_path": "tools\\frontier_scanner\\state\\catalog__longcat.json",
+  "disappeared_ids": [
+    "LongCat-2.0"
+  ],
+  "new_ids": [],
+  "provider": "longcat",
+  "reason": "",
+  "snapshot_age_seconds": 2.5168607234954834,
+  "stable_ids": []
+}

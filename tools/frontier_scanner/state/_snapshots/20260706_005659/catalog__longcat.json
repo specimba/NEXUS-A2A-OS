@@ -1,0 +1,11 @@
+{
+  "error": null,
+  "fetched_at": 1783288620.4569337,
+  "model_ids": [
+    "LongCat-2.0"
+  ],
+  "provider": "longcat",
+  "raw_count": 1,
+  "source_url": "https://api.longcat.chat/openai/v1/models",
+  "status": "ok"
+}

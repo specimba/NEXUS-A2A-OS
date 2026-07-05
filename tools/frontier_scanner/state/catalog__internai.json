@@ -1,0 +1,18 @@
+{
+  "error": null,
+  "fetched_at": 1783288498.377991,
+  "model_ids": [
+    "intern-latest",
+    "intern-s1",
+    "intern-s1-mini",
+    "intern-s1-pro",
+    "intern-s2-preview",
+    "internvl-latest",
+    "internvl3.5-241b-a28b",
+    "internvl3.5-latest"
+  ],
+  "provider": "internai",
+  "raw_count": 8,
+  "source_url": "https://chat.intern-ai.org.cn/api/v1/models",
+  "status": "ok"
+}

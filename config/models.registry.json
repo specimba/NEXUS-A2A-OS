@@ -857,7 +857,7 @@
         "core"
       ],
       "status": "suspended",
-      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1"
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1. NIM root-caused: EOL 2026-07-02T00:00:00Z (410 Gone with detail). New primary is z-ai/glm-5.2 (verified live, see entry below)."
     },
     {
       "id": "minimaxai/minimax-m3",
@@ -1073,7 +1073,7 @@
         "core"
       ],
       "status": "active",
-      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed. LIVE-VERIFIED 2026-07-03: response quality degraded — coherent-output mode fails; outputs gibberish/foreign-script characters with proper format. Use ONLY for short screenshot/structured outputs; do not rely on for general chain-of-thought."
     },
     {
       "id": "qwen/qwen3.5-397b-a17b",
@@ -1148,6 +1148,95 @@
       }
     },
     {
+      "id": "z-ai/glm-5.2",
+      "provider": "nvidia",
+      "aliases": [
+        "glm-5.2"
+      ],
+      "context": 202752,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 96,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier",
+        "code",
+        "reasoning"
+      ],
+      "lanes": [
+        "core",
+        "teacher"
+      ],
+      "status": "active",
+      "notes": "OPERATOR 2026-07-03: TIER-0 PRIMARY REPLACEMENT for z-ai/glm-5.1 (EOL 2026-07-02). LIVE-VERIFIED: 1845 chars deep-reasoning response on coding prompts. 8 RPM ceiling on NIM. Replaces model/code rotation. Coder-specialty + reasoning-depth."
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+      "provider": "nvidia",
+      "aliases": [
+        "nemotron-3-nano-omni-30b-reasoning"
+      ],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 85,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "reasoning"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "LIVE-VERIFIED 2026-07-03: 192c reasoning-content output. Lightweight nano variant of Nemotron-3 — explicit reasoning lane; preferred for narrow-reasoning tasks where ultra-550B is overkill."
+    },
+    {
+      "id": "qwen/qwen3-next-80b-a3b-instruct",
+      "provider": "nvidia",
+      "aliases": [
+        "qwen3-next-80b"
+      ],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 84,
+      "capabilities": {
+        "thinking": true,
+        "tools": true
+      },
+      "roles": [
+        "frontier"
+      ],
+      "lanes": [
+        "core"
+      ],
+      "status": "active",
+      "notes": "LIVE-VERIFIED 2026-07-03: newest Qwen generation on NIM. 726 chars reasoned output in frontier probe. Step up from qwen3.5-122b."
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+      "provider": "nvidia",
+      "aliases": [],
+      "context": null,
+      "maxOutput": 8192,
+      "free": true,
+      "tier": 0,
+      "capabilities": {
+        "tools": false
+      },
+      "roles": [],
+      "lanes": [
+        "quarantine"
+      ],
+      "status": "suspended",
+      "notes": "REMOVED 2026-07-03: 404 from /chat/completions despite listing — model never had inference path. Use nvidia/nemotron-3-ultra-550b-a55b for the 550B tier."
+    },    {
       "id": "LongCat-2.0",
       "provider": "longcat",
       "aliases": [],
@@ -1156,17 +1245,20 @@
       "free": true,
       "tier": 93,
       "capabilities": {
-        "tools": true
+        "tools": true,
+        "thinking": true
       },
       "roles": [
         "teacher"
       ],
       "lanes": [
         "teacher",
-        "eval"
+        "eval",
+        "logging_fallback",
+        "memory_fallback"
       ],
       "status": "active",
-      "notes": "Current production LongCat agentic/coding model; Preview is retired and must never be an automatic fallback"
+      "notes": "Current production LongCat agentic/coding model; Preview is retired and must never be an automatic fallback. OPERATOR 2026-07-03: STRATEGIC RESERVE tier (silent weapon). 65M partner allocation, 30-day rolling expiry verify-before-non-probe-traffic; reasoning_content field is opaque by default — caller MUST extract reasoning_content AND set max_tokens>=1500 (1500ms has reasoning_content reliably fire). Conservative RPM floor 3 in non-bench traffic, ramp to 12 only during active NEXUS-BENCH sessions."
     },
     {
       "id": "intern-s2-preview",
