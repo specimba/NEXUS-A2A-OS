@@ -2,7 +2,7 @@
 
 Date: 2026-06-26
 Current local HEAD: codex/specimba/1805mainSpeci (5e7046bf)
-Status: Phases A-D + Phases 1-8 COMPLETE. Sprints 0-4 Complete. **1450/1450 tests passing** (archivist, governor, nexusclaw, security, research, bridge, unit). Baseten GLM 5.2 + Kimi K2.7 Code integrated. Trinity×Fugu, T3 Guard, Knowledge Flow, CVA verifier all tested and passing.
+Status: Phases A-D + Phases 1-8 COMPLETE. Sprints 0-4 Complete. **4095 passed / 61 skipped** (full local suite 2026-07-06; archivist, governor, nexusclaw, security, research, bridge, tracing, reasoning, bench, unit — 4 known training/* env-debt failures: 2 local-model ERRORs + guard-plane meta-filter/refusal-mancer). Baseten GLM 5.2 + Kimi K2.7 Code integrated. Trinity×Fugu, T3 Guard, Knowledge Flow, CVA verifier all tested and passing.
 
 ## 2026-06-26 Dashboard, Browser-AI Supervisor, and GLM-5.2 Log-24 Grounding
 
@@ -16,6 +16,7 @@ Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackend
 - **GLM-5.2 log-24 progression**: BEBOP probability-vector handling, calibrated hallucination detector wiring, Landau-Ginzburg spectral bounds, circuit-breaker persistence isolation, relay auto-revive scripts, and model-sync dry-run paths were advanced by the GLM-5.2/OpenCode lane.
 - **Provider/model relay work**: OpenModel/DeepSeek V4 Flash and Sakana/Fugu lanes are present as env-keyed, secret-free provider additions; InternAI and LongCat remain preserved/gated lanes.
 - **Research intake**: `papers11` was added under ARCHIVIST with new transformer/world-model/sparse-attention material; it remains intake evidence until source-carded.
+- **CDP Anti-Freeze and Safety Guard (2026-07-05)**: Swapped Win32 and CDP window restoration order in `restore_chrome_cdp_window.ps1` to prevent CDP deadlocks on occluded/minimized Chrome instances. Added automatic `Target.activateTarget` calls to `lane_registry_probe.mjs` to wake up discarded/sleeping (`💤`) tabs. Implemented a CDP protocol-level denylist guard in `grok_cdp_director.mjs` and `grok_cdp_context_probe.mjs` (rejecting `Target.createTarget`, `Target.closeTarget`, `Browser.close`, and guarding navigation). Executed ensembling playtest on Zo lane, receiving signed `[ZO-PLAN]` verdict.
 
 ### Current Verification Notes
 - Targeted dashboard/wiki/control-center TypeScript diagnostic filter: `NO_CHANGED_FILE_TS_ERRORS` for changed files.
@@ -220,7 +221,7 @@ Nexus OS turns local models, research evidence, and external teams into a govern
 
 ## What Is Verified
 
-- Full test suite passes locally: **~1,642 tests collected, 430+ core tests verified passing** (governor/monitoring/security).
+- Full test suite verified locally 2026-07-06: **4095 passed, 61 skipped, 4 known training/* env-debt failures** (governor/monitoring/security/nexusclaw/bridge/archivist/tracing/reasoning/bench/unit).
 - NEXUS-Bench 5-track benchmark suite: **ALL TRACKS PASS** (GOV 0.911, SEC 0.905, OPS 0.700, R&D 0.845, INT 0.867). Report: `nexus_os/benchmark/reports/`. Fix: Added 16 governance rules (7 misalignment + 9 classifier) to constitution.yaml.
 - DB encryption policy hard-fails by default and allows plaintext fallback only when `allow_unencrypted=True`.
 - Engine task dependency cycle detection is present and verified.
