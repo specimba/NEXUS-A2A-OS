@@ -58,12 +58,15 @@ class FableReasoningEngine:
         vectorizer_path: Optional[str] = None,
         template_style: str = "fable",
         patterns: Optional[List[ReasoningPattern]] = None,
+        trace_dir: Optional[str] = None,
     ) -> None:
         """Initialize the FableReasoningEngine.
 
         Args:
             cot_path: Path to fable5_cot_merged.jsonl. If None, no
-                CoT data is loaded at init time.
+                CoT data is loaded at init time. The static CoT corpus
+                is reference/eval-only and is never merged with live
+                trace patterns.
             vectorizer_path: Path to load a pre-saved vectorizer state.
                 If None, the vectorizer is fitted from scratch during
                 initialize().
@@ -72,8 +75,13 @@ class FableReasoningEngine:
             patterns: Pre-built patterns to seed the engine with,
                 bypassing CoT extraction (e.g. from a live trace source
                 or in tests).
+            trace_dir: REASONS-DB base dir. When set, initialize()
+                loads patterns from the live TRAINABLE partition via
+                trace_source instead of the static CoT file (cot_path
+                is ignored in that case).
         """
         self.cot_path = cot_path
+        self.trace_dir = trace_dir
         self.vectorizer_path = vectorizer_path
 
         style_map = {
@@ -93,12 +101,24 @@ class FableReasoningEngine:
     def initialize(self) -> None:
         """Load patterns from CoT file and prepare the vectorizer.
 
-        If cot_path was provided, patterns are extracted from the CoT
-        dataset. If vectorizer_path was provided, the vectorizer state
-        is loaded from disk. Otherwise the vectorizer is fitted from
-        scratch on the extracted patterns.
+        If trace_dir was provided, patterns come from the live REASONS-DB
+        trainable partition (cot_path ignored). Otherwise, if cot_path
+        was provided, patterns are extracted from the static CoT dataset.
+        If vectorizer_path was provided, the vectorizer state is loaded
+        from disk. Otherwise the vectorizer is fitted from scratch on
+        the extracted patterns.
         """
-        if self.cot_path:
+        if self.trace_dir:
+            try:
+                from nexus_os.reasoning.trace_source import extract_patterns_from_traces
+                self.patterns = extract_patterns_from_traces(Path(self.trace_dir))
+                logger.info(
+                    "Extracted %d patterns from live traces at %s",
+                    len(self.patterns), self.trace_dir,
+                )
+            except Exception:
+                logger.exception("Failed to load live traces: %s", self.trace_dir)
+        elif self.cot_path:
             try:
                 path = Path(self.cot_path)
                 if path.exists():
