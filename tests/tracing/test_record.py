@@ -165,3 +165,49 @@ def test_hot_sqlite_isolated_per_instance(tmp_path: Path):
     w2 = TraceWriter(base_dir=dir_b)
     assert w2.count() == 0
     w2.close()
+
+
+# ── Slice-4 retrofit: T6 index-blob slimming, T7 straddle/timezone ─────
+
+def test_index_blob_excludes_message_bodies(tmp_path: Path):
+    w = TraceWriter(base_dir=tmp_path)
+    heavy = "R" * 5000
+    rec = TraceRecord(
+        domain="code",
+        models_tried=[ModelAttempt(
+            provider="nvidia", model_id="m1",
+            reasoning_content=heavy, message_content=heavy,
+        )],
+    )
+    w.append(rec)
+    row = w._db.execute("SELECT search_blob FROM traces").fetchone()
+    blob = row[0]
+    assert heavy not in blob                # bodies stay out of the index
+    assert "nvidia" in blob and "m1" in blob  # slim projection remains searchable
+    w.close()
+
+
+def test_rotate_keeps_straddling_day_consistent(tmp_path: Path):
+    import calendar
+
+    w = TraceWriter(base_dir=tmp_path, hot_days=14)
+    now = time.time()
+    # a record 14.2 days old whose UTC DAY straddles the raw cutoff
+    cutoff = now - 14 * 86400
+    day_start = calendar.timegm(time.gmtime(cutoff)[:3] + (0, 0, 0, 0, 0, 0))
+    straddler = TraceRecord(ts=day_start + 100.0, domain="straddle")
+    old = TraceRecord(ts=day_start - 5 * 86400, domain="ancient")
+    w.append(straddler)
+    w.append(old)
+    moved = w.rotate(now=now)
+    assert moved >= 1
+    # straddling day: JSONL still hot AND index row still searchable
+    day_str = time.strftime("%Y%m%d", time.gmtime(straddler.ts))
+    assert (tmp_path / "hot" / f"traces_{day_str}.jsonl").exists()
+    assert any(r["domain"] == "straddle" for r in w.search("straddle"))
+    # whole old day: file moved to warm AND index row gone
+    old_day = time.strftime("%Y%m%d", time.gmtime(old.ts))
+    assert not (tmp_path / "hot" / f"traces_{old_day}.jsonl").exists()
+    assert (tmp_path / "warm" / f"traces_{old_day}.jsonl.gz").exists()
+    assert not w.search("ancient")
+    w.close()

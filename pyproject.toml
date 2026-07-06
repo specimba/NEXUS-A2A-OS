@@ -19,6 +19,7 @@ dependencies = [
     "aiohttp",
     "nltk",
     "watchdog>=4.0",
+    "zstandard>=0.22",
 ]
 
 [project.scripts]
@@ -155,7 +156,9 @@ norecursedirs = [
     "upload",
     ".next",
     "models",
-    "scratch"
+    "scratch",
+    "NEXUS_UiPathAgentHack",
+    "nexus-sentinel-uipath-agenthack"
 ]
 
 

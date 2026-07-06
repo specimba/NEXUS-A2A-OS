@@ -12,14 +12,22 @@ caller BEFORE this point (this class does not sanitize).
 
 from __future__ import annotations
 
+import calendar
 import gzip
 import json
+import logging
 import sqlite3
 import time
-import zstandard
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator
+
+try:
+    import zstandard
+except ImportError:  # declared in pyproject, but never brick capture over it
+    zstandard = None  # type: ignore[assignment]
+
+logger = logging.getLogger("nexus.relay.tracing.record")
 
 from nexus_os.relay.tracing.schema import (
     TraceRecord,
@@ -138,14 +146,26 @@ class TraceWriter:
         return cur.fetchone()[0]
 
     def rotate(self, *, now: float | None = None) -> int:
-        """Move records older than hot_days into the warm tier (gzipped)."""
+        """Move records older than hot_days into the warm tier (gzipped).
+
+        File moves and index deletes share one UTC-day-aligned cutoff:
+        a day that straddles the raw cutoff keeps BOTH its JSONL and its
+        index rows (previously rows vanished from search while the file
+        stayed hot; day stamps were also parsed in local time while
+        append() buckets by gmtime — a timezone skew up to a full day).
+        """
         if now is None:
             now = time.time()
         cutoff = now - self.hot_days * 86400
+        # UTC midnight of the cutoff's day: only WHOLE days older than
+        # this move; index rows are deleted with the same boundary.
+        aligned_cutoff = float(
+            calendar.timegm(time.gmtime(cutoff)[:3] + (0, 0, 0, 0, 0, 0))
+        )
         assert self._db is not None
         cur = self._db.execute(
             "SELECT trace_id FROM traces WHERE ts < ? ORDER BY ts ASC",
-            (cutoff,),
+            (aligned_cutoff,),
         )
         moved_ids = [r[0] for r in cur.fetchall()]
         if not moved_ids:
@@ -153,9 +173,8 @@ class TraceWriter:
         # Move JSONL files in their entirety by day buckets
         for jsonl in (self.base_dir / "hot").glob("traces_*.jsonl"):
             try:
-                day_ts = time.strptime(jsonl.stem.split("_")[1], "%Y%m%d")
-                day_epoch = time.mktime(day_ts) + 86400
-                if day_epoch < cutoff:
+                day_end = _utc_day_epoch(jsonl.stem.split("_")[1]) + 86400
+                if day_end <= aligned_cutoff:
                     target = self.base_dir / "warm" / (jsonl.name + ".gz")
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with jsonl.open("rb") as src, \
@@ -164,8 +183,8 @@ class TraceWriter:
                     jsonl.unlink()
             except (ValueError, OSError):
                 continue
-        # Drop index entries older than cutoff
-        self._db.execute("DELETE FROM traces WHERE ts < ?", (cutoff,))
+        # Drop index entries with the SAME aligned boundary as the files
+        self._db.execute("DELETE FROM traces WHERE ts < ?", (aligned_cutoff,))
         self._db.commit()
         return len(moved_ids)
 
@@ -175,10 +194,13 @@ class TraceWriter:
             now = time.time()
         cutoff = now - self.warm_days * 86400
         archived = 0
+        if zstandard is None:
+            logger.warning("archive_cold skipped: zstandard not installed")
+            return 0
         for jsonl_gz in (self.base_dir / "warm").glob("*.jsonl.gz"):
             try:
-                day_ts = time.strptime(jsonl_gz.stem.split("_")[1].split(".")[0], "%Y%m%d")
-                day_epoch = time.mktime(day_ts) + 86400
+                # UTC parse to match append()'s gmtime day bucketing
+                day_epoch = _utc_day_epoch(jsonl_gz.stem.split("_")[1].split(".")[0]) + 86400
                 if day_epoch < cutoff:
                     target = self.base_dir / "cold" / (jsonl_gz.stem + ".zst")
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -201,13 +223,28 @@ class TraceWriter:
 
 
 def _index_blob(payload: dict) -> str:
-    """Compact JSON used by LIKE search. Drops the heaviest fields."""
+    """Compact JSON used by LIKE search. Drops the heaviest fields.
+
+    models_tried is deliberately excluded: it carries full reasoning and
+    message bodies, which would bloat the hot SQLite index with entire
+    transcripts. Model/provider names are indexed via a slim projection.
+    """
     blob = {
         k: v for k, v in payload.items()
         if k in {"trace_id", "domain", "difficulty", "tags", "outcome",
-                  "request_subject", "models_tried"}
+                  "request_subject", "license_class", "redaction_flags"}
     }
+    blob["models"] = [
+        {"provider": a.get("provider"), "model_id": a.get("model_id"),
+         "outcome": a.get("outcome")}
+        for a in payload.get("models_tried", [])
+    ]
     return json.dumps(blob, ensure_ascii=False, sort_keys=True)
+
+
+def _utc_day_epoch(day_str: str) -> float:
+    """UTC-midnight epoch of a YYYYMMDD day stamp (append() uses gmtime)."""
+    return float(calendar.timegm(time.strptime(day_str, "%Y%m%d")))
 
 
 def _gzip_open(path: Path, mode: str):
@@ -233,6 +270,9 @@ def _iter_gzip(path: Path) -> Iterator[TraceRecord]:
 
 
 def _iter_zstd(path: Path) -> Iterator[TraceRecord]:
+    if zstandard is None:
+        logger.warning("cold-tier read skipped (%s): zstandard not installed", path.name)
+        return
     dctx = zstandard.ZstdDecompressor()
     raw = path.read_bytes()
     if not raw:

@@ -1,0 +1,33 @@
+#!/bin/bash
+# NEXUS OS Pre-Commit Hook — Hygiene Enforcement
+# Versioned copy — install with: cp scripts/git-hooks/pre-commit .git/hooks/pre-commit
+
+echo "🔍 NEXUS Hygiene Check..."
+
+# Block dangerous files
+BLOCKED_PATTERNS=(
+    "nexus_api.db"
+    "arena_results.jsonl"
+    "test_grok.py"
+    "test_api_direct.py"
+    "*.task.md"
+    "GroundingCollectiveBackup/"
+)
+
+for pattern in "${BLOCKED_PATTERNS[@]}"; do
+    if git diff --cached --name-only | grep -q "$pattern"; then
+        echo "❌ BLOCKED: $pattern is not allowed in commits"
+        exit 1
+    fi
+done
+
+# Check for hardcoded keys
+# Lines tagged nexus-allow-secret-pattern are redaction-rule DEFINITIONS
+# (nexus_os/relay/tracing/scrub.py) — skip them; real pasted keys still match.
+if git diff --cached | grep -v "nexus-allow-secret-pattern" | grep -qE "(sk-or-v1-|gsk_|4TdYJmA8|AZURE_GROK_API_KEY.*=)"; then
+    echo "❌ BLOCKED: Hardcoded API key detected!"
+    exit 1
+fi
+
+echo "✅ Hygiene check passed"
+exit 0

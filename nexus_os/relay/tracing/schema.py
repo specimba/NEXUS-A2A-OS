@@ -63,6 +63,13 @@ class TraceRecord:
     outcome: str = "pending"
     anonymization: str = "applied"
     notes: list[str] = field(default_factory=list)
+    # FI-T schema fields (defaults keep pre-existing JSONL readable)
+    prompt_hash: str = ""  # sha256 of the full SCRUBBED message concat
+    hallucination_verdict: dict[str, Any] | None = None
+    license_class: str = "unknown"  # permissive|restricted|unknown — unknown never trains
+    generation_lineage: str = "organic"  # organic|synthetic|distilled — collapse guard
+    redaction_flags: list[str] = field(default_factory=list)
+    dedup_cluster_id: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         out = asdict(self)

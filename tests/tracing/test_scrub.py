@@ -132,3 +132,49 @@ def test_scrub_does_not_leak_in_tool_calls():
     out = scrub_request_body(body)
     j = out["tool_calls"][0]["function"]["arguments"]
     assert "sk-" not in j
+
+
+# ── Slice-4 retrofit (T8/T4): header variants, real prefixes, flags ────
+
+def test_scrub_request_body_removes_x_api_key_variants():
+    payload = {
+        "x-api-key": "real-key-value",
+        "X-Api-Key": "real-key-value",
+        "api-key": "real-key-value",
+        "apiKey": "keep-me",  # camelCase not a header form; left as value
+        "x-goog-api-key": "real-key-value",
+        "model": "m",
+    }
+    out = scrub_request_body(payload)
+    assert out["x-api-key"] == "[REDACTED]"
+    assert out["X-Api-Key"] == "[REDACTED]"
+    assert out["api-key"] == "[REDACTED]"
+    assert out["x-goog-api-key"] == "[REDACTED]"
+    assert out["model"] == "m"
+
+
+def test_scrub_openrouter_real_prefix():
+    # the pre-fix pattern was `sk_or_v1-` (underscore) and NEVER matched
+    out = scrub_text("key sk-or-v1-" + "a" * 40)  # nexus-allow-secret-pattern
+    assert "sk-or-v1-" not in out  # nexus-allow-secret-pattern
+    assert "REDACTED" in out
+
+
+def test_scrub_groq_key_still_redacted_after_deevasion():
+    out = scrub_text("gsk_" + "Z" * 30)  # nexus-allow-secret-pattern
+    assert out == "[REDACTED_GROQ_KEY]"
+
+
+def test_scrub_text_with_flags_reports_rule_ids():
+    from nexus_os.relay.tracing.scrub import scrub_text_with_flags
+
+    text = ("mail me at op@example.com from 10.0.0.1 "
+            "with nvapi-" + "x" * 30)
+    out, flags = scrub_text_with_flags(text)
+    assert "REDACTED_NVIDIA_KEY" in flags
+    assert "REDACTED_EMAIL" in flags
+    assert "REDACTED_IP" in flags
+    assert "nvapi-" not in out
+
+    clean_out, clean_flags = scrub_text_with_flags("nothing secret here")
+    assert clean_flags == [] and clean_out == "nothing secret here"

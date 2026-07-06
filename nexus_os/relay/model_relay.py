@@ -120,6 +120,24 @@ def _relay_request_authorized(headers) -> bool:
 
 logger = logging.getLogger("nexus.model_relay")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+
+_CAPTURE_FAIL_WARNED = False
+
+
+def _warn_capture_failed_once() -> None:
+    """Trace capture must never raise into serving, but a broken capture
+    path previously no-op'd forever with zero log output."""
+    global _CAPTURE_FAIL_WARNED
+    if not _CAPTURE_FAIL_WARNED:
+        logger.warning("trace capture failed — REASONS-DB is not recording", exc_info=True)
+        _CAPTURE_FAIL_WARNED = True
+
+
+def _capture_outcome(hallucination_verdict: dict | None) -> str:
+    """Trace outcome from the already-computed verdict (was hardcoded ok)."""
+    if hallucination_verdict and hallucination_verdict.get("risk_level") in ("medium", "high"):
+        return "suspect"
+    return "ok"
 try:
     from nexus_os.security.redaction import install_log_redaction
     install_log_redaction()  # keys must never reach relay logs (P1-10)
@@ -653,10 +671,11 @@ class ModelRelay:
                     response_payload=result,
                     latency_ms=int(latency_ms),
                     temperature=temperature,
-                    outcome="ok",
+                    outcome=_capture_outcome(hallucination_verdict),
+                    hallucination_verdict=hallucination_verdict,
                 )
             except Exception:
-                pass
+                _warn_capture_failed_once()
             return result
         except Exception as e:
             logger.error(f"Ollama inference failed for {ollama_model}: {e}")
