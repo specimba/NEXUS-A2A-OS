@@ -506,44 +506,56 @@ def sync_hermes(state: dict, target: dict, dry_run: bool) -> dict:
         return {"target": "hermes", "path": str(path), "ok": False, "reason": "hermes config.yaml not found"}
 
     entries = _build_relay_provider_entries(state)
-    # Build a YAML-safe providers dict; we replace the providers block entirely
-    # to avoid manual YAML surgery.
+    # Build a YAML-safe providers block. Every entry is indented two spaces
+    # so it parses as a CHILD of the top-level `providers:` mapping — emitting
+    # at column 0 would create top-level keys instead (P3-5 bug).
     yaml_lines = []
-    yaml_lines.append("# === nexusctl model-sync providers (managed) ===")
+    yaml_lines.append("  # === nexusctl model-sync providers (managed) ===")
     for pid, entry in entries.items():
-        yaml_lines.append(f"{pid.replace('-', '_')}:")
-        yaml_lines.append(f"  name: {entry['name']!r}")
-        yaml_lines.append(f"  base_url: {entry['options']['baseURL']!r}")
-        yaml_lines.append(f"  api_key: {entry['options'].get('apiKey', '')!r}")
+        yaml_lines.append(f"  {pid.replace('-', '_')}:")
+        yaml_lines.append(f"    name: {entry['name']!r}")
+        yaml_lines.append(f"    base_url: {entry['options']['baseURL']!r}")
+        yaml_lines.append(f"    api_key: {entry['options'].get('apiKey', '')!r}")
         if entry["options"].get("authScheme") and entry["options"]["authScheme"] != "Bearer":
-            yaml_lines.append(f"  auth_scheme: {entry['options']['authScheme']!r}")
-        yaml_lines.append("  models:")
+            yaml_lines.append(f"    auth_scheme: {entry['options']['authScheme']!r}")
+        yaml_lines.append("    models:")
         for m_id, m_meta in entry.get("models", {}).items():
-            yaml_lines.append(f"    {m_id!r}: {m_meta.get('name', m_id)!r}")
-    yaml_blob = "\n".join(yaml_lines) + "\n# === end nexusctl managed ===\n"
+            yaml_lines.append(f"      {m_id!r}: {m_meta.get('name', m_id)!r}")
+    yaml_blob = "\n".join(yaml_lines) + "\n  # === end nexusctl managed ===\n"
 
     if not dry_run:
-        # Read the existing config, replace the providers: {} block (or add it)
+        import re
+
+        # Read the existing config, replace the providers block (or add it)
         original = path.read_text(encoding="utf-8")
-        # Hermetic insertion: if a managed block exists, replace it; otherwise append after 'providers:' line
+        # Hermetic insertion: if a managed block exists, replace it; otherwise
+        # nest the block under the `providers:` key.
         if "# === nexusctl model-sync" in original:
-            # Replace between markers
+            # Replace between markers (marker match is indentation-agnostic so
+            # blocks written by the pre-fix emitter are repaired in place).
             pre, _, _ = original.partition("# === nexusctl model-sync providers")
             _, _, post = original.partition("# === end nexusctl managed ===\n")
+            pre = pre.rstrip(" ")  # drop old marker's leading indent, if any
+            if not re.search(r"^providers:\s*$", pre, flags=re.MULTILINE):
+                pre = pre.rstrip("\n") + "\nproviders:\n"
             new_text = pre + yaml_blob + post
         else:
-            # Find 'providers:' line and replace the empty {} with our block
-            import re
             new_text = re.sub(
                 r"^providers:\s*\{\s*\}$",
-                yaml_blob.rstrip("\n"),
+                "providers:\n" + yaml_blob.rstrip("\n"),
                 original,
                 count=1,
                 flags=re.MULTILINE,
             )
             if new_text == original:
-                # No providers: {} line, append
-                new_text = original.rstrip() + "\n\n" + yaml_blob
+                m = re.search(r"^providers:\s*$", original, flags=re.MULTILINE)
+                if m:
+                    # providers key exists (block form): insert right after it
+                    insert_at = m.end() + 1  # past the newline
+                    new_text = original[:insert_at] + yaml_blob + original[insert_at:]
+                else:
+                    # No providers key at all: append one with the nested block
+                    new_text = original.rstrip() + "\n\nproviders:\n" + yaml_blob
         _backup_before_write(path)
         path.write_text(new_text, encoding="utf-8")
 

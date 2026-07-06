@@ -123,3 +123,68 @@ def test_backup_before_write_rolls(tmp_path):
     p.write_text("v2", encoding="utf-8")
     _backup_before_write(p)
     assert (tmp_path / "cfg.json.nexus-sync.bak").read_text(encoding="utf-8") == "v2"
+
+
+# --- sync_hermes YAML nesting (P3-5: entries must be CHILDREN of providers:) ---
+
+def _hermes_sync(tmp_path, initial_text):
+    import yaml
+    from nexusctl.model_sync import sync_hermes
+
+    p = tmp_path / "config.yaml"
+    p.write_text(initial_text, encoding="utf-8")
+    result = sync_hermes(EMPTY_STATE, _target(p), dry_run=False)
+    assert result["ok"] is True
+    cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
+    return cfg
+
+
+def test_hermes_nests_under_empty_providers_map(tmp_path):
+    cfg = _hermes_sync(tmp_path, "model: something\nproviders: {}\n")
+    assert "nexus_god_relay" in cfg["providers"]
+    assert cfg["providers"]["nexus_god_relay"]["base_url"].startswith("http")
+    # the P3-5 failure mode: provider ids leaking to the top level
+    assert "nexus_god_relay" not in cfg
+    assert cfg["model"] == "something"
+
+
+def test_hermes_replaces_existing_managed_block_in_place(tmp_path):
+    import yaml
+    from nexusctl.model_sync import sync_hermes
+
+    p = tmp_path / "config.yaml"
+    p.write_text("model: keep\nproviders: {}\n", encoding="utf-8")
+    sync_hermes(EMPTY_STATE, _target(p), dry_run=False)
+    first = p.read_text(encoding="utf-8")
+    sync_hermes(EMPTY_STATE, _target(p), dry_run=False)  # idempotent re-sync
+    cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
+    assert "nexus_god_relay" in cfg["providers"]
+    assert "nexus_god_relay" not in cfg
+    assert first.count("# === nexusctl model-sync providers") == 1
+    assert p.read_text(encoding="utf-8").count("# === nexusctl model-sync providers") == 1
+
+
+def test_hermes_appends_providers_key_when_absent(tmp_path):
+    cfg = _hermes_sync(tmp_path, "model: bare\n")
+    assert "nexus_god_relay" in cfg["providers"]
+    assert "nexus_god_relay" not in cfg
+    assert cfg["model"] == "bare"
+
+
+def test_hermes_repairs_prefix_bug_top_level_block(tmp_path):
+    # A config written by the pre-fix emitter: managed block at column 0,
+    # provider ids as TOP-LEVEL keys and no providers: parent.
+    broken = (
+        "model: keep\n"
+        "# === nexusctl model-sync providers (managed) ===\n"
+        "nexus_god_relay:\n"
+        "  name: 'old'\n"
+        "  base_url: 'http://old'\n"
+        "  api_key: ''\n"
+        "  models:\n"
+        "    'x': 'x'\n"
+        "# === end nexusctl managed ===\n"
+    )
+    cfg = _hermes_sync(tmp_path, broken)
+    assert "nexus_god_relay" in cfg["providers"]
+    assert "nexus_god_relay" not in cfg
