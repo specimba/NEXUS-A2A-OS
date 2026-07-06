@@ -722,6 +722,18 @@ def cmd_model_lab(args):
     return 2
 
 
+def cmd_bench(args):
+    """`nexusctl bench trust` — Beta-posterior Trust Ledger leaderboard."""
+    from nexus_os.bench.runner import render_leaderboard, trust_leaderboard
+
+    rows = trust_leaderboard(domain=getattr(args, "domain", None))
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+    else:
+        print(render_leaderboard(rows))
+    return 0
+
+
 def _load_model_candidates():
     """Discovery candidates from ~/.nexus/registry_health.json (FI-D1)."""
     import time as _time
@@ -1375,6 +1387,16 @@ def main():
     sub.add_argument("--refresh", action="store_true", help="Force upstream God Mode Proxy + Node Relay cache refresh before reporting")
     sub.add_argument("--json", action="store_true", help="JSON output (candidates view)")
     sub.set_defaults(func=cmd_models_list)
+
+    # bench — FI-B1 Trust Ledger over verified outcomes
+    sub = subparsers.add_parser(
+        "bench",
+        help="NEXUS-BENCH: Beta-posterior trust leaderboard from REASONS-DB traces + hallucination verdicts",
+    )
+    sub.add_argument("action", choices=["trust"], help="'trust': render the Trust Ledger leaderboard")
+    sub.add_argument("--domain", default=None, help="Filter to one domain (e.g. code, general, verdicts)")
+    sub.add_argument("--json", action="store_true", help="JSON output")
+    sub.set_defaults(func=cmd_bench)
 
     # rotate-keys — test + propagate provider keys to all CLIs
     sub = subparsers.add_parser(
