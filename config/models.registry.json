@@ -1,12 +1,41 @@
 {
-  "version": 2,
+  "version": 3,
   "_comment": "Canonical NEXUS model/provider registry — single source of truth. KEY-FREE by design: keyRef names an apiKeys slug in ~/.modelrelay.json, resolved at runtime via nexus_os.security.secrets. Node config.generated.ts and the Python quota/chimera/ollama tables are GENERATED from this file (scripts/gen_model_registry.py); edit here, then regenerate. Seeded 2026-07-02 by scripts/import_modelrelay_config.py from the operator config, curated against ARCHIVIST model intel and web-verified provider catalogs (SiliconFlow blog: GLM-5.2 1M ctx; Baseten library: GLM-5.2 + Kimi-K2.7-Code; NVIDIA NIM docs: deepseek-ai/deepseek-v4-pro, stepfun/step-3.7-flash).",
   "providers": {
     "openrouter": {
       "keyRef": "openrouter",
       "discoverModels": true,
       "status": "active",
-      "priority": 40
+      "priority": 40,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": 20,
+          "rph": null,
+          "rpd": 50
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": "rpd 50 -> 1000 permanently once >= $10 credits ever bought"
+        },
+        "confidence": "HIGH",
+        "degradation": "hard_fail",
+        "notes": ":free models; negative balance -> 402 even on free models; Cloudflare DDoS layer blocks independently. /models polling needs NO credits."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "groq": {
       "keyRef": "groq",
@@ -14,8 +43,33 @@
       "status": "active",
       "priority": 30,
       "quota": {
-        "type": "free_tier",
-        "notes": "rate-limited free tier; thermal-bath verifier role"
+        "windows": {
+          "rps": null,
+          "rpm": 30,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "hard_fail",
+        "notes": "Per-model org limits (8b-instant 30 RPM/6K TPM/14.4K RPD/500K TPD; 70b 30 RPM/12K TPM/1K RPD/100K TPD). Cached tokens don't count; retry-after honored. | legacy: rate-limited free tier; thermal-bath verifier role"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "nvidia": {
@@ -25,10 +79,33 @@
       "status": "active",
       "priority": 10,
       "quota": {
-        "type": "free_tier",
-        "rpm": 8,
-        "maxConcurrent": 1,
-        "noParallelSubagents": true
+        "windows": {
+          "rps": null,
+          "rpm": 8,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": 1,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "silent",
+        "notes": "Operator-conservative 8 RPM (community reports ~40 free / ~200 on request; NO official page). noParallelSubagents. 429/burst undocumented — soak-watchlist."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "cerebras": {
@@ -36,13 +113,71 @@
       "discoverModels": true,
       "status": "suspended",
       "priority": 50,
-      "notes": "Key expired; web sweep 2026-07: free tier still 1M tokens/day with no card — renew at cloud.cerebras.ai to reactivate."
+      "notes": "Key expired; web sweep 2026-07: free tier still 1M tokens/day with no card — renew at cloud.cerebras.ai to reactivate.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": 5,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": 30000,
+          "tph": 1000000,
+          "tpd": 1000000,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "CONFLICTED",
+        "degradation": "hard_fail",
+        "notes": "Official 5 RPM (3 trial models) but aggregators say 30 RPM — RE-VERIFY at build. Token-bucket refill."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "codestral": {
       "keyRef": "codestral",
       "discoverModels": true,
       "status": "active",
-      "priority": 45
+      "priority": 45,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "kilocode": {
       "keyRef": "kilocode",
@@ -50,8 +185,33 @@
       "status": "active",
       "priority": 20,
       "quota": {
-        "type": "daily_free",
-        "notes": "free daily-quota lane, see priorityTiers.tier_3"
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": 60,
+          "rpd": 500
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": 4000,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "Free daily-quota lane (see priorityTiers.tier_3); hourly rate limits on free models. | legacy: free daily-quota lane, see priorityTiers.tier_3"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "opencode": {
@@ -60,8 +220,33 @@
       "status": "active",
       "priority": 20,
       "quota": {
-        "type": "daily_free",
-        "notes": "free daily-quota lane, see priorityTiers.tier_3"
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": 200
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": 50000,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": 8000,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "Free daily-quota lane (see priorityTiers.tier_3); burst = tokens/call observed. | legacy: free daily-quota lane, see priorityTiers.tier_3"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "siliconflow": {
@@ -70,14 +255,72 @@
       "discoverModels": false,
       "status": "active",
       "priority": 15,
-      "notes": "CHAT VERIFIED LIVE 2026-07-02 (direct 1-token probe OK; 71 models listed incl GLM-5.2/M3/V4/K2.6). The relay-side 'No Auth' was stale state — clears on relay restart. Reasoning models accept enable_thinking + thinking_budget."
+      "notes": "CHAT VERIFIED LIVE 2026-07-02 (direct 1-token probe OK; 71 models listed incl GLM-5.2/M3/V4/K2.6). The relay-side 'No Auth' was stale state — clears on relay restart. Reasoning models accept enable_thinking + thinking_budget.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "hard_fail",
+        "notes": "Free models $0; L0-L5 tiers by monthly consumption. '50/day->1000/day after CNY10' secondary-sourced."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "deepinfra": {
       "keyRef": "openai-compatible:deepinfra",
       "baseUrl": "https://api.deepinfra.com/v1/openai",
       "discoverModels": false,
       "status": "suspended",
-      "priority": 60
+      "priority": 60,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "fireworks": {
       "keyRef": "openai-compatible:fireworks",
@@ -85,14 +328,72 @@
       "discoverModels": false,
       "status": "suspended",
       "priority": 60,
-      "notes": "412 per god-mode report"
+      "notes": "412 per god-mode report",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "mistral": {
       "keyRef": "openai-compatible:mistral",
       "baseUrl": "https://api.mistral.ai/v1",
       "discoverModels": true,
       "status": "active",
-      "priority": 35
+      "priority": 35,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "sambanova": {
       "keyRef": "openai-compatible:sambanova",
@@ -100,7 +401,36 @@
       "discoverModels": true,
       "status": "suspended",
       "priority": 55,
-      "notes": "key existed with no provider block (orphaned, audit 2026-07-02); balance 0 per god-mode report — verify before activating"
+      "notes": "key existed with no provider block (orphaned, audit 2026-07-02); balance 0 per god-mode report — verify before activating",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "ollama": {
       "keyRef": null,
@@ -108,7 +438,36 @@
       "discoverModels": true,
       "status": "active",
       "priority": 5,
-      "notes": "local lane; static entries below are the SLM team residents"
+      "notes": "local lane; static entries below are the SLM team residents",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "local inference of open-weight models; outputs are operator-owned"
+      }
     },
     "ollama-cloud": {
       "keyRef": "ollama-cloud",
@@ -117,14 +476,72 @@
       "apiFormat": "openai",
       "status": "active",
       "priority": 25,
-      "notes": "FREE TIER VERIFIED 2026-07-02: minimax-m3, qwen3-coder:480b, nemotron-3-super work WITHOUT subscription; deepseek-v4-flash, kimi-k2.7-code, glm-5.2 are 403 subscription-gated. Weekly quota — probe sparingly."
+      "notes": "FREE TIER VERIFIED 2026-07-02: minimax-m3, qwen3-coder:480b, nemotron-3-super work WITHOUT subscription; deepseek-v4-flash, kimi-k2.7-code, glm-5.2 are 403 subscription-gated. Weekly quota — probe sparingly.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "gpu_time",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "opaque",
+        "notes": "Free/Pro $20/Max $100; GPU-time weight classes L1-L4; 5h session + weekly resets; opaque metering, no numeric caps published — soak-watchlist."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "github": {
       "keyRef": "openai-compatible:github",
       "baseUrl": "https://models.inference.ai.azure.com",
       "discoverModels": true,
       "status": "active",
-      "priority": 50
+      "priority": 50,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": 1500
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": 50000,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "GitHub Models free tier, 1500/day observed."
+      },
+      "outputLicense": {
+        "class": "restricted",
+        "basis": "GitHub Models serves OpenAI/frontier closed models; their ToS flow through"
+      }
     },
     "cloudflare": {
       "keyRef": "cloudflare",
@@ -132,8 +549,33 @@
       "status": "active",
       "priority": 25,
       "quota": {
-        "type": "daily_free",
-        "notes": "10k neurons/day; 100% health in god-mode report v3 (17-18 models incl Kimi K2.6, Nemotron 3 Super, GPT-OSS-120B)"
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "neurons",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "hard_fail",
+        "notes": "10,000 neurons/day reset 00:00 UTC; model-specific neuron burn (70B ~204,805/M out). 100% health in god-mode report v3 (17-18 models incl Kimi K2.6, Nemotron 3 Super, GPT-OSS-120B). | legacy: 10k neurons/day; 100% health in god-mode report v3 (17-18 models incl Kimi K2.6, Nemotron 3 Super, GPT-OSS-120B)"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "scaleway": {
@@ -142,9 +584,33 @@
       "status": "active",
       "priority": 45,
       "quota": {
-        "type": "tokens",
-        "totalTokens": 1000000,
-        "notes": "1M free tokens, largely unspent"
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": 1000000
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "tokens",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "1M free tokens, largely unspent."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "cohere": {
@@ -154,8 +620,33 @@
       "status": "active",
       "priority": 55,
       "quota": {
-        "type": "requests",
-        "monthlyRequests": 1000
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "1000 requests/month free tier."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "googleai": {
@@ -163,14 +654,72 @@
       "discoverModels": true,
       "status": "active",
       "priority": 30,
-      "notes": "LIVE-CORRECTED 2026-07-02: Gemini 3.5-flash/3-flash-preview/3.1-flash-lite serving on :7350 (was wrongly suspended). Flaky ~30% success traced to 5-min health pings eating the free quota — cadence now 20 min in ~/.modelrelay.json."
+      "notes": "LIVE-CORRECTED 2026-07-02: Gemini 3.5-flash/3-flash-preview/3.1-flash-lite serving on :7350 (was wrongly suspended). Flaky ~30% success traced to 5-min health pings eating the free quota — cadence now 20 min in ~/.modelrelay.json.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": 1500
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": 1000000,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "Free tier 1500 req/day (KNOWN_QUOTAS-observed); Gemini 3.5 Flash free."
+      },
+      "outputLicense": {
+        "class": "restricted",
+        "basis": "Gemini ToS prohibits using outputs to train competing models"
+      }
     },
     "kiro": {
       "keyRef": null,
       "discoverModels": true,
       "status": "active",
       "priority": 22,
-      "notes": "DISCOVERED live on :7350 2026-07-02 (claude-sonnet-4.5, claude-haiku-4.5) — auth handled by the kiro CLI session, no apiKeys slug; previously registered nowhere."
+      "notes": "DISCOVERED live on :7350 2026-07-02 (claude-sonnet-4.5, claude-haiku-4.5) — auth handled by the kiro CLI session, no apiKeys slug; previously registered nowhere.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "restricted",
+        "basis": "serves closed frontier models"
+      }
     },
     "jules": {
       "keyRef": null,
@@ -178,7 +727,36 @@
       "authHeader": "X-Goog-Api-Key",
       "discoverModels": false,
       "status": "suspended",
-      "priority": 70
+      "priority": 70,
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "longcat": {
       "keyRef": "longcat",
@@ -194,15 +772,33 @@
         "memory_fallback"
       ],
       "quota": {
-        "type": "token_pack",
-        "allocationTokens": 65000000,
-        "targetTokens": 58500000,
-        "reserveTokens": 6500000,
-        "requiresVerification": true,
-        "initialRpm": 6,
-        "maxRpm": 12,
-        "maxConcurrent": 1,
-        "notes": "LongCat-2.0 partnership allocation; verify remaining balance and 30-day expiry before non-probe traffic"
+        "windows": {
+          "rps": null,
+          "rpm": 6,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": 65000000
+        },
+        "concurrent": 1,
+        "burst": null,
+        "metering": "tokens",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "LongCat-2.0 partnership allocation 65M tokens (target 58.5M, reserve 6.5M); initialRpm 6, maxRpm 12; verify remaining balance and 30-day expiry before non-probe traffic. requiresVerification. | legacy: LongCat-2.0 partnership allocation; verify remaining balance and 30-day expiry before non-probe traffic"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "internai": {
@@ -213,15 +809,33 @@
       "status": "active",
       "priority": 12,
       "quota": {
-        "type": "tokens",
-        "monthlyTokens": 90000000,
-        "targetTokens": 81000000,
-        "reserveTokens": 9000000,
-        "requiresVerification": true,
-        "rpm": 20,
-        "documentedRpm": 30,
-        "maxConcurrent": 1,
-        "notes": "Operator-reported allocation; verify reset and remaining balance before non-probe traffic"
+        "windows": {
+          "rps": null,
+          "rpm": 20,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": 90000000
+        },
+        "concurrent": 1,
+        "burst": null,
+        "metering": "tokens",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "MEDIUM",
+        "degradation": "hard_fail",
+        "notes": "Operator-reported allocation 90M tokens/month (target 81M, reserve 9M); documented RPM 30, operator-conservative 20; verify reset and remaining balance before non-probe traffic. requiresVerification. | legacy: Operator-reported allocation; verify reset and remaining balance before non-probe traffic"
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
       }
     },
     "novita": {
@@ -231,7 +845,36 @@
       "discoverModels": true,
       "status": "suspended",
       "priority": 35,
-      "notes": "ZERO_BALANCE — 138-model catalog incl glm-5.2, kimi-k2.7-code, qwen3.7-max; suspend until funded"
+      "notes": "ZERO_BALANCE — 138-model catalog incl glm-5.2, kimi-k2.7-code, qwen3.7-max; suspend until funded",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": 60,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": 0.5,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "hard_fail",
+        "notes": "$0.50 one-time trial credit; ~60 RPM unverified."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "baseten": {
       "keyRef": "openai-compatible:baseten",
@@ -242,11 +885,35 @@
       "status": "suspended",
       "priority": 8,
       "quota": {
-        "type": "rate",
-        "tpm": 500000,
-        "rpm": 120
+        "windows": {
+          "rps": null,
+          "rpm": 120,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": 500000,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": 30.0,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "silent",
+        "notes": "Verified-account 120 RPM/500K TPM (unverified 15/100K). SILENT-DEGRADE: 'non-enforced' budgets notify but keep charging; post-trial behavior undocumented — soak-watchlist."
       },
-      "notes": "OPERATOR 2026-07-02: 0 credit, new-account route no longer viable — lane dead until funded. GLM-5.2/K2.7-Code reachable via siliconflow instead."
+      "notes": "OPERATOR 2026-07-02: 0 credit, new-account route no longer viable — lane dead until funded. GLM-5.2/K2.7-Code reachable via siliconflow instead.",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "openmodel": {
       "keyRef": "openmodel",
@@ -255,7 +922,36 @@
       "discoverModels": false,
       "status": "pending_operator",
       "priority": 18,
-      "notes": "single key unlocks OpenAI/Anthropic/Gemini formats; deepseek-v4-flash is FREE (1M ctx). Operator: confirm account + add key under apiKeys slug 'openmodel'."
+      "notes": "single key unlocks OpenAI/Anthropic/Gemini formats; deepseek-v4-flash is FREE (1M ctx). Operator: confirm account + add key under apiKeys slug 'openmodel'.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "zai": {
       "keyRef": null,
@@ -263,7 +959,36 @@
       "discoverModels": false,
       "status": "deprecated",
       "priority": 90,
-      "notes": "config.ts registered glm-5.2 here with no key — dead entry; GLM-5.2 is served via baseten/siliconflow instead"
+      "notes": "config.ts registered glm-5.2 here with no key — dead entry; GLM-5.2 is served via baseten/siliconflow instead",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "opaque",
+        "notes": ""
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "qwencloud": {
       "keyRef": "qwencloud",
@@ -273,11 +998,35 @@
       "status": "pending_operator",
       "priority": 14,
       "quota": {
-        "type": "tokens",
-        "perModelTokens": 1000000,
-        "notes": "1M free tokens PER eligible model, Singapore intl endpoint, 90 days from Model Studio activation (web-verified 2026-07)"
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": 1000000
+        },
+        "concurrent": null,
+        "burst": null,
+        "metering": "tokens",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "hard_fail",
+        "notes": "1M free tokens PER eligible model, 90 days from Model Studio activation; hard stop AllocationQuota.FreeTierOnly; free quota only SG/FRA/HK regions, NOT us-virginia (MEDIUM). | legacy: 1M free tokens PER eligible model, Singapore intl endpoint, 90 days from Model Studio activation (web-verified 2026-07)"
       },
-      "notes": "OPERATOR: register Alibaba Model Studio (Singapore) and add key under apiKeys slug 'qwencloud' — unlocks every Qwen3.5/3.6/3.7 lane with per-model 1M quota."
+      "notes": "OPERATOR: register Alibaba Model Studio (Singapore) and add key under apiKeys slug 'qwencloud' — unlocks every Qwen3.5/3.6/3.7 lane with per-model 1M quota.",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "moonshot": {
       "keyRef": "moonshot",
@@ -285,7 +1034,36 @@
       "discoverModels": true,
       "status": "suspended",
       "priority": 60,
-      "notes": "OPERATOR 2026-07-02: key stopped working — re-issue at platform.moonshot.ai before activating."
+      "notes": "OPERATOR 2026-07-02: key stopped working — re-issue at platform.moonshot.ai before activating.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": 3,
+          "rph": null,
+          "rpd": null
+        },
+        "tokens": {
+          "tpm": 500000,
+          "tph": null,
+          "tpd": 1500000,
+          "monthly": null
+        },
+        "concurrent": 1,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": 1.0,
+          "permanent_tier_rule": null
+        },
+        "confidence": "HIGH",
+        "degradation": "dynamic_throttle",
+        "notes": "NO $0 API tier — $1 min recharge (aggregator '1000 free req/day' is the chat app, not API). Tier 0 after recharge. Dynamic under-load throttling."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     },
     "zhipu": {
       "keyRef": "zhipu",
@@ -293,7 +1071,36 @@
       "discoverModels": false,
       "status": "suspended",
       "priority": 80,
-      "notes": "OPERATOR: bigmodel.cn requires China IP for API use — unusable from this network without a compliant relay."
+      "notes": "OPERATOR: bigmodel.cn requires China IP for API use — unusable from this network without a compliant relay.",
+      "quota": {
+        "windows": {
+          "rps": null,
+          "rpm": null,
+          "rph": null,
+          "rpd": 1000
+        },
+        "tokens": {
+          "tpm": null,
+          "tph": null,
+          "tpd": null,
+          "monthly": null
+        },
+        "concurrent": 1,
+        "burst": null,
+        "metering": "requests",
+        "credit": {
+          "trial_usd": null,
+          "min_recharge_usd": null,
+          "permanent_tier_rule": null
+        },
+        "confidence": "LOW",
+        "degradation": "hard_fail",
+        "notes": "~1000 req/day free, Flash models fully free. MOST VOLATILE (free limits changed 2x in 12mo); registration may need CN phone."
+      },
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "not yet resolved; unknown NEVER trains"
+      }
     }
   },
   "models": [
@@ -319,7 +1126,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2.7-Code",
@@ -343,7 +1154,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "zai-org/GLM-5.1",
@@ -365,7 +1180,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2.6",
@@ -389,7 +1208,11 @@
         "core"
       ],
       "status": "suspended",
-      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed.",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2.5",
@@ -410,7 +1233,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "deepseek-ai/DeepSeek-V4-Pro",
@@ -434,7 +1261,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B",
@@ -476,7 +1307,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "zai-org/GLM-4.7",
@@ -497,7 +1332,11 @@
       "lanes": [
         "core"
       ],
-      "status": "suspended"
+      "status": "suspended",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "nvidia/Nemotron-120B-A12B",
@@ -554,7 +1393,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "web-verified 2026-07: siliconflow.com/blog/glm-5-2-api-guide"
+      "notes": "web-verified 2026-07: siliconflow.com/blog/glm-5-2-api-guide",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "MiniMaxAI/MiniMax-M3",
@@ -579,7 +1422,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "web-verified 2026-07 on SiliconFlow reasoning catalog"
+      "notes": "web-verified 2026-07 on SiliconFlow reasoning catalog",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "zai-org/GLM-5",
@@ -600,7 +1447,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "zai-org/GLM-5.1",
@@ -627,6 +1478,10 @@
         "maxConcurrent": 1,
         "noParallelSubagents": true,
         "rpmHint": 4
+      },
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
       }
     },
     {
@@ -644,7 +1499,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "deepseek-ai/DeepSeek-V4-Flash",
@@ -668,7 +1527,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "deepseek-ai/DeepSeek-V4-Pro",
@@ -695,6 +1558,10 @@
         "maxConcurrent": 1,
         "noParallelSubagents": true,
         "rpmHint": 4
+      },
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
       }
     },
     {
@@ -716,7 +1583,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "MiniMaxAI/MiniMax-M2.1",
@@ -733,7 +1604,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "Qwen/Qwen3-235B-A22B",
@@ -754,7 +1629,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "Qwen/Qwen3-32B",
@@ -773,7 +1652,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2-Thinking",
@@ -796,7 +1679,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2.6",
@@ -818,7 +1705,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed."
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed.",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "moonshotai/Kimi-K2-Instruct",
@@ -835,7 +1726,11 @@
       "lanes": [
         "core"
       ],
-      "status": "active"
+      "status": "active",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "z-ai/glm-5.1",
@@ -857,7 +1752,11 @@
         "core"
       ],
       "status": "suspended",
-      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1. NIM root-caused: EOL 2026-07-02T00:00:00Z (410 Gone with detail). New primary is z-ai/glm-5.2 (verified live, see entry below)."
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (no glm ids at all) — was tier_1 primary; rotation falls to Nemotron Ultra + baseten/siliconflow GLM-5.1. NIM root-caused: EOL 2026-07-02T00:00:00Z (410 Gone with detail). New primary is z-ai/glm-5.2 (verified live, see entry below).",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "minimaxai/minimax-m3",
@@ -884,6 +1783,10 @@
         "maxConcurrent": 1,
         "noParallelSubagents": true,
         "rpmHint": 4
+      },
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
       }
     },
     {
@@ -902,7 +1805,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered"
+      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "deepseek-ai/deepseek-v4-flash",
@@ -924,7 +1831,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered"
+      "notes": "discovered live in NIM listing 2026-07-02, previously unregistered",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "nvidia/devstral-2-123b",
@@ -965,7 +1876,11 @@
         "core"
       ],
       "status": "suspended",
-      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (only kimi-k2.6 remains)"
+      "notes": "LIVE-VERIFIED ABSENT from NIM /models 2026-07-02 (only kimi-k2.6 remains)",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "nvidia/nemotron-3-ultra-550b-a55b",
@@ -1073,7 +1988,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed. LIVE-VERIFIED 2026-07-03: response quality degraded — coherent-output mode fails; outputs gibberish/foreign-script characters with proper format. Use ONLY for short screenshot/structured outputs; do not rely on for general chain-of-thought."
+      "notes": "OPERATOR 2026-07-02: provider-side tool-calling dead loop (sanity tool spiral) — tools disabled in registry; text-only routing allowed. LIVE-VERIFIED 2026-07-03: response quality degraded — coherent-output mode fails; outputs gibberish/foreign-script characters with proper format. Use ONLY for short screenshot/structured outputs; do not rely on for general chain-of-thought.",
+      "outputLicense": {
+        "class": "unknown",
+        "basis": "Kimi modified-MIT; per-model legal check pending"
+      }
     },
     {
       "id": "qwen/qwen3.5-397b-a17b",
@@ -1097,7 +2016,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "ID LIVE-CORRECTED 2026-07-02: listing id carries the -a17b suffix"
+      "notes": "ID LIVE-CORRECTED 2026-07-02: listing id carries the -a17b suffix",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "qwen/qwen3.5-122b-a10b",
@@ -1118,7 +2041,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "discovered live in NIM listing 2026-07-02"
+      "notes": "discovered live in NIM listing 2026-07-02",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "deepseek-ai/deepseek-v4-pro",
@@ -1145,6 +2072,10 @@
         "maxConcurrent": 1,
         "noParallelSubagents": true,
         "rpmHint": 4
+      },
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
       }
     },
     {
@@ -1171,7 +2102,11 @@
         "teacher"
       ],
       "status": "active",
-      "notes": "OPERATOR 2026-07-03: TIER-0 PRIMARY REPLACEMENT for z-ai/glm-5.1 (EOL 2026-07-02). LIVE-VERIFIED: 1845 chars deep-reasoning response on coding prompts. 8 RPM ceiling on NIM. Replaces model/code rotation. Coder-specialty + reasoning-depth."
+      "notes": "OPERATOR 2026-07-03: TIER-0 PRIMARY REPLACEMENT for z-ai/glm-5.1 (EOL 2026-07-02). LIVE-VERIFIED: 1845 chars deep-reasoning response on coding prompts. 8 RPM ceiling on NIM. Replaces model/code rotation. Coder-specialty + reasoning-depth.",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
@@ -1217,7 +2152,11 @@
         "core"
       ],
       "status": "active",
-      "notes": "LIVE-VERIFIED 2026-07-03: newest Qwen generation on NIM. 726 chars reasoned output in frontier probe. Step up from qwen3.5-122b."
+      "notes": "LIVE-VERIFIED 2026-07-03: newest Qwen generation on NIM. 726 chars reasoned output in frontier probe. Step up from qwen3.5-122b.",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+      }
     },
     {
       "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
@@ -1236,7 +2175,8 @@
       ],
       "status": "suspended",
       "notes": "REMOVED 2026-07-03: 404 from /chat/completions despite listing — model never had inference path. Use nvidia/nemotron-3-ultra-550b-a55b for the 550B tier."
-    },    {
+    },
+    {
       "id": "LongCat-2.0",
       "provider": "longcat",
       "aliases": [],
@@ -1856,6 +2796,108 @@
     "teacher": [
       "LongCat-2.0",
       "intern-s2-preview"
+    ]
+  },
+  "providerQuirks": {
+    "nvidia": [
+      {
+        "id": "kimi26-nim-tool-calls",
+        "appliesTo": [
+          "moonshotai/kimi-2.6*"
+        ],
+        "kind": "tool_calling_broken",
+        "action": "route_tools_elsewhere",
+        "confidence": "HIGH",
+        "notes": "Kimi-2.6 on NIM emits malformed/absent tool calls (lane-observed 2026-06); route tool-calling work to other providers"
+      },
+      {
+        "id": "nim-silent-degrade",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "silent_degradation",
+        "action": "soak_watchlist",
+        "confidence": "MEDIUM",
+        "notes": "429/burst behavior undocumented; community-sourced limits only"
+      },
+      {
+        "id": "minimax-m3-nim-hang",
+        "appliesTo": [
+          "minimaxai/minimax-m3"
+        ],
+        "kind": "intermittent_hang",
+        "action": "timeout_and_rotate",
+        "confidence": "MEDIUM",
+        "notes": "MiniMax-M3 on NIM hangs intermittently mid-stream (lane-observed 2026-07-05/06, blocked the opencode NEXUS-BENCH session); use aggressive read timeouts"
+      }
+    ],
+    "baseten": [
+      {
+        "id": "baseten-nonenforced-budget",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "silent_degradation",
+        "action": "soak_watchlist",
+        "confidence": "HIGH",
+        "notes": "'Non-enforced' budgets notify but keep charging; post-trial behavior undocumented"
+      },
+      {
+        "id": "dollar-then-dead",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "dollar_then_dead",
+        "action": "monitor_credit_floor",
+        "confidence": "MEDIUM",
+        "notes": "Degradation class: provider serves normally until residual trial credit ~$1, then quality/availability collapses without error"
+      }
+    ],
+    "moonshot": [
+      {
+        "id": "moonshot-no-free-tier",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "no_free_tier",
+        "action": "require_recharge_before_routing",
+        "confidence": "HIGH",
+        "notes": "$1 minimum recharge; the widely-repeated '1000 free req/day' is the chat app, NOT the API"
+      },
+      {
+        "id": "moonshot-underload-throttle",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "dynamic_throttle",
+        "action": "soak_watchlist",
+        "confidence": "HIGH",
+        "notes": "Dynamic under-load throttling on Tier 0"
+      }
+    ],
+    "ollama-cloud": [
+      {
+        "id": "ollama-cloud-opaque-metering",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "silent_degradation",
+        "action": "soak_watchlist",
+        "confidence": "MEDIUM",
+        "notes": "GPU-time weight classes with no published numeric caps; 5h session + weekly resets"
+      }
+    ],
+    "cloudflare": [
+      {
+        "id": "cf-auto-alias-renames",
+        "appliesTo": [
+          "*"
+        ],
+        "kind": "silent_rename",
+        "action": "alias_check_before_removal",
+        "confidence": "HIGH",
+        "notes": "Auto-aliased kimi-k2.5 -> k2.6 on 2026-05-30 — a removed listing row may be a rename, not a removal"
+      }
     ]
   }
 }

@@ -144,7 +144,9 @@ class TestDomainMappingConsumer:
 
         code_models = [e["model"] for e in DOMAIN_MAPPING["code"]["primary"]]
         assert "osman-coder" in code_models
-        assert "zai-org/GLM-5.2" in code_models
+        # Family-level assertion: the domain list dedups per model FAMILY,
+        # so whichever provider's GLM-5.2 id wins the tier race satisfies it.
+        assert any("glm-5.2" in m.lower() for m in code_models)
         # stale display-string literals must be gone
         for domain in DOMAIN_MAPPING.values():
             for e in domain["primary"]:

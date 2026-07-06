@@ -10,7 +10,7 @@
   "properties": {
     "version": {
       "type": "integer",
-      "const": 2
+      "const": 3
     },
     "_comment": {
       "type": "string"
@@ -66,7 +66,52 @@
             "minimum": 0
           },
           "quota": {
-            "type": "object"
+            "type": "object",
+            "required": [
+              "windows",
+              "tokens",
+              "metering",
+              "credit",
+              "confidence",
+              "degradation"
+            ],
+            "properties": {
+              "windows": {
+                "type": "object",
+                "required": ["rps", "rpm", "rph", "rpd"],
+                "additionalProperties": { "type": ["integer", "null"] }
+              },
+              "tokens": {
+                "type": "object",
+                "required": ["tpm", "tph", "tpd", "monthly"],
+                "additionalProperties": { "type": ["integer", "null"] }
+              },
+              "concurrent": { "type": ["integer", "null"] },
+              "burst": { "type": ["integer", "null"] },
+              "metering": {
+                "enum": ["requests", "tokens", "neurons", "gpu_time", "credits"]
+              },
+              "credit": {
+                "type": "object",
+                "properties": {
+                  "trial_usd": { "type": ["number", "null"] },
+                  "min_recharge_usd": { "type": ["number", "null"] },
+                  "permanent_tier_rule": { "type": ["string", "null"] }
+                },
+                "additionalProperties": false
+              },
+              "confidence": {
+                "enum": ["HIGH", "MEDIUM", "LOW", "CONFLICTED"]
+              },
+              "degradation": {
+                "enum": ["hard_fail", "silent", "dynamic_throttle", "opaque"]
+              },
+              "notes": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "outputLicense": {
+            "$ref": "#/$defs/outputLicense"
           },
           "allowedLanes": {
             "type": "array",
@@ -202,6 +247,9 @@
               }
             },
             "additionalProperties": false
+          },
+          "outputLicense": {
+            "$ref": "#/$defs/outputLicense"
           }
         },
         "additionalProperties": false
@@ -212,7 +260,55 @@
     },
     "teams": {
       "type": "object"
+    },
+    "providerQuirks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id", "appliesTo", "kind", "action", "confidence"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "appliesTo": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "kind": {
+              "enum": [
+                "tool_calling_broken",
+                "silent_degradation",
+                "dollar_then_dead",
+                "no_free_tier",
+                "dynamic_throttle",
+                "intermittent_hang",
+                "silent_rename"
+              ]
+            },
+            "action": { "type": "string", "minLength": 1 },
+            "confidence": {
+              "enum": ["HIGH", "MEDIUM", "LOW", "CONFLICTED"]
+            },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "outputLicense": {
+      "type": "object",
+      "required": ["class", "basis"],
+      "properties": {
+        "class": {
+          "enum": ["permissive", "restricted", "unknown"]
+        },
+        "basis": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
 }

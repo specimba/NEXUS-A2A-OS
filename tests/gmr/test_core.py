@@ -26,8 +26,11 @@ def test_gmr_select_code_domain():
     sel = gmr.select("code", budget_remaining=100000)
     assert sel.primary == "osman-coder"
     # Devstral 2 123B retired (live-verified absent from NIM 2026-07-02);
-    # fallbacks now come from the registry-generated frontier tier.
-    assert "zai-org/GLM-5.2" in sel.fallbacks
+    # fallbacks now come from the registry-generated frontier tier. The
+    # domain list dedups by model FAMILY (provider failover is the
+    # rotator's job), so assert the GLM-5.2 family — whichever provider's
+    # id won the tier race — rather than one provider's casing.
+    assert any("glm-5.2" in f.lower() for f in sel.fallbacks)
 
 def test_gmr_budget_fallback():
     gmr = make_gmr()

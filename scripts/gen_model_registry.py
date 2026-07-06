@@ -7,6 +7,9 @@ byte-equality drift test can prove the registry and its consumers agree):
 2. nexus_os/relay/quota_limits_generated.py — context-window clamp table
 3. nexus_os/twave/cloud_profiles_generated.json — Chimera cloud-tier profiles
 4. nexus_os/relay/ollama_map_generated.py   — local/cloud Ollama model map
+5. nexus_os/gmr/domain_mapping_generated.py — GMR domain routing tables
+6. nexus_os/model_relay/known_quotas_generated.py — structured v3 quota feed
+7. nexus_os/relay/tracing/license_map_generated.py — outputLicense partition map
 
 Usage:
     python scripts/gen_model_registry.py [--check]   # --check: exit 1 on drift
@@ -27,6 +30,8 @@ QUOTA_OUT = REPO / "nexus_os" / "relay" / "quota_limits_generated.py"
 CHIMERA_OUT = REPO / "nexus_os" / "twave" / "cloud_profiles_generated.json"
 OLLAMA_OUT = REPO / "nexus_os" / "relay" / "ollama_map_generated.py"
 DOMAINS_OUT = REPO / "nexus_os" / "gmr" / "domain_mapping_generated.py"
+QUOTAS_OUT = REPO / "nexus_os" / "model_relay" / "known_quotas_generated.py"
+LICENSE_OUT = REPO / "nexus_os" / "relay" / "tracing" / "license_map_generated.py"
 
 #: GMR domain -> registry roles eligible for that domain's primary list.
 DOMAIN_ROLES = {
@@ -47,8 +52,17 @@ def _env_key(slug: str) -> str:
     return slug.upper().replace("-", "_") + "_API_KEY"
 
 
-def _ts_provider(slug: str, prov: dict) -> dict:
+def _quota_rpm(prov: dict):
+    """RPM from a v3 structured quota block (flat v2 fallback kept)."""
     quota = prov.get("quota") or {}
+    windows = quota.get("windows")
+    if isinstance(windows, dict):
+        return windows.get("rpm")
+    return quota.get("rpm")
+
+
+def _ts_provider(slug: str, prov: dict) -> dict:
+    rpm = _quota_rpm(prov)
     return {
         "id": slug,
         "name": slug,
@@ -58,7 +72,7 @@ def _ts_provider(slug: str, prov: dict) -> dict:
         "modelsPath": prov.get("modelsPath", "/models"),
         "authType": "x-api-key" if prov.get("authHeader", "").lower() == "x-goog-api-key" else ("none" if prov.get("keyRef") is None else "bearer"),
         "quotaType": "free_tier",
-        "quotaRemaining": quota.get("rpm", -1) if isinstance(quota.get("rpm"), int) else "varies",
+        "quotaRemaining": rpm if isinstance(rpm, int) else "varies",
         "costPer1m": 0.0,
         "latencyMs": 400,
         "status": "up" if prov["status"] == "active" else "down",
@@ -255,6 +269,69 @@ def emit_domains(registry: dict) -> str:
     )
 
 
+def _py_literal(obj) -> str:
+    """JSON → Python literal (true/false/null → True/False/None)."""
+    body = json.dumps(obj, indent=4, ensure_ascii=False, sort_keys=True)
+    return (
+        body.replace(": true", ": True")
+        .replace(": false", ": False")
+        .replace(": null", ": None")
+    )
+
+
+def emit_known_quotas(registry: dict) -> str:
+    quotas = {}
+    for slug in sorted(registry["providers"]):
+        prov = registry["providers"][slug]
+        quota = prov.get("quota") or {}
+        if not isinstance(quota.get("windows"), dict):
+            continue  # pre-v3 stragglers carry no structured block
+        quotas[slug] = {
+            "windows": quota["windows"],
+            "tokens": quota.get("tokens", {}),
+            "concurrent": quota.get("concurrent"),
+            "burst": quota.get("burst"),
+            "metering": quota.get("metering", "requests"),
+            "credit": quota.get("credit", {}),
+            "confidence": quota.get("confidence", "LOW"),
+            "degradation": quota.get("degradation", "opaque"),
+            "provider_status": prov.get("status"),
+            "notes": quota.get("notes", ""),
+        }
+    quirks = registry.get("providerQuirks", {})
+    return (
+        f'"""{HEADER}"""\n\n'
+        f"KNOWN_QUOTAS_GENERATED: dict = {_py_literal(quotas)}\n\n"
+        f"PROVIDER_QUIRKS_GENERATED: dict = {_py_literal(quirks)}\n"
+    )
+
+
+def emit_license_map(registry: dict) -> str:
+    providers = {}
+    for slug in sorted(registry["providers"]):
+        lic = registry["providers"][slug].get("outputLicense") or {}
+        providers[slug] = lic.get("class", "unknown")
+    overrides = {}
+    for m in sorted(registry["models"], key=lambda x: (x["provider"], x["id"])):
+        lic = m.get("outputLicense")
+        if lic:
+            overrides[f"{m['provider']}:{m['id']}"] = lic.get("class", "unknown")
+    return (
+        f'"""{HEADER}\n\n'
+        "Trainability partition map (FI-T3). unknown NEVER resolves to\n"
+        'permissive — a trace with unresolved license is reference-only."""\n\n'
+        f"PROVIDER_LICENSE: dict[str, str] = {_py_literal(providers)}\n\n"
+        f"MODEL_LICENSE_OVERRIDES: dict[str, str] = {_py_literal(overrides)}\n\n"
+        "\n"
+        "def license_class(provider: str, model_id: str) -> str:\n"
+        '    """Effective outputLicense class for a (provider, model) pair."""\n'
+        '    override = MODEL_LICENSE_OVERRIDES.get(f"{provider}:{model_id}")\n'
+        "    if override:\n"
+        "        return override\n"
+        '    return PROVIDER_LICENSE.get(provider, "unknown")\n'
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="verify artifacts match the registry (drift test)")
@@ -267,6 +344,8 @@ def main() -> int:
         CHIMERA_OUT: emit_chimera(registry),
         OLLAMA_OUT: emit_ollama(registry),
         DOMAINS_OUT: emit_domains(registry),
+        QUOTAS_OUT: emit_known_quotas(registry),
+        LICENSE_OUT: emit_license_map(registry),
     }
 
     drift = []

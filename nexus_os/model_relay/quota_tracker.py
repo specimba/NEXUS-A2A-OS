@@ -27,44 +27,51 @@ from nexus_os.model_relay.provider_budget import ProviderBudgetLedger
 
 QUOTA_STATE_PATH = Path("~/.nexus_pi/state/quota_tracker.json").expanduser()
 
-# Known daily quota limits (estimated from docs/observations)
-# OpenCode Zen: daily tokens per provider
-# KiloCode: free models have hourly rate limits
-# GitHub Models: 1500/day (observed earlier)
-# GoogleAI: 1500/day free tier
-KNOWN_QUOTAS = {
-    "opencode": {
-        "daily_token_limit": 50000,
-        "daily_call_limit": 200,
-        "reset_at_utc": "00:00",
-        "burst_tokens_per_call": 8000,
-    },
-    "kilocode": {
-        "hourly_call_limit": 60,
-        "daily_call_limit": 500,
-        "reset_at_utc": "00:00",
-        "burst_tokens_per_call": 4000,
-    },
-    "openai-compatible:github": {
-        "daily_call_limit": 1500,
-        "daily_token_limit": 50000,
-        "reset_at_utc": "00:00",
-    },
-    "googleai": {
-        "daily_call_limit": 1500,
-        "daily_token_limit": 1000000,
-        "reset_at_utc": "00:00",
-    },
-    "longcat": {"note": "delegated to durable provider budget ledger"},
-    "internai": {"note": "delegated to durable provider budget ledger"},
-    "nvidia": {"note": "delegated to durable provider budget ledger"},
-    "siliconflow": {
-        "note": "DEAD — key invalid 2026-06-22",
-    },
-    "openai-compatible:fireworks": {
-        "note": "DEAD — billing suspended 2026-06-18",
-    },
+# Daily quota limits derived from the registry's structured v3 quota
+# blocks (FI-Q1) — config/models.registry.json is the single source of
+# truth; regenerate with scripts/gen_model_registry.py. The legacy
+# daily_call_limit/hourly_call_limit shape is preserved for consumers.
+from nexus_os.model_relay.known_quotas_generated import (  # noqa: E402
+    KNOWN_QUOTAS_GENERATED,
+    PROVIDER_QUIRKS_GENERATED,
+)
+
+#: registry slug -> additional legacy key some callers still use
+_LEGACY_KEY_ALIASES = {
+    "github": "openai-compatible:github",
+    "fireworks": "openai-compatible:fireworks",
 }
+
+
+def _legacy_limits(structured: dict) -> dict:
+    """v3 structured quota -> the legacy flat limit dict."""
+    windows = structured.get("windows") or {}
+    tokens = structured.get("tokens") or {}
+    out: dict = {}
+    if windows.get("rpd"):
+        out["daily_call_limit"] = windows["rpd"]
+    if windows.get("rph"):
+        out["hourly_call_limit"] = windows["rph"]
+    if tokens.get("tpd"):
+        out["daily_token_limit"] = tokens["tpd"]
+    if structured.get("burst"):
+        out["burst_tokens_per_call"] = structured["burst"]
+    if out:
+        out["reset_at_utc"] = "00:00"
+        if structured.get("confidence"):
+            out["confidence"] = structured["confidence"]
+    return out
+
+
+KNOWN_QUOTAS: dict = {}
+for _slug, _structured in KNOWN_QUOTAS_GENERATED.items():
+    _entry = _legacy_limits(_structured)
+    if not _entry:
+        continue  # ledger-governed / per-minute-only providers
+    KNOWN_QUOTAS[_slug] = _entry
+    _alias = _LEGACY_KEY_ALIASES.get(_slug)
+    if _alias:
+        KNOWN_QUOTAS[_alias] = _entry
 
 GOVERNED_PROVIDER_ALIASES = {
     "longcat": "longcat",

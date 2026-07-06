@@ -3,7 +3,7 @@
  */
 import type { ProviderConfig, ModelInfo } from './config'
 
-export const REGISTRY_VERSION = 2
+export const REGISTRY_VERSION = 3
 
 // Providers the registry retired — the merge facade must drop their
 // legacy config.ts entries (e.g. the dead keyless zai/glm-5.2 block).
@@ -187,7 +187,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "modelsPath": "/models",
     "authType": "bearer",
     "quotaType": "free_tier",
-    "quotaRemaining": "varies",
+    "quotaRemaining": 6,
     "costPer1m": 0.0,
     "latencyMs": 400,
     "status": "up",
@@ -231,7 +231,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "modelsPath": "/models",
     "authType": "bearer",
     "quotaType": "free_tier",
-    "quotaRemaining": "varies",
+    "quotaRemaining": 3,
     "costPer1m": 0.0,
     "latencyMs": 400,
     "status": "down",
@@ -252,7 +252,7 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "modelsPath": "/models",
     "authType": "bearer",
     "quotaType": "free_tier",
-    "quotaRemaining": "varies",
+    "quotaRemaining": 60,
     "costPer1m": 0.0,
     "latencyMs": 400,
     "status": "down",
