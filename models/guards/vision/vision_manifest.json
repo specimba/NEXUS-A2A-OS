@@ -1,0 +1,19 @@
+{
+  "_comment": "VISION GUARD MVP weight manifest. Weights are NOT tracked in git (see vision/.gitignore). Operator: acquire each .onnx, compute its sha256, and replace OPERATOR_FILL. guard_plane_service refuses to load any weight whose digest is a placeholder or mismatches (supply-chain rule).",
+  "models": [
+    {
+      "id": "yolo26n",
+      "file": "yolo26n.onnx",
+      "sha256": "OPERATOR_FILL",
+      "source": "ultralytics yolo26n.pt ONNX export",
+      "task": "detect"
+    },
+    {
+      "id": "nudity_detector",
+      "file": "nudenet_detector_640m.onnx",
+      "sha256": "OPERATOR_FILL",
+      "source": "notAI-tech/NudeNet v3 release (or the On-Device-CM paper checkpoint if published)",
+      "task": "nsfw_detect"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "_comment": "SNCII denylist policy (SNCII = sexual non-consensual intimate imagery). SHARED ARTIFACT: models/guards/guard_plane_service.py (image lane prefilter), tools/browser_ai_supervisor, and image-gen lane guards should all load THIS file — do not fork per-lane copies. Entries in tool_names and context_phrases are Python regexes (case-insensitive via (?i)); deny_domains are lowercase substrings matched against source URLs/hosts.",
+  "version": "1.0.0",
+  "tool_names": [
+    "(?i)nudif(?:y|ier|ication)",
+    "(?i)undress(?:er|ing)?[-_. ]?(?:ai|app|bot|tool)?\\b",
+    "(?i)deep[-_. ]?nude",
+    "(?i)face[-_. ]?swap[-_. ]?(?:nude|nsfw|porn|xxx)",
+    "(?i)cloth(?:es|ing)?[-_. ]?(?:remov(?:er|al)|off)",
+    "(?i)x[-_. ]?ray[-_. ]?(?:vision[-_. ]?)?(?:app|filter|cam)",
+    "(?i)nude[-_. ]?(?:gen(?:erator)?|maker|filter)",
+    "(?i)ai[-_. ]?(?:strip|nude|undress)"
+  ],
+  "context_phrases": [
+    "(?i)remove\\s+(?:her|his|their|my\\s+ex'?s?)\\s+cloth(?:es|ing)",
+    "(?i)\\bundress\\b",
+    "(?i)\\bnudify\\b",
+    "(?i)swap\\s+(?:her|his|their|this|the)?\\s*face\\s+onto",
+    "(?i)put\\s+(?:her|his|their)\\s+face\\s+on\\s+(?:a\\s+)?(?:nude|naked|porn)",
+    "(?i)make\\s+(?:her|him|them|this\\s+person)\\s+(?:naked|nude|topless)",
+    "(?i)strip\\s+(?:her|his|their)\\s+cloth",
+    "(?i)take\\s+(?:her|his|their)\\s+cloth(?:es|ing)\\s+off",
+    "(?i)deepfake\\s+(?:porn|nude|nsfw|sex)",
+    "(?i)without\\s+(?:her|his|their)\\s+(?:consent|knowledge)[^.]{0,80}(?:nude|naked|intimate|sexual)",
+    "(?i)(?:nude|naked|intimate|sexual)[^.]{0,80}without\\s+(?:her|his|their)\\s+(?:consent|knowledge)",
+    "(?i)see[-_ ]?through\\s+(?:her|his|their)?\\s*(?:cloth|shirt|dress|top)"
+  ],
+  "deny_domains": [
+    "deepnude",
+    "deep-nude",
+    "nudify",
+    "undress.app",
+    "undressai",
+    "clothoff",
+    "clothesoff",
+    "xnudes",
+    "ainude",
+    "nudefusion"
+  ]
+}

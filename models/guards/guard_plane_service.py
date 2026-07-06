@@ -5,10 +5,18 @@ FastAPI service with multi-prompt routing (v5 for benign, v5.1 for attacks, v3 f
 MetaAttackDetector v4 pre-filter (16 attack categories).
 
 Endpoints:
-  POST /v1/classify  — Classify a query as SAFE or UNSAFE
-  GET  /v1/health    — Service health check
-  GET  /v1/evidence  — Evidence log (per-model performance)
-  POST /v1/batch     — Batch classify queries (from file)
+  POST /v1/classify        — Classify a query as SAFE or UNSAFE
+  POST /v1/classify_image  — VISION GUARD MVP: image lane quorum (v1.5.0)
+  GET  /v1/health          — Service health check
+  GET  /v1/evidence        — Evidence log (per-model performance)
+  POST /v1/batch           — Batch classify queries (from file)
+
+v1.5.0 image lane (papers12 design): SNCII context prefilter -> YOLO26-n
+person/skin gate (voter 1) -> NudeNet-v3-class body-part detector (voter 2)
+-> quorum fusion -> vault audit (hash + verdict only, never image bytes).
+SenBen 241M scene-graph student is the future voter 3 via register_voter().
+All vision deps (onnxruntime, Pillow, numpy) are imported lazily — the text
+plane serves unchanged when they are absent.
 """
 import json, os, pickle, time, re, asyncio, sys
 from pathlib import Path
@@ -531,7 +539,7 @@ class GuardPlane:
 
 # ── FastAPI App ──────────────────────────────────────────────────────
 
-app = FastAPI(title="NEXUS Guard Plane", version="1.4.0")
+app = FastAPI(title="NEXUS Guard Plane", version="1.5.0")
 _plane_instance = None
 
 def get_plane() -> GuardPlane:
@@ -579,7 +587,7 @@ async def health():
     return {
         "status": "ok",
         "service": "nexus-guard-plane",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "classifier_loaded": plane.classifier is not None,
         "models_available": ["qwen2.5-guard-q4", "llama-guard3:1b", "qwen2.5:0.5b"],
         "meta_detector_version": getattr(plane.meta_detector, "VERSION", "unknown"),
@@ -588,11 +596,519 @@ async def health():
         "quorum_enabled": True,
         "quorum_models": plane.QUORUM_MODELS,
         "quorum_threshold": plane.QUORUM_CONFIDENCE_THRESHOLD,
+        "image_guard": _image_guard_status(),
     }
 
 @app.get("/v1/evidence")
 async def evidence():
     return dict(get_plane().evidence_log)
+
+
+# ── Image Guard Plane (VISION GUARD MVP, v1.5.0) ─────────────────────
+# Voter 1: YOLO26-n person/skin gate. Voter 2: NudeNet-v3-class body-part
+# detector. Voter 3 (future): SenBen 241M scene-graph via register_voter().
+# Backend: onnxruntime (DirectML default on the RTX 4070) — all imports lazy.
+
+SNCII_POLICY_PATH = THIS_DIR / "sncii_policy.json"
+VISION_MANIFEST_PATH = THIS_DIR / "vision" / "vision_manifest.json"
+
+# NudeNet v3 detector label set (640m.onnx class order).
+NUDENET_LABELS = [
+    "FEMALE_GENITALIA_COVERED", "FACE_FEMALE", "BUTTOCKS_EXPOSED",
+    "FEMALE_BREAST_EXPOSED", "FEMALE_GENITALIA_EXPOSED", "MALE_BREAST_EXPOSED",
+    "ANUS_EXPOSED", "FEET_EXPOSED", "BELLY_COVERED", "FEET_COVERED",
+    "ARMPITS_COVERED", "ARMPITS_EXPOSED", "FACE_MALE", "BELLY_EXPOSED",
+    "MALE_GENITALIA_EXPOSED", "ANUS_COVERED", "FEMALE_BREAST_COVERED",
+    "BUTTOCKS_COVERED",
+]
+
+
+def _module_available(name: str) -> bool:
+    try:
+        import importlib.util
+        return importlib.util.find_spec(name) is not None
+    except Exception:
+        return False
+
+
+def _load_image_backend():
+    """Lazy import of models/guards/image_guard_backend.py (needs numpy only;
+    onnxruntime stays lazy inside OnnxDetector)."""
+    try:
+        from models.guards import image_guard_backend as igb
+        return igb
+    except ImportError:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "image_guard_backend", str(THIS_DIR / "image_guard_backend.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+
+def _sniff_image_format(data: bytes) -> Optional[str]:
+    """Magic-byte allowlist: png / jpeg / webp only."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+class ImageGuardPlane:
+    """Image lane of the guard plane. Fail-closed at every branch:
+    bad input, missing deps, missing/unverified weights, voter timeout or
+    crash all resolve to degraded_unsafe — never silent-safe."""
+
+    VOTER_TIMEOUT: float = 10.0                 # per-voter hard bound (seconds)
+    MAX_DECODED_BYTES: int = 4 * 1024 * 1024    # ~4MB decoded cap
+    MAX_IMAGE_PIXELS: int = 25_000_000          # decompression-bomb cap (w*h)
+    EXPOSED_UNSAFE_THRESHOLD: float = 0.65      # split-vote escalation bar
+    SKIN_DOMINANT_FRACTION: float = 0.40        # voter-1 skin gate
+    NUDE_STRONG_RE = re.compile(r"(GENITALIA|ANUS|BREAST|BUTTOCKS)_EXPOSED", re.IGNORECASE)
+
+    def __init__(self):
+        self._models_loaded = False
+        self.yolo_detector = None
+        self.nudity_detector = None
+        # Extension point: future quorum voters (SenBen 241M = voter 3).
+        self.extra_voters: Dict[str, Any] = {}
+        self._policy_compiled = None
+        self.manifest_error: Optional[str] = None
+        self.provider_choice = (os.getenv("NEXUS_IMAGE_GUARD_EP", "dml").strip().lower() or "dml")
+
+    # ── Extension point ───────────────────────────────────────────────
+    def register_voter(self, name: str, fn) -> None:
+        """Register an additional quorum voter (e.g. SenBen 241M scene-graph
+        student, papers12 — 16 sensitivity tags, explainable). `fn(np_img)`
+        must return a vote dict with at least {"vote": "safe"|"unsafe"|"degraded"};
+        optional keys: detections, max_exposed_score, confidence. It runs under
+        the same asyncio.to_thread + VOTER_TIMEOUT envelope as built-in voters."""
+        self.extra_voters[name] = fn
+
+    # ── SNCII context prefilter ───────────────────────────────────────
+    def _load_policy(self) -> dict:
+        if self._policy_compiled is not None:
+            return self._policy_compiled
+        policy = {}
+        try:
+            with open(SNCII_POLICY_PATH, "r", encoding="utf-8") as f:
+                policy = json.load(f)
+        except Exception as e:
+            print(f"SNCII policy load failed ({SNCII_POLICY_PATH}): {e}")
+        compiled = {"tool_names": [], "context_phrases": [], "deny_domains": []}
+        for key in ("tool_names", "context_phrases"):
+            for pat in policy.get(key, []):
+                try:
+                    compiled[key].append(re.compile(pat))
+                except re.error as e:
+                    print(f"SNCII policy: bad regex in {key}: {pat!r}: {e}")
+        compiled["deny_domains"] = [str(d).lower() for d in policy.get("deny_domains", [])]
+        self._policy_compiled = compiled
+        return compiled
+
+    def _sncii_prefilter(self, context_text: Optional[str], filename: Optional[str],
+                         source_url: Optional[str]) -> Optional[dict]:
+        """Denylist prefilter — short-circuits BEFORE any decode/voter work,
+        mirroring the text plane's MetaAttackDetector prefilter."""
+        pol = self._load_policy()
+        tags: List[str] = []
+        tool_haystack = " ".join(x for x in (filename, source_url, context_text) if x)
+        if tool_haystack:
+            for rx in pol["tool_names"]:
+                if rx.search(tool_haystack):
+                    tags.append(f"sncii_tool:{rx.pattern[:48]}")
+                    break
+        if context_text:
+            for rx in pol["context_phrases"]:
+                if rx.search(context_text):
+                    tags.append(f"sncii_phrase:{rx.pattern[:48]}")
+                    break
+        if source_url:
+            src = source_url.lower()
+            for dom in pol["deny_domains"]:
+                if dom in src:
+                    tags.append(f"sncii_domain:{dom}")
+                    break
+        if not tags:
+            return None
+        return {
+            "verdict": "unsafe",
+            "confidence": 1.0,
+            "rating": "sncii",
+            "query_type": "sncii_context",
+            "model_used": "prefilter",
+            "annotations": [],
+            "votes": {"safe": 0, "unsafe": 0, "degraded": 0},
+            "policy_tags": ["sncii_context"] + tags,
+        }
+
+    # ── Input validation ──────────────────────────────────────────────
+    @staticmethod
+    def _sha_for_audit(image_b64: str) -> str:
+        import base64
+        import hashlib
+        try:
+            return hashlib.sha256(base64.b64decode(image_b64, validate=True)).hexdigest()
+        except Exception:
+            return hashlib.sha256(image_b64.encode("utf-8", "replace")).hexdigest()
+
+    def _decode_and_validate(self, image_b64: str):
+        """Returns (np_img, sha256_hex, error_reason). np_img is None on error.
+        Order: base64 -> size cap -> magic bytes -> Pillow bomb-guarded decode."""
+        import base64
+        import hashlib
+        try:
+            raw = base64.b64decode(image_b64, validate=True)
+        except Exception:
+            sha = hashlib.sha256(image_b64.encode("utf-8", "replace")).hexdigest()
+            return None, sha, "invalid_base64"
+        sha = hashlib.sha256(raw).hexdigest()
+        if len(raw) > self.MAX_DECODED_BYTES:
+            return None, sha, "image_too_large"
+        if _sniff_image_format(raw) is None:
+            return None, sha, "unsupported_magic_bytes"
+        try:
+            from PIL import Image  # lazy: Pillow is an operator-installed dep
+        except ImportError:
+            return None, sha, "pillow_missing"
+        import io
+        try:
+            with Image.open(io.BytesIO(raw)) as img:
+                # Image.MAX_IMAGE_PIXELS decompression-bomb guard stays active
+                # inside Image.open(); we add a stricter explicit cap on top
+                # (header-only check, before any pixel data is decoded).
+                if (img.width * img.height) > self.MAX_IMAGE_PIXELS:
+                    return None, sha, "image_bomb"
+                rgb = img.convert("RGB")
+            import numpy as np
+            np_img = np.asarray(rgb, dtype=np.uint8)
+        except Exception as e:  # includes PIL.Image.DecompressionBombError
+            return None, sha, f"decode_failed:{type(e).__name__}"
+        return np_img, sha, None
+
+    # ── Model loading (lazy, sha256-gated) ────────────────────────────
+    def _ensure_models(self) -> None:
+        if self._models_loaded:
+            return
+        igb = _load_image_backend()
+        manifest = igb.load_manifest(VISION_MANIFEST_PATH)  # raises on mismatch/missing
+        providers = igb.resolve_providers(self.provider_choice)
+        by_id = {m["id"]: m for m in manifest["models"]}
+        # YOLO26-n on COCO: class 0 = person (the only class the gate needs).
+        self.yolo_detector = igb.OnnxDetector(
+            by_id["yolo26n"]["path"], providers, class_names=["person"])
+        self.nudity_detector = igb.OnnxDetector(
+            by_id["nudity_detector"]["path"], providers, class_names=NUDENET_LABELS)
+        self._models_loaded = True
+
+    # ── Voters ────────────────────────────────────────────────────────
+    @staticmethod
+    def _skin_fraction(np_img) -> float:
+        """Fraction of pixels matching a classic RGB skin-tone rule (pure numpy)."""
+        import numpy as np
+        img = np_img.astype(np.int16)
+        r, g, b = img[..., 0], img[..., 1], img[..., 2]
+        mx = np.maximum(np.maximum(r, g), b)
+        mn = np.minimum(np.minimum(r, g), b)
+        mask = ((r > 95) & (g > 40) & (b > 20) & ((mx - mn) > 15)
+                & (np.abs(r - g) > 15) & (r > g) & (r > b))
+        return float(mask.mean())
+
+    def _voter_yolo(self, np_img) -> dict:
+        """Voter 1 — YOLO26-n person/skin gate."""
+        detections = self.yolo_detector.infer(np_img)
+        persons = [d for d in detections if d.label.lower() == "person"]
+        skin = self._skin_fraction(np_img)
+        skin_dominant = skin >= self.SKIN_DOMINANT_FRACTION
+        vote = "unsafe" if (persons and skin_dominant) else "safe"
+        return {
+            "name": "yolo26n", "vote": vote, "detections": detections,
+            "person_count": len(persons), "skin_fraction": round(skin, 3),
+            "skin_dominant": skin_dominant, "max_exposed_score": 0.0,
+            "confidence": max((d.score for d in persons), default=round(skin, 3)),
+        }
+
+    def _voter_nudity(self, np_img) -> dict:
+        """Voter 2 — NudeNet-v3-class body-part detector."""
+        detections = self.nudity_detector.infer(np_img)
+        exposed = [d for d in detections if "EXPOSED" in d.label.upper()]
+        max_exposed = max((d.score for d in exposed), default=0.0)
+        return {
+            "name": "nudity_detector",
+            "vote": "unsafe" if exposed else "safe",
+            "detections": detections,
+            "exposed_labels": [d.label for d in exposed],
+            "max_exposed_score": round(max_exposed, 4),
+            "confidence": round(max_exposed, 4) if exposed else 0.9,
+        }
+
+    async def _run_voter(self, name: str, fn, np_img) -> dict:
+        """Bounded voter execution: to_thread + wait_for. Any exception or
+        timeout becomes a degraded vote (fail-closed, never a 500)."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(fn, np_img), timeout=self.VOTER_TIMEOUT)
+        except asyncio.TimeoutError:
+            return {"name": name, "vote": "degraded", "detections": [],
+                    "max_exposed_score": 0.0, "confidence": 0.0,
+                    "reason": "voter_timeout"}
+        except Exception as e:
+            return {"name": name, "vote": "degraded", "detections": [],
+                    "max_exposed_score": 0.0, "confidence": 0.0,
+                    "reason": f"voter_error:{type(e).__name__}"}
+
+    # ── Quorum fusion ─────────────────────────────────────────────────
+    def _fuse_votes(self, votes: List[dict]) -> dict:
+        tally = {"safe": 0, "unsafe": 0, "degraded": 0}
+        for v in votes:
+            tally[v.get("vote", "degraded")] = tally.get(v.get("vote", "degraded"), 0) + 1
+        max_exposed = max((float(v.get("max_exposed_score", 0.0)) for v in votes), default=0.0)
+
+        if tally["degraded"] >= 2:
+            verdict, confidence = "degraded_unsafe", 1.0
+        elif tally["unsafe"] >= 2:
+            verdict = "unsafe"
+            confidence = max(float(v.get("confidence", 0.0)) for v in votes if v.get("vote") == "unsafe")
+        elif tally["unsafe"] == 1:
+            if tally["safe"] == 0 and tally["degraded"] >= 1:
+                verdict, confidence = "unsafe", 1.0  # unsafe + degraded: fail-closed
+            elif max_exposed >= self.EXPOSED_UNSAFE_THRESHOLD:
+                verdict, confidence = "unsafe", max_exposed
+            else:
+                verdict, confidence = "degraded_unsafe", 1.0  # split, low exposure
+        elif tally["degraded"] >= 1:
+            verdict, confidence = "degraded_unsafe", 1.0  # safe + degraded
+        else:
+            verdict, confidence = "safe", round(max(0.5, 1.0 - max_exposed), 3)
+        return {"verdict": verdict, "confidence": round(float(confidence), 4), "tally": tally}
+
+    def _rating_for(self, verdict: str, votes: List[dict]) -> str:
+        if verdict == "safe":
+            return "safe"
+        if verdict == "unsafe":
+            for v in votes:
+                for label in v.get("exposed_labels", []):
+                    if self.NUDE_STRONG_RE.search(label):
+                        return "nude"
+            return "semi_nude"
+        return "semi_nude"  # degraded_unsafe: conservative middle rating
+
+    @staticmethod
+    def _annotations(votes: List[dict]) -> List[dict]:
+        anns = []
+        for v in votes:
+            for d in v.get("detections", []):
+                anns.append({"label": d.label, "score": float(d.score),
+                             "bbox": list(d.bbox_xywh_norm), "model": v.get("name", "unknown")})
+        return anns
+
+    @staticmethod
+    def _collect_policy_tags(votes: List[dict]) -> List[str]:
+        tags = []
+        for v in votes:
+            if v.get("person_count"):
+                tags.append("person_present")
+            if v.get("skin_dominant"):
+                tags.append("skin_dominant")
+            for label in v.get("exposed_labels", []):
+                tags.append(f"exposed:{label}")
+            if v.get("vote") == "degraded":
+                tags.append(f"voter_degraded:{v.get('name', 'unknown')}:{v.get('reason', '')}")
+        return tags
+
+    def _image_degraded(self, reason: str, image_sha256: str, t0: float) -> dict:
+        return {
+            "verdict": "degraded_unsafe",
+            "confidence": 1.0,
+            "rating": "semi_nude",
+            "image_sha256": image_sha256,
+            "annotations": [],
+            "votes": {"safe": 0, "unsafe": 0, "degraded": 0},
+            "policy_tags": [f"degraded:{reason}"],
+            "model_used": "none",
+            "query_type": "image_degraded",
+            "time_seconds": round(time.time() - t0, 3),
+        }
+
+    # ── Vault audit ───────────────────────────────────────────────────
+    def _vault_audit(self, image_sha256: str, verdict_dict: dict) -> None:
+        """Audit trail: hash + verdict ONLY. Image bytes are NEVER stored."""
+        try:
+            now_ms = current_millis()
+            audit_value = json.dumps({
+                "image_sha256": image_sha256,
+                "verdict": verdict_dict.get("verdict"),
+                "confidence": verdict_dict.get("confidence"),
+                "rating": verdict_dict.get("rating"),
+                "votes": verdict_dict.get("votes", {}),
+                "policy_tags": verdict_dict.get("policy_tags", []),
+                "model_used": verdict_dict.get("model_used"),
+                "annotation_count": len(verdict_dict.get("annotations", [])),
+                "timestamp": now_ms,
+            })
+            query_db(
+                """
+                INSERT INTO VaultEntry (id, agentId, track, category, key, value, score, createdAt)
+                VALUES (?, ?, 'GUARD', 'image_verdict', ?, ?, ?, ?)
+                """,
+                (
+                    make_cuid("ve"),
+                    make_cuid("ag"),
+                    f"guard:image:{image_sha256}:verdict",
+                    audit_value,
+                    1.0 if verdict_dict.get("verdict") == "safe" else 0.0,
+                    now_ms,
+                ),
+                commit=True,
+            )
+        except Exception as e:
+            print(f"Non-critical vault image verdict insert failed: {e}")
+
+    # ── Main entry ────────────────────────────────────────────────────
+    async def classify_image(self, image_b64: str, context_text: Optional[str] = None,
+                             filename: Optional[str] = None, source: Optional[str] = None,
+                             session_id: Optional[str] = None) -> dict:
+        t0 = time.time()
+
+        # 1. SNCII context prefilter — short-circuits before decode/voters.
+        pre = self._sncii_prefilter(context_text, filename, source)
+        if pre:
+            sha = self._sha_for_audit(image_b64)
+            pre["image_sha256"] = sha
+            pre["time_seconds"] = round(time.time() - t0, 3)
+            self._vault_audit(sha, pre)
+            return pre
+
+        # 2. Decode + validate (size cap, magic bytes, bomb guard).
+        np_img, sha, err = self._decode_and_validate(image_b64)
+        if err:
+            resp = self._image_degraded(err, sha, t0)
+            self._vault_audit(sha, resp)
+            return resp
+
+        # 3. Load sha256-verified sessions (lazy; fail-closed if unavailable).
+        try:
+            self._ensure_models()
+        except Exception as e:
+            self.manifest_error = str(e)
+            resp = self._image_degraded(f"models_unavailable:{type(e).__name__}", sha, t0)
+            self._vault_audit(sha, resp)
+            return resp
+
+        # 4. Voter 1: YOLO26-n person/skin gate (SAFE fast path).
+        v1 = await self._run_voter("yolo26n", self._voter_yolo, np_img)
+        if (v1.get("vote") == "safe" and v1.get("person_count", 0) == 0
+                and not v1.get("skin_dominant")):
+            resp = {
+                "verdict": "safe",
+                "confidence": 0.95,
+                "rating": "safe",
+                "image_sha256": sha,
+                "annotations": self._annotations([v1]),
+                "votes": {"safe": 1, "unsafe": 0, "degraded": 0},
+                "policy_tags": ["gate_fast_path:no_person_no_skin"],
+                "model_used": "yolo26n_gate",
+                "query_type": "image",
+                "time_seconds": round(time.time() - t0, 3),
+            }
+            self._vault_audit(sha, resp)
+            return resp
+
+        # 5. Voter 2 + registered extension voters (SenBen slot).
+        votes = [v1, await self._run_voter("nudity_detector", self._voter_nudity, np_img)]
+        for name, fn in self.extra_voters.items():
+            votes.append(await self._run_voter(name, fn, np_img))
+
+        # 6. Quorum fusion.
+        fused = self._fuse_votes(votes)
+        resp = {
+            "verdict": fused["verdict"],
+            "confidence": fused["confidence"],
+            "rating": self._rating_for(fused["verdict"], votes),
+            "image_sha256": sha,
+            "annotations": self._annotations(votes),
+            "votes": fused["tally"],
+            "policy_tags": self._collect_policy_tags(votes),
+            "model_used": "image_quorum",
+            "query_type": "image",
+            "time_seconds": round(time.time() - t0, 3),
+        }
+        self._vault_audit(sha, resp)
+        return resp
+
+    # ── Health ────────────────────────────────────────────────────────
+    def status(self) -> dict:
+        manifest_ok = False
+        try:
+            igb = _load_image_backend()
+            igb.read_manifest(VISION_MANIFEST_PATH)
+            manifest_ok = True
+        except Exception:
+            manifest_ok = False
+        deps_ok = _module_available("onnxruntime") and _module_available("PIL")
+        return {
+            "enabled": bool(deps_ok and manifest_ok),
+            "provider": self.provider_choice,
+            "models_loaded": self._models_loaded,
+            "manifest_ok": manifest_ok,
+        }
+
+
+_image_plane_instance = None
+
+
+def get_image_plane() -> ImageGuardPlane:
+    global _image_plane_instance
+    if _image_plane_instance is None:
+        _image_plane_instance = ImageGuardPlane()
+    return _image_plane_instance
+
+
+def _image_guard_status() -> dict:
+    try:
+        return get_image_plane().status()
+    except Exception as e:
+        return {"enabled": False, "provider": "unknown", "models_loaded": False,
+                "manifest_ok": False, "error": str(e)}
+
+
+class ClassifyImageRequest(BaseModel):
+    image_b64: str = Field(..., min_length=1, max_length=6_000_000)
+    context_text: Optional[str] = None
+    filename: Optional[str] = None
+    source: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+class ImageAnnotation(BaseModel):
+    label: str
+    score: float
+    bbox: List[float]
+    model: str
+
+
+class ClassifyImageResponse(BaseModel):
+    verdict: str
+    confidence: float
+    rating: str  # safe | semi_nude | nude | sncii
+    image_sha256: str
+    annotations: List[ImageAnnotation] = []
+    votes: Dict[str, int] = {}
+    policy_tags: List[str] = []
+    model_used: str
+    time_seconds: float
+
+
+@app.post("/v1/classify_image", response_model=ClassifyImageResponse)
+async def classify_image(req: ClassifyImageRequest):
+    if not req.image_b64.strip():
+        raise HTTPException(status_code=400, detail="Empty image payload")
+    return await get_image_plane().classify_image(
+        req.image_b64, context_text=req.context_text, filename=req.filename,
+        source=req.source, session_id=req.session_id)
 
 
 # ── Governance API Integration ───────────────────────────────────────
@@ -935,8 +1451,9 @@ async def governance_result(req: ResultRequest):
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print("NEXUS Guard Plane v1.4.0 — MetaAttackDetector v4.1 — Starting on port 7352")
+    print("NEXUS Guard Plane v1.5.0 — MetaAttackDetector v4.1 — Starting on port 7352")
     print("Features: stratified sampling, semantic drift, quorum voting, bounded timeouts")
+    print("Image lane (VISION GUARD MVP): SNCII prefilter + YOLO26-n/NudeNet quorum + vault audit")
     print(f"{'='*60}")
     host = os.getenv("GUARD_PLANE_HOST", "127.0.0.1")
     port = int(os.getenv("GUARD_PLANE_PORT", 7352))

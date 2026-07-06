@@ -1,0 +1,3 @@
+# Vision guard weights are operator-acquired, sha256-pinned via vision_manifest.json,
+# and never committed.
+*.onnx

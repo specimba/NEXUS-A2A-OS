@@ -49,8 +49,13 @@ speculative drafts, and Intern Discovery multi-GPU fine-tune workspaces.
   the safety anchor set.
 - Eval: guard accuracy on dataset_forge held-out split + refusal-retention
   suite; target ≥96% safety retention per SAMM.
-- Candidate vision guard: MiniCPM-V-4.6 (SigLIP2-400M) for
-  guard_plane_service — separate job card when phase 2 opens.
+- Vision guard voter 3 candidate: SenBen 241M scene-graph student
+  (papers12) — 1.2GB VRAM, 16 sensitivity tags, explainable verdicts;
+  drops into the guard_plane_service image quorum via
+  `ImageGuardPlane.register_voter()`. Shipped MVP (guard plane v1.5.0)
+  = YOLO26-n + On-Device-CM-class nudity ensemble on
+  onnxruntime-directml. MiniCPM-V-4.6 (SigLIP2-400M) demoted to
+  fallback candidate — separate job card when phase 2 opens.
 
 ### Phase 3 — Nexus-OS-7B (Lightning T4 / Intern Discovery GPUs)
 - Operator's plan (MODELLSSSSSS.txt): base `qwen2.5-coder:7b` → heretic
