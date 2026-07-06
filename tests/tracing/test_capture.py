@@ -30,6 +30,18 @@ def tmp_writer(tmp_path: Path):
     close_writer_for_tests()
 
 
+
+def _all_records(base: Path):
+    """Read back records across both license partitions (FI-T2)."""
+    out = []
+    for part in ("trainable", "reference"):
+        d = base / part
+        if d.exists():
+            w = TraceWriter(base_dir=d)
+            out.extend(w.iter_all())
+            w.close()
+    return out
+
 def _ok_response(provider: str = "nvidia", model_id: str = "z-ai/glm-5.2"):
     return {
         "id": "chatcmpl-test",
@@ -74,11 +86,9 @@ def test_record_response_persists(tmp_writer: Path):
         tags=["smoke"],
     )
     assert rid is not None
-    writer = TraceWriter(base_dir=tmp_writer)
-    assert writer.count() == 1
-    records = list(writer.iter_all())
+    records = _all_records(tmp_writer)
+    assert len(records) == 1
     assert records[0].models_tried[0].model_id == "z-ai/glm-5.2"
-    writer.close()
 
 
 def test_record_response_scrubs_request_body(tmp_writer: Path):
@@ -96,10 +106,10 @@ def test_record_response_scrubs_request_body(tmp_writer: Path):
         temperature=0.0,
     )
     assert rid is not None
-    writer = TraceWriter(base_dir=tmp_writer)
-    found = writer.search("REDACTED")
-    assert found  # if scrubbing didn't happen, the key would be in the index
-    writer.close()
+    found = [r for r in _all_records(tmp_writer)
+             if "REDACTED" in (r.models_tried[0].message_content or "")
+             or "REDACTED" in r.request_subject]
+    assert found  # if scrubbing didn't happen, the raw key would remain
 
 
 def test_record_response_discards_when_classified(tmp_writer: Path):
@@ -137,15 +147,13 @@ def test_record_response_discards_when_classified(tmp_writer: Path):
         temperature=0.0,
     )
     assert rid is not None  # capture happens
-    writer = TraceWriter(base_dir=tmp_writer)
-    found = list(writer.iter_all())
+    found = _all_records(tmp_writer)
     assert len(found) == 1
     raw_text = json.dumps(found[0].to_json(), ensure_ascii=False)
     # ensure unscrubbed key is NOT in the persisted record
     assert "ak_2NX8Y89gC6BE6j21SA2gj8II2bH8J" not in raw_text
     # ensure scrub marker IS in
     assert "[REDACTED_LONGCAT_KEY]" in raw_text
-    writer.close()
 
 
 def test_record_response_handles_no_choices(tmp_writer: Path):
@@ -189,12 +197,10 @@ def test_record_response_includes_reasoning_content(tmp_writer: Path):
         outcome="ok",
     )
     assert rid is not None
-    writer = TraceWriter(base_dir=tmp_writer)
-    records = list(writer.iter_all())
+    records = _all_records(tmp_writer)
     assert records[0].models_tried[0].reasoning_content and (
         "parse" in records[0].models_tried[0].reasoning_content.lower()
     )
-    writer.close()
 
 
 def test_record_response_includes_tool_calls(tmp_writer: Path, monkeypatch):
@@ -211,17 +217,13 @@ def test_record_response_includes_tool_calls(tmp_writer: Path, monkeypatch):
         temperature=0.0,
     )
     assert rid is not None
-    writer = TraceWriter(base_dir=tmp_writer)
-    records = list(writer.iter_all())
+    records = _all_records(tmp_writer)
     assert records[0].models_tried[0].tool_calls
-    writer.close()
 
 
 # ── Slice-4 retrofit: T2 verdict threading, T4 prompt_hash/flags, T5 ───
 
 def test_record_response_threads_verdict_and_hash(tmp_writer: Path):
-    from nexus_os.relay.tracing.capture import _writer
-
     verdict = {"risk_level": "medium", "risk_score": 0.61,
                "reasons": ["entropy_spike"], "tokens_assessed": 42}
     rid = record_response(
@@ -236,13 +238,19 @@ def test_record_response_threads_verdict_and_hash(tmp_writer: Path):
         hallucination_verdict=verdict,
     )
     assert rid
-    rec = next(iter(_writer().iter_all()))
+    # nvidia:z-ai/glm-5.2 carries a permissive outputLicense override →
+    # the record must land in the TRAINABLE partition with the class set
+    records = _all_records(tmp_writer)
+    assert len(records) == 1
+    rec = records[0]
+    assert (tmp_writer / "trainable" / "hot").exists()
+    assert not any((tmp_writer / "reference" / "hot").glob("*.jsonl"))
+    assert rec.license_class == "permissive"
     assert rec.hallucination_verdict == verdict
     assert rec.outcome == "suspect"
     assert len(rec.prompt_hash) == 64  # sha256 of scrubbed messages
     assert "REDACTED_EMAIL" in rec.redaction_flags
     assert rec.models_tried[0].evaluator_score == 0.61
-    assert rec.license_class == "unknown"  # partition default until Slice 5
     assert rec.generation_lineage == "organic"
 
 
@@ -273,3 +281,34 @@ def test_capture_disabled_warns_once(monkeypatch, caplog):
         ) is None
     warnings = [r for r in caplog.records if "DISABLED" in r.message]
     assert len(warnings) == 1  # once, not per call — and never silent
+
+
+# ── Slice-5: license partition + provider/model resolution (FI-T2/T3) ──
+
+def test_restricted_and_unknown_route_to_reference(tmp_writer: Path):
+    # googleai is restricted at provider level; never-heard-of is unknown —
+    # BOTH must land in reference/ (unknown never trains)
+    for provider, model in (("googleai", "gemini-3.5-flash"),
+                            ("mystery-lab", "mystery/model-x")):
+        record_response(
+            provider=provider, model_id=model,
+            request_payload={"messages": [{"role": "user", "content": "hi"}]},
+            response_payload=_ok_response(provider, model),
+            latency_ms=10, temperature=0.1,
+        )
+    refs = _all_records(tmp_writer)
+    assert len(refs) == 2
+    assert not (tmp_writer / "trainable" / "hot").exists() or \
+        not any((tmp_writer / "trainable" / "hot").glob("*.jsonl"))
+    classes = sorted(r.license_class for r in refs)
+    assert classes == ["restricted", "unknown"]
+
+
+def test_split_provider_model_resolves_registry_slugs():
+    from nexus_os.relay.tracing.capture import split_provider_model
+
+    assert split_provider_model("nvidia/z-ai/glm-5.2") == ("nvidia", "z-ai/glm-5.2")
+    assert split_provider_model("googleai/gemini-3.5-flash") == ("googleai", "gemini-3.5-flash")
+    # a namespaced model id whose head is NOT a provider slug stays unknown
+    assert split_provider_model("meituan/owl-alpha") == ("unknown", "meituan/owl-alpha")
+    assert split_provider_model("bare-model") == ("unknown", "bare-model")

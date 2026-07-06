@@ -28,7 +28,7 @@ from typing import Final
 
 
 # Regex pattern group order matters: longest prefixes first so that
-# longest prefixes first so project/router keys aren't truncated by the bare `sk-` rule.
+# project/router keys aren't truncated by the bare `sk-` rule.
 # Pattern lines carry `nexus-allow-secret-pattern` so the pre-commit
 # hygiene grep skips these DEFINITIONS while still catching real keys
 # pasted anywhere (a pattern here matches keys; it is not one).

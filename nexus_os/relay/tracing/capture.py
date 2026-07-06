@@ -45,30 +45,64 @@ def _warn_disabled_once() -> None:
 
 
 _HOME = Path(os.environ.get("NEXUS_REASONS_DB", Path.home() / ".nexus" / "reasons_db"))
-_WRITER: "TraceWriter | None" = None
+
+#: FI-T2 physical partition. permissive → trainable/; everything else —
+#: restricted AND unknown — goes to reference/ and never trains.
+PARTITIONS = ("trainable", "reference")
+_WRITERS: dict[str, "TraceWriter"] = {}
+_BASE: Path = _HOME
 
 
-def _writer() -> TraceWriter:
-    """Lazy singleton TraceWriter under $NEXUS_REASONS_DB or default."""
-    global _WRITER
-    if _WRITER is None:
-        _WRITER = TraceWriter(base_dir=_HOME)
-    return _WRITER
+def _writer(partition: str = "reference") -> TraceWriter:
+    """Lazy per-partition TraceWriter under $NEXUS_REASONS_DB or default."""
+    if partition not in PARTITIONS:
+        raise ValueError(f"unknown trace partition: {partition}")
+    w = _WRITERS.get(partition)
+    if w is None:
+        w = TraceWriter(base_dir=_BASE / partition)
+        _WRITERS[partition] = w
+    return w
+
+
+def _partition_for(provider: str, model_id: str) -> tuple[str, str]:
+    """(partition, license_class) — fail-safe: unknown never trains."""
+    try:
+        from nexus_os.relay.tracing.license_map_generated import license_class
+        cls = license_class(provider, model_id)
+    except ImportError:
+        cls = "unknown"
+    return ("trainable" if cls == "permissive" else "reference"), cls
+
+
+def split_provider_model(raw_model: str) -> tuple[str, str]:
+    """Resolve 'provider/model' composites from relay responses.
+
+    Node-relay responses report modelId as '<provider>/<id>'; a head
+    segment matching a registry provider slug splits, anything else is
+    provider-unknown (→ reference partition).
+    """
+    if "/" in raw_model:
+        head, rest = raw_model.split("/", 1)
+        try:
+            from nexus_os.relay.tracing.license_map_generated import PROVIDER_LICENSE
+            if head in PROVIDER_LICENSE:
+                return head, rest
+        except ImportError:
+            pass
+    return "unknown", raw_model
 
 
 def reset_writer_for_tests(target: Path | None) -> None:
-    """Test-only: monkey-patch the singleton writer's base directory."""
-    global _WRITER
-    if _WRITER is not None:
-        _WRITER.close()
-    _WRITER = TraceWriter(base_dir=target or _HOME)
+    """Test-only: repoint both partition writers at a tmp base dir."""
+    global _BASE
+    close_writer_for_tests()
+    _BASE = target or _HOME
 
 
 def close_writer_for_tests() -> None:
-    global _WRITER
-    if _WRITER is not None:
-        _WRITER.close()
-        _WRITER = None
+    for w in _WRITERS.values():
+        w.close()
+    _WRITERS.clear()
 
 
 def record_response(
@@ -140,6 +174,8 @@ def record_response(
         except (TypeError, ValueError):
             evaluator_score = None
 
+    partition, license_cls = _partition_for(provider, model_id)
+
     attempt = ModelAttempt(
         provider=provider,
         model_id=model_id,
@@ -172,9 +208,10 @@ def record_response(
         prompt_hash=_prompt_hash(request_clean),
         hallucination_verdict=hallucination_verdict,
         redaction_flags=redaction_flags,
+        license_class=license_cls,
     )
     try:
-        writer = _writer()
+        writer = _writer(partition)
         writer.append(record)
     except (OSError, ValueError, RuntimeError):
         return None

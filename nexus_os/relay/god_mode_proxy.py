@@ -24,6 +24,7 @@ Features:
 """
 import asyncio
 import json
+import logging
 import time
 from typing import Optional, Dict, List, Tuple
 from collections import defaultdict
@@ -582,17 +583,98 @@ def _explain_selection(m: dict, profile: dict, est_tok: int) -> str:
     return "; ".join(parts)
 
 
+logger = logging.getLogger("nexus.god_mode_proxy")
+
+_TRACE_FAIL_WARNED = False
+
+
+def _capture_trace(body: dict, metadata: dict, response_payload: dict | None,
+                   latency_ms: int, tags: list[str] | None = None) -> None:
+    """NEXUS-REASONS-DB capture at the god-mode transit point (FI-T1).
+
+    Covers the adapter's godmode tier and all opencode traffic — traffic
+    that never touches the Python :7355 relay hook. Never raises.
+    """
+    global _TRACE_FAIL_WARNED
+    if response_payload is None:
+        return
+    try:
+        from nexus_os.relay.tracing.capture import record_response, split_provider_model
+        raw_model = str(response_payload.get("model") or body.get("model") or "")
+        provider = (metadata or {}).get("provider") or ""
+        if not provider or provider in ("god-mode", "auto"):
+            provider, model_id = split_provider_model(raw_model)
+        else:
+            model_id = raw_model
+        record_response(
+            provider=provider,
+            model_id=model_id,
+            request_payload=body,
+            response_payload=response_payload,
+            latency_ms=latency_ms,
+            temperature=body.get("temperature"),
+            tags=["god-mode", *(tags or [])],
+        )
+    except Exception:
+        if not _TRACE_FAIL_WARNED:
+            logger.warning("god-mode trace capture failed — REASONS-DB not recording", exc_info=True)
+            _TRACE_FAIL_WARNED = True
+
+
+def _assemble_sse_for_trace(raw: bytes) -> dict | None:
+    """Best-effort reassembly of a buffered SSE body into one chat payload."""
+    content_parts: list[str] = []
+    reasoning_parts: list[str] = []
+    finish = None
+    usage: dict = {}
+    model = None
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line.startswith(b"data:"):
+            continue
+        payload = line[5:].strip()
+        if payload == b"[DONE]":
+            break
+        try:
+            obj = json.loads(payload)
+        except (ValueError, UnicodeDecodeError):
+            continue
+        if not isinstance(obj, dict):
+            continue
+        model = obj.get("model") or model
+        usage = obj.get("usage") or usage
+        for ch in obj.get("choices") or []:
+            delta = ch.get("delta") or {}
+            if delta.get("content"):
+                content_parts.append(delta["content"])
+            if delta.get("reasoning_content"):
+                reasoning_parts.append(delta["reasoning_content"])
+            if ch.get("finish_reason"):
+                finish = ch["finish_reason"]
+    if not content_parts and not reasoning_parts:
+        return None
+    message: dict = {"role": "assistant", "content": "".join(content_parts)}
+    if reasoning_parts:
+        message["reasoning_content"] = "".join(reasoning_parts)
+    return {
+        "model": model,
+        "choices": [{"index": 0, "finish_reason": finish or "stop", "message": message}],
+        "usage": usage,
+    }
+
+
 async def forward_chat(body: dict, headers: dict, metadata: dict, fallback_chain: list, attempt: int = 1):
     """
     Forward chat request to modelrelay. On failure, try fallback chain.
     Returns (response_data, response_headers, success, result_type)
-    
+
     For non-streaming: result_type="json", response_data=dict
     For streaming: result_type="stream", response_data=bytes (raw SSE body)
     """
     timeout = aiohttp.ClientTimeout(total=300)
     selected_model = body.get("model")
-    
+    t0 = time.time()
+
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(MODELRELAY_CHAT, json=body, headers=headers) as resp:
@@ -616,8 +698,13 @@ async def forward_chat(body: dict, headers: dict, metadata: dict, fallback_chain
                         kl = k.lower()
                         if kl.startswith("content-type") or kl.startswith("x-"):
                             god_headers[k] = v
+                    _capture_trace(
+                        body, metadata, _assemble_sse_for_trace(raw_body),
+                        latency_ms=int((time.time() - t0) * 1000),
+                        tags=["sse-assembled"],
+                    )
                     return raw_body, god_headers, True, "stream"
-                
+
                 data = await resp.json()
                 if metadata:
                     data["_god_mode"] = {**metadata, "attempt": attempt}
@@ -626,6 +713,8 @@ async def forward_chat(body: dict, headers: dict, metadata: dict, fallback_chain
                     "x-model-latency": str(metadata.get("latency_ms", "")) if metadata else "",
                     "x-model-context": str(metadata.get("context", "")) if metadata else "",
                 })
+                _capture_trace(body, metadata, data,
+                               latency_ms=int((time.time() - t0) * 1000))
                 return data, god_headers, True, "json"
     except Exception as e:
         return None, {}, False, str(e)

@@ -213,7 +213,7 @@ class ModelRelayAdapter:
                 continue
             t0 = time.time()
             try:
-                status, provider, raw_text = self._call_chat(request, base_url)
+                status, provider, raw_text = self._call_chat(request, base_url, tier_name)
             except Exception as exc:
                 status = f"error:{exc.__class__.__name__}"
                 provider = "unknown"
@@ -263,7 +263,8 @@ class ModelRelayAdapter:
     # Internal
     # ------------------------------------------------------------------
 
-    def _call_chat(self, request: RelayRequest, base_url: str) -> Tuple[str, str, Optional[str]]:
+    def _call_chat(self, request: RelayRequest, base_url: str,
+                   tier_name: str = "") -> Tuple[str, str, Optional[str]]:
         """OpenAI-compatible POST.  Returns (status, provider, response_text).
 
         An HTTP 200 with an unparseable body, no choices, or empty content is
@@ -271,18 +272,18 @@ class ModelRelayAdapter:
         instead of short-circuiting on a garbage response.
         """
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
-        payload = json.dumps(
-            {
-                "model": request.model,
-                "messages": [{"role": "user", "content": request.prompt}],
-                "temperature": request.temperature,
-                "max_tokens": request.max_tokens,
-            }
-        ).encode("utf-8")
+        request_payload = {
+            "model": request.model,
+            "messages": [{"role": "user", "content": request.prompt}],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        payload = json.dumps(request_payload).encode("utf-8")
         headers = {
             "content-type": "application/json",
             "accept": "application/json",
         }
+        t0 = time.time()
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=self.timeout_seconds) as resp:
             body = resp.read().decode("utf-8", errors="ignore")
@@ -301,7 +302,34 @@ class ModelRelayAdapter:
             text = None
         if not text:
             return "error:empty_response", provider, None
+        # FI-T1 exactly-once: only the PRIMARY tier (Node relay :7350
+        # direct) is captured here — godmode and fallback tiers are
+        # captured server-side by god_mode_proxy / model_relay.
+        if tier_name == "primary":
+            self._capture_trace(request_payload, data,
+                                latency_ms=int((time.time() - t0) * 1000))
         return "ok", provider, text
+
+    _trace_fail_warned = False
+
+    def _capture_trace(self, request_payload: dict, data: dict, latency_ms: int) -> None:
+        """NEXUS-REASONS-DB capture for Node-relay-direct traffic. Never raises."""
+        try:
+            from nexus_os.relay.tracing.capture import record_response, split_provider_model
+            provider, model_id = split_provider_model(str(data.get("model") or ""))
+            record_response(
+                provider=provider,
+                model_id=model_id,
+                request_payload=request_payload,
+                response_payload=data,
+                latency_ms=latency_ms,
+                temperature=request_payload.get("temperature"),
+                tags=["adapter-primary"],
+            )
+        except Exception:
+            if not ModelRelayAdapter._trace_fail_warned:
+                logger.warning("adapter trace capture failed — REASONS-DB not recording", exc_info=True)
+                ModelRelayAdapter._trace_fail_warned = True
 
 
 # ---------------------------------------------------------------------------
