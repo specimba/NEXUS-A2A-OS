@@ -21,6 +21,10 @@ $args = @(
     "--no-default-browser-check",
     "--disable-features=Translate,InterestCohorts",
     "--hide-crash-restore-bubble",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-media-suspend",
     $Url
 )
 

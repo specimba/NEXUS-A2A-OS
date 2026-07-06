@@ -54,7 +54,7 @@ Write-Host "Profile: $profileDir"
 Write-Host "URL:     $url"
 Write-Host ""
 
-& "$Repo\scripts\start_grok_cdp_9224.ps1" -ProfileDir $profileDir -StartUrl $url -Port $Port
+& "$Repo\scripts\start_grok_cdp_9224.ps1" -ProfileDir $profileDir -Port $Port -ForceOpenGrokUrl
 
 Start-Sleep -Seconds 2
 $restore = Join-Path $Repo "tools\browser_ai_supervisor\grok_cdp_restore_window.mjs"

@@ -72,6 +72,35 @@ class Cdp {
     });
   }
   send(method, params = {}) {
+    const denylist = ["Target.createTarget", "Target.closeTarget", "Browser.close"];
+    if (denylist.includes(method)) {
+      console.warn(`[CDP_GUARD] Blocked blacklisted method: ${method}`);
+      return Promise.reject(new Error(`Blocked by CDP denylist guard: ${method}`));
+    }
+    if (method === "Page.navigate") {
+      const url = params.url || "";
+      const allowedHosts = [
+        "grok.com",
+        "chatgpt.com",
+        "zo.computer",
+        "gemini.google.com",
+        "chat.z.ai",
+        "console.gmicloud.ai",
+        "apodex.ai",
+        "meta.ai",
+        "chat.qwen.ai",
+        "agent.minimax.io",
+        "aistudio.xiaomimimo.com",
+        "chat.deepseek.com",
+        "alphaxiv.org"
+      ];
+      const isAllowed = allowedHosts.some(host => url.includes(host));
+      if (!isAllowed) {
+        console.warn(`[CDP_GUARD] Blocked navigation to non-allowlisted URL: ${url}`);
+        return Promise.reject(new Error(`Blocked by CDP navigation guard: ${url}`));
+      }
+    }
+
     const id = this.nextId++;
     const promise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

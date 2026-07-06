@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $profile = Join-Path $env:LOCALAPPDATA 'NEXUS\BrowserAI\ChromeProfile'
 $versionUrl = "http://127.0.0.1:$CdpPort/json/version"
+$runtime = Join-Path $env:LOCALAPPDATA 'NEXUS\BrowserAI\runtime'
 
 function Test-Cdp {
     try {
@@ -28,34 +29,10 @@ function Hide-ChromeWindow {
             Write-Host "Chrome window moved off-screen via CDP (windowId=$($parsed.windowId))."
             return
         }
-        Write-Host "CDP hide returned: $($parsed.error) - trying kill/restart..."
+        Write-Warning "CDP hide returned: $($parsed.error)"
     } catch {
-        Write-Host "CDP hide failed: $_ - trying kill/restart..."
+        Write-Warning "CDP hide failed: $_"
     }
-    Kill-ChromeAndRestart
-}
-
-function Kill-ChromeAndRestart {
-    Write-Host "Killing visible Chrome for profile and restarting hidden..."
-    $mainProc = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object {
-        $_.CommandLine -like "*remote-debugging-port=$CdpPort*" -and $_.CommandLine -notlike "*--type=*"
-    } | Select-Object -First 1
-    if ($mainProc) {
-        Stop-Process -Id $mainProc.ProcessId -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-        Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 3
-    }
-    $null = & (Join-Path $PSScriptRoot 'start_browser_ai_profile.ps1') -Port $CdpPort -ProfileDir $profile
-    $deadline = (Get-Date).AddSeconds(30)
-    while ((Get-Date) -lt $deadline -and -not (Test-Cdp)) {
-        Start-Sleep -Seconds 2
-    }
-    if (-not (Test-Cdp)) {
-        Write-Host "FAILED to restart Chrome after kill."
-        exit 3
-    }
-    Write-Host "Chrome restarted in hidden mode."
 }
 
 if (-not (Test-Cdp)) {
@@ -77,6 +54,7 @@ try {
     & (Join-Path $PSScriptRoot 'run_external_director.ps1') `
         -Source grok `
         -CdpPort $CdpPort `
+        -RuntimeDir $runtime `
         -RequiredUrlPattern $RequiredUrlPattern `
         -RequiresBridge
     $directorExit = $LASTEXITCODE

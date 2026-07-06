@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import { clearComposerShortcut, submitPromptWithEnter } from "./cdp_compose_submit.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port ?? 9224);
@@ -124,43 +125,8 @@ if (!focus.ok) {
 await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: focus.x, y: focus.y, button: "none" });
 await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: focus.x, y: focus.y, button: "left", clickCount: 1 });
 await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: focus.x, y: focus.y, button: "left", clickCount: 1 });
-await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 2 });
-await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 2 });
-await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
-await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
-await cdp.send("Input.insertText", { text: prompt });
+await clearComposerShortcut(cdp);
+const submitted = await submitPromptWithEnter(cdp, prompt);
 
-await new Promise((resolve) => setTimeout(resolve, 1200));
-
-const submitResult = await cdp.send("Runtime.evaluate", {
-  returnByValue: true,
-  awaitPromise: true,
-  expression: `(() => {
-    const isVisible = (el) => {
-      const r = el.getBoundingClientRect();
-      const s = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
-    };
-    const input = [...document.querySelectorAll("textarea, [contenteditable='true']")].filter(isVisible).at(-1);
-    const submit = [...document.querySelectorAll("button, [role='button']")]
-      .filter(isVisible)
-      .find((el) => (el.getAttribute("aria-label") || "").toLowerCase() === "submit");
-    if (!submit) return { ok: false, reason: "NO_SUBMIT", inputTextLen: (input?.innerText || input?.value || "").length };
-    const disabled = submit.disabled || submit.getAttribute("aria-disabled") === "true";
-    const r = submit.getBoundingClientRect();
-    return { ok: true, disabled, inputTextLen: (input?.innerText || input?.value || "").length, x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  })()`,
-});
-
-const submit = submitResult.result.value;
-if (!submit.ok || submit.disabled || submit.inputTextLen < 20) {
-  console.log(JSON.stringify({ status: "STAGED_NOT_SUBMITTED", focus, submit }, null, 2));
-  process.exit(4);
-}
-
-await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: submit.x, y: submit.y, button: "none" });
-await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: submit.x, y: submit.y, button: "left", clickCount: 1 });
-await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: submit.x, y: submit.y, button: "left", clickCount: 1 });
-
-console.log(JSON.stringify({ status: "SUBMITTED", focus, submit }, null, 2));
+console.log(JSON.stringify({ status: "SUBMITTED", focus, submit: submitted }, null, 2));
 cdp.close();

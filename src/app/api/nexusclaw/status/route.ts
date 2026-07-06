@@ -51,6 +51,13 @@ const GROK_PROJECT_CHAT_URL =
   process.env.NEXUS_GROK_PROJECT_CHAT_URL ||
   process.env.NEXUS_GROK_PROJECT_URL ||
   'https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba'
+const ZO_CHAT_URL =
+  process.env.NEXUS_ZO_CHAT_URL ||
+  'https://specimba.zo.computer/?chat=con_EL8I2vKUvldsLVJ6'
+const GLM_Z_AI_CHAT_URL =
+  process.env.NEXUS_GLM_CHAT_URL ||
+  process.env.NEXUS_Z_AI_CHAT_URL ||
+  'https://chat.z.ai/c/1b1cd50b-c78c-403d-9280-0612c76a56b3'
 const GROK_CDP_PORT = Number(process.env.NEXUS_GROK_CDP_PORT || '9224')
 
 const SUPERVISOR_PROFILES: SupervisorProfileStatus[] = [
@@ -66,14 +73,14 @@ const SUPERVISOR_PROFILES: SupervisorProfileStatus[] = [
     sourceId: 'zo-computer-nexus',
     cadenceSeconds: 6 * 60 * 60,
     requiresBridge: false,
-    urlHint: 'https://www.zo.computer/chats/pub_wEKDc2wQF0tGj1o0',
+    urlHint: ZO_CHAT_URL,
     active: true,
   },
   {
     sourceId: 'glm52-dashboard',
     cadenceSeconds: 6 * 60 * 60,
     requiresBridge: false,
-    urlHint: 'https://chat.z.ai/c/47e59a42-06cb-442e-9b35-3e3d8d2b078f',
+    urlHint: GLM_Z_AI_CHAT_URL,
     active: true,
   },
   {

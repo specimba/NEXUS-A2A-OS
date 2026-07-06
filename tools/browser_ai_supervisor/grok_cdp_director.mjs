@@ -1,12 +1,19 @@
 #!/usr/bin/env node
+/**
+ * CDP director for Grok + Zo tabs on lane Chrome :9224.
+ * Composer: Shift+Enter newline, Enter send (cdp_compose_submit.mjs).
+ * Grok: send → wait for response → read probe → optional nudge. Zo: pre-idle → send → long wait.
+ */
 
 import fs from "node:fs";
+import { clearComposerShortcut, submitPromptWithEnter } from "./cdp_compose_submit.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port ?? 9224);
 const required = args.required ?? "grok.com";
 const prompt = args.promptFile ? fs.readFileSync(args.promptFile, "utf8") : args.prompt;
 const send = Boolean(args.send);
+const operatorFocus = Boolean(args.operatorFocus);
 
 function parseArgs(argv) {
   const out = {};
@@ -65,6 +72,35 @@ class Cdp {
   }
 
   send(method, params = {}) {
+    const denylist = ["Target.createTarget", "Target.closeTarget", "Browser.close"];
+    if (denylist.includes(method)) {
+      console.warn(`[CDP_GUARD] Blocked blacklisted method: ${method}`);
+      return Promise.reject(new Error(`Blocked by CDP denylist guard: ${method}`));
+    }
+    if (method === "Page.navigate") {
+      const url = params.url || "";
+      const allowedHosts = [
+        "grok.com",
+        "chatgpt.com",
+        "zo.computer",
+        "gemini.google.com",
+        "chat.z.ai",
+        "console.gmicloud.ai",
+        "apodex.ai",
+        "meta.ai",
+        "chat.qwen.ai",
+        "agent.minimax.io",
+        "aistudio.xiaomimimo.com",
+        "chat.deepseek.com",
+        "alphaxiv.org"
+      ];
+      const isAllowed = allowedHosts.some(host => url.includes(host));
+      if (!isAllowed) {
+        console.warn(`[CDP_GUARD] Blocked navigation to non-allowlisted URL: ${url}`);
+        return Promise.reject(new Error(`Blocked by CDP navigation guard: ${url}`));
+      }
+    }
+
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
     const promise = new Promise((resolve, reject) => {
@@ -146,32 +182,43 @@ function sendPromptExpression(promptText) {
     const input = candidates[candidates.length - 1];
     if (!input) return { ok: false, reason: "NO_VISIBLE_INPUT" };
     input.focus();
-    if (input.isContentEditable) {
-      input.innerText = promptText;
-    } else {
-      input.value = promptText;
-    }
-    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: promptText }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    const buttons = [...document.querySelectorAll("button, [role='button']")].filter(isVisible);
-    const sendButton = buttons.find((el) => (el.getAttribute("aria-label") || "").toLowerCase() === "submit") || buttons.find((el) => {
-      const label = [el.getAttribute("aria-label"), el.getAttribute("title"), el.innerText, el.textContent]
-        .filter(Boolean).join(" ").toLowerCase();
-      return /send|submit/.test(label);
-    });
-    if (!sendButton) return { ok: false, reason: "NO_VISIBLE_SEND_BUTTON", inputTag: input.tagName };
-    const disabled = sendButton.disabled || sendButton.getAttribute("aria-disabled") === "true";
-    if (disabled) return { ok: false, reason: "SEND_BUTTON_DISABLED", inputTag: input.tagName };
-    sendButton.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-    sendButton.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    sendButton.click();
+    const r = input.getBoundingClientRect();
     return {
       ok: true,
       inputTag: input.tagName,
-      sendButtonText: (sendButton.innerText || sendButton.textContent || "").trim().slice(0, 80),
-      sendButtonAria: sendButton.getAttribute("aria-label")
+      x: r.left + Math.min(40, r.width / 2),
+      y: r.top + r.height / 2,
+      len: promptText.length,
     };
   })(${JSON.stringify(promptText)})`;
+}
+
+async function sendViaEnter(cdp, promptText) {
+  const focusResult = await cdp.send("Runtime.evaluate", {
+    expression: sendPromptExpression(promptText),
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  const focus = focusResult.result.value;
+  if (!focus?.ok) return focus;
+
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: focus.x,
+    y: focus.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: focus.x,
+    y: focus.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await clearComposerShortcut(cdp);
+  const submitted = await submitPromptWithEnter(cdp, promptText);
+  return { ...submitted, inputTag: focus.inputTag };
 }
 
 const targets = await getTargets(port);
@@ -188,13 +235,12 @@ if (!target) {
   process.exit(2);
 }
 
-// NOTE: Page.bringToFront deliberately REMOVED — it steals OS focus from the user.
-// Instead we interact via Runtime.evaluate which works without window focus.
-// If you need visual debugging, add --headless=false to chrome and uncomment:
-//   await cdp.send("Page.bringToFront");
 const cdp = new Cdp(target.webSocketDebuggerUrl);
 await cdp.open();
 await cdp.send("Runtime.enable");
+if (operatorFocus) {
+  await cdp.send("Page.bringToFront");
+}
 
 const stateResult = await cdp.send("Runtime.evaluate", {
   expression: visibleStateExpression(),
@@ -210,15 +256,10 @@ const output = {
 };
 
 if (send) {
-  if (!prompt || prompt.trim().length < 20) {
-    throw new Error("--send requires --prompt or --promptFile with a substantial prompt");
+  if (!prompt || !String(prompt).trim()) {
+    throw new Error("--send requires --prompt or --promptFile");
   }
-  const sendResult = await cdp.send("Runtime.evaluate", {
-    expression: sendPromptExpression(prompt),
-    returnByValue: true,
-    awaitPromise: true,
-  });
-  output.send = sendResult.result.value;
+  output.send = await sendViaEnter(cdp, prompt);
 }
 
 console.log(JSON.stringify(output, null, 2));

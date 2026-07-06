@@ -6,9 +6,9 @@ $ErrorActionPreference = 'Stop'
 $groundingTask = 'NexusGroundingSupervisor'
 $browserTask = 'NexusBrowserAISupervisor'
 $python = (Get-Command python.exe).Source
-$powershell = (Get-Command powershell.exe).Source
+$wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
 $groundingScript = Join-Path $RepoRoot 'tools\grounding\run_grounding_supervisor.py'
-$browserScript = Join-Path $RepoRoot 'tools\browser_ai_supervisor\run_browser_ai_supervisor.ps1'
+$browserLauncher = Join-Path $RepoRoot 'tools\browser_ai_supervisor\run_browser_ai_supervisor_hidden.vbs'
 $groundingRoot = Join-Path $env:LOCALAPPDATA 'NEXUS\grounding'
 
 $settings = New-ScheduledTaskSettingsSet `
@@ -32,9 +32,8 @@ Register-ScheduledTask `
     -Force | Out-Null
 
 $browserAction = New-ScheduledTaskAction `
-    -Execute $powershell `
-    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$browserScript`"" `
-    -WorkingDirectory $RepoRoot
+    -Execute $wscript `
+    -Argument "`"$browserLauncher`""
 $browserLogon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $browserRecurring = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 10) `

@@ -134,6 +134,12 @@ unsloth_compiled_cache/
 *.npy
 *.npz
 
+# Browser-AI mutable runtime belongs under %LOCALAPPDATA%\NEXUS\BrowserAI.
+scratch/browser_ai_mcp_runtime/director_doctor_*.json
+scratch/browser_ai_mcp_runtime/director_probe_*.json
+scratch/browser_ai_mcp_runtime/external_director_memory.jsonl
+scratch/browser_ai_mcp_runtime/logs/
+
 # Runtime SQLite databases — live daemon state, never track (full-audit P0;
 # untracked 2026-07-02: .nexus/governance-rest.db, db/custom.db,
 # nexus_governance.db, nexus_os/benchmark/history.db, nexus_os/mcp/nexus_mcp.db)

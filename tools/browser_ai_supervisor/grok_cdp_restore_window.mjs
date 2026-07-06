@@ -5,6 +5,8 @@
  */
 const port = Number(process.argv.find((a, i) => process.argv[i - 1] === "--port") ?? 9224);
 const mode = process.argv.find((a, i) => process.argv[i - 1] === "--mode") ?? "maximized";
+const urlMatch = process.argv.find((a, i) => process.argv[i - 1] === "--match") ?? "grok\\.com";
+const urlRe = new RegExp(urlMatch, "i");
 
 async function browserWsUrl() {
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -14,7 +16,14 @@ async function browserWsUrl() {
 }
 
 async function listTargets() {
-  const res = await fetch(`http://127.0.0.1:${port}/json/list`);
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/json/list`);
+  } catch (e) {
+    const hint =
+      "CDP not listening. Run: .\\scripts\\ensure_cdp_lane_up.ps1 OR .\\scripts\\grok_zo_cdp_lane.ps1 -Action RestartChrome";
+    throw new Error(`CDP_DOWN port=${port} (${e.message}). ${hint}`);
+  }
   if (!res.ok) throw new Error(`CDP list failed: ${res.status}`);
   return res.json();
 }
@@ -56,10 +65,10 @@ class Cdp {
 async function main() {
   const targets = await listTargets();
   const grok = targets.find(
-    (t) => t.type === "page" && t.url && /grok\.com/i.test(t.url) && !t.url.startsWith("chrome-extension")
+    (t) => t.type === "page" && t.url && urlRe.test(t.url) && !t.url.startsWith("chrome-extension")
   );
   if (!grok) {
-    console.log(JSON.stringify({ status: "NO_GROK_TAB", port }, null, 2));
+    console.log(JSON.stringify({ status: "NO_MATCHING_TAB", port, match: urlMatch }, null, 2));
     process.exit(2);
   }
 
@@ -79,7 +88,6 @@ async function main() {
   await pageCdp.open();
   await pageCdp.send("Page.bringToFront");
   pageCdp.close();
-  cdp.close();
 
   console.log(JSON.stringify({
     status: "WINDOW_RESTORED",

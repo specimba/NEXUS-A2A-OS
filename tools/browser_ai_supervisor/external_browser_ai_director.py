@@ -21,7 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from nexus_os.nexusclaw.grok_lane_env import grok_cdp_port, grok_project_url
+from nexus_os.nexusclaw.grok_lane_env import (
+    glm_z_ai_chat_url,
+    grok_cdp_port,
+    grok_project_url,
+    zo_chat_url,
+)
 
 DEFAULT_MEMORY_PATH = Path.home() / ".nexus" / "browser_ai_supervisor_memory.jsonl"
 
@@ -91,13 +96,13 @@ SOURCE_PROFILES: dict[str, SourceProfile] = {
         source_id="zo-computer-nexus",
         cadence_seconds=6 * 60 * 60,
         requires_bridge=False,
-        url_hint="https://www.zo.computer/chats/pub_wEKDc2wQF0tGj1o0",
+        url_hint=zo_chat_url(),
     ),
     "glm52-dashboard": SourceProfile(
         source_id="glm52-dashboard",
         cadence_seconds=6 * 60 * 60,
         requires_bridge=False,
-        url_hint="https://chat.z.ai/c/47e59a42-06cb-442e-9b35-3e3d8d2b078f",
+        url_hint=glm_z_ai_chat_url(),
     ),
     "gpt-browser-mcp": SourceProfile(
         source_id="gpt-browser-mcp",
