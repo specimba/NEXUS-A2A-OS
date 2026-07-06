@@ -625,7 +625,7 @@ class ModelRelay:
             result_msg = {"role": "assistant", "content": content}
             if tool_calls:
                 result_msg["tool_calls"] = tool_calls
-            return {
+            result = {
                 "id": f"relay-{int(time.time())}",
                 "object": "chat.completion",
                 "created": int(time.time()),
@@ -643,6 +643,21 @@ class ModelRelay:
                     **({"hallucination": hallucination_verdict} if hallucination_verdict else {}),
                 },
             }
+            # NEXUS-REASONS-DB: capture trace (opt-in, never raises).
+            try:
+                from nexus_os.relay.tracing.capture import record_response
+                record_response(
+                    provider="ollama",
+                    model_id=ollama_model,
+                    request_payload=ollama_payload,
+                    response_payload=result,
+                    latency_ms=int(latency_ms),
+                    temperature=temperature,
+                    outcome="ok",
+                )
+            except Exception:
+                pass
+            return result
         except Exception as e:
             logger.error(f"Ollama inference failed for {ollama_model}: {e}")
             self._model_stats.setdefault(ollama_model, ModelStats()).record_failure()
