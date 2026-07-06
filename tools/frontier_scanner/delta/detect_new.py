@@ -25,6 +25,7 @@ class DeltaReport:
     baseline_age_seconds: float = 0.0
     snapshot_age_seconds: float = 0.0
     reason: str = ""
+    baseline_established: bool = False
 
     def to_json(self) -> dict:
         return {
@@ -36,6 +37,7 @@ class DeltaReport:
             "baseline_age_seconds": self.baseline_age_seconds,
             "snapshot_age_seconds": self.snapshot_age_seconds,
             "reason": self.reason,
+            "baseline_established": self.baseline_established,
         }
 
 
@@ -87,16 +89,31 @@ def run_delta_pass(
     for name, snapshot_cat in live.items():
         baseline_path = state_dir / f"catalog__{name}.json"
         baseline = load_catalog(baseline_path)
+        snapshot_healthy = snapshot_cat.status in ("ok", "no_list_endpoint")
         if baseline is None or baseline.status not in ("ok", "no_list_endpoint"):
+            # Cold start: every listed id is genuinely new to us. Report
+            # them all (flagged baseline_established so consumers don't
+            # alert-storm) and promote this snapshot to the baseline —
+            # silently reporting "no delta" here is the exact blindness
+            # FI-D exists to remove.
             reports[name] = DeltaReport(
                 provider=name,
                 baseline_path=str(baseline_path),
-                reason=f"no_baseline_or_baseline_unhealthy:{baseline.status if baseline else 'missing'}",
+                new_ids=sorted(set(snapshot_cat.model_ids)),
+                reason=f"baseline_established:{baseline.status if baseline else 'missing'}",
+                baseline_established=True,
             )
+            if snapshot_healthy:
+                _promote_baseline(snapshot_cat, baseline_path)
             continue
         report = diff_catalogs(baseline, snapshot_cat)
         report.baseline_path = str(baseline_path)
         reports[name] = report
+        if snapshot_healthy:
+            # Keep the baseline current — without promotion every later
+            # pass diffs against an ever-staler baseline and re-reports
+            # the same "new" ids forever.
+            _promote_baseline(snapshot_cat, baseline_path)
         if save_snapshot:
             (snapshot_subdir / f"diff__{name}.json").write_text(
                 json.dumps(report.to_json(), indent=2, sort_keys=True),
@@ -104,6 +121,16 @@ def run_delta_pass(
             )
 
     return reports
+
+
+def _promote_baseline(catalog: ProviderCatalog, baseline_path: Path) -> None:
+    from dataclasses import asdict
+
+    baseline_path.parent.mkdir(parents=True, exist_ok=True)
+    baseline_path.write_text(
+        json.dumps(asdict(catalog), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def delta_summary_text(reports: dict[str, DeltaReport]) -> str:

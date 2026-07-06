@@ -97,7 +97,11 @@ def cmd_show(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="NEXUS Frontier Scanner orchestrator.")
-    p.add_argument("--state-dir", default="tools/frontier_scanner/state")
+    p.add_argument(
+        "--state-dir",
+        default=str(Path.home() / ".nexus" / "frontier_scanner"),
+        help="Runtime state dir (snapshots/watchlist). Never inside the repo.",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp_pull = sub.add_parser("pull", help="Pull /v1/models from each provider.")

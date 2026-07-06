@@ -147,3 +147,6 @@ scratch/browser_ai_mcp_runtime/logs/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# frontier scanner runtime state lives in ~/.nexus/frontier_scanner
+tools/frontier_scanner/state/

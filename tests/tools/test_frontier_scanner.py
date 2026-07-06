@@ -180,3 +180,60 @@ def test_provider_profile_required_keys():
         assert "auth_env" in profile, name
         assert "timeout_seconds" in profile, name
         assert "data_path" in profile or profile.get("raw_root_path") == "", name
+
+
+# Cold-start / baseline-promotion tests (FI-D1 S1)
+
+def _fake_pull(ids_by_provider):
+    def pull(selected, state_dir=None):
+        out = {}
+        for name in selected:
+            out[name] = ProviderCatalog(
+                provider=name,
+                fetched_at=time.time(),
+                source_url="stub://",
+                model_ids=list(ids_by_provider.get(name, [])),
+                error=None,
+                status="ok",
+                raw_count=len(ids_by_provider.get(name, [])),
+            )
+        return out
+    return pull
+
+
+def test_cold_start_reports_all_new_and_promotes_baseline(tmp_path: Path, monkeypatch):
+    from tools.frontier_scanner.delta import detect_new
+
+    monkeypatch.setattr(
+        detect_new, "pull_all_catalogs", _fake_pull({"nvidia": ["a/m1", "b/m2"]})
+    )
+    monkeypatch.setattr(detect_new, "PROVIDER_PROFILES", {"nvidia": {}})
+
+    reports = detect_new.run_delta_pass(tmp_path, ["nvidia"], save_snapshot=False)
+    r = reports["nvidia"]
+    assert r.baseline_established is True
+    assert sorted(r.new_ids) == ["a/m1", "b/m2"]
+    # snapshot promoted to baseline — next pass diffs against it
+    assert (tmp_path / "catalog__nvidia.json").exists()
+
+
+def test_second_pass_diffs_against_promoted_baseline(tmp_path: Path, monkeypatch):
+    from tools.frontier_scanner.delta import detect_new
+
+    monkeypatch.setattr(detect_new, "PROVIDER_PROFILES", {"nvidia": {}})
+    monkeypatch.setattr(
+        detect_new, "pull_all_catalogs", _fake_pull({"nvidia": ["a/m1"]})
+    )
+    detect_new.run_delta_pass(tmp_path, ["nvidia"], save_snapshot=False)
+
+    monkeypatch.setattr(
+        detect_new, "pull_all_catalogs", _fake_pull({"nvidia": ["a/m1", "meituan/owl"]})
+    )
+    reports = detect_new.run_delta_pass(tmp_path, ["nvidia"], save_snapshot=False)
+    r = reports["nvidia"]
+    assert r.baseline_established is False
+    assert r.new_ids == ["meituan/owl"]
+
+    # third pass, same listing: baseline was re-promoted, so no repeat delta
+    reports = detect_new.run_delta_pass(tmp_path, ["nvidia"], save_snapshot=False)
+    assert reports["nvidia"].new_ids == []

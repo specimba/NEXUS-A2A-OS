@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,6 +28,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from nexus_os.relay.discovery_rules import new_candidates, resolve_removal
 from nexus_os.security.secrets import get_secret
 
 logger = logging.getLogger("nexus.relay.provider_refresher")
@@ -37,6 +39,7 @@ HEALTH_SIDECAR = Path.home() / ".nexus" / "registry_health.json"
 SUSPEND_AFTER_DAYS = 7
 DEPRECATE_AFTER_DAYS = 30
 PROBE_TIMEOUT_S = 15
+NEWS_EVENTS_PER_CYCLE = 10  # cap provider-news A2A emissions per probe
 
 
 @dataclass
@@ -46,7 +49,28 @@ class ProbeResult:
     listed_models: List[str] = field(default_factory=list)
     missing_from_listing: List[str] = field(default_factory=list)
     chat_confirmed: List[str] = field(default_factory=list)
+    new_candidates: List[str] = field(default_factory=list)
     error: Optional[str] = None
+
+
+def effective_status(state: dict, now: Optional[float] = None) -> str:
+    """Status with suspend/deprecate day-math applied at READ time.
+
+    The sidecar only advances statuses when a probe runs; a model that
+    went missing 40 days ago but was never re-probed would still read
+    'suspended'. Consumers should call this instead of trusting the
+    stored status field.
+    """
+    stored = state.get("status", "active")
+    first = state.get("first_missing")
+    if not first:
+        return stored
+    days_missing = ((now or time.time()) - first) / 86400.0
+    if days_missing >= DEPRECATE_AFTER_DAYS:
+        return "deprecated"
+    if days_missing >= SUSPEND_AFTER_DAYS:
+        return "suspended"
+    return stored
 
 
 def _key_for(prov: dict) -> str:
@@ -122,7 +146,13 @@ class ProviderRefresher:
             if m["provider"] == slug and m["status"] == "active"
         ]
         listed_set = set(listed)
-        missing = [mid for mid in registered if mid not in listed_set]
+        # A renamed model surviving under a registered alias is alive,
+        # not missing — never let a rename trip the suspend clock.
+        missing = [
+            mid for mid in registered
+            if mid not in listed_set
+            and not resolve_removal(mid, self.registry, listed_set)
+        ]
 
         confirmed: List[str] = []
         if chat_probe_absentees and missing and key:
@@ -130,11 +160,18 @@ class ProviderRefresher:
                 if self._chat_probe(base, prov, headers, mid):
                     confirmed.append(mid)
 
+        # FI-D1: the other half of the diff — listed but never registered.
+        candidates = new_candidates(listed, self.registry, slug)
+
         result = ProbeResult(
             provider=slug, reachable=True, listed_models=listed,
             missing_from_listing=missing, chat_confirmed=confirmed,
+            new_candidates=sorted(candidates),
         )
+        first_probe = slug not in self.health.get("providers", {})
         self._record(slug, registered, listed_set, set(confirmed))
+        events = self._record_candidates(slug, candidates, first_probe=first_probe)
+        self._emit_provider_news(events)
         return result
 
     def _chat_probe(self, base: str, prov: dict, headers: dict, model_id: str) -> bool:
@@ -162,7 +199,11 @@ class ProviderRefresher:
 
     def _record(self, slug: str, registered: List[str], listed: set, confirmed: set) -> None:
         now = time.time()
-        self.health.setdefault("providers", {})[slug] = {"last_probe": now, "listed_count": len(listed)}
+        # Update in place — the provider entry also carries `candidates`,
+        # which a wholesale replace would wipe every probe.
+        prov_entry = self.health.setdefault("providers", {}).setdefault(slug, {})
+        prov_entry["last_probe"] = now
+        prov_entry["listed_count"] = len(listed)
         models = self.health.setdefault("models", {})
         for mid in registered:
             key = f"{slug}:{mid}"
@@ -181,6 +222,81 @@ class ProviderRefresher:
             models[key] = state
         self._save_sidecar()
 
+    # ── Discovery (FI-D1): listed-but-unregistered candidates ─────
+
+    def _record_candidates(
+        self, slug: str, candidates: Dict[str, tuple], *, first_probe: bool
+    ) -> List[dict]:
+        """Persist candidate lifecycle in the sidecar; return A2A events.
+
+        Candidate identity is the model id alone (metadata diffs never
+        re-emit). first_seen survives across probes; ids that vanish
+        from the listing are dropped. Each (provider, id) emits at most
+        one provider-news event, marked via `emitted`. The first-ever
+        probe of a provider produces a single baseline-established event
+        instead of a per-model storm.
+        """
+        now = time.time()
+        prov_entry = self.health.setdefault("providers", {}).setdefault(slug, {})
+        stored: Dict[str, dict] = prov_entry.get("candidates", {})
+        events: List[dict] = []
+
+        fresh: Dict[str, dict] = {}
+        for mid, (priority, reason) in candidates.items():
+            prev = stored.get(mid)
+            entry = {
+                "first_seen": prev.get("first_seen", now) if prev else now,
+                "last_seen": now,
+                "priority": priority,
+                "reason": reason,
+                "emitted": bool(prev and prev.get("emitted")),
+                "baseline": bool(prev.get("baseline")) if prev else first_probe,
+            }
+            if not entry["emitted"] and not entry["baseline"]:
+                events.append({
+                    "type": "new-model",
+                    "provider": slug,
+                    "model_id": mid,
+                    "first_seen": entry["first_seen"],
+                    "priority": priority,
+                    "reason": reason,
+                })
+                entry["emitted"] = True
+            fresh[mid] = entry
+
+        if first_probe and candidates:
+            events = [{
+                "type": "baseline-established",
+                "provider": slug,
+                "candidate_count": len(candidates),
+                "high_priority": sorted(
+                    mid for mid, (p, _) in candidates.items() if p == "high"
+                )[:10],
+            }]
+            for entry in fresh.values():
+                entry["emitted"] = True
+
+        prov_entry["candidates"] = fresh
+        self._save_sidecar()
+        return events
+
+    def _emit_provider_news(self, events: List[dict]) -> None:
+        if not events:
+            return
+        channel = os.environ.get("NEXUS_PROVIDER_NEWS_CHANNEL", "provider-news")
+        try:
+            from nexus_os.bridge.a2a_channels import A2AChannelBus
+            bus = A2AChannelBus()
+            for event in events[:NEWS_EVENTS_PER_CYCLE]:
+                bus.publish(
+                    channel_id=channel,
+                    sender="provider_refresher",
+                    message=json.dumps(event, ensure_ascii=False),
+                    topic="provider-news",
+                )
+        except Exception:
+            logger.warning("provider-news A2A emit failed", exc_info=True)
+
     # ── Reporting ──────────────────────────────────────────────────
 
     def diff_report(self, results: List[ProbeResult]) -> Dict[str, Any]:
@@ -196,11 +312,12 @@ class ProviderRefresher:
                 "chat_confirmed_despite_missing": r.chat_confirmed,
             }
             sidecar = {
-                k.split(":", 1)[1]: v["status"]
+                k.split(":", 1)[1]: effective_status(v)
                 for k, v in self.health.get("models", {}).items()
-                if k.startswith(f"{r.provider}:") and v["status"] != "active"
+                if k.startswith(f"{r.provider}:") and effective_status(v) != "active"
             }
             entry["sidecar_flags"] = sidecar
+            entry["new_candidates"] = r.new_candidates
             report["providers"][r.provider] = entry
         return report
 
