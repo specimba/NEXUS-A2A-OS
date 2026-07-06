@@ -24,6 +24,13 @@ def cmd_status(args):
     print(f"  Degraded:  {summary.get('degraded', 0)}")
     print(f"  Failing:   {summary.get('failing', 0)}")
     print(f"  Offline:   {summary.get('offline', 0)}")
+    # FI-D4: discovery candidates are never a silent log entry
+    candidates = _load_model_candidates()
+    if candidates:
+        high = sum(1 for c in candidates if c["priority"] == "high")
+        oldest = max((c["age_days"] or 0) for c in candidates)
+        print(f"Model candidates: {len(candidates)} awaiting review "
+              f"({high} high-priority, oldest {oldest}d) — `nexusctl models candidates`")
 
 
 def cmd_doctor(args):
@@ -715,8 +722,60 @@ def cmd_model_lab(args):
     return 2
 
 
+def _load_model_candidates():
+    """Discovery candidates from ~/.nexus/registry_health.json (FI-D1)."""
+    import time as _time
+    from pathlib import Path as _Path
+
+    sidecar = _Path.home() / ".nexus" / "registry_health.json"
+    try:
+        health = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    rows = []
+    now = _time.time()
+    for slug, prov in (health.get("providers") or {}).items():
+        for mid, cand in (prov.get("candidates") or {}).items():
+            rows.append({
+                "provider": slug,
+                "model_id": mid,
+                "priority": cand.get("priority", "normal"),
+                "reason": cand.get("reason", ""),
+                "first_seen": cand.get("first_seen"),
+                "age_days": round((now - cand["first_seen"]) / 86400.0, 1)
+                if cand.get("first_seen") else None,
+                "baseline": bool(cand.get("baseline")),
+            })
+    rows.sort(key=lambda r: (r["priority"] != "high", r["first_seen"] or 0))
+    return rows
+
+
+def cmd_models_candidates(args):
+    """`nexusctl models candidates` — new models seen live but unregistered."""
+    rows = _load_model_candidates()
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+        return 0
+    if not rows:
+        print("No discovery candidates recorded. Run `nexusctl models verify` "
+              "(provider_refresher) to probe providers.")
+        return 0
+    print(f"{'PROVIDER':<15} {'MODEL':<45} {'PRIORITY':<9} {'AGE':<7} REASON")
+    for r in rows:
+        age = f"{r['age_days']}d" if r["age_days"] is not None else "?"
+        flag = " [baseline]" if r["baseline"] else ""
+        print(f"{r['provider']:<15} {r['model_id']:<45} {r['priority']:<9} "
+              f"{age:<7} {r['reason']}{flag}")
+    high = sum(1 for r in rows if r["priority"] == "high")
+    print(f"-- {len(rows)} candidate(s), {high} high-priority "
+          "(unknown vendor prefix = possible stealth release)")
+    return 0
+
+
 def cmd_models_list(args):
     """`nexusctl models` — list installed CLIs and current reachability."""
+    if getattr(args, "action", None) == "candidates":
+        return cmd_models_candidates(args)
     from nexusctl.model_sync import fetch_live_state, list_cli_inventory
 
     state = fetch_live_state(refresh=getattr(args, "refresh", False))
@@ -1311,7 +1370,10 @@ def main():
         "models",
         help="List installed CLIs (opencode, kilo, cline, hermes, mimo) and current model/provider reachability",
     )
+    sub.add_argument("action", nargs="?", choices=["candidates"], default=None,
+                     help="'candidates': show live-listed models missing from the registry (FI-D1 discovery)")
     sub.add_argument("--refresh", action="store_true", help="Force upstream God Mode Proxy + Node Relay cache refresh before reporting")
+    sub.add_argument("--json", action="store_true", help="JSON output (candidates view)")
     sub.set_defaults(func=cmd_models_list)
 
     # rotate-keys — test + propagate provider keys to all CLIs
