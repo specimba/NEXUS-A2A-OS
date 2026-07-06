@@ -17,10 +17,10 @@ class TestBootSequence:
     def test_initialize_runs_all_phases(self):
         initialize_system()
         status = get_phase_status()
-        assert len(status) == 7
+        assert len(status) == 8
         # All phases should be OK (some may log warnings but not fail)
         ok_count = sum(1 for v in status.values() if v == "ok")
-        assert ok_count >= 5  # At least 5/7 should pass
+        assert ok_count >= 6  # At least 6/8 should pass
 
     def test_is_initialized_after_call(self):
         assert is_initialized() is False
@@ -45,6 +45,7 @@ class TestBootSequence:
             "semantic_backend",
             "escalation_monitor",
             "q_enhancer",
+            "reasoning_engine",
         }
         assert set(status.keys()) == expected_phases
 
