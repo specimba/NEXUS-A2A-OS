@@ -17,12 +17,13 @@ the rest of boot. Failure is logged but never raised.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 _initialized = False
 _phase_status: dict[str, str] = {}
+_reasoning_engine: Optional["FableReasoningEngine"] = None  # NEW
 
 
 def initialize_system() -> None:
@@ -41,6 +42,7 @@ def initialize_system() -> None:
         ("semantic_backend", _init_semantic_backend),
         ("escalation_monitor", _init_escalation_monitor),
         ("q_enhancer", _init_q_enhancer),
+        ("reasoning_engine", _init_reasoning_engine),  # NEW
     ]
 
     for name, fn in phases:
@@ -67,6 +69,11 @@ def is_initialized() -> bool:
 def get_phase_status() -> dict[str, str]:
     """Return the activation status of each boot phase."""
     return dict(_phase_status)
+
+
+def get_reasoning_engine():
+    """Return the initialized FableReasoningEngine, or None."""
+    return _reasoning_engine
 
 
 # ── Phase 1: ConfigSyncEngine ──────────────────────────────────────────────
@@ -210,3 +217,44 @@ def _init_q_enhancer() -> None:
         "QEnhancer active (confidence_weight=0.3, mode=%s, floor=%s)",
         enhancer.mode, enhancer.floor,
     )
+
+
+# ── Phase 8: FableReasoningEngine ──────────────────────────────────────────
+
+
+def _init_reasoning_engine() -> None:
+    """Initialize the FableReasoningEngine and register it as available.
+
+    Creates the reasoning engine singleton, attempts to load the Fable 5 CoT
+    dataset, and makes it accessible via the module's global reference for
+    prompt injection and agent reasoning guidance.
+
+    This phase is non-critical — failure only logs a warning and the system
+    continues without reasoning templates.
+    """
+    global _reasoning_engine
+    try:
+        from nexus_os.reasoning.fable_engine import (
+            FableReasoningEngine,
+            create_default_engine,
+        )
+
+        engine = create_default_engine()
+        engine.initialize()
+
+        # Store as module global for access by agent_pool and orchestrator
+        _reasoning_engine = engine
+
+        stats = engine.status()
+        logger.info(
+            "FableReasoningEngine active: %d patterns across %d categories "
+            "(style=%s, vectorizer=%s)",
+            stats.get("total_patterns", 0),
+            stats.get("categories_with_data", 0),
+            stats.get("template_style", "unknown"),
+            "fitted" if stats.get("vectorizer_fitted") else "not fitted",
+        )
+    except Exception as e:
+        logger.warning(
+            "FableReasoningEngine initialization skipped: %s", e,
+        )

@@ -223,6 +223,26 @@ class NexusClawOrchestrator:
         4. Log to worklog and memory
         5. Return routing decision and task status
         """
+        # Optional reasoning template injection — the prompt travels in
+        # resource_budget["prompt"]; the envelope itself is frozen.
+        try:
+            budget = task.resource_budget if isinstance(task.resource_budget, dict) else {}
+            prompt = budget.get("prompt")
+            if prompt and not budget.get("skip_reasoning"):
+                from nexus_os.boot import get_reasoning_engine
+
+                engine = get_reasoning_engine()
+                if engine is not None:
+                    injected = engine.inject_reasoning(
+                        base_prompt=prompt,
+                        query=prompt,
+                        style="fable",
+                    )
+                    if injected and len(injected) > len(prompt):
+                        budget["prompt"] = injected
+        except Exception:
+            pass
+
         # Step 1: Validate through Coordinator
         try:
             self.coordinator.propose(task)

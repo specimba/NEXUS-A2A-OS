@@ -1108,6 +1108,15 @@ def cmd_track(args):
     return 0
 
 
+# ── Reasoning Engine ───────────────────────────────────────────────────────
+
+
+def cmd_reasoning(args):
+    """FableReasoningEngine CLI — extract, analyze, and generate training data."""
+    from nexus_os.reasoning.fable_engine import run_cli
+    return run_cli(args)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nexusctl",
@@ -1384,6 +1393,34 @@ def main():
     sub.add_argument("--bebop-tau", type=float, default=0.40,
                      help="TV-distance threshold for Bebop (default 0.40)")
     sub.set_defaults(func=cmd_hallucination)
+
+    # reasoning — FableReasoningEngine
+    sub = subparsers.add_parser(
+        "reasoning",
+        help="FableReasoningEngine: extract CoT patterns, analyze trajectories, "
+             "generate prompts, find similar patterns, produce training data",
+    )
+    sub.add_argument("action", choices=[
+        "extract", "analyze", "prompt", "inject", "similar",
+        "clusters", "train", "status",
+    ], help="Reasoning action to perform")
+    sub.add_argument("--limit", type=int, default=100, help="Pattern extraction limit")
+    sub.add_argument("--task-type", default="debug", choices=[
+        "debug", "feature", "refactor", "security", "analysis",
+    ], help="Task type for prompt generation")
+    sub.add_argument("--complexity", default="L2", choices=["L1", "L2", "L3", "L4"],
+                     help="CogER complexity level")
+    sub.add_argument("--query", default="", help="Query text for prompt injection or similarity search")
+    sub.add_argument("--style", default="fable", choices=["fable", "nexus", "hybrid"],
+                     help="Reasoning style for prompt generation")
+    sub.add_argument("--base-prompt", default="", help="Base prompt text for injection")
+    sub.add_argument("--k", type=int, default=5, help="Number of similar patterns to return")
+    sub.add_argument("--n-clusters", type=int, default=10, help="Number of clusters")
+    sub.add_argument("--output", default="", help="Output path for training data")
+    sub.add_argument("--format", default="dpo", choices=["dpo", "cot", "openai"],
+                     help="Training data format")
+    sub.add_argument("--context", default="", help="Trajectory context for analyze action")
+    sub.set_defaults(func=cmd_reasoning)
 
     args = parser.parse_args()
 

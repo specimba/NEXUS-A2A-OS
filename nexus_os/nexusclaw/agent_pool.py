@@ -517,6 +517,24 @@ class AgentPool:
             trust_score=90.0,
         ))
 
+        # FableReasoningEngine agent
+        discovered.append(self._create_internal_agent(
+            agent_id="nexus-reasoning",
+            name="FableReasoningEngine",
+            lane="reasoning",
+            capabilities=[
+                AgentCapability("pattern_extraction", "Extract reasoning patterns from CoT trajectories",
+                                {"reasoning", "research"}, 0.0, "low"),
+                AgentCapability("template_generation", "Generate structured reasoning templates",
+                                {"reasoning", "orchestration"}, 0.0, "low"),
+                AgentCapability("prompt_injection", "Inject reasoning templates into agent prompts",
+                                {"reasoning", "orchestration"}, 20.0, "medium"),
+                AgentCapability("training_data", "Generate DPO/CoT training data from patterns",
+                                {"reasoning", "research", "finetune"}, 30.0, "medium"),
+            ],
+            trust_score=85.0,
+        ))
+
         for agent in discovered:
             self.register(agent)
 
