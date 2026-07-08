@@ -352,6 +352,22 @@ def _write_queue_state(*, last_added_task_id: str | None = None) -> tuple[dict[s
 # ---------------------------------------------------------------------------
 mcp = FastMCP(SERVER_NAME, host=LISTEN_HOST, port=LISTEN_PORT, log_level="ERROR")
 
+# Mount Sentinel Policy Adapter sub-app for UiPath Track 1
+try:
+    import sys
+    import pathlib
+    workspace_root = str(pathlib.Path(__file__).parent.parent.parent.resolve())
+    if workspace_root not in sys.path:
+        sys.path.insert(0, workspace_root)
+    from nexus_uipath_bridge.app import app as sentinel_app
+    from starlette.routing import Mount
+    mcp._custom_starlette_routes.append(Mount("/nexus-sentinel", app=sentinel_app))
+    logging.info("Mounted nexus-sentinel sub-app on FastMCP")
+except Exception as e:
+    logging.error(f"Failed to mount nexus-sentinel sub-app: {e}")
+
+
+
 # ============================
 # 1. CORE TOOLS
 # ============================

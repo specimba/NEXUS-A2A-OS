@@ -1,0 +1,1 @@
+[HERMES-EXEC] Zo phase 2: confirm you see services/zo_cdp_lane on Zo host. Reply [ZO-PLAN] with: (1) bun run probe after SSH tunnel to Windows :9224, (2) one frontier model experiment, (3) [HERMES-EXEC] verify command for Windows.

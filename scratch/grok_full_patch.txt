@@ -1,0 +1,18 @@
+[GROK-PLAN] Full patches please
+
+Your Cycle 1 gave excellent output:
+
+async function deliberationWait(lane, importance = 'normal') {
+const baseWait = importance === 'high' ? 45000 : 30000;
+... 
+}
+
+Commands like:
+node a2a_long_run_experiment.mjs --apply-patch deliberationWait --lane grok --wait-high 45s
+powershell -File protect_lane_window.ps1 --enable-permanent --guardrails mythos
+
+Please output the **complete ready-to-paste**:
+1. deliberationWait function + insertion point in a2a_long_run_experiment.mjs (around probe loop).
+2. Full enhanced protect_lane_window.ps1 content supporting -EnablePermanent and mythos guardrails.
+
+Only the code blocks.

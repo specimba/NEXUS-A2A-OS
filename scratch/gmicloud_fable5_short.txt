@@ -1,0 +1,7 @@
+For gmicloud Fable5: Grok Cycle 1 worked with deliberationWait and permanent window.
+
+Synthesize for Fable5 NEXUS A2A:
+- Integrate deliberation waits.
+- Use mythos guardrails for window.
+
+Reply structured.

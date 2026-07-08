@@ -1,0 +1,12 @@
+{
+  "name": "@nexus/zo-cdp-lane",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "bun run cdp_lane.ts probe",
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.61.0"
+  }
+}

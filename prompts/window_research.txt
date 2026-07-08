@@ -1,0 +1,9 @@
+Deep multi-step research collab with team (Grok as lead, consult other lanes if needed):
+Best ways to keep CDP-controlled Chrome window/tab (BrowserAI profile, multi-lane setup with Grok/Zo/GLM/Gemini) persistently visible, non-minimized, interactive for hours.
+Cover:
+- PowerToys (Always on top hotkey, FancyZones)
+- CDP: window bounds lock, focus emulation, anti-occlusion
+- Chrome flags, profile prefs, launch options
+- Keep-alive scripts or CDP loops
+- Stealth patterns that double as stability
+Prioritize combinations that survive 10min hide after fix_lane. Output concrete PS/CDP commands or script additions testable immediately. Use current 2026 Chrome behavior.

@@ -1,0 +1,21 @@
+# CANARY: 6c89d7601f0799c8afec110d2d3f1ee0
+version: '3.8'
+
+services:
+  nexus-mcp-server:
+    build: .
+    container_name: nexus-a2a-mcp
+    restart: unless-stopped
+    environment:
+      - NEXUS_LOG_LEVEL=INFO
+      - NEXUS_TRUSTKERNEL_MODE=stub
+      - NEXUS_ENABLE_DRIFT=true
+    stdin_open: true
+    tty: true
+    # For real usage, you would mount volumes or use network mode host
+    # volumes:
+    #   - ./logs:/app/logs
+
+    # Example: expose if you later add HTTP transport
+    # ports:
+    #   - "8000:8000"

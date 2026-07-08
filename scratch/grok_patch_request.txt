@@ -1,0 +1,11 @@
+[GROK-PLAN] Provide full patches from your previous response
+
+You previously outputted good deliberationWait code and commands.
+
+Please give the complete, ready-to-apply:
+
+1. Full deliberationWait function + where to insert it in a2a_long_run_experiment.mjs (the main loop).
+
+2. Full updated content for protect_lane_window.ps1 with permanent + mythos support.
+
+Output only the code blocks with file names.

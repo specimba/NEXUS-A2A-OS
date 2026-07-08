@@ -1,0 +1,1 @@
+if (Test-Path "C:\Users\speci.000\Documents\NEXUS\NEXUS_UiPathAgentHack\assets\video\NEXUS-Sentinel-AgentHack-Demo-v2.mp4") { $f = Get-Item "C:\Users\speci.000\Documents\NEXUS\NEXUS_UiPathAgentHack\assets\video\NEXUS-Sentinel-AgentHack-Demo-v2.mp4"; Write-Output ("EXISTS: " + $f.Length + " bytes") } else { Write-Output "NOT FOUND" }

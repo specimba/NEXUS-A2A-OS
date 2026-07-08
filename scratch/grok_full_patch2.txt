@@ -1,0 +1,9 @@
+[GROK-PLAN] Full patches from your Cycle 1 output
+
+Your first response gave the deliberationWait function and protect commands. It worked.
+
+Provide the complete code for:
+1. deliberationWait + calls before probes in a2a_long_run_experiment.mjs
+2. Full protect_lane_window.ps1 with EnablePermanent and mythos.
+
+Only the code.

@@ -1,0 +1,3 @@
+$base="https://nexus-sentinel-policy-adapter.onrender.com"
+try { $a = Invoke-WebRequest -Uri "$base/api/v1/audit/audit-ab4ed2e5185a5282d9d7" -UseBasicParsing; Write-Output ("AUDIT_GET="+[int]$a.StatusCode); Write-Output $a.Content } catch { $sc=$null; if($_.Exception.Response){$sc=[int]$_.Exception.Response.StatusCode}; Write-Output ("AUDIT_GET="+$sc); Write-Output $_.ErrorDetails.Message }
+try { $b = Invoke-WebRequest -Uri "$base/api/v1/audit/audit-DOES-NOT-EXIST-xyz" -UseBasicParsing; Write-Output ("AUDIT_MISS="+[int]$b.StatusCode) } catch { $sc=$null; if($_.Exception.Response){$sc=[int]$_.Exception.Response.StatusCode}; Write-Output ("AUDIT_MISS="+$sc) }

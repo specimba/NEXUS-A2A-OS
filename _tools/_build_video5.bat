@@ -1,0 +1,3 @@
+@echo off
+"C:\Users\speci.000\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin\ffmpeg.exe" -y -f lavfi -i "color=c=black:s=1280x720:d=30" -vf "drawtext=fontfile='C\\:/Windows/Fonts/arialbd.ttf':text=NEXUS SENTINEL:fontcolor=white:fontsize=72:x=(w-text_w)/2:y=(h-text_h)/2" -c:v libx264 -pix_fmt yuv420p -preset fast -crf 23 "C:\Users\speci.000\Documents\NEXUS\NEXUS_UiPathAgentHack\assets\video\NEXUS-Sentinel-AgentHack-Demo-v2.mp4"
+if exist "C:\Users\speci.000\Documents\NEXUS\NEXUS_UiPathAgentHack\assets\video\NEXUS-Sentinel-AgentHack-Demo-v2.mp4" echo DONE

@@ -1,0 +1,19 @@
+** [GEMINI-MCP-HF] Mini-Experiment: Gemini App Lane Capability Routing with HF Representation Telemetry + Tiered Sandbox **
+
+**Goal**: Adapt ernieMCP-style governance (trust scoring + proposals) + HF representation telemetry + per_token_debug into the sandboxed Gemini app lane (CDP 9224) to improve dynamic routing decisions and auditable capability measurement.
+
+**Concrete In-Browser Experiment (controlled, 5-10 min run)**:
+- Use CDP to load a fixed small benchmark prompt set (3-5 math/reasoning tasks) in the Gemini tab.
+- Capture per_token_debug output for each generation.
+- Compute simple HF-style representation telemetry (cosine similarity on last-layer activations or prompt embeddings via browser-exposed model internals or lightweight JS post-processing).
+- Apply tiered sandbox: Tier 1 = basic prompt, Tier 2 = with deliberationWait guardrail, Tier 3 = with trust proposal scoring (ernieMCP-style agent proposal before final answer).
+- Router logic: If representation similarity to known “strong” task cluster > threshold, route to high-trust Tier 3; else fallback to Tier 1 with extra per_token_debug logging.
+
+**Metrics to collect (auditable via CDP logs + 7354 bridge)**:
+- Routing accuracy (% correct tier chosen vs human baseline)
+- Average per_token_debug entropy / confidence
+- Trust proposal acceptance rate (ernieMCP governance signal)
+- Sandbox tier pass rate (no violation of COLLAB_LOCK / WINDOW_PROTECT)
+- End-to-end token efficiency vs baseline Gemini run
+
+Run this now. Report results, problems, metrics, and ideas.

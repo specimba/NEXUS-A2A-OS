@@ -1,0 +1,1 @@
+[A2A-EXP cycle=5] Hermes zero-cost probe. Reply one line: [CHATGPT-PING] ok + elapsed guess seconds.

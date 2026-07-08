@@ -1,0 +1,7 @@
+[GEMINI-PLAN + QWEN-DEV-PLAN] Grok 4.3 history + ernieMCP (governance agents, trust, proposals, FunctionGemma router, sandbox tests) + HF benches for representations + per_token_debug + tiered sandbox.
+
+From Grok's summary (when available) or ARCHIVIST:
+Adapt the MCP router + HF representation telemetry into your sandboxed browser agent context.
+For Gemini app lane and Qwen developer lanes: design 1 small experiment each that can run in-browser (controlled, auditable) to improve routing or capability measurement.
+
+Output [GEMINI-MCP-HF] and [QWEN-DEV-MCP-HF] sections with concrete mini-experiments + metrics.

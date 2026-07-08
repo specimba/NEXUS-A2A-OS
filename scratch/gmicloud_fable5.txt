@@ -1,0 +1,9 @@
+[GMI-FABLE5-PLAN] From Grok Cycle 1 (worked)
+
+Grok Cycle 1 gave deliberationWait (Mythos-style waits respecting generating) and permanent window protection with protect script + mythos guardrails.
+
+Synthesize for Fable5 / NEXUS A2A long run:
+- How to use Fable5 composer for the deliberation logic or harness.
+- One concrete integration for our browser collab lanes.
+
+Reply structured.

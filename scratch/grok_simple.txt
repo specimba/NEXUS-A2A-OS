@@ -1,0 +1,3 @@
+[GROK-PLAN] Short check
+
+Did you receive the deliberation and window protection ideas? Reply with one line: [GROK-OK] tab healthy or [GROK-ISSUE].

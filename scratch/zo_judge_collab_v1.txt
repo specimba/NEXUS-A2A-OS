@@ -1,0 +1,52 @@
+[ZO-JUDGE] Collaborative Plan Evaluation
+
+We have received the following proposals from the Grok and ChatGPT lanes. Please evaluate them against our active safety constraints and output a ranked JSON verdict.
+
+Active Constraints:
+- No new browser tabs (reuse existing canonical tabs).
+- Read-only first (no destructive CDP/browser actions).
+- Respect COLLAB_LOCK and WINDOW_PROTECT.
+- Run fully sandboxed and auditable.
+
+---
+
+INPUT 1: Grok Proposals for Gemini & Qwen App Lanes
+1. **[GEMINI-MCP-HF] Mini-Experiment**:
+   - Capability Routing via HF Representation Telemetry (cosine similarity on activations/embeddings).
+   - Tiered Sandbox: Tier 1 (raw prompt), Tier 2 (deliberationWait), Tier 3 (ernieMCP trust scoring).
+   - Metrics: Routing accuracy, per_token_debug entropy/confidence, trust acceptance rate, token efficiency.
+
+2. **[QWEN-DEV-MCP-HF] Mini-Experiment**:
+   - FunctionGemma-Style Router + HF Representation Telemetry in Qwen.
+   - Capture per_token_debug on tool-use JSON schema tasks.
+   - ernieMCP-style governance: tool proposals gated by trust threshold.
+
+---
+
+INPUT 2: ChatGPT Recommendations
+- P0: Lock browser safety before deeper probes. Implement a CDP denylist guard to reject Target.createTarget, Target.closeTarget, Browser.close, and Page.navigate (unless to allowlisted canonical URLs).
+- P1: Promote probes from liveness to deliberative verification (state, risk, evidence hash, next steps, "do not do" list).
+- P2: Use Zo as isolated judge on 7354.
+- P3: Standardize handoff tags ([GROK-PROPOSE], [CHATGPT-AUDIT], [ZO-JUDGE], [HERMES-EXEC], [ARCHIVIST-CAPTURE]).
+- P4: Capture compact JSONL episodes in ARCHIVIST.
+
+---
+
+YOUR TASK:
+1. Verify both inputs against the constraints.
+2. Formulate the best combined collaborative plan.
+3. Return a JSON block containing the ranked verdicts and the single safest next action for Hermes to execute.
+
+Reply in the following JSON format:
+```json
+{
+  "verdict": {
+    "grok_experiments_safe": true/false,
+    "chatgpt_denylist_safe": true/false,
+    "ranking": ["action_1", "action_2", "..."]
+  },
+  "safest_next_action": "description of the action",
+  "reasoning": "CoT explanation"
+}
+```
+Do not execute any CDP/browser actions yourself.

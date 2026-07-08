@@ -1,0 +1,12 @@
+[GROK-PLAN] Follow-up on Cycle 1
+
+From your previous response on deliberationWait and window protection:
+
+Please extract and provide:
+1. The full ready-to-paste code for a deliberationWait function (or patch snippet for a2a_long_run_experiment.mjs).
+2. The exact changes or new version of protect_lane_window.ps1 with --enable-permanent and mythos guardrails (include CDP bounds + prefs locking logic).
+3. Any other concrete commands or patches you mentioned (e.g. for 7354 checkpoint).
+
+Make it copy-paste ready with file paths. Base it on current NEXUS state (WINDOW_PROTECT.json, COLLAB_LOCK, existing stabilize/restore scripts).
+
+Reply with only the code/patches.

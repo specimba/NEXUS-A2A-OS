@@ -1,0 +1,7 @@
+[GEMINI-PLAN] Synthesize Grok Cycle 1 for NEXUS A2A
+
+Grok gave deliberationWait (Mythos-style waits respecting generating) and permanent window protection commands.
+
+Create one concrete recommendation for integrating this into our multi-lane A2A (grok/chatgpt/zo + others) for better long-horizon NEXUS work.
+
+Reply structured.

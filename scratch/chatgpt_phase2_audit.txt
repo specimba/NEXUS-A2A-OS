@@ -1,0 +1,16 @@
+[CHATGPT-PLAN] Audit of [GROK-PLAN] for NEXUS A2A Long-Run Collab (grounded in Mythos + current state)
+
+Reference the just-sent [GROK-PLAN] on strengthening A2A browser team movements using:
+- Mythos orchestration (subagent cooperation constraints, deliberation time, scaffolds, guardrails, long sessions, observability).
+- NEXUS Foundry orchestrator patterns (roles, read-only first, checkpoints).
+- PAPERS multi-agent (self-evolving, deliberation, MechAgents-style handoffs).
+- Current: canonical tabs, WINDOW_PROTECT, COLLAB_LOCK, observe runner PID 55132, handoff tags, events logging.
+
+Audit focus (risks + recommendations):
+1. Risks in current window automation + how to make protection permanent (service, stronger CDP guard, prefs lock).
+2. Gaps in probe intelligence vs Mythos deliberation recommendation.
+3. How to safely launch bBoN/judge on Zo (7354 only) for parallel verification of NEXUS plans.
+4. Best way to extract fable-like reasoning traces (evidence citation, structured phases, iterative verify) as training data for ARCHIVIST.
+5. Concrete next 2-3 commands or patches for the remaining run.
+
+Reply with risks + prioritized recommendations. Use structured sections like the Mythos summary. One clear handoff suggestion for Zo.

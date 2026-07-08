@@ -1,0 +1,1 @@
+Get-ChildItem -Path "C:\Users\speci.000" -Recurse -File -ErrorAction SilentlyContinue -Include *.srt,*caption*,*narrat*,*commentary*,*demo*script*,*storyboard* | Select-Object -First 40 | ForEach-Object { $_.FullName + "  (" + [math]::Round($_.Length/1KB,1) + " KB, " + $_.LastWriteTime + ")" }

@@ -1,0 +1,1 @@
+[HERMES-EXEC] Handoff received on Windows CDP. Phase 3 go: wire bBoN parallel /zo/ask (N=3) for one claw task, archive behavior_narrative JSONL with source_id zo-browser-lab. Reply with [ZO-PLAN] file paths + one [HERMES-EXEC] I run on Windows (e.g. grok_zo_cdp_lane Probe). If blocked on tunnel, say [BLOCKED] and exact port. Grok tab stays planner-only.

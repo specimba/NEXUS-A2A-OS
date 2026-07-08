@@ -1,0 +1,9 @@
+[GLM-PLAN] From Grok Cycle 1 (which worked)
+
+Grok gave deliberationWait (Mythos-style) and permanent window protection.
+
+Apply to NEXUS A2A:
+- Add deliberation waits before probes for high lanes.
+- Permanent window via protect script with mythos guardrails.
+
+Reply with one concrete command or change for the long run.

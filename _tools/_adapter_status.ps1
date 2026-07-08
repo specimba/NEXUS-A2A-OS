@@ -1,0 +1,1 @@
+try { (Invoke-RestMethod "https://nexus-sentinel-policy-adapter.onrender.com/health" -TimeoutSec 5) | ConvertTo-Json -Depth 4 } catch { "ERR: " + $_.Exception.Message }

@@ -1,0 +1,96 @@
+diff --git a/nexus_os/grounding/reliable_store.py b/nexus_os/grounding/reliable_store.py
+--- a/nexus_os/grounding/reliable_store.py
++++ b/nexus_os/grounding/reliable_store.py
+@@ -171,9 +171,12 @@ class ReliableGroundingStore:
+-    def rebuild_index(self) -> dict[str, int]:
++    def rebuild_index(self, *, reset: bool = False) -> dict[str, int]:
+         """Replay valid ledger records and report malformed/checksum-failed lines."""
+         corrupt = 0
+         recovered = 0
++        if reset:
++            with self._connect() as connection:
++                connection.execute("DELETE FROM file_state")
++                connection.execute("DELETE FROM events")
+         if not self.ledger_path.exists():
+             self._corrupt_lines = 0
+             return {"recovered": 0, "corrupt_lines": 0}
+diff --git a/nexusctl/cli.py b/nexusctl/cli.py
+--- a/nexusctl/cli.py
++++ b/nexusctl/cli.py
+@@ -241,12 +241,25 @@ def run_doctor_hygiene(report_only: bool) -> int:
+ 
+ 
+ def run_grounding(args: argparse.Namespace) -> int:
+-    from nexus_os.grounding import GroundingService, GroundingStore, default_source_roots
++    from nexus_os.grounding import GroundingService, GroundingStore, default_source_roots
++    from nexus_os.grounding.reliable_store import default_grounding_dir
+     from nexus_os.grounding.native_watcher import watch_grounding
+ 
+-    store = GroundingStore()
+-    if args.grounding_command == "status":
+-        _json_print({"status": "ok", "command": "grounding status", **store.status()})
+-        return 0
+     if args.grounding_command == "doctor":
+         roots = default_source_roots()
++        store_root = default_grounding_dir()
+         root_status = {
+             source_id: {"path": str(path), "exists": path.exists()}
+             for source_id, path in roots.items()
+         }
+         _json_print({
+             "status": "ok" if all(item["exists"] for item in root_status.values()) else "degraded",
+             "command": "grounding doctor",
+             "roots": root_status,
+-            "store": store.status(),
++            "store": {
++                "root": str(store_root),
++                "root_exists": store_root.exists(),
++                "ledger": str(store_root / "events.jsonl"),
++                "ledger_exists": (store_root / "events.jsonl").exists(),
++                "index": str(store_root / "grounding_index.sqlite3"),
++                "index_exists": (store_root / "grounding_index.sqlite3").exists(),
++                "inspection_mode": "read_only",
++            },
+             "canonical_mutation_allowed": False,
+         })
+         return 0
++    store = GroundingStore()
++    if args.grounding_command == "status":
++        _json_print({"status": "ok", "command": "grounding status", **store.status()})
++        return 0
++    if args.grounding_command == "recover-index":
++        service = GroundingService(store=store)
++        service.check_kaiju_authorization("execute")
++        service.check_kaiju_authorization("write")
++        result = store.rebuild_index(reset=True)
++        _json_print({
++            "status": "ok",
++            "command": "grounding recover-index",
++            **result,
++            "store": store.status(),
++        })
++        return 0
+@@ -1093,6 +1106,7 @@ def build_parser() -> argparse.ArgumentParser:
+     grounding_sub.required = True
+     grounding_doctor = grounding_sub.add_parser("doctor", help="Validate roots and durable grounding store")
+     grounding_doctor.add_argument("--json", action="store_true", help="Emit JSON (default output)")
++    grounding_sub.add_parser("recover-index", help="Rebuild the SQLite index from the JSONL ledger")
+     grounding_sub.add_parser("status", help="Show grounding ledger and index status")
+diff --git a/tests/grounding/test_grounding_cli.py b/tests/grounding/test_grounding_cli.py
+--- a/tests/grounding/test_grounding_cli.py
++++ b/tests/grounding/test_grounding_cli.py
+@@ -5,6 +5,7 @@ from nexusctl.cli import main
+ 
+ 
+ def test_grounding_doctor_uses_configured_runtime_root(
+     tmp_path: Path, monkeypatch, capsys
+ ):
++    before = list(tmp_path.iterdir())
+     monkeypatch.setenv("NEXUS_GROUNDING_ROOT", str(tmp_path))
+     monkeypatch.setattr("sys.argv", ["nexusctl", "grounding", "doctor", "--json"])
+@@ -15,6 +16,8 @@ def test_grounding_doctor_uses_configured_runtime_root(
+     assert result == 0
+     assert payload["store"]["root"] == str(tmp_path)
++    assert payload["store"]["inspection_mode"] == "read_only"
+     assert payload["canonical_mutation_allowed"] is False
++    assert list(tmp_path.iterdir()) == before

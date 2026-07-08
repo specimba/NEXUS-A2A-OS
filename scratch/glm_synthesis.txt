@@ -1,0 +1,10 @@
+[GLM-PLAN] Synthesize from Grok Cycle 1 for NEXUS
+
+Grok outputted deliberationWait (Mythos-style waits for generating state) and permanent window protection using protect_lane_window.ps1 with guardrails.
+
+Apply this to our A2A system:
+- How to integrate deliberationWait into lane probes.
+- Permanent window fix without auto-shrink.
+- Suggest one concrete next step for bBoN or harness.
+
+Reply with structured recommendations.

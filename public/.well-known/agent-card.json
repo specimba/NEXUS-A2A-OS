@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "name": "nexus-archivist-lead",
+  "display_name": "NEXUS OS Lead Archivist",
+  "description": "Governed Lead Archivist for NEXUS OS archive indexing, log search, and data dump generation.",
+  "endpoints": {
+    "a2a": "/api/archivist/a2a"
+  },
+  "capabilities": [
+    "index_logs",
+    "search_logs",
+    "generate_dumps",
+    "verify_integrity"
+  ],
+  "authentication": {
+    "type": "key-based"
+  }
+}

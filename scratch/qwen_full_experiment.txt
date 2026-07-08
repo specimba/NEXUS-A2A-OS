@@ -1,0 +1,19 @@
+** [QWEN-DEV-MCP-HF] Mini-Experiment: Qwen Developer Lane FunctionGemma-Style Router + HF Representation Telemetry **
+
+**Goal**: Port ernieMCP FunctionGemma router concepts + HF representation benches + per_token_debug into the Qwen dev lane for improved tool/function routing and sandboxed capability measurement.
+
+**Concrete In-Browser Experiment (controlled, 5-10 min run)**:
+- In the Qwen developer tab, run a small set of function-calling / tool-use prompts (JSON schema tasks).
+- Capture per_token_debug on every token.
+- Use HF representation telemetry (embedding similarity between current prompt state and known tool clusters) to score routing confidence.
+- Implement lightweight ernieMCP-style governance: before executing a tool call, generate a “proposal” token sequence and apply trust scoring; only proceed if trust > threshold or Tier 2 sandbox (deliberationWait + window guard) is active.
+- Tiered sandbox: Tier 1 = raw Qwen, Tier 2 = with MCP-style proposal gate, Tier 3 = full HF telemetry + per_token_debug audit trail.
+
+**Metrics to collect (via CDP + 7354)**:
+- Router decision accuracy (correct tool chosen %)
+- Proposal acceptance / rejection rate (ernieMCP governance signal)
+- Per-token debug correlation with final output quality
+- Sandbox tier compliance rate
+- Token overhead vs baseline Qwen dev run
+
+Start the experiment immediately in this tab. Report step-by-step, problems, metrics, and ideas for combination with Gemini/Grok lanes.

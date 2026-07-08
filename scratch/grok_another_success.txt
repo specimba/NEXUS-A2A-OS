@@ -1,0 +1,11 @@
+[GROK-PLAN] Follow-up success check
+
+Your Cycle 1 response worked (deliberationWait code + protect commands visible in tail).
+
+Now provide the **full patch code** for:
+1. deliberationWait function to insert into a2a_long_run_experiment.mjs (around the probe loop).
+2. Updated protect_lane_window.ps1 supporting -EnablePermanent and Mythos guardrails (I ran an enhanced version).
+
+Make it copy-paste ready with exact insert points.
+
+This is another successful one - output the code.

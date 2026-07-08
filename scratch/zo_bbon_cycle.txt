@@ -1,0 +1,10 @@
+[ZO-PLAN] From Grok Cycle 1 + main plan: Launch bBoN for NEXUS A2A verification
+
+Grok just outputted deliberationWait and Mythos-style window protection ideas.
+
+Task: 
+1. Confirm bBoN scaffold status (nesting/bbon/index.ts).
+2. Provide command to fire parallel branches on the current A2A plan improvements (deliberation + window guardrails).
+3. Use 7354 only. Include a simple Windows verify or checkpoint.
+
+Reply with [ZO-PLAN] status + exact launch command.

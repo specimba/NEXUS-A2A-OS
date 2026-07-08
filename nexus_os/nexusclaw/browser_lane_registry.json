@@ -1,0 +1,172 @@
+{
+  "version": 2,
+  "cdp_port": 9224,
+  "lanes": [
+    {
+      "id": "grok",
+      "agent_id": "grok",
+      "priority": 1,
+      "required_probe": "grok.com",
+      "host": "grok.com",
+      "canonical_url": "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba",
+      "conversation_key": "4d8d8598-9da7-4639-918e-4ceb6a8812ba",
+      "no_duplicate_tab": true
+    },
+    {
+      "id": "zo",
+      "agent_id": "zo",
+      "priority": 1,
+      "required_probe": "zo.computer",
+      "host": "zo.computer",
+      "canonical_url": "https://specimba.zo.computer/?chat=con_EL8I2vKUvldsLVJ6",
+      "conversation_key": "con_EL8I2vKUvldsLVJ6"
+    },
+    {
+      "id": "chatgpt_gpt55",
+      "agent_id": "chatgpt",
+      "priority": 1,
+      "required_probe": "chatgpt.com",
+      "host": "chatgpt.com",
+      "canonical_url": "https://chatgpt.com/c/6a4600ec-0db0-83eb-932c-9d3496adbba0",
+      "conversation_key": "6a4600ec-0db0-83eb-932c-9d3496adbba0"
+    },
+    {
+      "id": "meta_muse_spark",
+      "agent_id": "meta_muse_spark",
+      "priority": 2,
+      "required_probe": "meta.ai",
+      "host": "meta.ai",
+      "canonical_url": "https://www.meta.ai/prompt/9cb00ce8-c096-4d05-bd4e-99cfda35dd4c",
+      "conversation_key": "9cb00ce8-c096-4d05-bd4e-99cfda35dd4c"
+    },
+    {
+      "id": "mimo_chat",
+      "agent_id": "mimo_v25",
+      "priority": 2,
+      "required_probe": "xiaomimimo.com",
+      "host": "aistudio.xiaomimimo.com",
+      "canonical_url": "https://aistudio.xiaomimimo.com/#/chat/b58b518454041d19c62262d33af185b1",
+      "conversation_key": "b58b518454041d19c62262d33af185b1"
+    },
+    {
+      "id": "mimo_claw",
+      "agent_id": "mimo_claw",
+      "priority": 2,
+      "required_probe": "xiaomimimo.com",
+      "host": "aistudio.xiaomimimo.com",
+      "canonical_url": "https://aistudio.xiaomimimo.com/#/",
+      "conversation_key": "mimo-claw-session",
+      "notes": "Left menu MiMo Claw; 4h trial sandbox. No deep link — navigate home then UI.",
+      "bootstrap": "mimo_claw_menu"
+    },
+    {
+      "id": "qwen_webdev",
+      "agent_id": "qwen_37",
+      "priority": 2,
+      "required_probe": "chat.qwen.ai",
+      "host": "chat.qwen.ai",
+      "canonical_url": "https://chat.qwen.ai/c/a321e504-d549-4ebd-b4db-e6313a73c774",
+      "conversation_key": "a321e504-d549-4ebd-b4db-e6313a73c774",
+      "task_class_default": "coding"
+    },
+    {
+      "id": "qwen_deep_research",
+      "agent_id": "qwen_deep",
+      "priority": 2,
+      "required_probe": "chat.qwen.ai",
+      "host": "chat.qwen.ai",
+      "canonical_url": "https://chat.qwen.ai/c/4d6ea806-a03e-4732-9077-2711d522867e",
+      "conversation_key": "4d6ea806-a03e-4732-9077-2711d522867e",
+      "task_class_default": "deep_search"
+    },
+    {
+      "id": "glm_5_2",
+      "agent_id": "glm_5_2",
+      "priority": 1,
+      "required_probe": "chat.z.ai",
+      "host": "chat.z.ai",
+      "canonical_url": "https://chat.z.ai/c/1b1cd50b-c78c-403d-9280-0612c76a56b3",
+      "conversation_key": "1b1cd50b-c78c-403d-9280-0612c76a56b3",
+      "send_policy": "Never accept model downgrade dialog; click Cancel; retry send every 5-10s until free slot.",
+      "task_class_default": "coding",
+      "notes": "Active big GLM-5.2 project - keep this tab; do not swap to other z.ai chat IDs."
+    },
+    {
+      "id": "deepseek_expert",
+      "agent_id": "deepseek",
+      "priority": 2,
+      "required_probe": "chat.deepseek.com",
+      "host": "chat.deepseek.com",
+      "canonical_url": "https://chat.deepseek.com/a/chat/s/07b0a633-9279-40c0-9015-86e088bb7d9e",
+      "conversation_key": "07b0a633-9279-40c0-9015-86e088bb7d9e",
+      "task_class_default": "deep_search"
+    },
+    {
+      "id": "gemini_app",
+      "agent_id": "gemini_35",
+      "priority": 1,
+      "required_probe": "gemini.google.com",
+      "host": "gemini.google.com",
+      "canonical_url": "https://gemini.google.com/app/6fba62a56f165a08",
+      "conversation_key": "6fba62a56f165a08",
+      "notes": "Primary Gemini app session (active project). Not NotebookLM."
+    },
+    {
+      "id": "mistral_work",
+      "agent_id": "mistral",
+      "priority": 2,
+      "required_probe": "chat.mistral.ai",
+      "host": "chat.mistral.ai",
+      "canonical_url": "https://chat.mistral.ai/work/projects/b331cba1-676f-4d01-a94b-8269e74765d9",
+      "conversation_key": "b331cba1-676f-4d01-a94b-8269e74765d9"
+    },
+    {
+      "id": "minimax_agent",
+      "agent_id": "minimax_m3",
+      "priority": 2,
+      "required_probe": "agent.minimax.io",
+      "host": "agent.minimax.io",
+      "canonical_url": "https://agent.minimax.io/chat?id=415446519001356",
+      "conversation_key": "415446519001356"
+    },
+    {
+      "id": "alphaxiv_assistant",
+      "agent_id": "alphaxiv_browser",
+      "priority": 2,
+      "required_probe": "alphaxiv.org",
+      "host": "www.alphaxiv.org",
+      "canonical_url": "https://www.alphaxiv.org/assistant/019f2244-f80d-7b6b-893b-c9efd902778e",
+      "conversation_key": "019f2244-f80d-7b6b-893b-c9efd902778e",
+      "task_class_default": "paper_review"
+    },
+    {
+      "id": "gmicloud_playground",
+      "agent_id": "gmicloud_llm",
+      "priority": 3,
+      "required_probe": "console.gmicloud.ai",
+      "host": "console.gmicloud.ai",
+      "canonical_url": "https://console.gmicloud.ai/user-console/ie/playground/llm/1f12423b-ac10-4690-a670-36f768d7b9bf",
+      "conversation_key": "1f12423b-ac10-4690-a670-36f768d7b9bf"
+    },
+    {
+      "id": "gmicloud_hub",
+      "agent_id": "gmicloud_hub",
+      "priority": 3,
+      "required_probe": "console.gmicloud.ai",
+      "host": "console.gmicloud.ai",
+      "canonical_url": "https://console.gmicloud.ai/user-console/ie/model-hub",
+      "conversation_key": "model-hub",
+      "notes": "Model catalog incl. Fable5; use after playground lane."
+    },
+    {
+      "id": "apodex_discover",
+      "agent_id": "apodex_deep",
+      "priority": 1,
+      "required_probe": "apodex.ai",
+      "host": "www.apodex.ai",
+      "canonical_url": "https://www.apodex.ai/",
+      "conversation_key": "apodex-home",
+      "task_class_default": "deep_search"
+    }
+  ]
+}

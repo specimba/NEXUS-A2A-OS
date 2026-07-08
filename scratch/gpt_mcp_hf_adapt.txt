@@ -1,0 +1,10 @@
+[GPT-PLAN] From Grok 4.3 history + ARCHIVIST MCP/HF artifacts (ernieMCP governance with trust_scores/proposals/voting/FunctionGemma router, HF representation benchmarks, per_token_debug, sandbox routing tests, hallucination control).
+
+Take the strongest patterns:
+- MCP-style: agent trust, proposal/vote/execute loop, intent router (FunctionGemma-like) for governance vs execution.
+- HF: representation benchmarks, telemetry for order parameters (entropy, attention, etc.).
+- Sandbox: browser agent with controlled execution, audit, low-confidence reject.
+
+Propose + sketch a minimal testable adaptation you can run in your sandboxed browser context (as GPT developer lane) to increase routing/safety/telemetry abilities. Make it concrete, small, and handoff-ready for Gemini/Qwen.
+
+Output as [GPT-MCP-HF-ADAPT] with 1-2 experiments + what success looks like.

@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@uipath/cli": "^1.196.0"
+  },
+  "_npx": {
+    "packages": [
+      "@uipath/cli"
+    ]
+  }
+}

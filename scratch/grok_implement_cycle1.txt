@@ -1,0 +1,15 @@
+[GROK-PLAN] Cycle 1 Implementation from LONG_RUN_COLLAB_PLAN_20260703
+
+Based on the plan grounded in Mythos orchestration (deliberation, guardrails, scaffolds), NEXUS Foundry (roles, checkpoints), and PAPERS multi-agent (self-evolving handoffs, deliberation):
+
+Focus: Make window protection permanent + improve A2A harness for deliberation waits.
+
+1. Propose a small patch or new script for "permanent" window protection that survives 10min cycles (e.g., enhance protect_lane_window.ps1 with prefs lock + CDP bounds guard during collabLock, using concepts from stabilize/restore scripts but with stronger Mythos-style guardrails).
+
+2. Suggest 1-2 changes to a2a_long_run_experiment.mjs or align scripts to add "deliberation wait" logic (respect generating state more explicitly, longer waits for important lanes).
+
+3. Output as ready-to-apply patch descriptions or code snippets, citing exact files.
+
+Keep it actionable for Hermes to apply. Use evidence from current state (WINDOW_PROTECT.json, COLLAB_LOCK, canonical tabs).
+
+Reply with the implementation items only.

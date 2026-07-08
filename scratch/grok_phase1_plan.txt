@@ -1,0 +1,23 @@
+[GROK-PLAN] NEXUS Long-Run A2A Collaborative Team Movements — Phase 1
+
+Grounding (from current session + ARCHIVIST/PAPERS):
+- Tabs now perfectly aligned to canonical URLs (gemini_app /app/6fba62a56f165a08, glm_5_2 big z.ai project, gmicloud, ChatGPT, Grok, Zo etc.).
+- WINDOW_PROTECT active + interactive 1280x900 state.
+- COLLAB_LOCK on, observe-only runner (PID 55132) collecting events every 15min.
+- Best approaches extracted: Mythos orchestration guidelines (subagent patterns with cooperation constraints, deliberation time, scaffolds/harnesses, guardrails, long autonomous sessions, observability); NEXUS Foundry orchestrator (roles: router/planner, researcher, implementer; read-only first, checkpoints); PAPERS on multi-agent (self-evolving frameworks, deliberation over lazy, structured handoffs like MechAgents).
+
+Mission for this 2-3h real collab run:
+Strengthen our A2A browser-lane team movements for NEXUS improvement using the synthesized best practices.
+
+Produce:
+1. Concrete phased plan for the remaining run (handoff protocol refinements).
+2. Specific recommendations for:
+   - Making window protection permanent (e.g. background service or stronger prefs + CDP guard).
+   - Adaptive probe intelligence (use generating state + deliberation waits from Mythos).
+   - Launching bBoN/judge on Zo (via 7354 only) for parallel verification.
+   - Extracting fable-like reasoning traces (evidence citation, structured sections, iterative verify) as training data.
+3. 3-5 actionable next script changes or commands, citing exact files (e.g. stabilize_lane_chrome.ps1, a2a_long_run_experiment.mjs, restore scripts).
+
+Rules: Evidence-based only. Use [GROK-PLAN] style. Keep actionable for Hermes to execute via sends. Focus on real progression for NEXUS A2A system + training data.
+
+Reply with the plan excerpt only, structured like the Mythos summary sections.

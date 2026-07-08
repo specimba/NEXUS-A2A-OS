@@ -1,0 +1,16 @@
+{
+  "request_id": "req-sentinel-002",
+  "case_id": "CASE-2026-9821",
+  "stage": "Human Decision",
+  "requested_model": "stepfun-ai/step-3.7-flash:free",
+  "observed_model": "stepfun-ai/step-3.7-flash:free",
+  "privileged_remediation": true,
+  "human_approval": true,
+  "evidence": {
+    "change_ticket": "CHG-MAESTRO-902",
+    "model_manifest_hash": "sha256:0d65b791fac83b271a2e7c3b87a8f12a2e8c239d5b780ac9018bc98ef732a392",
+    "rollback_plan": "rollback-step-3.7-to-3.5-v1",
+    "test_report_hash": "sha256:880bc1a8f9024f2b904df2b10ab78f3de74bc1a8c90bfa51a2e9b89fa7a5d3f2"
+  },
+  "evidence_notes": "AI Release Manager approved after verifying rollback plan."
+}

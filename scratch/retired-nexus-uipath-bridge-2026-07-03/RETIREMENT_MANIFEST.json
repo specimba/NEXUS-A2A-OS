@@ -1,0 +1,72 @@
+[
+  {
+    "path": "__init__.py",
+    "sha256": "b04fe656fe4ba567a75d2a8fabd9258011885d325d769be37fee8f85248c0dc0",
+    "bytes": 95
+  },
+  {
+    "path": "app.py",
+    "sha256": "96e1edb0c95b29269bdd9242f85ac1e1bca510689640a9af6355f0428bef2108",
+    "bytes": 10520
+  },
+  {
+    "path": "DEMO_SCRIPT.md",
+    "sha256": "909fb94703383d055a93bd9d86b456b085c654824475300659cb6f81f24debb4",
+    "bytes": 5188
+  },
+  {
+    "path": "Dockerfile",
+    "sha256": "cec724c21ce8f53884284f19322fe27c47fc1fd6d752e9d8f201e9b882b62fb8",
+    "bytes": 357
+  },
+  {
+    "path": "LICENSE",
+    "sha256": "ba1def52f8ba623e18869e1079d964bb48eed5cfcb8d1c2fe2e85a6f83819cfc",
+    "bytes": 1065
+  },
+  {
+    "path": "PRESENTATION_OUTLINE.md",
+    "sha256": "2ede07fdcb750e8cd82d650091799598b59841fd3b713bb629464971340c4be8",
+    "bytes": 3410
+  },
+  {
+    "path": "README.md",
+    "sha256": "0a4449c92e5bccfd130f3b7b4f4b4838a57a514f57bb56ce8c94dcd2aa5971ac",
+    "bytes": 3869
+  },
+  {
+    "path": "requirements.txt",
+    "sha256": "5766040a8ee01b4e845d93740795661285ef9acf0cf02a3db5e1ec802d10a354",
+    "bytes": 63
+  },
+  {
+    "path": "SUBMISSION.md",
+    "sha256": "24ffc396ef065ad5318d5a91b147eec6a5977a199de0c0f80ccc20631a14e4f0",
+    "bytes": 4714
+  },
+  {
+    "path": "UIPATH_BUILD_GUIDE.md",
+    "sha256": "9394f52ab77ebe29bb2c494caf38177b31e830720fa7044215a66f9b038f9417",
+    "bytes": 4320
+  },
+  {
+    "path": "samples/01-safety-hold.json",
+    "sha256": "968fa37e567385120d979da74320e331d2dbc203a9ee03c9be09e894a540a3eb",
+    "bytes": 448
+  },
+  {
+    "path": "samples/02-approved-remediation.json",
+    "sha256": "312f71d5f89b2b867a2a92d2b35ea8400700212895846a56a0ccb345d9b110fa",
+    "bytes": 663
+  },
+  {
+    "path": "samples/03-verification-failed.json",
+    "sha256": "5a6c8fd382c3f5c8413d1aad58e9d8c2b17b9a44134609af36604af20f0819a1",
+    "bytes": 257
+  },
+  {
+    "path": "samples/04-verification-passed.json",
+    "sha256": "979a1e6d568aea0cc84e762245baa0b1ceed55f462b6957598568c64824e136b",
+    "bytes": 256
+  }
+]
