@@ -4,6 +4,23 @@ Date: 2026-06-26
 Current local HEAD: codex/specimba/1805mainSpeci (5e7046bf)
 Status: Phases A-D + Phases 1-8 COMPLETE. Sprints 0-4 Complete. **4095 passed / 61 skipped** (full local suite 2026-07-06; archivist, governor, nexusclaw, security, research, bridge, tracing, reasoning, bench, unit — 4 known training/* env-debt failures: 2 local-model ERRORs + guard-plane meta-filter/refusal-mancer). Baseten GLM 5.2 + Kimi K2.7 Code integrated. Trinity×Fugu, T3 Guard, Knowledge Flow, CVA verifier all tested and passing.
 
+## 2026-07-08 CURRENT PLANS & WRAP-UP POINTER (read these first)
+
+- **Master plan:** `docs/plans/NEXUS_UPGRADED_PLAN_2026-07-08.md` — blocker queue,
+  trace/training solidification status, provider discipline (registry v3 encoded),
+  Intern-S2 lane, curation-to-sub-12B program, sequencing (operator priority 1-3-2).
+- **Local SLM stack:** `docs/plans/NEXUS_LOCAL_SLM_STACK_PLAN_2026-07-08.md` —
+  antiGRAV-designed 3.5B cascade + bouncer governance + training methodology, ported
+  with 13 reality corrections. OPERATOR-APPROVAL-PENDING; hard-gated on Ollama
+  reinstall (M1).
+- 07-07/08 lane activity wrap-up: antiGRAV liveness wiring adopted + refresh
+  heartbeat fixed (`a955afc7`); orphaned root restructure reconciled — load-bearing
+  files restored, 80 debris files intentionally removed, legacy/ quarantined
+  (`71197e4d`); the three 07-02 A2A simulation-era sessions formally reclassified
+  SIMULATION_SUSPECTED by the evidence gate; new NIM failure modes
+  (function-DEGRADED lockout, thinking.type requirement) encoded as registry v3
+  providerQuirks; OpenRouter :free observed paywalled — standby only.
+
 ## 2026-06-26 Dashboard, Browser-AI Supervisor, and GLM-5.2 Log-24 Grounding
 
 Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackendGLM52log-24.txt`, last-24h NEXUSlogs scan, ARCHIVIST `papers11` additions, and current worktree state.
