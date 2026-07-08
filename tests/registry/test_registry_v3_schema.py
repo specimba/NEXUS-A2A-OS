@@ -24,6 +24,7 @@ TOKEN_KEYS = {"tpm", "tph", "tpd", "monthly"}
 QUIRK_KINDS = {
     "tool_calling_broken", "silent_degradation", "dollar_then_dead",
     "no_free_tier", "dynamic_throttle", "intermittent_hang", "silent_rename",
+    "function_lockout", "request_param_required",
 }
 
 
@@ -74,6 +75,8 @@ def test_provider_quirks_wellformed():
     # the two seed quirks the FI plan demanded are actually recorded
     assert "kimi26-nim-tool-calls" in ids
     assert "dollar-then-dead" in ids
+    assert "nim-degraded-function-lockout" in ids  # log-28 2026-07-07
+    assert "minimax-m3-thinking-param" in ids
 
 
 def test_known_seed_facts_from_tariff_intel():

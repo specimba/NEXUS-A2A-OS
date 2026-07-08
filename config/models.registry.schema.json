@@ -283,7 +283,9 @@
                 "no_free_tier",
                 "dynamic_throttle",
                 "intermittent_hang",
-                "silent_rename"
+                "silent_rename",
+                "function_lockout",
+                "request_param_required"
               ]
             },
             "action": { "type": "string", "minLength": 1 },

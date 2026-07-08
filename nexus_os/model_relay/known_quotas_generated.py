@@ -272,7 +272,7 @@ KNOWN_QUOTAS_GENERATED: dict = {
         },
         "degradation": "hard_fail",
         "metering": "tokens",
-        "notes": "Operator-reported allocation 90M tokens/month (target 81M, reserve 9M); documented RPM 30, operator-conservative 20; verify reset and remaining balance before non-probe traffic. requiresVerification. | legacy: Operator-reported allocation; verify reset and remaining balance before non-probe traffic",
+        "notes": "Operator-reported allocation 90M tokens/month (target 81M, reserve 9M); documented RPM 30, operator-conservative 20; verify reset and remaining balance before non-probe traffic. requiresVerification. | legacy: Operator-reported allocation; verify reset and remaining balance before non-probe traffic Log-28 ground truth (2026-07-07): allocation is 90M INPUT + 90M OUTPUT tokens/month (resets monthly, ~2% used); intern-s2-preview 35B-A3B 256K ctx via LMDeploy Chat API; keep thinking_mode=true for agent/tool workloads; documented 30 RPM, operator-conservative 20.",
         "provider_status": "active",
         "tokens": {
             "monthly": 90000000,
@@ -480,7 +480,7 @@ KNOWN_QUOTAS_GENERATED: dict = {
         },
         "degradation": "silent",
         "metering": "requests",
-        "notes": "Operator-conservative 8 RPM (community reports ~40 free / ~200 on request; NO official page). noParallelSubagents. 429/burst undocumented — soak-watchlist.",
+        "notes": "Operator-conservative 8 RPM (community reports ~40 free / ~200 on request; NO official page). noParallelSubagents. 429/burst undocumented — soak-watchlist. Heavy-call discipline (log-27/28): NIM_HEAVY_COOLDOWN 70s between heavy calls on the same key, HEAVY_PROBE_TIMEOUT 95s; MiniMax-M3 KV-cache warm-up makes first call ~38s and stalls up to hours; subagent spawn = instant 429 (operator ban).",
         "provider_status": "active",
         "tokens": {
             "monthly": None,
@@ -610,7 +610,7 @@ KNOWN_QUOTAS_GENERATED: dict = {
         },
         "degradation": "hard_fail",
         "metering": "requests",
-        "notes": ":free models; negative balance -> 402 even on free models; Cloudflare DDoS layer blocks independently. /models polling needs NO credits.",
+        "notes": ":free models; negative balance -> 402 even on free models; Cloudflare DDoS layer blocks independently. /models polling needs NO credits. OBSERVED 2026-07-07: :free models PAYWALLED (402 'is_free_tier: True but free models paywalled') — standby only until re-verified.",
         "provider_status": "active",
         "tokens": {
             "monthly": None,
@@ -870,6 +870,26 @@ PROVIDER_QUIRKS_GENERATED: dict = {
             "id": "minimax-m3-nim-hang",
             "kind": "intermittent_hang",
             "notes": "MiniMax-M3 on NIM hangs intermittently mid-stream (lane-observed 2026-07-05/06, blocked the opencode NEXUS-BENCH session); use aggressive read timeouts"
+        },
+        {
+            "action": "one_tool_call_per_turn_cooldown",
+            "appliesTo": [
+                "*"
+            ],
+            "confidence": "HIGH",
+            "id": "nim-degraded-function-lockout",
+            "kind": "function_lockout",
+            "notes": "HTTP 400 'DEGRADED function cannot be invoked': NIM marks individual tool/function IDs DEGRADED after repeated errors/timeouts in a sliding window; lockout persists for the whole session (new session mints a fresh id). Mitigations (log-28 2026-07-07): 1 tool call per turn, 3-8s cooldown, <6K output tokens/turn in tool-rich agents, switch model after 2 consecutive 4xx."
+        },
+        {
+            "action": "set_thinking_type",
+            "appliesTo": [
+                "minimaxai/minimax-m3"
+            ],
+            "confidence": "HIGH",
+            "id": "minimax-m3-thinking-param",
+            "kind": "request_param_required",
+            "notes": "NIM validation: 'thinking.type' must be 'enabled' or 'disabled' — requests without the param 400 (log-28 2026-07-07)."
         }
     ],
     "ollama-cloud": [

@@ -202,6 +202,7 @@ def emit_chimera(registry: dict) -> str:
 def emit_ollama(registry: dict) -> str:
     mapping: dict[str, str] = {}
     cloud: list[str] = []
+    prov_status = {k: v["status"] for k, v in registry["providers"].items()}
     for m in registry["models"]:
         if m["provider"] == "ollama":
             for alias in m.get("aliases", []):
@@ -211,11 +212,31 @@ def emit_ollama(registry: dict) -> str:
             cloud.append(m["id"])
             for alias in m.get("aliases", []):
                 mapping[alias] = m["id"]
+    
+    # Also collect all active cloud models from all active providers
+    active_cloud_models: list[str] = []
+    for m in registry["models"]:
+        if m["status"] == "active" and prov_status.get(m["provider"]) == "active":
+            if m["provider"] != "ollama":
+                # Add short ID
+                active_cloud_models.append(m["id"])
+                # Add provider prefixed ID
+                active_cloud_models.append(f"{m['provider']}/{m['id']}")
+                # Add aliases
+                for alias in m.get("aliases", []):
+                    active_cloud_models.append(alias)
+                    active_cloud_models.append(f"{m['provider']}/{alias}")
+                    
+    # Deduplicate and sort
+    active_cloud_models = sorted(list(set(active_cloud_models)))
+
     return (
         f'"""{HEADER}"""\n\n'
         f"OLLAMA_MODEL_MAP: dict[str, str] = {json.dumps(dict(sorted(mapping.items())), indent=4, ensure_ascii=False)}\n\n"
-        f"OLLAMA_CLOUD_MODELS: list[str] = {json.dumps(sorted(set(cloud)), indent=4, ensure_ascii=False)}\n"
+        f"OLLAMA_CLOUD_MODELS: list[str] = {json.dumps(sorted(set(cloud)), indent=4, ensure_ascii=False)}\n\n"
+        f"ALL_ACTIVE_CLOUD_MODELS: list[str] = {json.dumps(active_cloud_models, indent=4, ensure_ascii=False)}\n"
     )
+
 
 
 def emit_domains(registry: dict) -> str:

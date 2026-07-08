@@ -44,8 +44,12 @@ from nexus_os.model_relay.fugu_dispatch import FuguDispatcher, TaskFeatures
 TIER_PRIMARY = {
     "name": "primary_rotation",
     "models": [
+        ("kilocode", "z-ai/glm-5.2", "KiloCode GLM 5.2 — free reasoning, 1M ctx"),
         ("baseten", "zai-org/GLM-5.2", "Baseten GLM 5.2 — reasoning opt-in, 131k ctx"),
+        ("kilocode", "nvidia/nemotron-3-ultra-550b-a55b:free", "KiloCode Nemotron 3 Ultra — free 550B, 1M ctx"),
         ("nim", "nvidia/nemotron-3-ultra-550b-a55b", "NVIDIA NIM Nemotron 3 Ultra — 550B MoE, 1M ctx"),
+        ("opencode", "deepseek-v4-flash-free", "DeepSeek V4 Flash free on OpenCode Zen — 85% intell, 1.4s"),
+        ("kilocode", "minimax/minimax-m3", "KiloCode MiniMax M3 — active cloud fallback"),
         ("nim", "minimaxai/minimax-m3", "NVIDIA NIM MiniMax M3 — active serial fallback"),
         ("nim", "qwen/qwen3.5-122b-a10b", "NVIDIA NIM Qwen3.5 122B — active serial fallback"),
     ],
@@ -73,6 +77,7 @@ TIER_SPECIALIST = {
         ("opencode", "deepseek-v4-flash-free", "DeepSeek V4 Flash free on OpenCode Zen — 85% intell, 1.4s"),
         ("opencode", "north-mini-code-free", "Code-specialist, 0.7s, OpenCode Zen"),
         ("kilocode", "nvidia/nemotron-3-super-120b-a12b:free", "Nemotron 3 Super 120B — emergency only"),
+        ("kilocode", "nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B — emergency only"),
         ("ollama-cloud", "qwen3-coder:480b", "Qwen3 Coder 480B — code specialist"),
         ("ollama-cloud", "devstral-small-2:24b", "Devstral Small 24B — code agent"),
         ("baseten", "moonshotai/Kimi-K2.7-Code", "Baseten Kimi K2.7 Code — 262k ctx, tools/structured, $0.40/M input"),

@@ -63,7 +63,7 @@ except Exception:
 import uvicorn
 
 from nexus_os.twave.chimera_router_v2 import ChimeraRouterV2, Tier, TemperaturePolicy
-from nexus_os.relay.ollama_map_generated import OLLAMA_CLOUD_MODELS, OLLAMA_MODEL_MAP
+from nexus_os.relay.ollama_map_generated import OLLAMA_CLOUD_MODELS, OLLAMA_MODEL_MAP, ALL_ACTIVE_CLOUD_MODELS
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434").rstrip("/")
 OLLAMA_BASE_URL = OLLAMA_HOST if OLLAMA_HOST.startswith(("http://", "https://")) else f"http://{OLLAMA_HOST}"
@@ -282,12 +282,15 @@ class ModelRelay:
         self._start_time = time.time()
         self._health_thread: Optional[threading.Thread] = None
         self._health_stop = threading.Event()
+        self._refresh_thread: Optional[threading.Thread] = None
+        self._refresh_stop = threading.Event()
 
         for m in self._fallback_models:
             self._model_stats.setdefault(m, ModelStats())
 
         self._discover_ollama_models()
         self._start_health_loop()
+        self._start_provider_refresh_loop()
 
     def _discover_ollama_models(self):
         """Pull available models from Ollama's /api/tags."""
@@ -325,6 +328,38 @@ class ModelRelay:
         self._health_thread.start()
         sweep_note = ", startup sweep all known models" if HEALTH_STARTUP_SWEEP else ""
         logger.info(f"Health check loop started (interval={HEALTH_CHECK_INTERVAL_S}s{sweep_note})")
+
+    def _start_provider_refresh_loop(self):
+        """FI-D1 discovery heartbeat — independent of the health loop.
+
+        The health loop is OFF by default (RELAY_HEALTH_INTERVAL=0), so the
+        provider refresh must not live inside it or it never fires. Runs
+        refresh_all(chat_probe=False) every NEXUS_PROVIDER_REFRESH_INTERVAL
+        seconds (default 3600, 0 disables); first pass is delayed so a relay
+        restart never storms providers at boot.
+        """
+        interval = int(os.environ.get("NEXUS_PROVIDER_REFRESH_INTERVAL", "3600"))
+        if interval <= 0:
+            logger.info("Provider refresh loop disabled (NEXUS_PROVIDER_REFRESH_INTERVAL=0)")
+            return
+
+        def loop():
+            # boot delay: never storm providers on restart
+            if self._refresh_stop.wait(min(interval, 300)):
+                return
+            while not self._refresh_stop.is_set():
+                try:
+                    from nexus_os.relay.provider_refresher import ProviderRefresher
+                    logger.info("[ModelRelay] Running automated background provider refresh...")
+                    ProviderRefresher().refresh_all(chat_probe=False)
+                    logger.info("[ModelRelay] Automated background provider refresh complete.")
+                except Exception as e:
+                    logger.warning(f"[ModelRelay] Background provider refresh failed: {e}")
+                self._refresh_stop.wait(interval)
+
+        self._refresh_thread = threading.Thread(target=loop, daemon=True, name="prov-refresh")
+        self._refresh_thread.start()
+        logger.info(f"Provider refresh loop started (interval={interval}s)")
 
     def _check_health(self, model: str) -> bool:
         if model == "adversarial-constraint-relaxation":
@@ -1085,7 +1120,7 @@ async def list_models():
             "owned_by": "ollama",
             "healthy": relay._model_health.get(m, False),
         })
-    for m in ["minimax-m3:cloud", "minimax-m2.7", *OLLAMA_CLOUD_MODELS]:
+    for m in ALL_ACTIVE_CLOUD_MODELS:
         if m not in [x["id"] for x in oai_models]:
             oai_models.append({
                 "id": m,
@@ -1110,7 +1145,7 @@ async def api_models():
             "success_rate": stats.success_rate(),
             "avg_latency_ms": round(stats.avg_latency(), 1),
         })
-    for m in ["minimax-m3:cloud"]:
+    for m in ALL_ACTIVE_CLOUD_MODELS:
         if m not in [x["name"] for x in models]:
             stats = relay._model_stats.get(m, ModelStats())
             models.append({
