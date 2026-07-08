@@ -117,6 +117,7 @@ norecursedirs = [
     "venv",
     ".venv_adversarial",
     "node_modules",
+    "legacy",
     "backups",
     "datasets",
     "research",

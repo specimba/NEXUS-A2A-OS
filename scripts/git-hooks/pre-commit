@@ -24,7 +24,9 @@ done
 # Check for hardcoded keys
 # Lines tagged nexus-allow-secret-pattern are redaction-rule DEFINITIONS
 # (nexus_os/relay/tracing/scrub.py) — skip them; real pasted keys still match.
-if git diff --cached | grep -v "nexus-allow-secret-pattern" | grep -qE "(sk-or-v1-|gsk_|4TdYJmA8|AZURE_GROK_API_KEY.*=)"; then
+# Scan ADDED lines only — a deleted line cannot introduce a secret,
+# and removing an old scanner/pattern file must not block the commit.
+if git diff --cached | grep "^+" | grep -v "nexus-allow-secret-pattern" | grep -qE "(sk-or-v1-|gsk_|4TdYJmA8|AZURE_GROK_API_KEY.*=)"; then
     echo "❌ BLOCKED: Hardcoded API key detected!"
     exit 1
 fi

@@ -150,3 +150,6 @@ scratch/browser_ai_mcp_runtime/logs/
 
 # frontier scanner runtime state lives in ~/.nexus/frontier_scanner
 tools/frontier_scanner/state/
+
+# quarantined root debris (2026-07-07 restructure) — local archive, contains live .env copies
+/legacy/
