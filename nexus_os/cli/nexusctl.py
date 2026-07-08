@@ -723,7 +723,21 @@ def cmd_model_lab(args):
 
 
 def cmd_bench(args):
-    """`nexusctl bench trust` — Beta-posterior Trust Ledger leaderboard."""
+    """`nexusctl bench {trust|run}` — Trust Ledger / probe-replay bench."""
+    if getattr(args, "action", None) == "run":
+        from nexus_os.bench.runner import render_probe_report, run_probes
+
+        report = run_probes(
+            probeset=getattr(args, "probeset", "v1"),
+            model=getattr(args, "model", "auto"),
+            provider=getattr(args, "provider", None),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(report, indent=2))
+        else:
+            print(render_probe_report(report))
+        return 0
+
     from nexus_os.bench.runner import render_leaderboard, trust_leaderboard
 
     rows = trust_leaderboard(domain=getattr(args, "domain", None))
@@ -1393,8 +1407,12 @@ def main():
         "bench",
         help="NEXUS-BENCH: Beta-posterior trust leaderboard from REASONS-DB traces + hallucination verdicts",
     )
-    sub.add_argument("action", choices=["trust"], help="'trust': render the Trust Ledger leaderboard")
-    sub.add_argument("--domain", default=None, help="Filter to one domain (e.g. code, general, verdicts)")
+    sub.add_argument("action", choices=["trust", "run"],
+                     help="'trust': Trust Ledger leaderboard; 'run': serial RPM-paced probe replay (log-28 Week-4e)")
+    sub.add_argument("--domain", default=None, help="Filter to one domain (trust view)")
+    sub.add_argument("--probeset", default="v1", help="Probe set to replay (run view)")
+    sub.add_argument("--provider", default=None, help="Provider slug for RPM pacing (run view)")
+    sub.add_argument("--model", default="auto", help="Model id routed through the relay (run view)")
     sub.add_argument("--json", action="store_true", help="JSON output")
     sub.set_defaults(func=cmd_bench)
 

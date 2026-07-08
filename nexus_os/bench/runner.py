@@ -163,3 +163,124 @@ def render_leaderboard(rows: list[dict]) -> str:
             f"{r['posterior_mean']:>6.3f}  [{r['ci95_low']:.3f}, {r['ci95_high']:.3f}]"
         )
     return "\n".join(lines)
+
+
+# ── Probe-replay (FI-B increment 2 — log-28 Week-4e spec) ─────────────
+#
+# Replays the V1 probe sets through the relay adapter, scores with the
+# rubric scorer, and persists per-dimension JSONL under ~/.nexus/bench/.
+# Serial and RPM-paced from the registry v3 quota windows — NIM
+# discipline (8 RPM, no parallelism) is enforced by construction.
+
+import time as _time
+
+BENCH_RESULTS_DIR = Path.home() / ".nexus" / "bench"
+_DEFAULT_PACE_SECONDS = 10.0  # conservative when the provider RPM is unknown
+
+
+def provider_pace_seconds(provider: str | None) -> float:
+    """Seconds to wait between probe calls, from registry v3 quota windows."""
+    if not provider:
+        return _DEFAULT_PACE_SECONDS
+    try:
+        from nexus_os.model_relay.known_quotas_generated import KNOWN_QUOTAS_GENERATED
+        rpm = (KNOWN_QUOTAS_GENERATED.get(provider) or {}).get("windows", {}).get("rpm")
+        if rpm:
+            return max(60.0 / float(rpm), 1.0)
+    except ImportError:
+        pass
+    return _DEFAULT_PACE_SECONDS
+
+
+def default_executor(prompt: str, *, model: str, provider: str | None = None,
+                     temperature: float = 0.2, max_tokens: int = 1024):
+    """One serial relay call. Returns response text ('' on failure)."""
+    from nexus_os.relay.model_relay_adapter import ModelRelayAdapter, RelayRequest
+
+    adapter = ModelRelayAdapter()
+    result = adapter.execute(RelayRequest(
+        model=model, prompt=prompt,
+        temperature=temperature, max_tokens=max_tokens,
+    ))
+    return result.raw or ""
+
+
+def run_probes(
+    *,
+    probeset: str = "v1",
+    model: str = "auto",
+    provider: str | None = None,
+    executor=None,
+    pace: bool = True,
+    results_dir: Path | None = None,
+    dimensions: list[str] | None = None,
+) -> dict:
+    """Replay a probe set against one model; score; persist; return a report.
+
+    executor(prompt, model=..., provider=...) -> response text. Injectable
+    for tests; defaults to the serial relay adapter. Probes run strictly
+    serially with provider-RPM pacing (never parallel — NIM discipline).
+    """
+    if probeset != "v1":
+        raise ValueError(f"unknown probeset: {probeset!r} (only 'v1' exists)")
+    from nexus_os.bench.probes.probes_v1 import PROBE_SETS
+    from nexus_os.bench.scorer import score_set
+
+    run_executor = executor or default_executor
+    out_dir = results_dir or BENCH_RESULTS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    delay = provider_pace_seconds(provider) if pace else 0.0
+
+    report: dict = {
+        "probeset": probeset, "model": model, "provider": provider,
+        "dimensions": {}, "probes_run": 0,
+    }
+    started = _time.time()
+    out_path = out_dir / f"probe_run_{model.replace('/', '_').replace(':', '_')}.jsonl"
+    with out_path.open("a", encoding="utf-8") as fh:
+        for pset in PROBE_SETS:
+            if dimensions and pset.dimension_id not in dimensions:
+                continue
+            responses: dict[str, str] = {}
+            for probe in pset.probes:
+                try:
+                    responses[probe["id"]] = run_executor(
+                        probe["prompt"], model=model, provider=provider,
+                    ) or ""
+                except Exception:
+                    responses[probe["id"]] = ""
+                report["probes_run"] += 1
+                if delay:
+                    _time.sleep(delay)
+            dim_score, details = score_set(
+                pset.probes, responses, dimension_id=pset.dimension_id,
+            )
+            row = {
+                "ts": _time.time(), "model": model, "provider": provider,
+                "probeset": probeset, "dimension": pset.dimension_id,
+                "title": pset.title, "score": dim_score.to_dict(),
+                "details": [d.to_dict() for d in details],
+            }
+            fh.write(json.dumps(row, ensure_ascii=False) + chr(10))
+            report["dimensions"][pset.dimension_id] = dim_score.to_dict()
+    report["elapsed_s"] = round(_time.time() - started, 1)
+    report["results_path"] = str(out_path)
+    return report
+
+
+def render_probe_report(report: dict) -> str:
+    lines = [
+        f"probeset={report['probeset']} model={report['model']} "
+        f"provider={report['provider'] or '-'} probes={report['probes_run']} "
+        f"elapsed={report.get('elapsed_s', '?')}s",
+        f"{'DIM':<5} {'RAW':>6} {'BAND':<12} TITLE",
+    ]
+    from nexus_os.bench.probes.probes_v1 import PROBE_SETS
+    titles = {p.dimension_id: p.title for p in PROBE_SETS}
+    for dim, score in sorted(report["dimensions"].items()):
+        lines.append(
+            f"{dim:<5} {score.get('raw_score', 0.0):>6.3f} "
+            f"{str(score.get('band', '?')):<12} {titles.get(dim, '')}"
+        )
+    lines.append(f"results: {report.get('results_path', '-')}")
+    return chr(10).join(lines)

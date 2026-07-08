@@ -106,3 +106,67 @@ def test_verdict_iterator_skips_garbage(tmp_path: Path):
                  encoding="utf-8")
     rows = list(iter_verdict_outcomes(p))
     assert rows == [("m", "verdicts", False)]
+
+
+# -- Probe-replay (FI-B increment 2, log-28 Week-4e) -----------------------
+
+def test_run_probes_scores_and_persists(tmp_path):
+    from nexus_os.bench.runner import run_probes
+
+    def fake_executor(prompt, *, model, provider=None):
+        # echo enough of the prompt back that must_contain probes can hit
+        return "Acknowledged. " + prompt[:400]
+
+    report = run_probes(
+        probeset="v1", model="test/model", provider=None,
+        executor=fake_executor, pace=False, results_dir=tmp_path,
+    )
+    assert report["probes_run"] > 0
+    assert report["dimensions"], "at least one dimension scored"
+    for score in report["dimensions"].values():
+        assert 0.0 <= score["raw_score"] <= 1.0
+    out = tmp_path / "probe_run_test_model.jsonl"
+    assert out.exists()
+    rows = [json.loads(l) for l in out.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == len(report["dimensions"])
+    assert rows[0]["model"] == "test/model"
+
+
+def test_run_probes_dimension_filter_and_failures(tmp_path):
+    from nexus_os.bench.runner import run_probes
+
+    def broken_executor(prompt, *, model, provider=None):
+        raise RuntimeError("provider down")
+
+    report = run_probes(
+        probeset="v1", model="m", executor=broken_executor,
+        pace=False, results_dir=tmp_path, dimensions=["D1"],
+    )
+    assert list(report["dimensions"]) == ["D1"]  # filter respected
+    # executor failures degrade to empty responses, never raise
+
+
+def test_run_probes_unknown_probeset(tmp_path):
+    from nexus_os.bench.runner import run_probes
+
+    with pytest.raises(ValueError, match="unknown probeset"):
+        run_probes(probeset="v9", executor=lambda *a, **k: "", results_dir=tmp_path)
+
+
+def test_provider_pace_respects_registry_rpm():
+    from nexus_os.bench.runner import provider_pace_seconds
+
+    assert provider_pace_seconds("nvidia") == pytest.approx(60.0 / 8)  # 8 RPM
+    assert provider_pace_seconds(None) == 10.0
+    assert provider_pace_seconds("never-heard-of") == 10.0
+
+
+def test_render_probe_report_shape(tmp_path):
+    from nexus_os.bench.runner import render_probe_report, run_probes
+
+    report = run_probes(
+        probeset="v1", model="m", executor=lambda p, **k: "ok",
+        pace=False, results_dir=tmp_path, dimensions=["D1"],
+    )
+    text = render_probe_report(report)
+    assert "D1" in text and "results:" in text
