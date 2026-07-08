@@ -17,6 +17,7 @@ KNOWN_CONTEXT_LIMITS: dict[str, int] = {
     "functiongemma:latest": 32768,
     "glm-4.7": 131072,
     "glm-5.2": 202752,
+    "intern-latest": 262144,
     "intern-s1": 32768,
     "intern-s1-mini": 32768,
     "intern-s1-pro": 262144,

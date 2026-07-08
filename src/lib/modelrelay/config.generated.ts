@@ -717,7 +717,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "tier": 80,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
-    "contextWindow": 32768,
+    "contextWindow": 262144,
     "latencyMsTypical": 500,
     "supportsVision": false,
     "supportsFunctionCalling": false,

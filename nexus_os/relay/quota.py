@@ -78,15 +78,15 @@ class QuotaGuard:
 
 class SlidingWindowRPMTracker:
     """Tracks requests-per-minute using a sliding window for providers like
-    NVIDIA NIM (40 RPM free tier).
+    NVIDIA NIM (operator-conservative 8 RPM serial lane).
 
     Key behavior:
-    - Proactive backoff at 80% utilization (e.g. 32/40 for NIM)
+    - Proactive backoff at 80% utilization (e.g. 6/8 for NIM)
     - Returns (can_proceed, backoff_seconds, utilization_pct)
     - Backoff_seconds = 0 means go ahead immediately
     """
 
-    def __init__(self, rpm_limit: int = 40, window_seconds: float = 60.0, backoff_threshold: float = 0.80):
+    def __init__(self, rpm_limit: int = 8, window_seconds: float = 60.0, backoff_threshold: float = 0.80):
         self.rpm_limit = rpm_limit
         self.window_seconds = window_seconds
         self.backoff_threshold = backoff_threshold

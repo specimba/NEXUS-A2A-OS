@@ -68,21 +68,29 @@ def run_models_status(provider: str | None = None) -> int:
     providers = registry.get("providers", {})
     if provider:
         providers = {provider: providers.get(provider)} if provider in providers else {}
-    models = [
-        {
-            "provider": model["provider"],
-            "id": model["id"],
-            "status": model["status"],
-            "context": model.get("context"),
-            "roles": model.get("roles", []),
-            "lanes": model.get("lanes", []),
-            "runtime_status": refresher.health.get("models", {})
+    models = []
+    for model in registry.get("models", []):
+        if provider and model["provider"] != provider:
+            continue
+        committed_status = model["status"]
+        runtime_status = (
+            refresher.health.get("models", {})
             .get(f"{model['provider']}:{model['id']}", {})
-            .get("status", "unknown"),
-        }
-        for model in registry.get("models", [])
-        if not provider or model["provider"] == provider
-    ]
+            .get("status", "unknown")
+        )
+        if committed_status != "active":
+            runtime_status = committed_status
+        models.append(
+            {
+                "provider": model["provider"],
+                "id": model["id"],
+                "status": committed_status,
+                "context": model.get("context"),
+                "roles": model.get("roles", []),
+                "lanes": model.get("lanes", []),
+                "runtime_status": runtime_status,
+            }
+        )
     safe_providers = copy.deepcopy(providers)
     for config in safe_providers.values():
         if isinstance(config, dict):

@@ -2230,8 +2230,8 @@
       "id": "intern-latest",
       "provider": "internai",
       "aliases": [],
-      "context": null,
-      "maxOutput": null,
+      "context": 262144,
+      "maxOutput": 16384,
       "free": true,
       "tier": 80,
       "capabilities": {
@@ -2244,7 +2244,8 @@
         "teacher",
         "eval"
       ],
-      "status": "active"
+      "status": "active",
+      "notes": "Provider alias currently resolves to intern-s2-preview; use same conservative 256K/16K envelope until live model telemetry says otherwise."
     },
     {
       "id": "internvl3.5-latest",
@@ -2721,12 +2722,13 @@
   ],
   "priorityTiers": {
     "tier_1_primary_rotation": {
-      "note": "PRIMARY 2-MODEL ROTATION - GLM 5.1 <-> Nemotron Ultra (NOT Super; Super is emergency only). Persistence > variety for memory continuity.",
+      "note": "PRIMARY SERIAL NIM ROTATION - Nemotron Ultra -> MiniMax M3 -> Qwen3.5 122B. No parallel fan-out; Super is emergency only.",
       "models": [
-        "nvidia:z-ai/glm-5.1",
-        "nvidia:nvidia/nemotron-3-ultra-550b-a55b"
+        "nvidia:nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia:minimaxai/minimax-m3",
+        "nvidia:qwen/qwen3.5-122b-a10b"
       ],
-      "rotation_trigger": "rate_limit_429 OR quota_exhausted",
+      "rotation_trigger": "rate_limit_429 OR quota_exhausted OR consecutive_4xx",
       "never_use_as_primary": [
         "nvidia:nvidia/nemotron-3-super-120b-a12b"
       ]

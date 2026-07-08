@@ -294,8 +294,8 @@ export function getQuotaStatus() {
 export function getAvailableProviders(): string[] {
   const available: string[] = []
   for (const [pid, h] of providerHealth.entries()) {
+    if (h.state === 'cooldown' && h.cooldownUntil && Date.now() < h.cooldownUntil) continue
     if (h.state === 'up' || h.state === 'degraded') {
-      if (h.state === 'cooldown' && h.cooldownUntil && Date.now() < h.cooldownUntil) continue
       const q = providerQuotas.get(pid)
       if (!q?.isExhausted) available.push(pid)
     }

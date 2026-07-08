@@ -1,7 +1,7 @@
 """Tests for relay quota guards: SlidingWindowRPMTracker and context-fit helpers.
 
 Covers audit findings on the Phase 7 relay resilience work:
-- proactive backoff at 80% utilization (NIM 40 RPM free tier)
+- proactive backoff at 80% utilization (NIM defaults to conservative 8 RPM)
 - hard stop with retry hint when the window is exhausted
 - context-window clamping / hard failover budgets
 """
@@ -19,6 +19,10 @@ from nexus_os.relay.quota import (
 
 
 class TestSlidingWindowRPMTracker:
+    def test_default_tracker_uses_conservative_nim_limit(self):
+        tracker = SlidingWindowRPMTracker()
+        assert tracker.state()["rpm_limit"] == 8
+
     def test_fresh_tracker_allows_immediately(self):
         tracker = SlidingWindowRPMTracker(rpm_limit=40)
         allowed, backoff, util = tracker.can_proceed()
