@@ -21,7 +21,15 @@ NEXUSbuildubuntuGROK45logs-NN.txt
 
 | Soft max | Hard max | Rule |
 |----------|----------|------|
-| **1500 lines** | **3000 lines** | Prefer ≤1500 for reviewable chunks. **Never** cut mid-section past hard max — open `-NN+1` and continue with a **CONTINUATION** header. |
+| **1500 lines** | **3000 lines** | These are **rotation ceilings only**. Fill each part with the **full** conversation (every user message, assistant reply, tool call summary, code paths, evidence). Do **not** keep parts artificially tiny (~100–300 lines). Do **not** summarize away dialogue. When approaching soft max (~1500), finish the current section cleanly; at hard max (3000), open `-NN+1`. **Never** cut mid-sentence or mid-code block. |
+
+### Full-content requirement
+
+- Prefer Grok TUI **`/export <name>`** as the source of truth for dialogue (writes to the TUI **cwd**, often `/home/speci/<name>` on WSL).
+- Immediately **install** the export into the vault:
+  - `cp /home/speci/<name> /mnt/c/Users/speci.000/Downloads/NEXUSlogs/NEXUSbuildubuntuGROK45logs-NN.txt`
+  - or `python scripts/append_grok45_nexuslog.py --write /home/speci/<name>`
+- After export, **append** any newer turns (post-export) into the same file if under hard max, else next index.
 
 When rotating mid-session:
 

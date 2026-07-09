@@ -48,9 +48,29 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--vault", type=Path, default=None)
     ap.add_argument("--status", action="store_true", help="Print next free index and exit")
-    ap.add_argument("--write", type=Path, help="Copy draft file into next log part")
+    ap.add_argument(
+        "--write",
+        type=Path,
+        help="Copy draft or /export file into next log part (full text, not a summary)",
+    )
+    ap.add_argument(
+        "--install-export",
+        type=Path,
+        dest="write",
+        help="Alias for --write; use for Grok /export files (often /home/speci/<name>)",
+    )
     ap.add_argument("--stdin", action="store_true", help="Read draft from stdin")
-    ap.add_argument("--force-index", type=int, default=None, help="Write specific index (must not exist)")
+    ap.add_argument(
+        "--force-index",
+        type=int,
+        default=None,
+        help="Write specific index (must not exist unless --overwrite)",
+    )
+    ap.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Allow replace of an existing part (use only when reinstalling a full /export)",
+    )
     args = ap.parse_args(argv)
 
     vault = args.vault or vault_path()
@@ -90,12 +110,34 @@ def main(argv: list[str] | None = None) -> int:
 
     idx = args.force_index if args.force_index is not None else next_index(vault)
     dest = part_path(vault, idx)
-    if dest.exists():
+    if dest.exists() and not args.overwrite:
         print(f"ERROR: refuses overwrite of existing {dest}", file=sys.stderr)
         return 3
 
-    dest.write_text(draft if draft.endswith("\n") else draft + "\n", encoding="utf-8")
-    print(f"wrote {dest} lines={count_lines(dest.read_text(encoding='utf-8'))}")
+    body = draft if draft.endswith("\n") else draft + "\n"
+    # Light vault header only if source does not already look like a NEXUS LOG header
+    if not body.lstrip().startswith("====") and "NEXUS LOG" not in body[:400]:
+        from datetime import datetime, timezone
+
+        header = (
+            f"{'=' * 80}\n"
+            f"NEXUS LOG — {dest.name}\n"
+            f"Installed_from: {args.write or 'stdin'}\n"
+            f"Installed_at: {datetime.now(timezone.utc).isoformat()}\n"
+            f"Policy: NEXUSLOGS-GB-001 (full conversation content; rotation only at 1.5k–3k lines)\n"
+            f"{'=' * 80}\n\n"
+        )
+        body = header + body
+
+    dest.write_text(body, encoding="utf-8")
+    n = count_lines(dest.read_text(encoding="utf-8"))
+    print(f"wrote {dest} lines={n}")
+    if n > SOFT_MAX:
+        print(
+            f"NOTE: part has {n} lines (soft max {SOFT_MAX}). "
+            "Prefer starting a new part for further turns.",
+            file=sys.stderr,
+        )
     return 0
 
 
