@@ -1063,6 +1063,27 @@ def main() -> int:
     pipeline.add_argument("--status", action="store_true",
                           help="Show pipeline stage status")
 
+    memory = subparsers.add_parser("memory", help="Continuity substrate: 8 vault channels + canonical trust")
+    memory_sub = memory.add_subparsers(dest="memory_command")
+    memory_sub.required = True
+    memory_sub.add_parser("channels", help="List 8 vault channels + min-trust gates")
+    p_memory_show = memory_sub.add_parser("show", help="Show records in one channel")
+    p_memory_show.add_argument("channel", help="channel name")
+    p_memory_show.add_argument("--agent", default=None)
+    p_memory_show.add_argument("--limit", type=int, default=50)
+    p_memory_trust = memory_sub.add_parser("trust", help="Print TrustKernel snapshot for an agent/lane")
+    p_memory_trust.add_argument("--agent", default=None)
+    p_memory_trust.add_argument("--lane", default="general")
+    memory_sub.add_parser("stats", help="List consolidation stats per channel")
+    p_memory_fail = memory_sub.add_parser("failures", help="List failure patterns recorded for an agent")
+    p_memory_fail.add_argument("--agent", default=None)
+    p_memory_append = memory_sub.add_parser("append", help="Append one record to a channel (requires --allow-write)")
+    p_memory_append.add_argument("channel", help="channel name")
+    p_memory_append.add_argument("--content", required=True)
+    p_memory_append.add_argument("--agent", default=None)
+    p_memory_append.add_argument("--allow-write", action="store_true",
+                                help="explicit gate; without it append refuses to run")
+
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
     models.add_argument("action", nargs="?", choices=["verify", "reconcile", "status"],
                         help="verify/reconcile/status canonical registry and provider listings")
@@ -1172,6 +1193,12 @@ def main() -> int:
             return run_nexusclaw_dispatch_dry_run(args)
     if args.command == "pipeline":
         return run_pipeline(args)
+    if args.command == "memory":
+        from nexusctl.memory_cli import run_memory
+        code, _payload = run_memory(args)
+        if code != 0:
+            raise SystemExit(code)
+        return code
     if args.command == "models":
         if getattr(args, "action", None) == "verify":
             from nexusctl.models_cli import run_models_verify
