@@ -35,20 +35,31 @@ function Hide-ChromeWindow {
     }
 }
 
+function Maybe-HideChrome {
+    if ($env:VISIBLE_LANES -eq "1") {
+        Write-Host "VISIBLE_LANES=1: skipping hide for observation"
+        return
+    }
+    Hide-ChromeWindow
+}
+
 if (-not (Test-Cdp)) {
+    Maybe-HideChrome
     $null = & (Join-Path $PSScriptRoot 'start_browser_ai_profile.ps1') -Port $CdpPort -ProfileDir $profile
     $deadline = (Get-Date).AddSeconds(30)
     while ((Get-Date) -lt $deadline -and -not (Test-Cdp)) {
         Start-Sleep -Seconds 2
     }
     if (-not (Test-Cdp)) {
+        Maybe-HideChrome
         exit 2
     }
 } else {
-    Hide-ChromeWindow
+    Maybe-HideChrome
 }
 
 $env:NEXUS_GROUNDING_ROOT = $GroundingRoot
+$env:NEXUS_CONTINUITY_LEDGER = Join-Path $GroundingRoot "continuity_runs.jsonl"
 Push-Location $repo
 try {
     & (Join-Path $PSScriptRoot 'run_external_director.ps1') `
@@ -60,6 +71,9 @@ try {
     $directorExit = $LASTEXITCODE
 } finally {
     Pop-Location
-    Hide-ChromeWindow
+    Maybe-HideChrome
 }
 exit $directorExit
+
+
+

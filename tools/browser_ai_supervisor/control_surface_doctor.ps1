@@ -1,5 +1,7 @@
 param(
-    [int[]]$CdpPorts = @(9222, 9223, 9333),
+    # 9224 is the canonical NEXUS multi-lane Chrome CDP port (gateway / grok lane).
+    # Older defaults (9222/9223/9333) remain as probes for legacy profiles.
+    [int[]]$CdpPorts = @(9224, 9222, 9223, 9333),
     [string]$RequiredUrlPattern = "",
     [switch]$Json
 )
@@ -54,11 +56,14 @@ $targets = @(foreach ($port in $CdpPorts) { Get-CdpTargets -Port $port })
 $browsers = @(Get-BrowserProcesses)
 $hasCdp = [bool]($cdp | Where-Object { $_.ok })
 $matchingTargets = if ($RequiredUrlPattern) { @($targets | Where-Object { $_.url -match $RequiredUrlPattern -or $_.title -match $RequiredUrlPattern }) } else { @() }
+$duplicateRequiredTargets = if ($RequiredUrlPattern) { @($matchingTargets).Count -gt 1 } else { $false }
 $hasRequiredTarget = if ($RequiredUrlPattern) { [bool]($matchingTargets | Select-Object -First 1) } else { $hasCdp }
 $hasBrowser = [bool]($browsers | Select-Object -First 1)
 
-$status = if ($hasCdp -and $hasRequiredTarget) { "OK_CDP" } else { "NOTIFY_SETUP_REQUIRED" }
-$blocker = if ($hasCdp -and $hasRequiredTarget) {
+$status = if ($duplicateRequiredTargets) { "NOTIFY_SETUP_REQUIRED" } elseif ($hasCdp -and $hasRequiredTarget) { "OK_CDP" } else { "NOTIFY_SETUP_REQUIRED" }
+$blocker = if ($duplicateRequiredTargets) {
+    "Multiple targets match '$RequiredUrlPattern' on ports $($CdpPorts -join ', '). Close duplicate tabs before autonomous control."
+} elseif ($hasCdp -and $hasRequiredTarget) {
     $null
 } elseif ($hasCdp -and $RequiredUrlPattern) {
     "CDP exists, but no target matching '$RequiredUrlPattern' is exposed on ports $($CdpPorts -join ', '). Do not use this endpoint for authenticated-source automation until the target page is visible."
@@ -78,6 +83,7 @@ $result = [pscustomobject]@{
     requiredUrlPattern = $RequiredUrlPattern
     matchingTargets = $safeMatchingTargets
     target_count = @($targets).Count
+    duplicate_required_targets = $duplicateRequiredTargets
     target_sample = $safeTargetSample
     browser_process_count = $browsers.Count
     browser_processes = @($browsers | ForEach-Object { [pscustomobject]@{ name = $_.name; processId = $_.ProcessId; hasRemoteDebugging = ($_.CommandLine -match "--remote-debugging-port") } })
@@ -85,3 +91,5 @@ $result = [pscustomobject]@{
 }
 
 if ($Json) { $result | ConvertTo-Json -Depth 8 } else { $result | Format-List }
+
+
