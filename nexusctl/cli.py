@@ -824,6 +824,66 @@ def run_ports(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_gmr(args: argparse.Namespace) -> int:
+    """`nexusctl gmr` — catalogue telemetry + Chimera/LG pipeline."""
+    cmd = getattr(args, "gmr_command", None)
+    if cmd == "catalogue":
+        from nexus_os.gmr.telemetry import TelemetryIngest
+
+        ingest = TelemetryIngest()
+        cache = ingest.fetch()
+        payload = {
+            "command": "gmr catalogue",
+            "status": "ok" if cache else "degraded",
+            "source": ingest.last_source,
+            "error": ingest.last_error,
+            "count": len(cache),
+            "models": [
+                {
+                    "name": t.name,
+                    "provider": t.provider,
+                    "status": t.status,
+                    "tier": t.tier,
+                    "latency_ms": t.latency_ms,
+                }
+                for t in list(cache.values())[:80]
+            ],
+        }
+        _json_print(payload)
+        return 0 if cache else 1
+
+    if cmd == "pipeline":
+        from nexus_os.gmr.chimera_lg_pipeline import run_pipeline
+
+        report = run_pipeline(
+            args.prompt,
+            execute=bool(args.execute),
+            cloud=bool(args.cloud or args.execute),
+            category=args.category,
+            policy=args.policy,
+            quality=float(args.quality),
+            latency_budget_ms=float(args.budget),
+            track=not bool(args.no_track),
+            track_tokens=int(args.track_tokens),
+            max_tokens_cap=int(args.max_tokens),
+        )
+        _json_print(report.to_dict())
+        return 0 if report.status == "ok" else 1
+
+    if cmd == "track":
+        from nexus_os.gmr.chimera_lg_pipeline import run_lg_track
+
+        lg = run_lg_track(
+            category=args.category,
+            temperature=float(args.temperature),
+            tokens=int(args.tokens),
+        )
+        _json_print({"command": "gmr track", **lg})
+        return 0
+
+    raise ValueError(f"Unknown gmr command: {cmd}")
+
+
 def run_grok_lane(args: argparse.Namespace) -> int:
     """`nexusctl grok-lane doctor` — pure-probe the full Grok automation lane.
 
@@ -1265,6 +1325,51 @@ def main() -> int:
         help="Only probe 7350–7360 (skip 3001/9224)",
     )
 
+    gmr = subparsers.add_parser(
+        "gmr",
+        help="GMR + ChimeraRouter + Landau–Ginzburg pipeline controls",
+    )
+    gmr_sub = gmr.add_subparsers(dest="gmr_command")
+    gmr_sub.required = True
+    gmr_sub.add_parser(
+        "catalogue",
+        help="Fetch ModelRelay/GodMode catalogue telemetry (JSON)",
+    )
+    gmr_pipe = gmr_sub.add_parser(
+        "pipeline",
+        help="Chimera route → optional ModelRelay execute → LG dry-run track",
+    )
+    gmr_pipe.add_argument("prompt", help="Prompt text")
+    gmr_pipe.add_argument("--execute", action="store_true", help="Call live ModelRelay")
+    gmr_pipe.add_argument(
+        "--cloud",
+        dest="cloud",
+        action="store_true",
+        default=True,
+        help="Allow cloud catalogue models (default on)",
+    )
+    gmr_pipe.add_argument(
+        "--no-cloud",
+        dest="cloud",
+        action="store_false",
+        help="Local tiers only (GGUF profiles)",
+    )
+    gmr_pipe.add_argument("--category", default="F1.1")
+    gmr_pipe.add_argument(
+        "--policy",
+        default="auto",
+        choices=["auto", "fixed", "edt", "ead", "lead", "ernie"],
+    )
+    gmr_pipe.add_argument("--quality", type=float, default=0.75)
+    gmr_pipe.add_argument("--budget", type=float, default=4000.0, help="Latency budget ms")
+    gmr_pipe.add_argument("--no-track", action="store_true", help="Skip LG track pass")
+    gmr_pipe.add_argument("--track-tokens", type=int, default=32)
+    gmr_pipe.add_argument("--max-tokens", type=int, default=128, help="Execute max_tokens cap")
+    gmr_track = gmr_sub.add_parser("track", help="LG dry-run entropy track only")
+    gmr_track.add_argument("--tokens", type=int, default=30)
+    gmr_track.add_argument("--category", default="F1.1")
+    gmr_track.add_argument("--temperature", type=float, default=0.7)
+
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -1329,6 +1434,8 @@ def main() -> int:
         if args.ports_command == "doctor":
             return run_ports(args)
         raise ValueError(f"Unknown ports command: {args.ports_command}")
+    if args.command == "gmr":
+        return run_gmr(args)
     if args.command == "grounding":
         return run_grounding(args)
     parser.error(f"Unknown command: {args.command}")

@@ -1070,10 +1070,17 @@ def cmd_route(args):
     }
     policy = policy_map.get(args.policy, TemperaturePolicy.AUTO)
 
+    # --execute talks to ModelRelay (:7350); local GGUF profile names cannot
+    # run there, so include CLOUD whenever cloud or execute is set.
+    use_cloud = bool(args.cloud or getattr(args, "execute", False))
+    tiers = [Tier.CONTROL_PLANE, Tier.LOCAL_STANDARD, Tier.LOCAL_POWER]
+    if use_cloud:
+        tiers.append(Tier.CLOUD)
+
     router = ChimeraRouterV2(
         vram_gb=args.vram,
-        has_cloud_access=args.cloud,
-        available_tiers=[Tier.CONTROL_PLANE, Tier.LOCAL_STANDARD, Tier.LOCAL_POWER],
+        has_cloud_access=use_cloud,
+        available_tiers=tiers,
     )
     decision = router.route(
         args.prompt,
