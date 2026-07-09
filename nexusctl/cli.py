@@ -1225,6 +1225,35 @@ def main() -> int:
     p_memory_append.add_argument("--allow-write", action="store_true",
                                 help="explicit gate; without it append refuses to run")
 
+    continuity = subparsers.add_parser("continuity", help="Durable continuity ledger: open/close runs, coverage checks, resume plans")
+    continuity_sub = continuity.add_subparsers(dest="continuity_command")
+    continuity_sub.required = True
+    continuity_sub.add_parser("status", help="Show ledger health, summary, and legacy state refs")
+    p_cont_coverage = continuity_sub.add_parser("coverage", help="Show records within a time window")
+    p_cont_coverage.add_argument("--hours", type=float, default=24.0, help="Look-back window in hours")
+    p_cont_open = continuity_sub.add_parser("open", help="Open a continuity run record")
+    p_cont_open.add_argument("--run-id", required=True)
+    p_cont_open.add_argument("--agent-id", required=True)
+    p_cont_open.add_argument("--source-lane", required=True)
+    p_cont_open.add_argument("--input-fingerprint", default=None)
+    p_cont_open.add_argument("--next-action", default=None)
+    p_cont_close = continuity_sub.add_parser("close", help="Close a continuity run record with progress classification")
+    p_cont_close.add_argument("--run-id", required=True)
+    p_cont_close.add_argument("--agent-id", required=True)
+    p_cont_close.add_argument("--source-lane", required=True)
+    p_cont_close.add_argument("--input-fingerprint", default=None)
+    p_cont_close.add_argument("--output-fingerprint", default=None)
+    p_cont_close.add_argument("--artifact", action="append", default=[])
+    p_cont_close.add_argument("--test", action="append", default=[])
+    p_cont_close.add_argument("--provider-calls", type=int, default=0)
+    p_cont_close.add_argument("--quota-reserved", type=int, default=0)
+    p_cont_close.add_argument("--blocker", default=None)
+    p_cont_close.add_argument("--next-action", default=None)
+    p_cont_close.add_argument("--started-at", default=None)
+    p_cont_close.add_argument("--implemented", action="store_true")
+    p_cont_close.add_argument("--advisory-only", action="store_true")
+    continuity_sub.add_parser("resume-plan", help="Print resume plan from latest ledger record")
+
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
     models.add_argument("action", nargs="?", choices=["verify", "reconcile", "status"],
                         help="verify/reconcile/status canonical registry and provider listings")
@@ -1400,6 +1429,12 @@ def main() -> int:
     if args.command == "memory":
         from nexusctl.memory_cli import run_memory
         code, _payload = run_memory(args)
+        if code != 0:
+            raise SystemExit(code)
+        return code
+    if args.command == "continuity":
+        from nexusctl.continuity_cli import run_continuity
+        code, _payload = run_continuity(args)
         if code != 0:
             raise SystemExit(code)
         return code
