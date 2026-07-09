@@ -257,6 +257,23 @@ const server = http.createServer((req, res) => {
   } catch {
     apiPathname = null;
   }
+  // Port-plane health shim — probes historically 404'd on /health for 7356.
+  if (apiPathname === '/health' || apiPathname === '/api/health') {
+    sendJson(res, 200, {
+      status: 'ok',
+      service: 'static_dashboard',
+      port,
+      host,
+      plane_owner: 'static_dashboard',
+      surfaces: ['/', '/dashboard.html', '/wiki/'],
+      modelrelay_expected: {
+        node: 'http://127.0.0.1:7350/v1',
+        python: 'http://127.0.0.1:7355',
+      },
+      brain_api: 'http://127.0.0.1:7352',
+    });
+    return;
+  }
   if (apiPathname && apiPathname.startsWith('/wiki/api/')) {
     try {
       if (handleWikiApi(apiPathname, res)) return;

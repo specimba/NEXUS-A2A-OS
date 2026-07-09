@@ -3,6 +3,11 @@ import sqlite3
 from pathlib import Path
 
 from nexus_os.grounding.models import GroundingEvent
+from nexus_os.grounding.reliable_store import (
+    ReliableGroundingStore,
+    default_grounding_dir,
+    grounding_dir_candidates,
+)
 from nexus_os.grounding.store import GroundingStore
 
 
@@ -38,3 +43,29 @@ def test_pending_count_is_source_scoped(tmp_path: Path):
 
     assert store.pending_count("nexusclaw.worklog") == 1
     assert store.pending_count("other") == 0
+
+
+def test_readonly_root_degrades_without_raising(tmp_path: Path, monkeypatch):
+    """Doctor must not crash when the preferred root is not writable."""
+    ro = tmp_path / "readonly_root"
+    ro.mkdir()
+    # Force probe failure for every candidate so explicit root degrades.
+    monkeypatch.setattr(
+        "nexus_os.grounding.reliable_store._path_is_writable",
+        lambda path: False,
+    )
+    store = ReliableGroundingStore(ro)
+    status = store.status()
+    assert store.read_only is True
+    assert status["read_only"] is True
+    assert status["writable"] is False
+    assert status["init_error"]
+
+
+def test_default_grounding_dir_honors_writable_env(tmp_path: Path, monkeypatch):
+    target = tmp_path / "env_grounding"
+    monkeypatch.setenv("NEXUS_GROUNDING_ROOT", str(target))
+    resolved = default_grounding_dir()
+    assert resolved == target
+    assert target.exists()
+    assert any(p == target for p in grounding_dir_candidates())

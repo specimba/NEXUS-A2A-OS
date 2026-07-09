@@ -21,6 +21,19 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def default_trust_memory_path() -> Path:
+    """Resolve trust memory file; env overrides avoid RO home dirs in tests/CI."""
+    configured = os.environ.get("NEXUS_TRUST_MEMORY_PATH")
+    if configured:
+        return Path(configured)
+    nexus_home = os.environ.get("NEXUS_HOME")
+    if nexus_home:
+        return Path(nexus_home) / "trust_memory.json"
+    return Path(os.path.expanduser("~")) / ".nexus" / "trust_memory.json"
+
+
+# Module-level default for back-compat; re-evaluated at construct time via helper.
 TRUST_MEMORY_FILE = Path(os.path.expanduser("~")) / ".nexus" / "trust_memory.json"
 
 
@@ -28,11 +41,12 @@ class PersistentMemoryTracks:
     """API-compatible replacement for trust_scoring.MemoryTracks with persistence.
 
     All 5 tracks are auto-synced to disk after each mutation. Read operations
-    are in-memory (fast path). Write operations flush to ~/.nexus/trust_memory.json.
+    are in-memory (fast path). Write operations flush to ~/.nexus/trust_memory.json
+    (or NEXUS_TRUST_MEMORY_PATH / NEXUS_HOME when set).
     """
 
     def __init__(self, path: str | Path | None = None):
-        self._path = Path(path) if path else TRUST_MEMORY_FILE
+        self._path = Path(path) if path else default_trust_memory_path()
         self.event_memory: list[dict[str, Any]] = []
         self.trust_memory: dict[tuple[str, Any], dict[str, float]] = {}
         self.capability_memory: dict[str, dict[str, dict[str, int]]] = {}
@@ -60,17 +74,21 @@ class PersistentMemoryTracks:
             logger.warning("Failed to load trust memory from %s: %s", self._path, exc)
 
     def _save(self):
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        serializable_trust = {}
-        for (agent, lane), v in self.trust_memory.items():
-            serializable_trust[f"{agent}||{lane}"] = v
-        self._path.write_text(json.dumps({
-            "event_memory": self.event_memory,
-            "trust_memory": serializable_trust,
-            "capability_memory": self.capability_memory,
-            "failure_pattern_memory": self.failure_pattern_memory,
-            "governance_memory": self.governance_memory,
-        }, indent=2, ensure_ascii=False), encoding="utf-8")
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            serializable_trust = {}
+            for (agent, lane), v in self.trust_memory.items():
+                serializable_trust[f"{agent}||{lane}"] = v
+            self._path.write_text(json.dumps({
+                "event_memory": self.event_memory,
+                "trust_memory": serializable_trust,
+                "capability_memory": self.capability_memory,
+                "failure_pattern_memory": self.failure_pattern_memory,
+                "governance_memory": self.governance_memory,
+            }, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError as exc:
+            # Never crash callers (tests/CI with RO home); keep in-memory state.
+            logger.warning("Failed to save trust memory to %s: %s", self._path, exc)
 
     # ── MemoryTracks API ─────────────────────────────────────────
 

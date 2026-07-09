@@ -21,10 +21,12 @@ from nexus_os.vault.governed_memory_broker import GovernedMemoryBroker
 
 PORT_OWNERSHIP = {
     7350: "modelrelay_npm",
-    7352: "nexus_governance",
+    7352: "nexus_governance",  # Brain API — never ModelRelay
     7353: "twave",
-    7354: "gross_bridge",
+    7354: "gross_bridge",  # live process: nexus-grok-bridge-v2
     7355: "modelrelay_python",
+    7356: "static_dashboard",
+    7357: "god_mode_proxy",
     11436: "nexusclaw_ollama_lane",
 }
 

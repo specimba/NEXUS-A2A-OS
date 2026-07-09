@@ -10,10 +10,12 @@
 
 | Port | Service | Status | Best For |
 |------|---------|--------|----------|
-| 7352 | ModelRelay (Node.js) | ONLINE | Model health, discovery |
-| 7354 | GROSS MCP Bridge | ONLINE | Grok audit (confidential) |
-| 7356 | Dashboard (HTML) | ONLINE | Quality × Health Matrix |
-| 7357 | God Mode Proxy v3 | ONLINE | Smart model routing |
+| 7350 | ModelRelay (Node/npm) | PRIMARY | OpenAI-compat router — probe `/` or `/v1/models` (not `/health`) |
+| 7352 | **Brain API (governance)** | GOVERNANCE | FastAPI agents/tasks; NEVER ModelRelay |
+| 7354 | Grok/GROSS MCP Bridge | BROWSER | nexus-grok-bridge-v2 tools + CDP lane control |
+| 7355 | ModelRelay (Python) | FALLBACK | Python relay / Ollama-cloud discovery |
+| 7356 | Dashboard (HTML) + wiki | UI | Quality × Health Matrix; `/health` shim |
+| 7357 | God Mode Proxy v3 | ROUTER | Smart profile routing over 7350 |
 | 11435 | Ollama | ONLINE | Local GPU inference |
 
 ---

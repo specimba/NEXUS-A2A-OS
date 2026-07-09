@@ -35,13 +35,51 @@ SENSITIVE_SUFFIXES = {".key", ".pem", ".pfx", ".p12"}
 
 
 def default_source_roots() -> dict[str, Path]:
+    """Resolve operator golden roots on Windows home or WSL /mnt/c mounts."""
     home = Path.home()
-    return {
-        "archivist": home / "Downloads" / "ARCHIVIST",
-        "nexuslogs": home / "Downloads" / "NEXUSlogs",
-        "papers": home / "Downloads" / "ARCHIVIST" / "PAPERS",
-        "nexus": home / "Documents" / "NEXUS",
+    candidates_by_id: dict[str, list[Path]] = {
+        "archivist": [
+            home / "Downloads" / "ARCHIVIST",
+            Path("/mnt/c/Users/speci.000/Downloads/ARCHIVIST"),
+            Path(os.environ["USERPROFILE"]) / "Downloads" / "ARCHIVIST"
+            if os.environ.get("USERPROFILE")
+            else None,
+        ],
+        "nexuslogs": [
+            home / "Downloads" / "NEXUSlogs",
+            Path("/mnt/c/Users/speci.000/Downloads/NEXUSlogs"),
+            Path(os.environ["USERPROFILE"]) / "Downloads" / "NEXUSlogs"
+            if os.environ.get("USERPROFILE")
+            else None,
+        ],
+        "papers": [
+            home / "Downloads" / "ARCHIVIST" / "PAPERS",
+            Path("/mnt/c/Users/speci.000/Downloads/ARCHIVIST/PAPERS"),
+            Path(os.environ["USERPROFILE"]) / "Downloads" / "ARCHIVIST" / "PAPERS"
+            if os.environ.get("USERPROFILE")
+            else None,
+        ],
+        "nexus": [
+            home / "Documents" / "NEXUS",
+            Path("/mnt/c/Users/speci.000/Documents/NEXUS"),
+            Path(os.environ["USERPROFILE"]) / "Documents" / "NEXUS"
+            if os.environ.get("USERPROFILE")
+            else None,
+        ],
     }
+    roots: dict[str, Path] = {}
+    for source_id, candidates in candidates_by_id.items():
+        chosen: Path | None = None
+        for candidate in candidates:
+            if candidate is None:
+                continue
+            if candidate.exists():
+                chosen = candidate
+                break
+            if chosen is None:
+                chosen = candidate  # first non-null as display fallback
+        roots[source_id] = chosen if chosen is not None else home / source_id
+    return roots
 
 
 def is_sensitive_or_excluded(path: Path) -> bool:

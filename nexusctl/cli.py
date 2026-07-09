@@ -243,11 +243,27 @@ def run_doctor_hygiene(report_only: bool) -> int:
 
 def run_grounding(args: argparse.Namespace) -> int:
     from nexus_os.grounding import GroundingService, GroundingStore, default_source_roots
-    from nexus_os.grounding.native_watcher import watch_grounding
 
-    store = GroundingStore()
+    try:
+        store = GroundingStore()
+        store_error: str | None = None
+    except Exception as exc:  # pragma: no cover - defensive doctor path
+        store = None
+        store_error = f"{type(exc).__name__}: {exc}"
+
     if args.grounding_command == "status":
-        _json_print({"status": "ok", "command": "grounding status", **store.status()})
+        if store is None:
+            _json_print({
+                "status": "degraded",
+                "command": "grounding status",
+                "error": store_error,
+                "read_only": True,
+                "writable": False,
+            })
+            return 0
+        payload = store.status()
+        status = "degraded" if payload.get("read_only") else "ok"
+        _json_print({"status": status, "command": "grounding status", **payload})
         return 0
     if args.grounding_command == "doctor":
         roots = default_source_roots()
@@ -255,14 +271,46 @@ def run_grounding(args: argparse.Namespace) -> int:
             source_id: {"path": str(path), "exists": path.exists()}
             for source_id, path in roots.items()
         }
+        store_payload: dict
+        if store is None:
+            store_payload = {
+                "error": store_error,
+                "read_only": True,
+                "writable": False,
+            }
+            overall = "degraded"
+        else:
+            store_payload = store.status()
+            overall = "ok"
+            if store_payload.get("read_only") or store_payload.get("init_error"):
+                overall = "degraded"
+            if not all(item["exists"] for item in root_status.values()):
+                overall = "degraded"
         _json_print({
-            "status": "ok" if all(item["exists"] for item in root_status.values()) else "degraded",
+            "status": overall,
             "command": "grounding doctor",
             "roots": root_status,
-            "store": store.status(),
+            "store": store_payload,
             "canonical_mutation_allowed": False,
         })
         return 0
+    if store is None:
+        _json_print({
+            "status": "error",
+            "command": f"grounding {args.grounding_command}",
+            "error": store_error,
+        })
+        return 1
+    if getattr(store, "read_only", False) and args.grounding_command in {
+        "scan", "watch", "promote"
+    }:
+        _json_print({
+            "status": "blocked",
+            "command": f"grounding {args.grounding_command}",
+            "reason": "store_read_only",
+            "store": store.status(),
+        })
+        return 2
     if args.grounding_command == "scan":
         result = GroundingService(store=store).reconcile(
             changed_only=args.changed_only,
@@ -273,6 +321,9 @@ def run_grounding(args: argparse.Namespace) -> int:
         _json_print(result)
         return 0
     if args.grounding_command == "watch":
+        # Lazy import: watchdog is optional for doctor/status/scan paths.
+        from nexus_os.grounding.native_watcher import watch_grounding
+
         watch_grounding(
             GroundingService(store=store),
             fallback_poll_seconds=args.poll_seconds,
@@ -756,6 +807,23 @@ def run_model_sync(args: argparse.Namespace) -> int:
     return model_sync.main(argv if argv else None)
 
 
+def run_ports(args: argparse.Namespace) -> int:
+    """`nexusctl ports doctor` — probe the 7350–7360 plane + pipeline layers."""
+    from nexus_os.bridge.port_plane import doctor_report
+
+    host = getattr(args, "host", None) or "127.0.0.1"
+    timeout = float(getattr(args, "timeout", 2.0) or 2.0)
+    band_only = bool(getattr(args, "band_only", False))
+    report = doctor_report(host=host, timeout=timeout, band_only=band_only)
+    _json_print(report)
+    status = report.get("status")
+    if status == "critical":
+        return 2
+    if status == "degraded":
+        return 1
+    return 0
+
+
 def run_grok_lane(args: argparse.Namespace) -> int:
     """`nexusctl grok-lane doctor` — pure-probe the full Grok automation lane.
 
@@ -778,8 +846,13 @@ def run_grok_lane(args: argparse.Namespace) -> int:
         ("python_relay", 7355, "/health",                "Python ModelRelay fallback"),
         ("god_mode",     7357, "/health",                "God Mode Proxy"),
         ("dash_api",     None, "/api/nexusclaw/status",  "Next.js dashboard control-center API (port 3001 canonical, 3000 fallback)"),
-        ("dash_ui",      7356, "/",                      "Static dashboard"),
+        ("dash_ui",      7356, "/health",                "Static dashboard (arena/wiki UI)"),
     ]
+    # Secondary paths when primary health path 404s (e.g. pre-shim dash_ui).
+    fallback_paths = {
+        "dash_ui": ("/", "/dashboard.html"),
+        "node_relay": ("/v1/models",),
+    }
     results = {}
     for name, port, path, _desc in checks:
         ok = False
@@ -804,12 +877,20 @@ def run_grok_lane(args: argparse.Namespace) -> int:
                 except Exception:
                     pass
         else:
-            try:
-                r = urllib.request.urlopen(
-                    urllib.request.Request(f"http://127.0.0.1:{port}{path}"), timeout=3)
-                ok = r.status < 400
-            except Exception:
-                ok = False
+            paths_to_try = (path,) + fallback_paths.get(name, ())
+            for try_path in paths_to_try:
+                try:
+                    r = urllib.request.urlopen(
+                        urllib.request.Request(
+                            f"http://127.0.0.1:{port}{try_path}"
+                        ),
+                        timeout=3,
+                    )
+                    if r.status < 400:
+                        ok = True
+                        break
+                except Exception:
+                    ok = False
         results[name] = ok
 
     # Revive (detached, opt-in) — only the relays, never CDP/dashboard which the
@@ -1166,6 +1247,24 @@ def main() -> int:
     grounding_promote.add_argument("--proposal", required=True)
     grounding_promote.add_argument("--dry-run", action="store_true", default=True)
 
+    ports = subparsers.add_parser(
+        "ports",
+        help="Port plane 7350–7360: purposes, health probes, pipeline layers",
+    )
+    ports_sub = ports.add_subparsers(dest="ports_command")
+    ports_sub.required = True
+    ports_doctor = ports_sub.add_parser(
+        "doctor",
+        help="Probe listening + HTTP health for the port plane (JSON)",
+    )
+    ports_doctor.add_argument("--host", default="127.0.0.1")
+    ports_doctor.add_argument("--timeout", type=float, default=2.0)
+    ports_doctor.add_argument(
+        "--band-only",
+        action="store_true",
+        help="Only probe 7350–7360 (skip 3001/9224)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "cycle-check":
@@ -1226,6 +1325,10 @@ def main() -> int:
         return run_model_sync(args)
     if args.command == "grok-lane":
         return run_grok_lane(args)
+    if args.command == "ports":
+        if args.ports_command == "doctor":
+            return run_ports(args)
+        raise ValueError(f"Unknown ports command: {args.ports_command}")
     if args.command == "grounding":
         return run_grounding(args)
     parser.error(f"Unknown command: {args.command}")

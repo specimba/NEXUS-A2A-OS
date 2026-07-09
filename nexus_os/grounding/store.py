@@ -12,14 +12,8 @@ from typing import Any, Iterable
 from .models import GroundingEvent
 
 
-def default_grounding_dir() -> Path:
-    configured = os.environ.get("NEXUS_GROUNDING_ROOT")
-    if configured:
-        return Path(configured)
-    local_app_data = os.environ.get("LOCALAPPDATA")
-    if local_app_data:
-        return Path(local_app_data) / "NEXUS" / "grounding"
-    return Path.home() / ".nexus" / "grounding"
+# Re-export the candidate-aware resolver from the reliable implementation.
+from .reliable_store import default_grounding_dir as default_grounding_dir  # noqa: E402
 
 
 class GroundingStore:
