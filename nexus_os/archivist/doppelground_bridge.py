@@ -77,6 +77,20 @@ CHANNEL_NAME_TO_NUM: Dict[str, int] = {
     "procedural": 4, "trust": 5, "task": 6, "meta": 7,
 }
 
+# ----- Evidence-graded trust for DG-sourced records ----------------------
+# Vault write gates (CHANNEL_WRITE_TRUST, NEXUS Trust Framework 4.2):
+#   EPISODIC=30, TASK=40, SEMANTIC=65, META=70, PROCEDURAL=80, TRUST=90.
+# DG is an *external* evidence-preparation layer; its records must earn
+# their trust from evidence grade (continuity writer-fence vocabulary:
+# E0 = unverified floor, E1 = verified with proof attached).
+#: E0 / missing / unknown grade: below EVERY gated channel threshold, so
+#: ungraded DG intel fails gated-channel writes (fail-closed).
+TRUST_E0 = 25.0
+#: E1 (verified) trust band: [65.0, 79.0] scaled by record quality_score.
+#: Never reaches PROCEDURAL (80) or TRUST (90) gates automatically.
+TRUST_E1_BASE = 65.0
+TRUST_E1_SPAN = 14.0
+
 
 @dataclass
 class BridgeResult:
@@ -99,14 +113,22 @@ class DoppelGroundBridge:
     IMPORTANT: This module must NEVER write back to DG. DG→NEXUS is one-way.
     """
 
-    def __init__(self, trust_score_default: float = 90.0):
+    def __init__(self, trust_score_default: Optional[float] = None):
         """Initialize bridge.
-        
+
         Args:
-            trust_score_default: Default trust score for vault writes.
-                Must be >= 65 (SEMANTIC), >= 80 (PROCEDURAL), or >= 90 (TRUST) 
-                or writes to gated channels will return None.
-                Default 90.0 passes all current channel trust gates.
+            trust_score_default: Operator override for vault write trust.
+                Default None means trust is COMPUTED per record from its
+                evidence grade and provenance (see :meth:`compute_trust`):
+                E0/unverified/missing grade -> 25.0, which is below every
+                gated channel threshold, so ungraded DG intel is rejected
+                by the vault write gates (fail-closed); E1/verified -> the
+                [65.0, 79.0] band. Trust >= 90 is NEVER assigned by
+                default; it requires an explicit ``operator_grade`` field
+                on the record itself.
+                Passing an explicit float here is an operator override that
+                applies that trust to every write (legacy behavior; use
+                deliberately, it bypasses evidence-graded gating).
         """
         self._trust_default = trust_score_default
         self._stats = {
@@ -123,6 +145,57 @@ class DoppelGroundBridge:
             from nexus_os.vault.memory_channels import get_manager, MemoryChannel
             self._manager = get_manager()
         return self._manager
+
+    @staticmethod
+    def _record_field(record, name: str):
+        """Read ``name`` from the record, falling back to its import_record."""
+        value = getattr(record, name, None)
+        if value is None:
+            import_record = getattr(record, "import_record", None)
+            if import_record is not None:
+                value = getattr(import_record, name, None)
+        return value
+
+    def compute_trust(self, record) -> float:
+        """Compute writer trust for a DG-sourced record (fail-closed).
+
+        Precedence:
+        1. Constructor-level operator override (``trust_score_default`` float).
+        2. ``operator_grade`` on the record (or its import_record) -- an
+           explicit operator/governance grading, clamped to [0, 100]. This is
+           the ONLY way a DG record can carry trust >= 90 (TRUST gate).
+        3. ``evidence_grade``:
+           - "E1" (verified) -> TRUST_E1_BASE + TRUST_E1_SPAN * quality_score,
+             i.e. the [65, 79] band -- passes SEMANTIC (65), never PROCEDURAL
+             (80) or TRUST (90).
+           - "E0", missing, or unknown -> TRUST_E0 (below every gated
+             channel threshold; the vault rejects the write).
+        """
+        if self._trust_default is not None:
+            return float(self._trust_default)
+
+        operator_grade = self._record_field(record, "operator_grade")
+        if operator_grade is not None:
+            try:
+                return max(0.0, min(100.0, float(operator_grade)))
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Invalid operator_grade %r on DG record; "
+                    "falling back to evidence grade", operator_grade,
+                )
+
+        grade = self._record_field(record, "evidence_grade")
+        grade_norm = str(grade).strip().upper() if grade is not None else ""
+        if grade_norm == "E1":
+            quality = getattr(record, "quality_score", None)
+            try:
+                q = max(0.0, min(1.0, float(quality)))
+            except (TypeError, ValueError):
+                q = 0.0
+            return TRUST_E1_BASE + TRUST_E1_SPAN * q
+
+        # E0, missing, or unrecognized grade: fail closed.
+        return TRUST_E0
 
     def infer_source_kind(self, compiled_record) -> str:
         """Infer DG source kind from a CompiledRecord's topic tags and file type.
@@ -174,6 +247,10 @@ class DoppelGroundBridge:
         from nexus_os.vault.memory_channels import MemoryChannel
         channel = MemoryChannel(channel_name)
 
+        # Per-record trust from evidence grade / operator grade (fail-closed),
+        # unless the constructor received an explicit operator override.
+        trust = self.compute_trust(compiled_record)
+
         # Build content from the compiled record
         ir = compiled_record.import_record
         content_parts = [
@@ -201,7 +278,7 @@ class DoppelGroundBridge:
                     content=content,
                     topic_tags=compiled_record.topic_tags,
                     source_dossier_id=compiled_record.dossier_topic,
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
                 )
             elif channel == MemoryChannel.TRUST:
@@ -209,11 +286,11 @@ class DoppelGroundBridge:
                 record = manager.append_trust(
                     agent_id=agent_id,
                     lane="governance",
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                     evidence_count=1,
                     content=content,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
-                    writer_trust=self._trust_default,
+                    writer_trust=trust,
                 )
             elif channel == MemoryChannel.PROCEDURAL:
                 record = manager.append_procedural(
@@ -221,7 +298,7 @@ class DoppelGroundBridge:
                     content=content,
                     skill_tags=compiled_record.topic_tags or [],
                     confidence=compiled_record.quality_score or 0.5,
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
                 )
             elif channel == MemoryChannel.EPISODIC:
@@ -230,6 +307,7 @@ class DoppelGroundBridge:
                     content=content,
                     outcome="failure",  # rejection examples are failures
                     failure_type="rejection_pattern",
+                    trust_score=trust,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
                 )
             elif channel == MemoryChannel.TASK:
@@ -238,7 +316,7 @@ class DoppelGroundBridge:
                     content=content,
                     task_id=f"role-{compiled_record.dossier_topic or 'unknown'}",
                     task_status="active",
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
                 )
             elif channel == MemoryChannel.META:
@@ -246,7 +324,7 @@ class DoppelGroundBridge:
                     agent_id=agent_id,
                     meta_type="golden_dataset",
                     content=content,
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                     trace_id=f"dg-{ir.blake3_hash[:16]}" if hasattr(ir, 'blake3_hash') else None,
                 )
             else:
@@ -255,7 +333,7 @@ class DoppelGroundBridge:
                     agent_id=agent_id,
                     content=content,
                     topic_tags=compiled_record.topic_tags,
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                 )
 
             if record is not None:
@@ -328,13 +406,14 @@ class DoppelGroundBridge:
         for dossier in dossiers:
             try:
                 manager = self._get_manager()
+                trust = self.compute_trust(dossier)
                 content = f"[DG→NEXUS Dossier] {dossier.title}\n\n{dossier.content[:2000]}"
                 record = manager.append_semantic(
                     agent_id="doppelground-bridge",
                     content=content,
                     topic_tags=dossier.tags if hasattr(dossier, 'tags') else [dossier.topic],
                     source_dossier_id=dossier.topic if hasattr(dossier, 'topic') else None,
-                    trust_score=self._trust_default,
+                    trust_score=trust,
                 )
                 if record is not None:
                     record_id = record.record_id if hasattr(record, 'record_id') else None
