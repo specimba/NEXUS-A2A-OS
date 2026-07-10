@@ -361,9 +361,11 @@ mcp = FastMCP(SERVER_NAME, host=LISTEN_HOST, port=LISTEN_PORT, log_level="ERROR"
 try:
     import sys
     import pathlib
-    workspace_root = str(pathlib.Path(__file__).parent.parent.parent.resolve())
-    if workspace_root not in sys.path:
-        sys.path.insert(0, workspace_root)
+    workspace_root = pathlib.Path(__file__).parent.parent.parent.resolve()
+    # nexus_uipath_bridge lives inside the hackathon subproject, not the repo root
+    bridge_root = workspace_root / "NEXUS_UiPathAgentHack"
+    if (bridge_root / "nexus_uipath_bridge").is_dir() and str(bridge_root) not in sys.path:
+        sys.path.insert(0, str(bridge_root))
     from nexus_uipath_bridge.app import app as sentinel_app
     from starlette.routing import Mount
     mcp._custom_starlette_routes.append(Mount("/nexus-sentinel", app=sentinel_app))
