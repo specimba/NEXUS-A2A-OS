@@ -153,3 +153,7 @@ tools/frontier_scanner/state/
 
 # quarantined root debris (2026-07-07 restructure) — local archive, contains live .env copies
 /legacy/
+
+# session scratch (2026-07-10)
+/scratch/
+/write_model_plan.ps1
