@@ -5,6 +5,7 @@
       "name": "z-ai/glm-5.2",
       "provider": "nvidia",
       "quality_score": 0.96,
+      "quality_provenance": "arena+tier",
       "max_context": 202752,
       "supports_thinking": true,
       "roles": [
@@ -16,7 +17,8 @@
     {
       "name": "zai-org/GLM-5.2",
       "provider": "siliconflow",
-      "quality_score": 0.95,
+      "quality_score": 0.96,
+      "quality_provenance": "arena+tier",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -28,6 +30,7 @@
       "name": "deepseek-ai/DeepSeek-V4-Pro",
       "provider": "siliconflow",
       "quality_score": 0.95,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -39,6 +42,7 @@
       "name": "deepseek-ai/deepseek-v4-pro",
       "provider": "nvidia",
       "quality_score": 0.95,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -50,6 +54,7 @@
       "name": "deepseek-ai/DeepSeek-V4-Flash",
       "provider": "siliconflow",
       "quality_score": 0.92,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -61,6 +66,7 @@
       "name": "deepseek-ai/deepseek-v4-flash",
       "provider": "nvidia",
       "quality_score": 0.92,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -72,6 +78,7 @@
       "name": "deepseek-v4-flash-free",
       "provider": "opencode",
       "quality_score": 0.92,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": false,
       "roles": [
@@ -83,6 +90,7 @@
       "name": "zai-org/GLM-5.1",
       "provider": "siliconflow",
       "quality_score": 0.91,
+      "quality_provenance": "tier-only",
       "max_context": 202752,
       "supports_thinking": true,
       "roles": [
@@ -93,7 +101,8 @@
     {
       "name": "MiniMaxAI/MiniMax-M3",
       "provider": "siliconflow",
-      "quality_score": 0.9,
+      "quality_score": 0.89,
+      "quality_provenance": "arena+tier",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -104,7 +113,8 @@
     {
       "name": "moonshotai/Kimi-K2.6",
       "provider": "siliconflow",
-      "quality_score": 0.9,
+      "quality_score": 0.86,
+      "quality_provenance": "arena+tier",
       "max_context": 262144,
       "supports_thinking": true,
       "roles": [
@@ -114,7 +124,8 @@
     {
       "name": "minimaxai/minimax-m3",
       "provider": "nvidia",
-      "quality_score": 0.9,
+      "quality_score": 0.89,
+      "quality_provenance": "arena+tier",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -125,7 +136,8 @@
     {
       "name": "moonshotai/kimi-k2.6",
       "provider": "nvidia",
-      "quality_score": 0.9,
+      "quality_score": 0.86,
+      "quality_provenance": "arena+tier",
       "max_context": 262144,
       "supports_thinking": true,
       "roles": [
@@ -135,7 +147,8 @@
     {
       "name": "minimax-m3:cloud",
       "provider": "ollama-cloud",
-      "quality_score": 0.9,
+      "quality_score": 0.89,
+      "quality_provenance": "arena+tier",
       "max_context": 1048576,
       "supports_thinking": true,
       "roles": [
@@ -147,6 +160,7 @@
       "name": "zai-org/GLM-5",
       "provider": "siliconflow",
       "quality_score": 0.89,
+      "quality_provenance": "tier-only",
       "max_context": 202752,
       "supports_thinking": true,
       "roles": [
@@ -157,6 +171,7 @@
       "name": "moonshotai/Kimi-K2-Thinking",
       "provider": "siliconflow",
       "quality_score": 0.88,
+      "quality_provenance": "tier-only",
       "max_context": 262144,
       "supports_thinking": true,
       "roles": [
@@ -167,6 +182,7 @@
       "name": "nvidia/nemotron-3-ultra-550b-a55b",
       "provider": "nvidia",
       "quality_score": 0.88,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": false,
       "roles": [
@@ -177,6 +193,7 @@
       "name": "nemotron-3-ultra-free",
       "provider": "opencode",
       "quality_score": 0.88,
+      "quality_provenance": "tier-only",
       "max_context": 1048576,
       "supports_thinking": false,
       "roles": [
@@ -187,6 +204,7 @@
       "name": "qwen/qwen3.5-397b-a17b",
       "provider": "nvidia",
       "quality_score": 0.86,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -198,6 +216,7 @@
       "name": "qwen3-coder:480b",
       "provider": "ollama-cloud",
       "quality_score": 0.86,
+      "quality_provenance": "tier-only",
       "max_context": 131072,
       "supports_thinking": false,
       "roles": [
@@ -208,6 +227,7 @@
       "name": "Qwen/Qwen3-235B-A22B",
       "provider": "siliconflow",
       "quality_score": 0.85,
+      "quality_provenance": "tier-only",
       "max_context": 131072,
       "supports_thinking": true,
       "roles": [
@@ -218,6 +238,7 @@
       "name": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
       "provider": "nvidia",
       "quality_score": 0.85,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -228,6 +249,7 @@
       "name": "intern-s2-preview",
       "provider": "internai",
       "quality_score": 0.85,
+      "quality_provenance": "tier-only",
       "max_context": 262144,
       "supports_thinking": true,
       "roles": [
@@ -240,6 +262,7 @@
       "name": "MiniMaxAI/MiniMax-M2.5",
       "provider": "siliconflow",
       "quality_score": 0.84,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -250,6 +273,7 @@
       "name": "qwen/qwen3-next-80b-a3b-instruct",
       "provider": "nvidia",
       "quality_score": 0.84,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -260,6 +284,7 @@
       "name": "qwen3.6-plus-free",
       "provider": "opencode",
       "quality_score": 0.84,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -270,6 +295,7 @@
       "name": "mimo-v2.5-free",
       "provider": "opencode",
       "quality_score": 0.82,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -280,6 +306,7 @@
       "name": "glm-4.7",
       "provider": "ollama-cloud",
       "quality_score": 0.82,
+      "quality_provenance": "tier-only",
       "max_context": 131072,
       "supports_thinking": false,
       "roles": [
@@ -290,6 +317,7 @@
       "name": "intern-s1-pro",
       "provider": "internai",
       "quality_score": 0.82,
+      "quality_provenance": "tier-only",
       "max_context": 262144,
       "supports_thinking": true,
       "roles": [
@@ -301,6 +329,7 @@
       "name": "qwen/qwen3.5-122b-a10b",
       "provider": "nvidia",
       "quality_score": 0.8,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -311,6 +340,7 @@
       "name": "intern-s1",
       "provider": "internai",
       "quality_score": 0.75,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [
@@ -321,6 +351,7 @@
       "name": "north-mini-code-free",
       "provider": "opencode",
       "quality_score": 0.7,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": false,
       "roles": [
@@ -331,6 +362,7 @@
       "name": "poolside/laguna-m.1:free",
       "provider": "kilocode",
       "quality_score": 0.7,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": false,
       "roles": [
@@ -341,6 +373,7 @@
       "name": "intern-s1-mini",
       "provider": "internai",
       "quality_score": 0.7,
+      "quality_provenance": "tier-only",
       "max_context": 32768,
       "supports_thinking": true,
       "roles": [

@@ -10,9 +10,17 @@ byte-equality drift test can prove the registry and its consumers agree):
 5. nexus_os/gmr/domain_mapping_generated.py — GMR domain routing tables
 6. nexus_os/model_relay/known_quotas_generated.py — structured v3 quota feed
 7. nexus_os/relay/tracing/license_map_generated.py — outputLicense partition map
+8. nexus_os/relay/scores_generated.py — blended arena+tier capability scores
+
+Artifacts 3, 5 and 8 additionally read config/arena_scores.snapshot.json —
+a committed lockfile-style arena snapshot (seeded from nexus_os.relay.arena_ingest
+data; absent file tolerated) — so generation stays deterministic.
 
 Usage:
-    python scripts/gen_model_registry.py [--check]   # --check: exit 1 on drift
+    python scripts/gen_model_registry.py [--check] [--only chimera,domains,scores]
+        --check: exit 1 on drift
+        --only:  restrict to a comma-separated artifact subset
+                 (ts, quota, chimera, ollama, domains, known_quotas, license, scores)
 """
 from __future__ import annotations
 
@@ -32,6 +40,18 @@ OLLAMA_OUT = REPO / "nexus_os" / "relay" / "ollama_map_generated.py"
 DOMAINS_OUT = REPO / "nexus_os" / "gmr" / "domain_mapping_generated.py"
 QUOTAS_OUT = REPO / "nexus_os" / "model_relay" / "known_quotas_generated.py"
 LICENSE_OUT = REPO / "nexus_os" / "relay" / "tracing" / "license_map_generated.py"
+SCORES_OUT = REPO / "nexus_os" / "relay" / "scores_generated.py"
+ARENA_SNAPSHOT = REPO / "config" / "arena_scores.snapshot.json"
+
+# Blend weights for arena-covered models. The Track A2 plan was
+# 0.55*arena + 0.30*(tier/100) + 0.15*internal_bench, but the only
+# internal-bench candidate (datasets/ernie/arena_metrics_live.json) is a
+# guard-plane SAFETY bench of four local ollama models
+# (benign_pass_rate / adversarial_detect_rate) — no usable per-model
+# QUALITY signal for the cloud registry — so the internal component is
+# dropped and the remaining weights renormalize 0.55/0.85 and 0.30/0.85.
+ARENA_WEIGHT = round(0.55 / 0.85, 4)  # 0.6471
+TIER_WEIGHT = round(0.30 / 0.85, 4)   # 0.3529
 
 #: GMR domain -> registry roles eligible for that domain's primary list.
 DOMAIN_ROLES = {
@@ -59,6 +79,61 @@ def _quota_rpm(prov: dict):
     if isinstance(windows, dict):
         return windows.get("rpm")
     return quota.get("rpm")
+
+
+def _load_arena(path: Path = ARENA_SNAPSHOT) -> dict:
+    """{registry_id: snapshot entry} from the committed arena snapshot.
+
+    Tolerates an absent/unreadable file (empty dict -> every model falls
+    back to tier-only quality downstream, per the no-data doctrine).
+    """
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    models = data.get("models") if isinstance(data, dict) else None
+    return models if isinstance(models, dict) else {}
+
+
+def _arena_scale(registry: dict, arena: dict) -> float:
+    """Scale-calibration factor mapping the fused-arena band onto tiers.
+
+    Fused arena scores (elo over the 1000-1500 band, AA indices /100) top
+    out well below 1.0, while registry tiers — and the GMR level quality
+    targets (L1 0.70 … L3/L4 0.92) calibrated against them — top out at
+    0.96. Blending raw arena values would deflate every frontier below
+    the L3/L4 target, so the arena component is rescaled to anchor the
+    best arena performer at the best tier/100 among arena-covered
+    registry models. Relative arena ordering is preserved.
+    """
+    covered = []
+    for m in registry["models"]:
+        entry = arena.get(m["id"])
+        if isinstance(entry, dict) and isinstance(entry.get("arena_score"), (int, float)):
+            covered.append((float(entry["arena_score"]), m.get("tier") or 50))
+    if not covered:
+        return 1.0
+    max_arena = max(score for score, _ in covered)
+    if max_arena <= 0:
+        return 1.0
+    max_tier = max(tier for _, tier in covered)
+    return (max_tier / 100.0) / max_arena
+
+
+def _blend(model: dict, arena: dict, scale: float):
+    """(blended 0-1 quality, provenance, snapshot entry | None) for a model.
+
+    Arena-covered: ARENA_WEIGHT*calibrated_arena + TIER_WEIGHT*(tier/100)
+    ("arena+tier"). No arena entry: tier/100 ("tier-only") — a score is
+    never synthesized for uncovered models (no-data doctrine).
+    """
+    tier_q = (model.get("tier") or 50) / 100.0
+    entry = arena.get(model["id"])
+    score = entry.get("arena_score") if isinstance(entry, dict) else None
+    if not isinstance(score, (int, float)):
+        return tier_q, "tier-only", None
+    calibrated = min(float(score) * scale, 1.0)
+    return ARENA_WEIGHT * calibrated + TIER_WEIGHT * tier_q, "arena+tier", entry
 
 
 def _ts_provider(slug: str, prov: dict) -> dict:
@@ -173,7 +248,8 @@ def emit_quota(registry: dict) -> str:
     )
 
 
-def emit_chimera(registry: dict) -> str:
+def emit_chimera(registry: dict, arena: dict) -> str:
+    scale = _arena_scale(registry, arena)
     prov_status = {k: v["status"] for k, v in registry["providers"].items()}
     profiles = []
     seen = set()
@@ -188,10 +264,12 @@ def emit_chimera(registry: dict) -> str:
             continue
         seen.add(m["id"])
         caps = m.get("capabilities") or {}
+        blended, quality_provenance, _entry = _blend(m, arena, scale)
         profiles.append({
             "name": m["id"],
             "provider": m["provider"],
-            "quality_score": round((m.get("tier") or 50) / 100.0, 2),
+            "quality_score": round(blended, 2),
+            "quality_provenance": quality_provenance,
             "max_context": m.get("context") or 32768,
             "supports_thinking": bool(caps.get("thinking")),
             "roles": m.get("roles", []),
@@ -239,7 +317,8 @@ def emit_ollama(registry: dict) -> str:
 
 
 
-def emit_domains(registry: dict) -> str:
+def emit_domains(registry: dict, arena: dict) -> str:
+    scale = _arena_scale(registry, arena)
     prov_status = {k: v["status"] for k, v in registry["providers"].items()}
     domains: dict = {}
     for domain, roles in DOMAIN_ROLES.items():
@@ -255,6 +334,7 @@ def emit_domains(registry: dict) -> str:
             if domain == "fast" and m["provider"] != "ollama":
                 continue
             local = m["provider"] == "ollama"
+            blended, _prov, _entry = _blend(m, arena, scale)
             entries.append({
                 "model": m["id"],
                 "provider": m["provider"],
@@ -265,8 +345,14 @@ def emit_domains(registry: dict) -> str:
                 # local-first (the NEXUS SLM-team posture); true-local = 0.
                 "cost_per_1m": 0.0 if local else 1.0,
                 "status": "local" if local else "up",
+                # sort-only blend key (stripped before emission)
+                "_blend_x100": round(blended * 100, 4),
             })
-        entries.sort(key=lambda e: -e["tier"])
+        # Arena-blended quality ranks first; registry tier breaks ties
+        # (and IS the rank for models with no arena coverage).
+        entries.sort(key=lambda e: (-e["_blend_x100"], -e["tier"]))
+        for e in entries:
+            del e["_blend_x100"]
         # One slot per model FAMILY: the same frontier served by several
         # providers (e.g. DeepSeek-V4-Pro on baseten+siliconflow+nvidia)
         # must not crowd out distinct models; provider failover is the
@@ -353,21 +439,112 @@ def emit_license_map(registry: dict) -> str:
     )
 
 
+def emit_scores(registry: dict, arena: dict) -> str:
+    scale = _arena_scale(registry, arena)
+    by_id: dict[str, dict] = {}
+    provenance: dict[str, dict] = {}
+    alias_of: dict[str, list] = {}
+    for m in registry["models"]:
+        blended, prov, entry = _blend(m, arena, scale)
+        quality = round(blended, 4)
+        code = quality
+        if entry is not None and isinstance(entry.get("code_score"), (int, float)):
+            # AA-coding/code-elo fusion, on the same calibrated scale.
+            code = round(min(float(entry["code_score"]) * scale, 1.0), 4)
+        dims = {
+            "quality": quality,
+            "code": code,
+            "reasoning": quality,
+            "swe": code,
+            # No per-model latency signal in the snapshot yet: neutral.
+            "speed": 0.5,
+            "cost_efficiency": 1.0 if m.get("free") is not False else 0.2,
+        }
+        existing = by_id.get(m["id"])
+        # Duplicate registry id (same model on several lanes): highest
+        # blended wins; on a quality tie the free lane beats the paid one
+        # (deterministic — registry order breaks any remaining tie).
+        if existing is not None and (existing["quality"], existing["cost_efficiency"]) >= (quality, dims["cost_efficiency"]):
+            continue
+        by_id[m["id"]] = dims
+        if prov == "arena+tier":
+            provenance[m["id"]] = {
+                "provenance": prov,
+                "weights": {"arena": ARENA_WEIGHT, "tier": TIER_WEIGHT},
+                "components": {
+                    "arena_score": entry.get("arena_score"),
+                    "arena_calibrated": round(min(float(entry["arena_score"]) * scale, 1.0), 4),
+                    "calibration_scale": round(scale, 4),
+                    "tier": m.get("tier") or 50,
+                    # datasets/ernie/arena_metrics_live.json is a guard-plane
+                    # safety bench, not a quality signal: internal_bench
+                    # dropped, weights renormalized (see ARENA_WEIGHT note).
+                    "internal_bench": None,
+                },
+                "as_of": entry.get("as_of"),
+                "sources": entry.get("sources") or [],
+            }
+        else:
+            provenance[m["id"]] = {
+                "provenance": prov,
+                "weights": {"tier": 1.0},
+                "components": {"tier": m.get("tier") or 50},
+                "as_of": None,
+                "sources": [],
+            }
+    alias_of = {}
+    for m in registry["models"]:
+        for alias in m.get("aliases", []):
+            alias_of.setdefault(alias, []).append(m["id"])
+    scores: dict[str, dict] = dict(by_id)
+    for alias, ids in sorted(alias_of.items()):
+        best = max((by_id[i] for i in ids), key=lambda d: d["quality"])
+        current = scores.get(alias)
+        # Alias collision (incl. alias shadowing another model id):
+        # highest blended quality wins.
+        if current is None or current["quality"] < best["quality"]:
+            scores[alias] = best
+    doc = (
+        "Blended capability scores: registry tier fused with the committed"
+        " arena snapshot (config/arena_scores.snapshot.json). Keys are every"
+        " registry model id AND alias; SCORES_PROVENANCE (registry ids only)"
+        " records components, weights, sources and as_of per model."
+    )
+    return f'''"""{HEADER}
+
+{doc}"""
+
+SCORES_GENERATED: dict = {_py_literal(scores)}
+
+SCORES_PROVENANCE: dict = {_py_literal(provenance)}
+'''
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="verify artifacts match the registry (drift test)")
+    ap.add_argument("--only", default=None, help="comma-separated artifact subset to emit/check: ts, quota, chimera, ollama, domains, known_quotas, license, scores")
     args = ap.parse_args()
 
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-    outputs = {
-        TS_OUT: emit_ts(registry),
-        QUOTA_OUT: emit_quota(registry),
-        CHIMERA_OUT: emit_chimera(registry),
-        OLLAMA_OUT: emit_ollama(registry),
-        DOMAINS_OUT: emit_domains(registry),
-        QUOTAS_OUT: emit_known_quotas(registry),
-        LICENSE_OUT: emit_license_map(registry),
+    arena = _load_arena()
+    named_outputs = {
+        "ts": (TS_OUT, emit_ts(registry)),
+        "quota": (QUOTA_OUT, emit_quota(registry)),
+        "chimera": (CHIMERA_OUT, emit_chimera(registry, arena)),
+        "ollama": (OLLAMA_OUT, emit_ollama(registry)),
+        "domains": (DOMAINS_OUT, emit_domains(registry, arena)),
+        "known_quotas": (QUOTAS_OUT, emit_known_quotas(registry)),
+        "license": (LICENSE_OUT, emit_license_map(registry)),
+        "scores": (SCORES_OUT, emit_scores(registry, arena)),
     }
+    if args.only:
+        wanted = [part.strip() for part in args.only.split(",") if part.strip()]
+        unknown = sorted(set(wanted) - set(named_outputs))
+        if unknown:
+            ap.error("unknown artifact(s): " + ", ".join(unknown) + " (known: " + ", ".join(named_outputs) + ")")
+        named_outputs = {k: v for k, v in named_outputs.items() if k in wanted}
+    outputs = {path: content for path, content in named_outputs.values()}
 
     drift = []
     for path, content in outputs.items():

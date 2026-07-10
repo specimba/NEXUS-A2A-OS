@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "generated_at": "2026-07-10T19:05:47.706961+00:00",
+  "note": "fixture-seeded, refresh when live (2026-07-10: api.wulong.dev unreachable, openrouter rankings-daily 404, no AA key). Lockfile-style arena snapshot read by scripts/gen_model_registry.py so generation stays deterministic. Interim shape: folds into registry v4 per-model arenaScore fields later. Only models with real arena data appear (no-data doctrine) — absent means tier-only fallback downstream. propagated_from = duplicate-id identity resolution (same model, different canonical id).",
+  "models": {
+    "MiniMaxAI/MiniMax-M3": {
+      "arena_score": 0.6641,
+      "confidence": "high",
+      "sources": [
+        "aa_intelligence_index",
+        "aa_speed",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00"
+    },
+    "minimax-m3:cloud": {
+      "arena_score": 0.6641,
+      "confidence": "high",
+      "sources": [
+        "aa_intelligence_index",
+        "aa_speed",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "propagated_from": "MiniMaxAI/MiniMax-M3"
+    },
+    "minimaxai/minimax-m3": {
+      "arena_score": 0.6641,
+      "confidence": "high",
+      "sources": [
+        "aa_intelligence_index",
+        "aa_speed",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "propagated_from": "MiniMaxAI/MiniMax-M3"
+    },
+    "moonshotai/Kimi-K2.6": {
+      "arena_score": 0.6253,
+      "confidence": "high",
+      "sources": [
+        "aa_coding",
+        "aa_intelligence_index",
+        "aa_price",
+        "aa_speed",
+        "lmarena_code_elo",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "code_score": 0.59
+    },
+    "moonshotai/kimi-k2.6": {
+      "arena_score": 0.6253,
+      "confidence": "high",
+      "sources": [
+        "aa_coding",
+        "aa_intelligence_index",
+        "aa_price",
+        "aa_speed",
+        "lmarena_code_elo",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "code_score": 0.59,
+      "propagated_from": "moonshotai/Kimi-K2.6"
+    },
+    "z-ai/glm-5.2": {
+      "arena_score": 0.7161,
+      "confidence": "high",
+      "sources": [
+        "aa_coding",
+        "aa_intelligence_index",
+        "aa_price",
+        "aa_speed",
+        "lmarena_code_elo",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "code_score": 0.684,
+      "propagated_from": "zai-org/GLM-5.2"
+    },
+    "zai-org/GLM-5.2": {
+      "arena_score": 0.7161,
+      "confidence": "high",
+      "sources": [
+        "aa_coding",
+        "aa_intelligence_index",
+        "aa_price",
+        "aa_speed",
+        "lmarena_code_elo",
+        "lmarena_elo"
+      ],
+      "as_of": "2026-07-08T00:00:00+00:00",
+      "code_score": 0.684
+    }
+  }
+}

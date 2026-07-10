@@ -152,17 +152,17 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "status": "up"
             },
             {
-                "model": "moonshotai/Kimi-K2.6",
+                "model": "zai-org/GLM-5",
                 "provider": "siliconflow",
-                "tier": 90,
+                "tier": 89,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
-                "model": "zai-org/GLM-5",
-                "provider": "siliconflow",
-                "tier": 89,
+                "model": "nvidia/nemotron-3-ultra-550b-a55b",
+                "provider": "nvidia",
+                "tier": 88,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
@@ -240,17 +240,17 @@ GENERATED_DOMAIN_MAPPING: dict = {
                 "status": "up"
             },
             {
-                "model": "moonshotai/Kimi-K2.6",
+                "model": "zai-org/GLM-5",
                 "provider": "siliconflow",
-                "tier": 90,
+                "tier": 89,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
             },
             {
-                "model": "zai-org/GLM-5",
-                "provider": "siliconflow",
-                "tier": 89,
+                "model": "nvidia/nemotron-3-ultra-550b-a55b",
+                "provider": "nvidia",
+                "tier": 88,
                 "latency_ms": 500,
                 "cost_per_1m": 1.0,
                 "status": "up"
