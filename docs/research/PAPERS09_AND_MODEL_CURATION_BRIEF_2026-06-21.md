@@ -80,7 +80,7 @@ NEXUS relevance: external advisor lane, dashboard/backend integration target.
 ### LongCat API
 - Endpoint: https://api.longcat.chat/openai/v1 and /anthropic/v1
 - Compatibility: OpenAI + Anthropic formats
-- Model: LongCat-2.0-Preview
+- Model: LongCat-2.0
 - Quota: Beta limited
 - Ready-to-use codex/opencode config documented in txt
 
@@ -127,7 +127,7 @@ NEXUS relevance: external advisor lane, dashboard/backend integration target.
 ## Recommended NEXUS Actions (Bounded)
 
 1. Add to model curation registry:
-   - LongCat-2.0-Preview
+   - LongCat-2.0
    - FastContext-1.0-4B-SFT
    - VibeThinker-3B
    - Nanbeige4.1-3B
@@ -149,3 +149,4 @@ NEXUS relevance: external advisor lane, dashboard/backend integration target.
 - No PDF text extracted in this pass due to runtime block
 - Model links are evidence inputs only; no execution or download commands run
 - Nex-N2/Gemma QAT GGUF variants require provenance and safety review before NEXUS registry adoption
+

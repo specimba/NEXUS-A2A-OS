@@ -1426,8 +1426,8 @@
       "status": "active",
       "notes": "web-verified 2026-07 on SiliconFlow reasoning catalog",
       "outputLicense": {
-        "class": "permissive",
-        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+        "class": "restricted",
+        "basis": "MiniMax M2.7+ requires written authorization for commercial use (license changed from MIT)"
       }
     },
     {
@@ -1787,8 +1787,8 @@
         "rpmHint": 4
       },
       "outputLicense": {
-        "class": "permissive",
-        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+        "class": "restricted",
+        "basis": "MiniMax M2.7+ requires written authorization for commercial use (license changed from MIT)"
       }
     },
     {
@@ -1809,8 +1809,8 @@
       "status": "active",
       "notes": "discovered live in NIM listing 2026-07-02, previously unregistered",
       "outputLicense": {
-        "class": "permissive",
-        "basis": "open-weight MIT/Apache-class family; outputs trainable"
+        "class": "restricted",
+        "basis": "MiniMax M2.7+ requires written authorization for commercial use (license changed from MIT)"
       }
     },
     {

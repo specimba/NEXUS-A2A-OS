@@ -22,7 +22,7 @@ Intern AI Shanghai ChatAPI is now modeled as an OpenAI-style chat provider for N
 - Default quota from boot file: `30 requests/min/user`
 - Primary agent model: `intern-s2-preview`
 - General model: `intern-latest`
-- Vision model: `internvl2.5-latest`
+- Vision model: `internvl3.5-latest`
 - Supported: chat, streaming, tool calls, image content, long-context reasoning
 - Unsupported by boot file: `stop`; NEXUS strips it for this provider
 - Reasoning default: `thinking_mode=true` for `intern-s2-preview`, `intern-s1-pro`, `intern-s1`, `intern-s1-mini`
@@ -43,7 +43,7 @@ Expected dry-run result:
 
 - `bridge_provider_configured=true`
 - `upload_provider_configured=true`
-- models include `internai/intern-s2-preview`, `internai/intern-latest`, `internai/internvl2.5-latest`
+- models include `internai/intern-s2-preview`, `internai/intern-latest`, `internai/internvl3.5-latest`
 - `max_context_window=256000`
 - `lanes` show whether ModelRelay, Hermes, OpenCode, KiloCode, Claw, and Zo have a configured key
 
@@ -85,7 +85,7 @@ Use `internai` as the provider name and the OpenAI-compatible adapter surface:
   "models": {
     "agent": "intern-s2-preview",
     "general": "intern-latest",
-    "vision": "internvl2.5-latest"
+    "vision": "internvl3.5-latest"
   }
 }
 ```
@@ -113,7 +113,7 @@ Recommended routing lanes:
 
 - Hermes planning, research, security, and agent tasks: `internai/intern-s2-preview`
 - General relay fallback: `internai/intern-latest`
-- Browser or image-grounded tasks: `internai/internvl2.5-latest`
+- Browser or image-grounded tasks: `internai/internvl3.5-latest`
 
 Fallback order now includes Intern AI in:
 
@@ -172,3 +172,4 @@ This writes only secret-free JSON under repo-local config folders such as `.open
 - Use `--live` only when spending one provider request is acceptable.
 - If OpenCode or KiloCode schema differs, keep the env contract and adapter rules above, then map the fields into their native provider config.
 - After live installation and key migration are verified, delete the original boot file from Downloads or move it to a secure secret vault. Do not archive it into NEXUS.
+

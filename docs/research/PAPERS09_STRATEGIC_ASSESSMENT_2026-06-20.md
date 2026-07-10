@@ -207,9 +207,10 @@ Get-ChildItem "C:\Users\speci.000\Documents\NEXUS\docs\research" -Recurse -File 
 |---|---|---|
 | Step A | This file plus the digest file are the only artifacts added to MAIN NEXUS today. | None needed; both are coordination files. |
 | Step B | Appendix of `_internal/skill_auditor_seed.yaml` derived from `ADVERSARIAL DÉJÀ VU JAILBREAK DICTIONARYmethods.txt`. | Operator approves before seed file is committed. |
-| Step C | Add `LongCat-2.0-Preview` to `nexus_os/models/registry.py` with `base_url` templates. | Operator approves code change. |
+| Step C | Add `LongCat-2.0` to `nexus_os/models/registry.py` with `base_url` templates. | Operator approves code change. |
 | Step D | Ingest 2–4 of the high-confidence papers into `nexusclaw/heavyskill_relay.py` as skill loadouts. | Operator approves code change. |
 | Step E | Set up `models/registry.py` SWE-Lego-family entries and HeavySkill relay mapping. | Operator approves code change. |
 
 **Today's run completes Steps A only.** Steps B–E are intentionally left to operator-supervised passes with body-read evidence.
+
 

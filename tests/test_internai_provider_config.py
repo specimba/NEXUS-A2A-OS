@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from nexus_os.bridge.secrets import PROVIDER_CONFIG
 from nexus_os.gmr.domain_mapping import DOMAIN_MAPPING
 from upload.config import FALLBACK_CHAINS, PROVIDERS
@@ -120,3 +122,14 @@ def test_gateway_uses_internai_provider_lane_key(monkeypatch, tmp_path):
     assert result["success"] is True
     assert captured["headers"]["Authorization"] == "Bearer kilocode-token"
     assert captured["json"]["thinking_mode"] is True
+
+
+def test_active_intern_docs_and_scripts_use_current_vision_alias():
+    paths = [
+        Path("scripts/model_integration_test.py"),
+        Path("docs/operations/INTERN_AI_PROVIDER_BOOT_2026-06-03.md"),
+    ]
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        assert "internvl2.5-latest" not in text, path
+        assert "internvl3.5-latest" in text, path

@@ -121,3 +121,19 @@ def test_longcat_adapter_manifests_are_secret_free_and_tool_disabled():
             assert data["capabilities"]["tools"] is False
         assert "NEXUS_LONGCAT_API_KEY" in text or "LONGCAT_" in text
 
+
+
+def test_active_longcat_docs_and_scripts_do_not_route_preview():
+    paths = [
+        Path("01_PROJECT_STATE.md"),
+        Path("scripts/model_integration_test.py"),
+        Path("scripts/install_longcat_adapters.py"),
+        Path("nexus_os/models/papers09_models.py"),
+        Path("docs/coordination/ARCHIVIST_MODELS_API_DIGEST_2026-06-20.md"),
+        Path("docs/research/PAPERS09_STRATEGIC_ASSESSMENT_2026-06-20.md"),
+        Path("docs/research/PAPERS09_AND_MODEL_CURATION_BRIEF_2026-06-21.md"),
+    ]
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        assert "LongCat-2.0-Preview" not in text, path
+    assert "LongCat-2.0" in Path("01_PROJECT_STATE.md").read_text(encoding="utf-8")

@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 PAPERS09_CLOUD_MODELS: List[Dict[str, Any]] = [
     {
-        "name": "LongCat-2.0-Preview",
+        "name": "LongCat-2.0",
         "provider": "longcat",
         "tier": 1,
         "latency_ms": 1800,
@@ -23,8 +23,8 @@ PAPERS09_CLOUD_MODELS: List[Dict[str, Any]] = [
         "params_b": 560.0,
         "active_params_b": 44.0,
         "allowed_lanes": ["teacher", "eval"],
-        "labels": ["moe", "agentic", "128k_output", "beta", "meituan"],
-        "context_window": 131072,
+        "labels": ["moe", "agentic", "128k_output", "meituan", "current_api"],
+        "context_window": 1_000_000,
         "hf_repo": None,
         "paper_url": "https://arxiv.org/pdf/2509.18883",
         "paper_title": "LongCat-Flash-Thinking: A Technical Report",
@@ -33,7 +33,7 @@ PAPERS09_CLOUD_MODELS: List[Dict[str, Any]] = [
             "live_code_bench": 0.64,
             "mcp_atlas": 0.72,
         },
-        "note": "560B MoE agentic model. 128K output tokens. Beta-only — quota slots daily at 01/07/13/15 UTC. OpenAI compatible at https://api.longcat.chat/openai",
+        "note": "560B MoE agentic model. 128K output tokens. Current API route; verify token-pack balance/expiry before non-probe use. OpenAI compatible at https://api.longcat.chat/openai",
     },
     {
         "name": "FastContext-1.0-4B-SFT",
@@ -383,3 +383,4 @@ def get_model_summary() -> str:
         ft = m.get("fine_tune_target", "none")
         lines.append(f"  {m['name']:30s} {m.get('params_b', 0):.1f}B  {m['role']:10s}  FT={ft}")
     return "\n".join(lines)
+

@@ -99,12 +99,12 @@ def provider_report() -> dict[str, Any]:
             "models": [
                 {"id": "intern-s2-preview", "thinking_mode_default": True},
                 {"id": "intern-latest", "thinking_mode_default": False},
-                {"id": "internvl2.5-latest", "vision": True},
+                {"id": "internvl3.5-latest", "vision": True},
             ],
         },
         "longcat": {
             "lanes": [_lane_summary(c) for c in longcat_surface_checks()],
-            "models": [{"id": "LongCat-2.0-Preview", "context": 1_000_000}],
+            "models": [{"id": "LongCat-2.0", "context": 1_000_000}],
         },
     }
 
@@ -160,3 +160,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

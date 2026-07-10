@@ -18,10 +18,10 @@
 | Base URL (OpenAI format) | `https://api.longcat.chat/openai/v1` | `2006…txt:157` |
 | Base URL (Anthropic format) | `https://api.longcat.chat/anthropic` | `2006…txt:355` |
 | Authentication | HTTP `Authorization: Bearer YOUR_API_KEY` | `2006…txt:283` |
-| Active model | `LongCat-2.0-Preview` (dual OpenAI / Anthropic endpoint) | `2006…txt:79,144,239` |
+| Active model | `LongCat-2.0` (dual OpenAI / Anthropic endpoint) | `2006…txt:79,144,239` |
 | Context window | outputs up to **128k tokens** | `2006…txt:316` |
-| Quota policy | Beta only; paid recharge "not currently available" | `2006…txt:78-87,279` |
-| Slot release windows (UTC) | 01:00, 07:00, 13:00, 15:00 UTC (Phase 2 Beta); legacy slots at 09:00/21:00 UTC+8 | `2006…txt:75,98-102` |
+| Quota policy | Current API model; verify operator token-pack balance and 30-day expiry before non-probe use | `2006…txt:78-87,279` |
+| Slot release windows (UTC) | 01:00, 07:00, 13:00, 15:00 UTC (Phase 2 historical beta); legacy slots at 09:00/21:00 UTC+8 | `2006…txt:75,98-102` |
 | Retired models (effective 2026-05-29) | LongCat-Flash-Chat, LongCat-Flash-Thinking, LongCat-Flash-Thinking-2601, LongCat-Flash-Lite, LongCat-Flash-Omni-2603, LongCat-Flash-Chat-2602-Exp | `2006…txt:75,76` |
 | Code provisioning examples | Codex TOML, OpenCode JSON config, OpenAI/Anthropic SDK with custom `base_url` | `2006…txt:128-235,344-358` |
 | Exposed API key (treated UNVERIFIED) | `${NEXUS_LONGCAT_API_KEY}  <!-- literal redacted 2026-07-02; rotate -->` | `2006…txt:115-116` |
@@ -135,7 +135,7 @@
 | Priority | Item | Why | Approx effort |
 |----------|------|-----|---------------|
 | P0 | Add LongCat provider stub (`pool_config.py`) | First "ready-to-use" entry, OpenAI/Anthropic formats | 30 min |
-| P0 | Register `LongCat-2.0-Preview` model (`models/registry.py`) | Single canonical model name; dual endpoint | 30 min |
+| P0 | Register `LongCat-2.0` model (`models/registry.py`) | Single canonical model name; dual endpoint | 30 min |
 | P1 | Add LiteRT-LM / LiteRT community EdgeGemma-300M to L0 guard cascade (`governor/`) | Replicates the L0/L1 architecture in `knowledge.md:175` | 2h |
 | P1 | Catalog SWE-Lego family in HeavySkill (`nexusclaw/heavyskill_relay.py`) | Direct HeavySkill evidence base | 2h |
 | P2 | Register FastContext-1.0-4B-SFT as knowledge-graph search augmentation | Strengthens `HybridBackend` | 4h |
@@ -176,4 +176,5 @@ Test-Path "C:\Users\speci.000\Documents\NEXUS\nexus_os\models\registry.py"
 ```
 
 If the operator decides to add LongCat, the steps above are the only evidence collection needed before any code-level integration. Provider key acquisition is the user's call.
+
 

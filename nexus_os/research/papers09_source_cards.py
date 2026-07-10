@@ -53,9 +53,26 @@ PAPERS10_PRIORITY_TITLES = (
     "VibeThinker-3B",
     "Nanbeige4.1-3B",
 )
-
+PAPERS12_13_PRIORITY_TITLES = (
+    "Antislop",
+    "Can Editing 1 Neuron Fix Repetition Loops",
+    "Efficient Memory Management",
+    "Benchmarking and Intervention-Based Auditing",
+    "Anomaly Detection with Multimodal",
+    "GUARD Glocal Uncertainty-Aware Robust Decoding",
+    "p-LESS SAMPLING",
+    "Min-k Sampling",
+    "A Survey on Evaluation of LLM-based Agents",
+    "Beyond Quantity Trajectory Diversity Scaling for Code Agents",
+    "BOOSTER TACKLING HARMFUL FINE-TUNING",
+    "Breaking Entropy Bounds",
+    "CAR-bench",
+    "CIRRUSBENCH",
+    "DeepSeek-V4",
+    "EAGLE Speculative Sampling",
+)
 PRIORITY_TITLES = PAPERS09_PRIORITY_TITLES + tuple(
-    title for title in PAPERS10_PRIORITY_TITLES if title not in PAPERS09_PRIORITY_TITLES
+    title for title in PAPERS10_PRIORITY_TITLES + PAPERS12_13_PRIORITY_TITLES if title not in PAPERS09_PRIORITY_TITLES
 )
 
 
@@ -84,6 +101,22 @@ LANE_HINTS = {
     "VERIWEB": "browser_ai_eval",
     "Learning to Route": "modelrelay_router",
     "Training Long-Context": "heavyskill_reviewer",
+    "Antislop": "model_quality_anti_slop",
+    "Repetition Loops": "decoding_repetition_control",
+    "Efficient Memory Management": "vault_memory",
+    "Intervention-Based Auditing": "vap_audit",
+    "Anomaly Detection": "monitoring_anomaly_detection",
+    "Glocal Uncertainty-Aware Robust Decoding": "robust_decoding",
+    "p-LESS": "robust_decoding",
+    "Min-k Sampling": "robust_decoding",
+    "Evaluation of LLM-based Agents": "agent_eval",
+    "Trajectory Diversity": "code_agent_training",
+    "BOOSTER": "safety_finetune",
+    "Breaking Entropy Bounds": "inference_acceleration",
+    "CAR-bench": "agent_eval",
+    "CIRRUSBENCH": "agent_eval",
+    "DeepSeek-V4": "modelrelay_provider",
+    "EAGLE": "inference_acceleration",
 }
 
 
@@ -209,3 +242,7 @@ def iter_priority_paths(root: Path, *, priority_titles: Iterable[str] = PRIORITY
                 matched.add(path)
                 yield path
                 break
+
+
+
+

@@ -103,9 +103,10 @@ def main() -> int:
         print(f"- {name}: {item['action']} {item['target']}")
     print("- secrets: set env vars in local .env or Zo secrets; this script does not write them")
     print("- Zo/OpenClaw: onboard as custom OpenAI-compatible, base URL "
-          f"{DEFAULT_BASE_URL}, model LongCat-2.0-Preview")
+          f"{DEFAULT_BASE_URL}, model LongCat-2.0")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

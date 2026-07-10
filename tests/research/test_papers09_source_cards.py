@@ -6,6 +6,7 @@ import pytest
 
 from nexus_os.research.papers09_source_cards import (
     PAPERS10_PRIORITY_TITLES,
+    PAPERS12_13_PRIORITY_TITLES,
     create_backlog_cards,
     create_draft_card,
     create_promoted_card_from_body,
@@ -99,3 +100,22 @@ def test_body_read_promotion_requires_actual_body_text(tmp_path: Path):
 
     with pytest.raises(ValueError):
         create_promoted_card_from_body(paper, body_text="too short")
+
+
+def test_papers12_13_titles_are_in_priority_backlog(tmp_path: Path):
+    assert "Antislop" in " ".join(PAPERS12_13_PRIORITY_TITLES)
+
+    (tmp_path / "Antislop A Comprehensive Framework for Identifying and.pdf").write_text("x", encoding="utf-8")
+    (tmp_path / "Can Editing 1 Neuron Fix Repetition Loops in.pdf").write_text("x", encoding="utf-8")
+    (tmp_path / "Unrelated paper.pdf").write_text("x", encoding="utf-8")
+
+    cards = create_backlog_cards(tmp_path)
+
+    assert [Path(card.source_path).name for card in cards] == [
+        "Antislop A Comprehensive Framework for Identifying and.pdf",
+        "Can Editing 1 Neuron Fix Repetition Loops in.pdf",
+    ]
+    assert cards[0].target_lane == "model_quality_anti_slop"
+    assert cards[1].target_lane == "decoding_repetition_control"
+    assert all(card.evidence_grade == "E0" and not card.promotable for card in cards)
+

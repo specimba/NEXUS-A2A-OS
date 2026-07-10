@@ -19,7 +19,8 @@ Status: Phases A-D + Phases 1-8 COMPLETE. Sprints 0-4 Complete. **4095 passed / 
   (`71197e4d`); the three 07-02 A2A simulation-era sessions formally reclassified
   SIMULATION_SUSPECTED by the evidence gate; new NIM failure modes
   (function-DEGRADED lockout, thinking.type requirement) encoded as registry v3
-  providerQuirks; OpenRouter :free observed paywalled — standby only.
+   providerQuirks; OpenRouter :free observed paywalled — standby only.
+- **GND-001 grounding sweep completed** (2026-07-08): 41,021 lines read across 12/13 files (9 NEXUSlogs + 4 ARCHIVIST). Policy adopted at `docs/policies/GND-001_24h_deep_grounding.md`. Full report at `docs/reviews/GROUNDING_SWEEP_2026-07-08.md`. Key findings: 10 active blockers (Brain API down, port 7350 health broken, GLM-5.2 DEGRADED, 01_PROJECT_STATE 3 weeks stale, NIM free-tier collapse, 5/8 providers dead), 10 critical security findings (8 FIXED, 2 UNMITIGATED: STACK attack 71% ASR), model intelligence consolidated. M0 corrections sprint: MiniMax license ✅ FIXED, DPO judge ⚠️ NOT YET APPLIED.
 
 ## 2026-06-26 Dashboard, Browser-AI Supervisor, and GLM-5.2 Log-24 Grounding
 
@@ -74,10 +75,10 @@ Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackend
 - **4 pre-existing bugs confirmed fixed**: NEXUSDataset constructor crash, XSS template variable mismatch, VULN_TEMPLATES expansion, deduplicate_jsonl string strategy.
 
 ### New Provider: LongCat API (Meituan)
-- **Discovery**: env `NEXUS_LONGCAT_API_KEY` (redacted from docs 2026-07-02). OpenAI + Anthropic compatible. Base: `https://api.longcat.chat`. Model: `LongCat-2.0-Preview` (560B MoE, 128K output, beta-only, daily quota slots at 01:00/07:00/13:00/15:00 UTC).
+- **Discovery**: env `NEXUS_LONGCAT_API_KEY` (redacted from docs 2026-07-02). OpenAI + Anthropic compatible. Base: `https://api.longcat.chat`. Model: `LongCat-2.0` (560B MoE, 128K output, current API route, 1M context, 128K max output, token-pack expiry; verify balance/expiry before non-probe use).
 - **Lane policy**: Teacher/eval only (`allowed_lanes=["teacher", "eval"]`). NOT core/default.
 - **Integration**: `upload/longcat_lanes.py` (173 lines), 5 CLI adapter manifests, quota guard with 429 handling. Provider registered in ModelRelay config.
-- **Status**: Code-complete. Live verification blocked on beta quota allocation.
+- **Status**: Code-complete. Live verification requires bounded balance/expiry probe before non-probe use.
 
 ### papers09 Research — 80 Papers Analyzed
 - **27 Guard/Defense** papers (SoK jailbreak guardrails, STAR multi-turn safety, CRA latent-space ablation, CHASE red-blue RL, S2C semantic cloaking)
@@ -90,7 +91,7 @@ Source refresh: `C:\Users\speci.000\Downloads\NEXUSlogs\NEXUSopencodeMAINbackend
 ### New Models for ModelRelay (from papers09)
 | Model | Size | Best Use | Lane |
 |-------|------|----------|------|
-| LongCat-2.0-Preview | 560B MoE | Agentic coding, codex/opencode | teacher/eval |
+| LongCat-2.0 | 560B MoE | Agentic coding, codex/opencode | teacher/eval |
 | VibeThinker-3B | 3B dense | Reasoning (94.3 AIME26) | local/eval |
 | VibeThinker-1.5B | 1.5B dense | Ultra-compact reasoning | local/eval |
 | FastContext-1.0-4B-SFT | 4B | Repo explorer subagent | eval/probe |
@@ -339,3 +340,4 @@ Port 3000 — Full 8-pillar command center:
 | Base Decay λ | 0.02 | Temporal decay rate |
 | CDR Collapse | <15.0 | Minimum trust for collapse |
 | CDR Escalation | <30.0 | Threshold for degraded reasoning |
+
