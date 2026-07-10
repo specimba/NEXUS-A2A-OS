@@ -1,0 +1,9 @@
+{
+  "timestamp": 1777728425,
+  "agent_id": "test-agent",
+  "action": "test",
+  "target": "/test",
+  "result": "success",
+  "metadata": {},
+  "source": "mcp"
+}

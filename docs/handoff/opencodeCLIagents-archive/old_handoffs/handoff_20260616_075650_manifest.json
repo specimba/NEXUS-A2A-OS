@@ -1,0 +1,14 @@
+{
+  "timestamp": "20260616_075650",
+  "generator": "nexusctl handoff",
+  "components": [
+    "provider_health"
+  ],
+  "provider_health": {
+    "total_tracked": 0,
+    "healthy": 0,
+    "degraded": 0,
+    "failing": 0,
+    "offline": 0
+  }
+}
