@@ -1254,6 +1254,22 @@ def main() -> int:
     p_cont_close.add_argument("--advisory-only", action="store_true")
     continuity_sub.add_parser("resume-plan", help="Print resume plan from latest ledger record")
 
+    intel = subparsers.add_parser("intel", help="LLMWiki dossier pipeline: ingest evidence/synthesis, lint, stats")
+    intel_sub = intel.add_subparsers(dest="intel_command")
+    intel_sub.required = True
+    p_intel_stats = intel_sub.add_parser("stats", help="Show dossier count and lint summary")
+    p_intel_stats.add_argument("--wiki-output-dir", default=None, help="Override wiki output directory")
+    p_intel_lint = intel_sub.add_parser("lint", help="Audit existing dossiers for missing VAP/provenance")
+    p_intel_lint.add_argument("--wiki-output-dir", default=None)
+    p_intel_claims = intel_sub.add_parser("ingest-claims", help="Ingest JSON array of evidence claims and write dossiers")
+    p_intel_claims.add_argument("input_file", help="Path to JSON array of claim objects")
+    p_intel_claims.add_argument("--overwrite", action="store_true", help="Overwrite existing dossiers")
+    p_intel_claims.add_argument("--wiki-output-dir", default=None)
+    p_intel_synth = intel_sub.add_parser("ingest-synthesis", help="Ingest research synthesis JSON and write dossiers")
+    p_intel_synth.add_argument("input_file", help="Path to synthesis JSON object with 'findings'")
+    p_intel_synth.add_argument("--overwrite", action="store_true")
+    p_intel_synth.add_argument("--wiki-output-dir", default=None)
+
     models = subparsers.add_parser("models", help="List installed CLIs and current model/provider reachability")
     models.add_argument("action", nargs="?", choices=["verify", "reconcile", "status"],
                         help="verify/reconcile/status canonical registry and provider listings")
@@ -1435,6 +1451,12 @@ def main() -> int:
     if args.command == "continuity":
         from nexusctl.continuity_cli import run_continuity
         code, _payload = run_continuity(args)
+        if code != 0:
+            raise SystemExit(code)
+        return code
+    if args.command == "intel":
+        from nexusctl.intel_cli import run_intel
+        code, _payload = run_intel(args)
         if code != 0:
             raise SystemExit(code)
         return code
