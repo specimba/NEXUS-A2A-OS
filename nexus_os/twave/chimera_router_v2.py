@@ -528,6 +528,22 @@ class ChimeraRouterV2:
                 self._recent_routes = self._recent_routes[-32:]
         except Exception:
             pass
+        # Seam 2: persist the Chimera selection (single choke point for every
+        # route() caller). Fail-safe — telemetry must never raise into routing.
+        try:
+            from nexus_os.gmr.telemetry import record_routing_decision
+            record_routing_decision({
+                "source": "chimera",
+                "quality_target": quality_target,
+                "latency_budget_ms": latency_budget_ms,
+                "chosen_model": decision.model,
+                "candidate_count": len(scored),
+                "chimera_quality_score": decision.expected_quality,
+                "temperature_policy": selected_policy.value,
+                "outcome": "success",
+            })
+        except Exception:
+            pass
         return decision
 
     # ------------------------------------------------------------------

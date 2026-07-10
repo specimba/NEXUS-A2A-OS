@@ -86,6 +86,19 @@ STARTUP_PORT = int(os.environ.get("RELAY_PORT", "7355"))
 # daemon to consume and alert on.
 HALLUCINATION_VERDICTS_PATH = Path(os.path.expanduser("~")) / ".nexus" / "hallucination_verdicts.jsonl"
 
+# B2 fix: cloud-provider models must never be probed against the local
+# Ollama daemon (the POST always failed and permanently benched them).
+# Their health comes from the provider_refresher sidecar (read-only) when
+# present, else they are available-by-default; _health_source records
+# provenance so nothing pretends a live probe happened.
+REGISTRY_HEALTH_SIDECAR = Path(os.path.expanduser("~")) / ".nexus" / "registry_health.json"
+
+#: Ids resolvable through the local Ollama daemon: registry aliases,
+#: pulled local ids, and Ollama-cloud ids the daemon proxies itself.
+_OLLAMA_LANE_MODELS = set(OLLAMA_MODEL_MAP) | set(OLLAMA_MODEL_MAP.values()) | set(OLLAMA_CLOUD_MODELS)
+#: Cloud-provider ids that never resolve through the local daemon.
+_CLOUD_ONLY_MODELS = set(ALL_ACTIVE_CLOUD_MODELS) - _OLLAMA_LANE_MODELS
+
 # Audit fix (model_relay.py:991): the relay used to bind 0.0.0.0 with no
 # auth layer, exposing chat/guard/metrics to the whole network segment.
 # Loopback by default; widening the bind requires an explicit token
@@ -138,6 +151,21 @@ def _capture_outcome(hallucination_verdict: dict | None) -> str:
     if hallucination_verdict and hallucination_verdict.get("risk_level") in ("medium", "high"):
         return "suspect"
     return "ok"
+
+
+def _gmr_record_telemetry(event: dict) -> None:
+    """Seam 2: persist a GMR routing-decision event (fail-safe, never raises).
+
+    Lazy import keeps the relay importable if nexus_os.gmr is absent; the
+    sink itself (nexus_os/gmr/telemetry.py) is warn-once fail-safe too.
+    """
+    try:
+        from nexus_os.gmr.telemetry import record_routing_decision
+        record_routing_decision(event)
+    except Exception:
+        pass
+
+
 try:
     from nexus_os.security.redaction import install_log_redaction
     install_log_redaction()  # keys must never reach relay logs (P1-10)
@@ -277,6 +305,9 @@ class ModelRelay:
         self._coger = None  # lazy CogER for GMR auto-mode (model == "auto-gmr")
         self._model_health: Dict[str, bool] = {}
         self._health_checked_at: Dict[str, float] = {}
+        #: How each cached health verdict was obtained (evidence honesty):
+        #: "ollama_probe" | "static" | "sidecar:<status>" | "unprobed_default"
+        self._health_source: Dict[str, str] = {}
         self._model_stats: Dict[str, ModelStats] = {}
         self._available_ollama_models: List[str] = []
         self._start_time = time.time()
@@ -361,11 +392,67 @@ class ModelRelay:
         self._refresh_thread.start()
         logger.info(f"Provider refresh loop started (interval={interval}s)")
 
+    def _is_ollama_lane(self, model: str) -> bool:
+        """True when the model is served through the local Ollama daemon,
+        so a chat probe against OLLAMA_CHAT_URL is meaningful."""
+        if model in self._available_ollama_models or model in self._fallback_models:
+            return True
+        if model in _OLLAMA_LANE_MODELS:
+            return True
+        if model in _CLOUD_ONLY_MODELS:
+            return False
+        # Provider-prefixed cloud ids ("nvidia/...", "siliconflow/...")
+        # never resolve through the local daemon.
+        if "/" in model:
+            return False
+        return True  # unknown bare names keep the historical probe path
+
+    def _sidecar_health(self, model: str) -> Optional[tuple]:
+        """(healthy, status) from the provider_refresher health sidecar
+        (~/.nexus/registry_health.json) or None when absent. Read-only:
+        the sidecar is written by ProviderRefresher, never by the relay.
+        Keys are "<provider>:<model-id>"; match the bare id and the
+        "<provider>/<model-id>" alias form the relay routes with too."""
+        try:
+            data = json.loads(REGISTRY_HEALTH_SIDECAR.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        state = None
+        for key, val in (data.get("models") or {}).items():
+            slug, _, mid = key.partition(":")
+            if model in (key, mid, f"{slug}/{mid}"):
+                state = val
+                break
+        if not isinstance(state, dict):
+            return None
+        try:
+            from nexus_os.relay.provider_refresher import effective_status
+            status = effective_status(state)
+        except Exception:
+            status = state.get("status", "active")
+        return status == "active", status
+
     def _check_health(self, model: str) -> bool:
         if model == "adversarial-constraint-relaxation":
             self._model_health[model] = True
             self._health_checked_at[model] = time.time()
+            self._health_source[model] = "static"
             return True
+        if not self._is_ollama_lane(model):
+            # B2 fix: cloud-provider models used to be POSTed to the local
+            # Ollama chat URL and were permanently marked unhealthy. Never
+            # fabricate a probe: take the sidecar verdict when present,
+            # otherwise fail open for routing — provenance recorded.
+            sidecar = self._sidecar_health(model)
+            if sidecar is not None:
+                ok, status = sidecar
+                self._health_source[model] = f"sidecar:{status}"
+            else:
+                ok = True
+                self._health_source[model] = "unprobed_default"
+            self._model_health[model] = ok
+            self._health_checked_at[model] = time.time()
+            return ok
         try:
             resp = requests.post(OLLAMA_CHAT_URL, json={
                 "model": model,
@@ -376,10 +463,12 @@ class ModelRelay:
             ok = resp.ok
             self._model_health[model] = ok
             self._health_checked_at[model] = time.time()
+            self._health_source[model] = "ollama_probe"
             return ok
         except Exception:
             self._model_health[model] = False
             self._health_checked_at[model] = time.time()
+            self._health_source[model] = "ollama_probe"
             return False
 
     def health_check(self, model: str) -> bool:
@@ -599,6 +688,18 @@ class ModelRelay:
                 strategy_prompt = f"{intro}\n\n---\n\n{prompt}" if intro else prompt
                 strategy_response = await self._gmr_execute_strategy(strategy_prompt, gmr_level, request_data)
                 if strategy_response is not None:
+                    # Seam 2: persist the strategy-path routing outcome.
+                    _gmr_record_telemetry({
+                        "source": "relay-auto-gmr",
+                        "phase": "strategy",
+                        "task_id": request_data.get("task_id"),
+                        "coger_level": gmr_level,
+                        "quality_target": quality_target,
+                        "latency_budget_ms": latency_budget_ms,
+                        "chosen_model": strategy_response.get("model"),
+                        "outcome": "success",
+                        "latency_ms": strategy_response.get("relay_info", {}).get("latency_ms"),
+                    })
                     return strategy_response
             level_q, level_l = self.GMR_LEVEL_TARGETS[gmr_level]
             if explicit_quality is None:
@@ -617,6 +718,20 @@ class ModelRelay:
             model = decision.model
             if temperature is None:
                 temperature = decision.temperature
+            if gmr_level is not None:
+                # Seam 2: persist the auto-gmr routing decision (pre-inference;
+                # outcome stays null until the response event below).
+                _gmr_record_telemetry({
+                    "source": "relay-auto-gmr",
+                    "phase": "decision",
+                    "task_id": request_data.get("task_id"),
+                    "coger_level": gmr_level,
+                    "quality_target": quality_target,
+                    "latency_budget_ms": latency_budget_ms,
+                    "chosen_model": model,
+                    "chimera_quality_score": decision.expected_quality,
+                    "outcome": None,
+                })
         else:
             if temperature is None:
                 temperature = 0.7
@@ -711,10 +826,36 @@ class ModelRelay:
                 )
             except Exception:
                 _warn_capture_failed_once()
+            if gmr_level is not None:
+                # Seam 2: persist the auto-gmr response outcome (LG verdict known).
+                _gmr_record_telemetry({
+                    "source": "relay-auto-gmr",
+                    "phase": "response",
+                    "task_id": request_data.get("task_id"),
+                    "coger_level": gmr_level,
+                    "quality_target": quality_target,
+                    "latency_budget_ms": latency_budget_ms,
+                    "chosen_model": ollama_model,
+                    "lg_verdict": hallucination_verdict,
+                    "outcome": "fallback" if ollama_model != self._map_to_ollama(model) else "success",
+                    "latency_ms": round(latency_ms, 1),
+                })
             return result
         except Exception as e:
             logger.error(f"Ollama inference failed for {ollama_model}: {e}")
             self._model_stats.setdefault(ollama_model, ModelStats()).record_failure()
+            if gmr_level is not None:
+                # Seam 2: persist the auto-gmr inference failure.
+                _gmr_record_telemetry({
+                    "source": "relay-auto-gmr",
+                    "phase": "response",
+                    "task_id": request_data.get("task_id"),
+                    "coger_level": gmr_level,
+                    "quality_target": quality_target,
+                    "latency_budget_ms": latency_budget_ms,
+                    "chosen_model": ollama_model,
+                    "outcome": "error",
+                })
             return self._error_response(ollama_model, model, temperature, f"[ModelRelay] Error: {e}", "inference_error")
 
     #: Audit fix (model_relay.py:396): errors used to leave as HTTP 200 chat

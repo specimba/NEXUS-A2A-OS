@@ -356,6 +356,24 @@ class CogER:
             response = self._handle_tool_delegation(query, trust_score=trust_score)
             strategy = "Tool-Enhanced"
  
+        # Seam 2: persist the CogER classification + execution outcome.
+        # Fail-safe by contract — telemetry must never raise into routing.
+        try:
+            from nexus_os.gmr.telemetry import record_routing_decision
+            _resp = response or ""
+            record_routing_decision({
+                "source": "coger",
+                "coger_level": level,
+                "strategy": strategy,
+                "outcome": (
+                    "error"
+                    if not _resp or _resp.startswith(("Error:", "Execution Blocked:", "Execution Error:"))
+                    else "success"
+                ),
+            })
+        except Exception:
+            pass
+
         return {
             "level": level,
             "strategy": strategy,

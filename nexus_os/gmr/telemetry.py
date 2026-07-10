@@ -167,3 +167,120 @@ class TelemetryIngest:
                 # Keep previous cache; surface failure without crashing GMR.
                 print(f"[GMR] Telemetry fetch failed: {self.last_error}")
             return self.cache
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Seam 2: routing-decision telemetry sink (schema v1, append-only JSONL)
+#
+# Chimera/CogER/LG produce routing decisions and stability data that nothing
+# used to persist. record_routing_decision() is the single fail-safe sink:
+# every event becomes one JSON line in $NEXUS_GMR_TELEMETRY (default
+# ~/.nexus/gmr_telemetry.jsonl). The sink must NEVER raise into the routing
+# path — failures degrade to a warn-once log line. A simple size guard
+# rotates the file to <name>.1 above ROTATE_MAX_BYTES so growth is bounded.
+# ─────────────────────────────────────────────────────────────────────────
+
+import logging
+from pathlib import Path
+
+_routing_logger = logging.getLogger("nexus.gmr.telemetry")
+
+ROUTING_SCHEMA_VERSION = 1
+
+#: Schema v1 field order. Missing fields are recorded as null so every line
+#: has the same shape for downstream consumers (jq / pandas / archivist).
+ROUTING_SCHEMA_FIELDS = (
+    "ts",                    # ISO-8601 UTC write timestamp
+    "task_id",               # request/task correlation id, if the caller had one
+    "coger_level",           # CogER complexity level L1-L4
+    "quality_target",        # Chimera quality target (0..1)
+    "latency_budget_ms",     # Chimera latency budget
+    "chosen_model",          # model the decision landed on
+    "candidate_count",       # how many candidates survived filtering
+    "chimera_quality_score", # expected_quality of the chosen profile
+    "lg_verdict",            # relay_info.hallucination verdict dict, if any
+    "outcome",               # success | error | fallback (null pre-outcome)
+    "source",                # relay-auto-gmr | coger | chimera
+)
+
+DEFAULT_ROUTING_TELEMETRY_PATH = Path.home() / ".nexus" / "gmr_telemetry.jsonl"
+
+#: Size guard: rotate to <name>.1 (replacing any previous .1) above this.
+ROTATE_MAX_BYTES = 50 * 1024 * 1024
+
+_ROUTING_DISABLED_VALUES = {"0", "off", "false", "disabled", "none"}
+_routing_write_lock = threading.Lock()
+_routing_warned = False
+
+
+def _routing_telemetry_path() -> Optional[Path]:
+    """Resolve the sink path; None disables.
+
+    Precedence mirrors persistent_trust_memory.default_trust_memory_path():
+    NEXUS_GMR_TELEMETRY (explicit / disable), then NEXUS_HOME (tests/CI
+    isolation), then ~/.nexus/gmr_telemetry.jsonl.
+    """
+    raw = os.environ.get("NEXUS_GMR_TELEMETRY", "").strip()
+    if raw.lower() in _ROUTING_DISABLED_VALUES:
+        return None
+    if raw:
+        return Path(raw).expanduser()
+    nexus_home = os.environ.get("NEXUS_HOME")
+    if nexus_home:
+        return Path(nexus_home) / "gmr_telemetry.jsonl"
+    return DEFAULT_ROUTING_TELEMETRY_PATH
+
+
+def _rotate_if_oversized(path: Path, max_bytes: int) -> None:
+    """Best-effort size guard; rotation failure must not block the write."""
+    try:
+        if path.exists() and path.stat().st_size > max_bytes:
+            os.replace(path, path.with_name(path.name + ".1"))
+    except OSError:
+        pass
+
+
+def _warn_routing_sink_once(exc: Exception) -> None:
+    global _routing_warned
+    if not _routing_warned:
+        _routing_warned = True
+        _routing_logger.warning(
+            "GMR routing telemetry sink failed (%s: %s) — routing decisions "
+            "are NOT being persisted",
+            type(exc).__name__, exc,
+        )
+
+
+def record_routing_decision(event: dict) -> None:
+    """Append one schema-v1 routing-decision record as a JSONL line.
+
+    Fail-safe by contract: this function NEVER raises into the routing
+    path. Any sink failure (bad path, permissions, disk full, non-dict
+    event) is swallowed and reported once via a warning log.
+
+    Unknown keys in *event* are passed through after the schema fields so
+    call sites can attach extra context (phase, strategy, latency_ms, ...).
+    """
+    try:
+        path = _routing_telemetry_path()
+        if path is None:
+            return
+        record: Dict[str, Any] = {
+            "schema_version": ROUTING_SCHEMA_VERSION,
+            "ts": event.get("ts") or datetime.now(timezone.utc).isoformat(),
+        }
+        for field_name in ROUTING_SCHEMA_FIELDS:
+            if field_name == "ts":
+                continue
+            record[field_name] = event.get(field_name)
+        for key, value in event.items():
+            if key not in record:
+                record[key] = value
+        line = json.dumps(record, ensure_ascii=False, default=str)
+        with _routing_write_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _rotate_if_oversized(path, ROTATE_MAX_BYTES)
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(line + "\n")
+    except Exception as exc:
+        _warn_routing_sink_once(exc)
