@@ -7,7 +7,7 @@ rewriting canonical docs or old `.nexus_pi` state.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import hashlib
@@ -18,6 +18,29 @@ from typing import Any, Iterable, Mapping
 
 
 SCHEMA_VERSION = "nexus.continuity.run.v1"
+
+# --- Writer-fence vocabulary (schema v1, additive fields only) ---
+VERIFICATION_VERIFIED = "VERIFIED"
+VERIFICATION_UNVERIFIED = "UNVERIFIED"
+EVIDENCE_GRADE_E0 = "E0"
+EVIDENCE_GRADE_E1 = "E1"
+PROOF_TOKEN = "NEXUS_PROOF"
+
+ORIGIN_CORE = "core"
+ORIGIN_BROWSER = "browser"
+ORIGIN_MCP = "mcp"
+ORIGIN_LANE = "lane"
+KNOWN_ORIGINS = (ORIGIN_CORE, ORIGIN_BROWSER, ORIGIN_MCP, ORIGIN_LANE)
+UNTRUSTED_ORIGINS = frozenset({ORIGIN_BROWSER, ORIGIN_MCP, ORIGIN_LANE})
+
+# Presence of this key in a raw JSONL row marks it as written through the
+# fenced Python append path; rows lacking it are legacy or foreign-writer rows.
+FENCE_MARKER_FIELD = "fenced"
+
+# Structural keys emitted only by the known non-Python ledger writers
+# (send_grok_cdp.ps1, lane_stack_preflight.mjs, multi_lane_a2a_cycle.mjs,
+# intern_workbench_cdp.mjs, grok_mcp_server_v2 continuity_append).
+_FOREIGN_WRITER_KEYS = ("kind", "lane", "proof_token", "agent")
 
 
 class ProgressClass(str, Enum):
@@ -91,6 +114,13 @@ class ContinuityRunRecord:
     started_at: str = field(default_factory=utc_now)
     completed_at: str | None = None
     memory_routes: tuple[str, ...] = ("EPISODIC", "TASK", "META")
+    origin: str = ORIGIN_CORE
+    verification: str = VERIFICATION_UNVERIFIED
+    evidence_grade: str = EVIDENCE_GRADE_E0
+    proof_path: str | None = None
+    proof: Mapping[str, Any] | None = None
+    fenced: bool = False
+    fence_reason: str | None = None
     schema: str = SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -111,6 +141,13 @@ class ContinuityRunRecord:
             "started_at": self.started_at,
             "completed_at": self.completed_at,
             "memory_routes": list(self.memory_routes),
+            "origin": self.origin,
+            "verification": self.verification,
+            "evidence_grade": self.evidence_grade,
+            "proof_path": self.proof_path,
+            "proof": dict(self.proof) if self.proof is not None else None,
+            "fenced": self.fenced,
+            "fence_reason": self.fence_reason,
         }
 
     @classmethod
@@ -134,11 +171,176 @@ class ContinuityRunRecord:
             started_at=str(item.get("started_at", "")),
             completed_at=item.get("completed_at"),
             memory_routes=tuple(str(v) for v in item.get("memory_routes", []) or ("EPISODIC", "TASK", "META")),
+            origin=classify_origin(item),
+            verification=str(item.get("verification") or VERIFICATION_UNVERIFIED),
+            evidence_grade=str(item.get("evidence_grade") or EVIDENCE_GRADE_E0),
+            proof_path=str(item.get("proof_path")) if item.get("proof_path") else None,
+            proof=(item.get("proof") if isinstance(item.get("proof"), Mapping) else None),
+            fenced=bool(item.get("fenced", False)),
+            fence_reason=item.get("fence_reason"),
             schema=str(item.get("schema", SCHEMA_VERSION)),
         )
 
 
-def append_record(record: ContinuityRunRecord, path: str | Path | None = None) -> Path:
+def classify_writer_identity(agent_id: str | None) -> str:
+    """Classify writer origin from the writer identity (agent_id).
+
+    Governed core writers (codex/claude/nexusctl operators) stay ``core``.
+    Identities that name browser lanes, CDP bridges, or MCP servers are
+    untrusted for verification claims.
+    """
+    ident = (agent_id or "").strip().lower()
+    if not ident:
+        return ORIGIN_CORE
+    if "mcp" in ident:
+        return ORIGIN_MCP
+    if "a2a" in ident or "lane" in ident:
+        return ORIGIN_LANE
+    if any(tok in ident for tok in ("browser", "cdp", "grok", "gemini", "qwen", "chatgpt")):
+        return ORIGIN_BROWSER
+    return ORIGIN_CORE
+
+
+def classify_origin(item: Mapping[str, Any]) -> str:
+    """Classify the origin of a raw ledger mapping (read side).
+
+    An explicit ``origin`` field wins. Otherwise structural keys used only by
+    the non-Python browser/MCP/lane writers mark the row untrusted, then the
+    writer-identity heuristic applies.
+    """
+    explicit = str(item.get("origin") or "").strip().lower()
+    if explicit in KNOWN_ORIGINS:
+        return explicit
+    if explicit:
+        return ORIGIN_BROWSER
+    if any(key in item for key in _FOREIGN_WRITER_KEYS):
+        ident = str(item.get("agent") or item.get("kind") or "").lower()
+        if "mcp" in ident:
+            return ORIGIN_MCP
+        if "a2a" in ident or ident.startswith("lane"):
+            return ORIGIN_LANE
+        return ORIGIN_BROWSER
+    return classify_writer_identity(str(item.get("agent_id") or ""))
+
+
+def proof_attached(record: "ContinuityRunRecord") -> bool:
+    """True when the record carries a real proof artifact.
+
+    Accepted proofs: a ``proof_path`` that exists on disk, a ``proof`` payload
+    containing a NEXUS_PROOF token string, a nested existing ``proof_path``,
+    or a sha256-bearing evidence dict. A bare boolean claim (e.g. the
+    ``proof_token: true`` flag some lane writers emit) is not proof.
+    """
+    if record.proof_path:
+        try:
+            if Path(record.proof_path).exists():
+                return True
+        except OSError:
+            pass
+    proof = record.proof
+    if isinstance(proof, Mapping) and proof:
+        nested = proof.get("proof_path")
+        if nested:
+            try:
+                if Path(str(nested)).exists():
+                    return True
+            except OSError:
+                pass
+        for value in proof.values():
+            if isinstance(value, str) and PROOF_TOKEN in value:
+                return True
+        if any(key in proof for key in ("sha256", "artifact_sha256")):
+            return True
+    return False
+
+
+def fence_record(record: "ContinuityRunRecord", *, marker_present: bool = True) -> "ContinuityRunRecord":
+    """Apply the continuity writer fence (schema v1, additive).
+
+    Rows originating from browser/MCP/lane writers are structurally capped at
+    UNVERIFIED/E0 unless a proof artifact is attached, in which case they are
+    eligible for E1. Downgrades are never silent: the returned record carries
+    ``fenced=True`` and a ``fence_reason``. On the read side, rows lacking the
+    fence marker (legacy or foreign writers) receive the same cap; rows that
+    claim nothing above the floor pass through unchanged (legacy tolerance).
+    """
+    untrusted = record.origin in UNTRUSTED_ORIGINS
+    if not untrusted and marker_present:
+        return record
+
+    claims_verification = record.verification not in ("", VERIFICATION_UNVERIFIED)
+    claims_grade = record.evidence_grade not in ("", EVIDENCE_GRADE_E0)
+    claims_delta = record.progress_class == ProgressClass.VERIFIED_DELTA.value
+
+    if proof_attached(record):
+        eligible = (
+            claims_verification
+            or claims_grade
+            or claims_delta
+            or record.evidence_grade == EVIDENCE_GRADE_E1
+        )
+        target_grade = EVIDENCE_GRADE_E1 if eligible else EVIDENCE_GRADE_E0
+        if record.evidence_grade == target_grade:
+            return record
+        if record.evidence_grade in (EVIDENCE_GRADE_E0, EVIDENCE_GRADE_E1):
+            return replace(record, evidence_grade=target_grade)
+        return replace(
+            record,
+            evidence_grade=EVIDENCE_GRADE_E1,
+            fenced=True,
+            fence_reason=(
+                f"writer fence: origin={record.origin} claimed evidence_grade="
+                f"{record.evidence_grade}; capped to E1 (proof attached)"
+            ),
+        )
+
+    if not (claims_verification or claims_grade or claims_delta):
+        return record  # already at the UNVERIFIED/E0 floor; the cap is identity
+
+    reasons = []
+    if claims_verification:
+        reasons.append(f"verification={record.verification}")
+    if claims_delta:
+        reasons.append(f"progress_class={record.progress_class}")
+    if claims_grade:
+        reasons.append(f"evidence_grade={record.evidence_grade}")
+    cause = (
+        f"untrusted origin {record.origin}"
+        if untrusted
+        else "missing fence marker (legacy/foreign row)"
+    )
+    return replace(
+        record,
+        verification=VERIFICATION_UNVERIFIED,
+        evidence_grade=EVIDENCE_GRADE_E0,
+        progress_class=(
+            ProgressClass.EVIDENCE_DELTA.value if claims_delta else record.progress_class
+        ),
+        fenced=True,
+        fence_reason=(
+            "writer fence: " + ", ".join(reasons)
+            + f" claimed without proof ({cause}); capped to UNVERIFIED/E0"
+        ),
+    )
+
+
+def append_record(
+    record: ContinuityRunRecord,
+    path: str | Path | None = None,
+    *,
+    origin: str | None = None,
+) -> Path:
+    if origin is not None:
+        normalized = str(origin).strip().lower()
+        if normalized not in KNOWN_ORIGINS:
+            normalized = ORIGIN_BROWSER
+        if normalized != record.origin:
+            record = replace(record, origin=normalized)
+    elif record.origin == ORIGIN_CORE:
+        inferred = classify_writer_identity(record.agent_id)
+        if inferred != record.origin:
+            record = replace(record, origin=inferred)
+    record = fence_record(record)
     ledger = Path(path) if path else default_ledger_path()
     ledger.parent.mkdir(parents=True, exist_ok=True)
     with ledger.open("a", encoding="utf-8", newline="\n") as handle:
@@ -162,7 +364,11 @@ def read_records(path: str | Path | None = None, *, limit: int | None = None) ->
             if not line.strip():
                 continue
             try:
-                records.append(ContinuityRunRecord.from_mapping(json.loads(line)))
+                raw = json.loads(line)
+                if not isinstance(raw, Mapping):
+                    raise ValueError("continuity row must be a JSON object")
+                record = ContinuityRunRecord.from_mapping(raw)
+                records.append(fence_record(record, marker_present=FENCE_MARKER_FIELD in raw))
             except (json.JSONDecodeError, ValueError) as exc:
                 meta["corrupt_tail"] = True
                 meta["errors"].append({"line": index, "error": str(exc)})
@@ -173,16 +379,20 @@ def summarize_records(records: Iterable[ContinuityRunRecord]) -> dict[str, Any]:
     rows = list(records)
     progress_counts: dict[str, int] = {}
     provider_calls = 0
+    fenced_records = 0
     blockers: dict[str, int] = {}
     for record in rows:
         progress_counts[record.progress_class] = progress_counts.get(record.progress_class, 0) + 1
         provider_calls += record.provider_calls
+        if record.fenced:
+            fenced_records += 1
         if record.blocker:
             blockers[record.blocker] = blockers.get(record.blocker, 0) + 1
     return {
         "record_count": len(rows),
         "progress_counts": progress_counts,
         "provider_calls": provider_calls,
+        "fenced_records": fenced_records,
         "blockers": blockers,
         "last_record": rows[-1].to_dict() if rows else None,
     }

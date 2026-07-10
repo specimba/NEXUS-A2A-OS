@@ -7,7 +7,11 @@ from typing import Any
 
 from nexus_os.continuity.records import (
     ContinuityRunRecord,
+    EVIDENCE_GRADE_E0,
+    EVIDENCE_GRADE_E1,
     ProgressClass,
+    VERIFICATION_UNVERIFIED,
+    VERIFICATION_VERIFIED,
     append_record,
     classify_progress,
     default_ledger_path,
@@ -75,20 +79,28 @@ def run_continuity(args: Any) -> tuple[int, dict[str, Any]]:
             completed_at=None,
             memory_routes=("TASK", "META"),
         )
-        path = append_record(record, ledger)
+        path = append_record(record, ledger, origin=getattr(args, "origin", None))
         return 0, {"status": "ok", "command": "continuity open", "ledger": str(path), "record": record.to_dict()}
 
     if command == "close":
+        artifacts = _split_values(args.artifact)
+        tests_run = _split_values(args.test)
         progress = classify_progress(
             input_fingerprint=args.input_fingerprint,
             output_fingerprint=args.output_fingerprint,
-            artifact_paths=_split_values(args.artifact),
-            tests=_split_values(args.test),
+            artifact_paths=artifacts,
+            tests=tests_run,
             provider_calls=args.provider_calls,
             blocker=args.blocker,
             implemented=args.implemented,
             advisory_only=args.advisory_only,
         )
+        verification = (
+            VERIFICATION_VERIFIED
+            if progress is ProgressClass.VERIFIED_DELTA
+            else VERIFICATION_UNVERIFIED
+        )
+        evidence_grade = EVIDENCE_GRADE_E1 if (artifacts or tests_run) else EVIDENCE_GRADE_E0
         record = ContinuityRunRecord(
             run_id=args.run_id,
             agent_id=args.agent_id,
@@ -96,16 +108,19 @@ def run_continuity(args: Any) -> tuple[int, dict[str, Any]]:
             input_fingerprint=args.input_fingerprint,
             output_fingerprint=args.output_fingerprint,
             progress_class=progress.value,
-            artifact_paths=_split_values(args.artifact),
-            tests=_split_values(args.test),
+            artifact_paths=artifacts,
+            tests=tests_run,
             provider_calls=args.provider_calls,
             quota_reserved=args.quota_reserved,
             blocker=args.blocker,
             next_action=args.next_action,
             started_at=args.started_at or utc_now(),
             completed_at=utc_now(),
+            verification=verification,
+            evidence_grade=evidence_grade,
+            proof_path=getattr(args, "proof_path", None),
         )
-        path = append_record(record, ledger)
+        path = append_record(record, ledger, origin=getattr(args, "origin", None))
         return 0, {"status": "ok", "command": "continuity close", "ledger": str(path), "record": record.to_dict()}
 
     if command == "resume-plan":

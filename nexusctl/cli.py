@@ -1237,6 +1237,8 @@ def main() -> int:
     p_cont_open.add_argument("--source-lane", required=True)
     p_cont_open.add_argument("--input-fingerprint", default=None)
     p_cont_open.add_argument("--next-action", default=None)
+    p_cont_open.add_argument("--origin", choices=["core", "browser", "mcp", "lane"], default=None,
+                             help="Writer origin; browser/mcp/lane rows are fenced to UNVERIFIED/E0 without proof")
     p_cont_close = continuity_sub.add_parser("close", help="Close a continuity run record with progress classification")
     p_cont_close.add_argument("--run-id", required=True)
     p_cont_close.add_argument("--agent-id", required=True)
@@ -1252,6 +1254,10 @@ def main() -> int:
     p_cont_close.add_argument("--started-at", default=None)
     p_cont_close.add_argument("--implemented", action="store_true")
     p_cont_close.add_argument("--advisory-only", action="store_true")
+    p_cont_close.add_argument("--origin", choices=["core", "browser", "mcp", "lane"], default=None,
+                              help="Writer origin; browser/mcp/lane rows are fenced to UNVERIFIED/E0 without proof")
+    p_cont_close.add_argument("--proof-path", default=None,
+                              help="Path to a proof artifact; an existing file makes browser/MCP rows eligible for E1")
     continuity_sub.add_parser("resume-plan", help="Print resume plan from latest ledger record")
 
     intel = subparsers.add_parser("intel", help="LLMWiki dossier pipeline: ingest evidence/synthesis, lint, stats")
