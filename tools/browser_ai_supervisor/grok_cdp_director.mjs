@@ -6,7 +6,7 @@
  */
 
 import fs from "node:fs";
-import { clearComposerShortcut, submitPromptWithEnter } from "./cdp_compose_submit.mjs";
+import { clearComposerShortcut, submitPromptWithEnter, dispatchEnter } from "./cdp_compose_submit.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port ?? 9224);
@@ -178,19 +178,104 @@ function sendPromptExpression(promptText) {
       const s = getComputedStyle(el);
       return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
     };
-    const candidates = [...document.querySelectorAll("textarea, [contenteditable='true']")].filter(isVisible);
-    const input = candidates[candidates.length - 1];
+    // Prefer explicit chat composers (Grok/Gemini role=textbox, ChatGPT textarea, etc.)
+    const all = [...document.querySelectorAll("textarea, [contenteditable='true'], [role='textbox']")].filter(isVisible);
+    const ranked = all.sort((a, b) => {
+      const score = (el) => {
+        const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+        let s = 0;
+        if (/ask|prompt|chat|message|grok|gemini/i.test(aria)) s += 10;
+        if (el.getAttribute("role") === "textbox") s += 5;
+        if (el.tagName === "TEXTAREA") s += 3;
+        return s;
+      };
+      return score(b) - score(a);
+    });
+    const input = ranked[0];
     if (!input) return { ok: false, reason: "NO_VISIBLE_INPUT" };
     input.focus();
+    try { input.click(); } catch {}
+    // Clear existing draft
+    if (input.tagName === "TEXTAREA" || input.tagName === "INPUT") {
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      input.innerHTML = "";
+      input.textContent = "";
+      input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+    }
+    // Prefer execCommand/insertText path for contenteditable React composers
+    let filled = false;
+    try {
+      filled = document.execCommand("insertText", false, promptText);
+    } catch {}
+    if (!filled) {
+      if (input.tagName === "TEXTAREA" || input.tagName === "INPUT") {
+        input.value = promptText;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        filled = true;
+      } else {
+        input.textContent = promptText;
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: promptText, inputType: "insertText" }));
+        filled = true;
+      }
+    }
     const r = input.getBoundingClientRect();
+    const nowText = (input.innerText || input.value || "").slice(0, 80);
     return {
       ok: true,
       inputTag: input.tagName,
+      role: input.getAttribute("role"),
+      aria: input.getAttribute("aria-label"),
+      filled,
+      nowText,
       x: r.left + Math.min(40, r.width / 2),
       y: r.top + r.height / 2,
       len: promptText.length,
     };
   })(${JSON.stringify(promptText)})`;
+}
+
+async function clickSubmitIfPresent(cdp) {
+  const expr = `(() => {
+    const isVisible = (el) => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && !el.disabled;
+    };
+    const buttons = [...document.querySelectorAll("button, [role='button'], div, [data-testid*='send'], [aria-label]")];
+    const score = (el) => {
+      const aria = (el.getAttribute("aria-label") || "").trim();
+      const title = (el.getAttribute("title") || "").trim();
+      const text = (el.innerText || el.textContent || "").trim();
+      const cls = (el.className || "").toString().toLowerCase();
+      const blob = [aria, title, text].join(" ").toLowerCase();
+      if (/^submit$/i.test(aria) || /^send$/i.test(aria) || /^send prompt$/i.test(aria) || /^send message$/i.test(aria)) return 100;
+      if (/\bsubmit\b/.test(blob) || /\bsend\b/.test(blob)) return 50;
+      // DeepSeek primary circle send
+      if (cls.includes("ds-button--primary") && cls.includes("ds-button--circle")) return 90;
+      if (cls.includes("composer-submit")) return 80;
+      // Qwen Studio (ARCHIVIST map)
+      if (cls.includes("message-input-right-button-send") || cls.includes("chat-prompt-send-button")) return 85;
+      if (cls.includes("send-button") && el.tagName === "BUTTON") return 80;
+      // Gemini send container
+      if (cls.includes("send-button-container")) return 70;
+      return 0;
+    };
+    const ranked = buttons
+      .map((el) => ({ el, s: score(el), vis: isVisible(el) }))
+      .filter((x) => x.s > 0 && x.vis)
+      .sort((a, b) => b.s - a.s);
+    const submit = ranked[0]?.el;
+    if (!submit) return { clicked: false, reason: "NO_SUBMIT_BUTTON", candidates: buttons.length };
+    submit.click();
+    return {
+      clicked: true,
+      label: (submit.getAttribute("aria-label") || submit.innerText || "").slice(0, 40),
+    };
+  })()`;
+  const r = await cdp.send("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true });
+  return r.result?.value || { clicked: false };
 }
 
 async function sendViaEnter(cdp, promptText) {
@@ -216,9 +301,52 @@ async function sendViaEnter(cdp, promptText) {
     button: "left",
     clickCount: 1,
   });
-  await clearComposerShortcut(cdp);
-  const submitted = await submitPromptWithEnter(cdp, promptText);
-  return { ...submitted, inputTag: focus.inputTag };
+  // Text already filled via execCommand/value in page context when possible.
+  // Still run Input.insertText as backup if composer looks empty.
+  if (!focus.nowText || focus.nowText.trim().length < 4) {
+    await clearComposerShortcut(cdp);
+    await submitPromptWithEnter(cdp, promptText);
+  } else {
+    await new Promise((r) => setTimeout(r, 200));
+    // text already in composer — submit with Enter + button
+    await dispatchEnter(cdp, 0);
+  }
+  const submitted = {
+    ok: true,
+    method: focus.filled ? "page_fill_then_enter" : "input_insert_enter",
+    lineCount: String(promptText).split(/\n/).length,
+    textLen: promptText.length,
+    prefill: focus.nowText || "",
+  };
+  // Explicit Submit click after insert (many UIs need this).
+  await new Promise((r) => setTimeout(r, 350));
+  const submitClick = await clickSubmitIfPresent(cdp);
+  // Verify a distinctive fragment landed in the page within a few seconds.
+  const firstLine = String(promptText).split(/\r?\n/).map((l) => l.trim()).find((l) => l.length >= 8) || "";
+  const token = promptText.includes("NEXUS CDP proof ping")
+    ? "NEXUS CDP proof ping"
+    : firstLine.slice(0, 48);
+  let landed = false;
+  if (token.length >= 8 || promptText.length > 20) {
+    const needle = token.length >= 8 ? token : promptText.slice(0, 40);
+    for (let i = 0; i < 8; i += 1) {
+      await new Promise((r) => setTimeout(r, 500));
+      const check = await cdp.send("Runtime.evaluate", {
+        expression: `({ has: ((document.body&&document.body.innerText)||"").includes(${JSON.stringify(needle)}), composerLen: (() => {
+          const els=[...document.querySelectorAll("textarea,[contenteditable='true']")];
+          const el=els[els.length-1];
+          return el ? ((el.innerText||el.value||"").length) : -1;
+        })() })`,
+        returnByValue: true,
+      });
+      const v = check.result?.value;
+      if (v?.has) {
+        landed = true;
+        break;
+      }
+    }
+  }
+  return { ...submitted, inputTag: focus.inputTag, submitClick, landed };
 }
 
 const targets = await getTargets(port);

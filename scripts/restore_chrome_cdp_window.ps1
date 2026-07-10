@@ -1,10 +1,15 @@
-# Restore + foreground Chrome for NEXUS CDP lane (Win32 + browser-level CDP).
+# Restore + optional foreground Chrome for NEXUS CDP lane (Win32 + browser-level CDP).
+# Policy 2026-07-10: only force geometry when broken (offscreen / 1x1 / minimized).
+# Never hide. Prefer -OnlyIfBroken -NoStealFocus so operator work is not interrupted.
 param(
     [int]$Port = 9224,
-    [string]$TitleContains = "Grok|Zo|ChatGPT|specimba|OpenAI|Chrome",
+    [string]$TitleContains = "Grok|Zo|ChatGPT|specimba|OpenAI|Chrome|Gemini|Qwen|DeepSeek|Meta|Intern|code-server",
     [switch]$SkipEnsure,
     [switch]$ForceShow,
-    [switch]$Interactive
+    [switch]$Interactive,
+    [switch]$OnlyIfBroken,
+    [switch]$NoStealFocus,
+    [switch]$NoMaximize
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -23,11 +28,9 @@ $targetX = $wa.left + [Math]::Max(40, [int](($wa.width - $targetW) / 2))
 $targetY = $wa.top + [Math]::Max(40, [int](($wa.height - $targetH) / 2))
 
 if (-not $ForceShow -and -not $Interactive) {
-    Write-Host (ConvertTo-Json @{ status = "RESTORE_SKIPPED"; reason = "no_ForceShow_respect_minimized"; port = $Port } -Compress)
+    Write-Host (ConvertTo-Json @{ status = "RESTORE_SKIPPED"; reason = "no_ForceShow_respect_operator"; port = $Port } -Compress)
     return
 }
-
-# We will do browser-level CDP window restore after Win32 show/positioning to prevent CDP timeout deadlocks when Chrome is frozen.
 
 Add-Type @"
 using System;
@@ -62,48 +65,69 @@ $lanePids = @(
         Select-Object -ExpandProperty ProcessId
 )
 
-function Fix-Geometry([IntPtr]$h) {
-    if ($h -eq [IntPtr]::Zero) { return $false }
+function Test-BrokenGeometry([IntPtr]$h) {
+    if ($h -eq [IntPtr]::Zero) { return $true }
+    if ([NativeWin]::IsIconic($h)) { return $true }
     $rect = New-Object NativeWin+RECT
-    if (-not [NativeWin]::GetWindowRect($h, [ref]$rect)) { return $false }
+    if (-not [NativeWin]::GetWindowRect($h, [ref]$rect)) { return $true }
     $w = $rect.Right - $rect.Left
     $ht = $rect.Bottom - $rect.Top
-    $broken = ($ht -lt 200) -or ($w -lt 400) -or ($rect.Left -lt -500) -or ($w -le 2) -or ($ht -le 2)
-    if ($broken) {
-        [void][NativeWin]::MoveWindow($h, $targetX, $targetY, $targetW, $targetH, $true)
+    if (($ht -lt 200) -or ($w -lt 400) -or ($rect.Left -lt -500) -or ($rect.Top -lt -500) -or ($w -le 2) -or ($ht -le 2)) {
         return $true
     }
     return $false
 }
 
+function Fix-Geometry([IntPtr]$h) {
+    if ($h -eq [IntPtr]::Zero) { return $false }
+    if (-not (Test-BrokenGeometry $h)) { return $false }
+    [void][NativeWin]::MoveWindow($h, $targetX, $targetY, $targetW, $targetH, $true)
+    return $true
+}
+
 function Show-Window([IntPtr]$h) {
     if ($h -eq [IntPtr]::Zero) { return $false }
+    $broken = Test-BrokenGeometry $h
+    if ($OnlyIfBroken -and -not $broken) {
+        return $false
+    }
     [void](Fix-Geometry $h)
     if ([NativeWin]::IsIconic($h)) { [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_RESTORE) }
     [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_SHOW)
-    if (-not $Interactive) {
-        [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_MAXIMIZE)
+    if ($Interactive -or $NoMaximize) {
+        if ($broken) {
+            [void][NativeWin]::MoveWindow($h, $targetX, $targetY, $targetW, $targetH, $true)
+        }
     } else {
-        [void][NativeWin]::MoveWindow($h, $targetX, $targetY, $targetW, $targetH, $true)
+        # Only maximize when fixing a broken window — avoid fighting operator size
+        if ($broken -and -not $OnlyIfBroken) {
+            [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_MAXIMIZE)
+        } elseif ($broken) {
+            [void][NativeWin]::MoveWindow($h, $targetX, $targetY, $targetW, $targetH, $true)
+        }
     }
-    [void][NativeWin]::BringWindowToTop($h)
-    $fg = [NativeWin]::GetForegroundWindow()
-    $fgTid = [NativeWin]::GetWindowThreadProcessId($fg, [IntPtr]::Zero)
-    $wTid = [NativeWin]::GetWindowThreadProcessId($h, [IntPtr]::Zero)
-    $cur = [NativeWin]::GetCurrentThreadId()
-    if ($fgTid -ne $wTid) {
-        [void][NativeWin]::AttachThreadInput($cur, $fgTid, $true)
-        [void][NativeWin]::AttachThreadInput($cur, $wTid, $true)
+    if (-not $NoStealFocus) {
+        [void][NativeWin]::BringWindowToTop($h)
+        $fg = [NativeWin]::GetForegroundWindow()
+        $fgTid = [NativeWin]::GetWindowThreadProcessId($fg, [IntPtr]::Zero)
+        $wTid = [NativeWin]::GetWindowThreadProcessId($h, [IntPtr]::Zero)
+        $cur = [NativeWin]::GetCurrentThreadId()
+        if ($fgTid -ne $wTid) {
+            [void][NativeWin]::AttachThreadInput($cur, $fgTid, $true)
+            [void][NativeWin]::AttachThreadInput($cur, $wTid, $true)
+        }
+        $ok = [NativeWin]::SetForegroundWindow($h)
+        if ($fgTid -ne $wTid) {
+            [void][NativeWin]::AttachThreadInput($cur, $fgTid, $false)
+            [void][NativeWin]::AttachThreadInput($cur, $wTid, $false)
+        }
+        return $ok
     }
-    $ok = [NativeWin]::SetForegroundWindow($h)
-    if ($fgTid -ne $wTid) {
-        [void][NativeWin]::AttachThreadInput($cur, $fgTid, $false)
-        [void][NativeWin]::AttachThreadInput($cur, $wTid, $false)
-    }
-    return $ok
+    return $true
 }
 
 $restored = @()
+$skippedOk = 0
 $enum = [NativeWin+EnumWindowsProc]{
     param($hWnd, $lParam)
     $pid = 0
@@ -113,6 +137,10 @@ $enum = [NativeWin+EnumWindowsProc]{
     [void][NativeWin]::GetWindowText($hWnd, $title, 512)
     $t = $title.ToString()
     if ($TitleContains -and $t -notmatch $TitleContains -and $t.Length -lt 2) { return $true }
+    if ($OnlyIfBroken -and -not (Test-BrokenGeometry $hWnd)) {
+        $script:skippedOk++
+        return $true
+    }
     if (Show-Window $hWnd) { $script:restored += $pid }
     return $true
 }
@@ -120,6 +148,10 @@ $enum = [NativeWin+EnumWindowsProc]{
 
 Get-Process chrome -ErrorAction SilentlyContinue | ForEach-Object {
     if ($_.MainWindowHandle -ne 0 -and $lanePids -contains $_.Id) {
+        if ($OnlyIfBroken -and -not (Test-BrokenGeometry $_.MainWindowHandle)) {
+            $skippedOk++
+            return
+        }
         if (Show-Window $_.MainWindowHandle) { $restored += $_.Id }
     }
 }
@@ -131,23 +163,31 @@ if (Test-Path $browserRestore) {
         "--work-left", $wa.left, "--work-top", $wa.top,
         "--work-width", $wa.width, "--work-height", $wa.height
     )
-    if ($Interactive) { $brArgs += "--interactive" }
+    if ($Interactive -or $NoMaximize) { $brArgs += "--interactive" }
+    if ($OnlyIfBroken) { $brArgs += "--only-if-broken" }
     node @brArgs 2>&1
 }
 
-$nodeRestore = Join-Path $repo "tools\browser_ai_supervisor\grok_cdp_restore_window.mjs"
-foreach ($match in @("grok.com", "zo.computer", "chatgpt.com")) {
-    if (Test-Path $nodeRestore) {
-        node $nodeRestore --port $Port --match $match 2>&1 | Out-Null
+# Per-tab restore only when not OnlyIfBroken (avoids tab carousel / bringToFront spam)
+if (-not $OnlyIfBroken) {
+    $nodeRestore = Join-Path $repo "tools\browser_ai_supervisor\grok_cdp_restore_window.mjs"
+    foreach ($match in @("grok.com", "zo.computer", "chatgpt.com")) {
+        if (Test-Path $nodeRestore) {
+            node $nodeRestore --port $Port --match $match --no-bring-to-front --mode normal 2>&1 | Out-Null
+        }
     }
 }
 
 $restored = $restored | Select-Object -Unique
 Write-Host (ConvertTo-Json @{
-    status = if ($Interactive) { "WIN32_RESTORE_INTERACTIVE" } else { "WIN32_RESTORE" }
+    status = if ($OnlyIfBroken -and $restored.Count -eq 0) { "OK_NO_FIX_NEEDED" } elseif ($Interactive) { "WIN32_RESTORE_INTERACTIVE" } else { "WIN32_RESTORE" }
     port = $Port
     pids = $restored
+    skippedOk = $skippedOk
+    onlyIfBroken = [bool]$OnlyIfBroken
+    noStealFocus = [bool]$NoStealFocus
     target = @{ x = $targetX; y = $targetY; w = $targetW; h = $targetH }
     workArea = $wa
     interactive = [bool]$Interactive
+    policy = "KEEP_VISIBLE_DEFAULT"
 } -Compress)

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from tools.browser_ai_supervisor.external_browser_ai_director import (
@@ -11,6 +12,7 @@ from tools.browser_ai_supervisor.external_browser_ai_director import (
     classify_bridge_status,
     decide_cycle,
     decide_source_run,
+    simulated_progress_without_artifact,
     stable_fingerprint,
 )
 
@@ -277,4 +279,83 @@ def test_outro_record_has_blocker_only_for_retry_or_setup():
     assert record["blocker"] == "runtime_evaluate_timeout"
     assert record["provider_calls"] == 0
 
+
+
+
+def test_simulated_progress_without_artifact_blocks_provider():
+    observation = CycleObservation(
+        cdp_status="ok",
+        visible_marker="grok",
+        visible_tail="Simulated progress: I reviewed it, but no executable artifact and no tests run.",
+    )
+
+    decision = decide_cycle(observation, previous_fingerprint=None)
+
+    assert simulated_progress_without_artifact(observation.visible_tail) is True
+    assert decision.action == "NOOP_UNCHANGED"
+    assert decision.reason == "simulated_progress_without_artifact"
+    assert decision.provider_allowed is False
+
+
+def test_runner_mirrors_noop_to_continuity_without_provider(monkeypatch, tmp_path: Path):
+    memory_path = tmp_path / "director.jsonl"
+    continuity_path = tmp_path / "continuity.jsonl"
+    previous = stable_fingerprint("same", "tail", "")
+    monkeypatch.setenv("NEXUS_CONTINUITY_LEDGER", str(continuity_path))
+    append_memory(
+        memory_path,
+        {
+            "run_id": "previous",
+            "source_id": "grok-project-nexus",
+            "started_at": "2026-06-21T18:00:00Z",
+            "completed_at": "2026-06-21T18:00:10Z",
+            "visible_fingerprint": previous,
+            "action": "CONTINUE_SENT",
+        },
+    )
+    provider_calls = []
+
+    runner = DirectorRunner(
+        memory_path,
+        observe=lambda: CycleObservation(cdp_status="ok", visible_marker="same", visible_tail="tail"),
+        provider_eval=lambda observation, provider: provider_calls.append(provider) or {"status": "called"},
+    )
+
+    record = runner.run_once(run_id="noop", now="2026-06-21T18:10:11Z")
+    rows = [json.loads(line) for line in continuity_path.read_text(encoding="utf-8").splitlines()]
+
+    assert record["provider_calls"] == 0
+    assert provider_calls == []
+    assert rows[-1]["progress_class"] == "NOOP_RECAP"
+    assert rows[-1]["provider_calls"] == 0
+    assert rows[-1]["memory_routes"] == ["META"]
+
+
+def test_runner_mirrors_artifact_to_continuity_task_route(monkeypatch, tmp_path: Path):
+    memory_path = tmp_path / "director.jsonl"
+    continuity_path = tmp_path / "continuity.jsonl"
+    monkeypatch.setenv("NEXUS_CONTINUITY_LEDGER", str(continuity_path))
+    provider_calls = []
+
+    runner = DirectorRunner(
+        memory_path,
+        observe=lambda: CycleObservation(
+            cdp_status="ok",
+            bridge_status="ok",
+            visible_marker="new",
+            visible_tail="artifact",
+            new_artifact_name="GrokDirectorCycleContract_v1",
+            requires_bridge=True,
+        ),
+        provider_eval=lambda observation, provider: provider_calls.append(provider) or {"status": "reviewed"},
+    )
+
+    record = runner.run_once(run_id="artifact", now="2026-06-21T18:20:00Z")
+    rows = [json.loads(line) for line in continuity_path.read_text(encoding="utf-8").splitlines()]
+
+    assert record["provider_calls"] == 1
+    assert provider_calls == ["internai"]
+    assert rows[-1]["progress_class"] == "EVIDENCE_DELTA"
+    assert rows[-1]["artifact_paths"] == ["GrokDirectorCycleContract_v1"]
+    assert rows[-1]["memory_routes"] == ["META", "TASK"]
 

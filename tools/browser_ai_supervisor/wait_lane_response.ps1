@@ -40,12 +40,29 @@ $nodeArgs = @(
 )
 
 $waitLog = & node @nodeArgs 2>&1
-$jsonLine = ($waitLog | Out-String) -split "`n" | Where-Object { $_ -match '"status"\s*:' } | Select-Object -Last 1
-if (-not $jsonLine) { throw "lane wait produced no JSON" }
-$payload = $jsonLine | ConvertFrom-Json
+$waitText = ($waitLog | Out-String)
+# Prefer a full JSON object line; fall back to first { ... } span (handles TIMEOUT noise).
+$jsonLine = ($waitText -split "`n" | Where-Object { $_.Trim().StartsWith("{") -and $_ -match '"status"' } | Select-Object -Last 1)
+if (-not $jsonLine) {
+    $start = $waitText.IndexOf("{")
+    $end = $waitText.LastIndexOf("}")
+    if ($start -ge 0 -and $end -gt $start) {
+        $jsonLine = $waitText.Substring($start, $end - $start + 1)
+    }
+}
+if (-not $jsonLine) { throw "lane wait produced no JSON`n$waitText" }
+try {
+    $payload = $jsonLine | ConvertFrom-Json
+} catch {
+    throw "lane wait JSON parse failed: $($_.Exception.Message)`nline=$jsonLine`nraw=$waitText"
+}
 
 $jsonCompact = $payload | ConvertTo-Json -Compress -Depth 8
-& $py -m nexus_os.nexusclaw.lane_timing_cli record --task-class $TaskClass --json $jsonCompact | Out-Null
+try {
+    & $py -m nexus_os.nexusclaw.lane_timing_cli record --task-class $TaskClass --json $jsonCompact | Out-Null
+} catch {
+    Write-Warning "lane_timing_cli record failed (non-fatal): $_"
+}
 
 $payload | ConvertTo-Json -Depth 8
 if ($payload.status -ne "RESPONSE_READY") { exit 1 }

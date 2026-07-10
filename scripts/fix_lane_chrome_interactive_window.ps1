@@ -9,7 +9,7 @@ param(
 )
 
 if (-not $ManualObservation -and $env:NEXUS_ALLOW_FOREGROUND_LANE_REPAIR -ne "1") {
-    Write-Warning "Foreground lane repair is manual-only. Re-run with -ManualObservation or set NEXUS_ALLOW_FOREGROUND_LANE_REPAIR=1. Autonomous supervisors must use the hidden/offscreen launcher."
+    Write-Warning "Foreground lane repair is manual-only. Re-run with -ManualObservation or set NEXUS_ALLOW_FOREGROUND_LANE_REPAIR=1. Policy: keep Chrome visible (never offscreen park)."
     exit 3
 }
 
@@ -47,7 +47,9 @@ function Restore-Lanes {
             }
         }
     }
-    if ($count -eq 0) { Write-Warning "No matching lane windows found. Ensure Chrome is running with remote debugging on $Port and tabs match the patterns." }
+    if ($count -eq 0) {
+        Write-Warning "No matching lane windows found. Ensure Chrome is running with remote debugging on $Port and tabs match the patterns."
+    }
     return $count
 }
 
@@ -60,15 +62,32 @@ function Restore-LanesViaCdp {
         Write-Warning "node not on PATH; cannot CDP-restore windows."
         return 0
     }
-    $restoreJs = Join-Path $PSScriptRoot "grok_cdp_restore_window.mjs"
-    if (-not (Test-Path $restoreJs)) {
-        $restoreJs = Join-Path $PSScriptRoot "..\..\tools\browser_ai_supervisor\grok_cdp_restore_window.mjs"
+    $candidates = @(
+        (Join-Path $PSScriptRoot "grok_cdp_restore_window.mjs"),
+        (Join-Path $PSScriptRoot "..\tools\browser_ai_supervisor\grok_cdp_restore_window.mjs"),
+        (Join-Path $PSScriptRoot "..\tools\browser_ai_supervisor\chrome_cdp_browser_restore.mjs")
+    )
+    $restoreJs = $null
+    foreach ($c in $candidates) {
+        if (Test-Path $c) {
+            $restoreJs = (Resolve-Path $c).Path
+            break
+        }
     }
-    if (-not (Test-Path $restoreJs)) {
+    if (-not $restoreJs) {
         Write-Warning "grok_cdp_restore_window.mjs not found for CDP fallback."
         return 0
     }
-    $matches = @("grok\\.com", "gemini\\.google\\.com", "chat\\.qwen\\.ai", "chatgpt\\.com", "meta\\.ai", "chat\\.z\\.ai", "claude\\.ai")
+    Write-Host "Using CDP restore helper: $restoreJs"
+    $matches = @(
+        "grok\\.com",
+        "gemini\\.google\\.com",
+        "chat\\.qwen\\.ai",
+        "chatgpt\\.com",
+        "meta\\.ai",
+        "chat\\.z\\.ai",
+        "claude\\.ai"
+    )
     $ok = 0
     foreach ($m in $matches) {
         try {
@@ -91,7 +110,7 @@ function Restore-LanesViaCdp {
 Write-Host "Manual observation: fixing visible CDP lane Chrome windows..."
 $win32Count = Restore-Lanes
 if ($win32Count -eq 0) {
-    Write-Host "Win32 found 0 titled windows — trying CDP Browser window restore fallback..."
+    Write-Host "Win32 found 0 titled windows - trying CDP Browser window restore fallback..."
     Restore-LanesViaCdp | Out-Null
 }
 

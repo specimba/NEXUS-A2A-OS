@@ -7,6 +7,7 @@ const port = Number(args.port ?? 9224);
 const required = args.required ?? "Grok";
 const outFile = args.outFile;
 const expand = Boolean(args.expand);
+const pickFirst = Boolean(args.pickFirst);
 const maxChars = Number(args.maxChars ?? 24000);
 const maxCodeChars = Number(args.maxCodeChars ?? Math.max(5000, maxChars));
 
@@ -102,13 +103,15 @@ class Cdp {
     }
 
     const id = this.nextId++;
+    // Keep probe snappy: sleeping/discarded tabs must fail fast (reload path handles one retry).
+    const timeoutMs = method === "Runtime.evaluate" ? 45000 : 12000;
     const promise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
           reject(new Error(`CDP call timeout: ${method}`));
         }
-      }, 45000);
+      }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
     });
     this.ws.send(JSON.stringify({ id, method, params }));
@@ -119,10 +122,64 @@ class Cdp {
   }
 }
 
-const targets = await getTargets(port);
-const target = targets
+function matchesRequired(item, requiredRaw) {
+  const req = String(requiredRaw || "");
+  const title = item.title || "";
+  const url = item.url || "";
+  if (title.includes(req) || url.includes(req)) return true;
+  // Host-style required (e.g. chatgpt.com) should match even when title is a chat name.
+  try {
+    if (url && url.startsWith("http")) {
+      const host = new URL(url).hostname;
+      if (host === req || host.endsWith(`.${req}`) || host.includes(req)) return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+async function activateTarget(targetId) {
+  try {
+    const ver = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
+    if (!ver.webSocketDebuggerUrl) return;
+    const browser = new Cdp(ver.webSocketDebuggerUrl);
+    await browser.open();
+    try {
+      await browser.send("Target.activateTarget", { targetId });
+    } catch {
+      /* best-effort for sleeping tabs */
+    }
+    browser.close();
+    await new Promise((r) => setTimeout(r, 400));
+  } catch {
+    /* ignore */
+  }
+}
+
+let targets = await getTargets(port);
+let matchingTargets = targets
   .filter((item) => item.type === "page")
-  .find((item) => item.title.includes(required) || item.url.includes(required));
+  .filter((item) => matchesRequired(item, required));
+
+// Prefer pages that still have a real URL over empty-url ghosts.
+matchingTargets = [
+  ...matchingTargets.filter((t) => t.url && t.url.startsWith("http")),
+  ...matchingTargets.filter((t) => !t.url || !t.url.startsWith("http")),
+];
+
+if (matchingTargets.length > 1 && !pickFirst) {
+  const output = {
+    status: "NOTIFY_SETUP_REQUIRED",
+    blocker: `Duplicate page targets matched '${required}' on port ${port}; close or merge duplicates before automation (or pass --pickFirst)`,
+    reason: "duplicate_target_match",
+    matchingTargets: matchingTargets.slice(0, 10).map((item) => ({ title: item.title, url: redactUrl(item.url) })),
+  };
+  console.log(JSON.stringify(output, null, 2));
+  process.exit(2);
+}
+
+let target = matchingTargets[0];
 
 if (!target) {
   const output = {
@@ -135,10 +192,53 @@ if (!target) {
   process.exit(2);
 }
 
-// Page.bringToFront removed — silent interaction only
+// Wake sleeping / discarded tabs, then refresh target list for a live websocket URL.
+await activateTarget(target.id);
+targets = await getTargets(port);
+matchingTargets = targets
+  .filter((item) => item.type === "page")
+  .filter((item) => matchesRequired(item, required));
+matchingTargets = [
+  ...matchingTargets.filter((t) => t.url && t.url.startsWith("http")),
+  ...matchingTargets.filter((t) => !t.url || !t.url.startsWith("http")),
+];
+target = matchingTargets.find((t) => t.id === target.id) || matchingTargets[0] || target;
+
+if (!target.webSocketDebuggerUrl) {
+  const output = {
+    status: "NOTIFY_SETUP_REQUIRED",
+    blocker: `Matched '${required}' but target has no webSocketDebuggerUrl (tab may be crashed/discarded)`,
+    target: { title: target.title, url: redactUrl(target.url), id: target.id },
+  };
+  console.log(JSON.stringify(output, null, 2));
+  process.exit(2);
+}
+
+// Wake path: activateTarget (above) + bringToFront + optional reload for discarded tabs.
 const cdp = new Cdp(target.webSocketDebuggerUrl);
 await cdp.open();
-await cdp.send("Runtime.enable");
+try {
+  await cdp.send("Page.enable");
+} catch {
+  /* some targets reject Page domain until loaded */
+}
+try {
+  await cdp.send("Page.bringToFront");
+} catch {
+  /* best-effort */
+}
+try {
+  await cdp.send("Runtime.enable");
+} catch (firstErr) {
+  // Discarded/sleeping tabs often need a reload before Runtime attaches.
+  try {
+    await cdp.send("Page.reload", { ignoreCache: false });
+    await new Promise((r) => setTimeout(r, 2500));
+    await cdp.send("Runtime.enable");
+  } catch {
+    throw firstErr;
+  }
+}
 
 const probeExpression = `async ({ expand, maxChars, maxCodeChars }) => {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -232,3 +332,4 @@ if (outFile) {
 }
 console.log(json);
 cdp.close();
+

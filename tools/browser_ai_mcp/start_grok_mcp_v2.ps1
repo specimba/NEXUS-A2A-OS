@@ -19,7 +19,7 @@ if ($existing) {
 $env:GROK_LISTEN_PORT = [string]$Port
 $env:GROK_LISTEN_HOST = $HostName
 $env:GROK_HTTP_ALLOWED_HOSTS = $AllowedHosts
-$env:GROK_MCP_VERSION = "2.3.0-queue-visible"
+$env:GROK_MCP_VERSION = "2.4.0-p0-continuity"
 
 Write-Host "Starting hardened Grok MCP bridge on $HostName`:$Port" -ForegroundColor Cyan
 $server = Start-Process -WindowStyle Hidden -FilePath $python -ArgumentList @($serverPath) -PassThru -WorkingDirectory $repoRoot

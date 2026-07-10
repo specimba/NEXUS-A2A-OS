@@ -1,7 +1,7 @@
-﻿param([int]$Port = 9224, [switch]$EnablePermanent, [string]$Guardrails = 'mythos')
+param([int]$Port = 9224, [switch]$EnablePermanent, [string]$Guardrails = 'mythos')
 
 $Repo = 'C:\Users\speci.000\Documents\NEXUS'
-& "$Repo\scripts\fix_lane_chrome_interactive_window.ps1" -Port $Port | Out-Null
+& "$Repo\scripts\fix_lane_chrome_interactive_window.ps1" -Port $Port -ManualObservation | Out-Null
 
 $lockDir = "$Repo\NEXUSlogs\a2a_experiment"
 New-Item -ItemType Directory -Force -Path $lockDir | Out-Null

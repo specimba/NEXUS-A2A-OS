@@ -7,6 +7,7 @@ const port = Number(process.argv.find((a, i) => process.argv[i - 1] === "--port"
 const mode = process.argv.find((a, i) => process.argv[i - 1] === "--mode") ?? "maximized";
 const urlMatch = process.argv.find((a, i) => process.argv[i - 1] === "--match") ?? "grok\\.com";
 const urlRe = new RegExp(urlMatch, "i");
+const noBringToFront = process.argv.includes("--no-bring-to-front");
 
 async function browserWsUrl() {
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -84,15 +85,20 @@ async function main() {
   });
   cdp.close();
 
-  const pageCdp = new Cdp(grok.webSocketDebuggerUrl);
-  await pageCdp.open();
-  await pageCdp.send("Page.bringToFront");
-  pageCdp.close();
+  // bringToFront steals focus and causes multi-lane "tab travel" when called per lane.
+  // Default still brings front for single-lane operator restore; pass --no-bring-to-front for stacks.
+  if (!noBringToFront) {
+    const pageCdp = new Cdp(grok.webSocketDebuggerUrl);
+    await pageCdp.open();
+    await pageCdp.send("Page.bringToFront");
+    pageCdp.close();
+  }
 
   console.log(JSON.stringify({
     status: "WINDOW_RESTORED",
     port,
     windowState,
+    broughtToFront: !noBringToFront,
     title: grok.title,
     url: grok.url.replace(/\?.*$/, "?REDACTED"),
   }, null, 2));

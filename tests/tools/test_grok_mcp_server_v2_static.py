@@ -36,7 +36,11 @@ def test_health_exposes_hardening_fingerprint():
     src = _source()
 
     assert '"hardening": _http_diagnostic_policy_snapshot()' in src
-    assert '"mcp_tool_count": 22' in src
+    assert '"mcp_tool_count": len(TOOL_NAMES)' in src
+    assert "continuity_append" in src
+    assert "continuity_tail" in src
+    assert "cdp_window_probe" in src
+    assert "_resolve_continuity_path" in src
 
 def test_runtime_writes_have_repo_local_fallback():
     src = _source()

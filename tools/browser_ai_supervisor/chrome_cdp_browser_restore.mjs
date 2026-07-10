@@ -16,6 +16,10 @@ const minW = argNum("--min-width", 900);
 const minH = argNum("--min-height", 600);
 const margin = argNum("--margin", 80);
 const interactive = process.argv.includes("--interactive");
+const onlyIfBroken = process.argv.includes("--only-if-broken");
+const modeArg = process.argv.find((a, i) => process.argv[i - 1] === "--mode");
+// normal | maximized — default maximized unless interactive or only-if-broken
+const restoreMode = modeArg || (interactive || onlyIfBroken ? "normal" : "maximized");
 
 const targetW = Math.min(Math.max(minW, workWidth - margin * 2), workWidth - 40);
 const targetH = Math.min(Math.max(minH, workHeight - margin * 2), workHeight - 80);
@@ -116,7 +120,13 @@ for (const windowId of windowIds) {
     }
 
     const needsFix = broken(before);
-    if (needsFix || interactive) {
+    // Policy: if only-if-broken and window is fine, leave operator alone (no maximize twitch).
+    if (onlyIfBroken && !needsFix) {
+      steps.push({ windowId, phase: "skip_ok", before });
+      continue;
+    }
+
+    if (needsFix || interactive || !onlyIfBroken) {
       await cdp.send("Browser.setWindowBounds", {
         windowId,
         bounds: {
@@ -127,10 +137,20 @@ for (const windowId of windowIds) {
           windowState: "normal",
         },
       });
-      steps.push({ windowId, phase: interactive ? "interactive_normal" : "normal_explicit", targetW, targetH, targetLeft, targetTop, before });
+      steps.push({
+        windowId,
+        phase: interactive ? "interactive_normal" : "normal_explicit",
+        targetW,
+        targetH,
+        targetLeft,
+        targetTop,
+        before,
+        needsFix,
+      });
     }
 
-    if (!interactive) {
+    // Maximize only when explicitly requested and not in gentle only-if-broken mode.
+    if (!interactive && restoreMode === "maximized" && !onlyIfBroken) {
       await cdp.send("Browser.setWindowBounds", {
         windowId,
         bounds: { windowState: "maximized" },
@@ -145,7 +165,7 @@ for (const windowId of windowIds) {
     } catch {
       after = null;
     }
-    if (!interactive && broken(after)) {
+    if (broken(after)) {
       await cdp.send("Browser.setWindowBounds", {
         windowId,
         bounds: {
@@ -156,7 +176,7 @@ for (const windowId of windowIds) {
           windowState: "normal",
         },
       });
-      steps.push({ windowId, phase: "normal_fallback_after_bad_maximize", after });
+      steps.push({ windowId, phase: "normal_fallback_after_bad_bounds", after });
     }
   } catch (e) {
     errors.push({ windowId, err: String(e.message || e) });

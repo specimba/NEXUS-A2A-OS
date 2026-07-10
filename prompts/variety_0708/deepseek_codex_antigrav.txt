@@ -1,0 +1,8 @@
+[DEEP GROUNDING TASK - DeepSeek lane]
+Full read required. Analyze NEXUSv4planningCODEXlog-21.txt + NEXUSv4planningCODEXlog-22.txt + NEXUSantiGRAVnexlog-11.txt + FABLE5advisorylogs-03.
+Focus:
+1. CODEX catching developments, gap fixes, PR opens.
+2. Antigravity good advices and contributions.
+3. FABLE5 progression at all levels.
+4. Cross-reference with INTERN curation for model intake.
+Output variety: deficit synthesis, prioritized PR backlog, antigravity wisdom extraction. Deep think on long-term NEXUS evolution.

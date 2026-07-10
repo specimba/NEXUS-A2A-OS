@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -21,6 +22,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from nexus_os.continuity.records import (
+    ContinuityRunRecord,
+    ProgressClass,
+    append_record as append_continuity_record,
+)
 from nexus_os.nexusclaw.grok_lane_env import (
     glm_z_ai_chat_url,
     grok_cdp_port,
@@ -344,6 +350,22 @@ def grok_connector_tools_missing(tail: str) -> bool:
         return False
     return any(tool not in lowered for tool in ("ping", "registry_debug", "http_diagnostic", "task_add"))
 
+def simulated_progress_without_artifact(tail: str) -> bool:
+    """Reject recap/progress theater when no artifact or verification marker exists."""
+
+    lowered = tail.lower()
+    fake_progress_markers = (
+        "simulated progress",
+        "simulation suspected",
+        "validation-only",
+        "no executable artifact",
+        "no artifact",
+        "no tests run",
+    )
+    if any(marker in lowered for marker in fake_progress_markers):
+        return True
+    has_evidence_marker = any(marker in lowered for marker in ("patch", "sha256", "pytest", "artifact"))
+    return "simulated" in lowered and not has_evidence_marker
 def choose_provider(observation: CycleObservation, config: DirectorConfig) -> str:
     if observation.new_artifact_name:
         return "internai"
@@ -403,6 +425,9 @@ def decide_cycle(
 
     if observation.model_generating:
         return DirectorDecision(action="WAITING_MODEL", reason="model_generation_in_progress")
+
+    if not observation.new_artifact_name and simulated_progress_without_artifact(observation.visible_tail):
+        return DirectorDecision(action="NOOP_UNCHANGED", reason="simulated_progress_without_artifact")
 
     if provider_window.calls_last_hour >= config.max_provider_calls_per_hour:
         return DirectorDecision(action="RETRY_LATER", reason="provider_hourly_cap")
@@ -484,12 +509,50 @@ def build_outro_record(
         "action": decision.action,
         "provider": decision.provider,
         "provider_calls": 1 if decision.provider_allowed else 0,
+        "artifact_name": observation.new_artifact_name,
         "bridge_tools": list(decision.bridge_tools),
         "bridge_tool_map": {tool: BRIDGE_TOOL_MAP[tool] for tool in decision.bridge_tools},
         "blocker": decision.reason if decision.action in {"BLOCKED_SETUP", "RETRY_LATER"} else None,
         "next_action": decision.reason,
     }
 
+
+def progress_class_for_outro(record: Mapping[str, Any], previous_fingerprint: str | None) -> str:
+    action = str(record.get("action") or "")
+    if action == "NOOP_UNCHANGED":
+        return ProgressClass.NOOP_RECAP.value
+    if action in {"BLOCKED_SETUP", "RETRY_LATER", "WAITING_MODEL"}:
+        return ProgressClass.ADVISORY_ONLY.value
+    if action in {"ARTIFACT_CAPTURED", "CONTINUE_SENT", "EGRESS_PROBE_RECORDED"}:
+        return ProgressClass.EVIDENCE_DELTA.value
+    if previous_fingerprint and previous_fingerprint == record.get("visible_fingerprint"):
+        return ProgressClass.NOOP_RECAP.value
+    return ProgressClass.ADVISORY_ONLY.value
+
+
+def append_continuity_mirror(record: Mapping[str, Any], *, previous_fingerprint: str | None = None) -> Path | None:
+    ledger = os.environ.get("NEXUS_CONTINUITY_LEDGER")
+    if not ledger:
+        return None
+    artifacts = tuple(str(v) for v in (record.get("artifact_name"),) if v)
+    routes = ("META", "TASK") if record.get("provider_calls") or artifacts else ("META",)
+    continuity = ContinuityRunRecord(
+        run_id=str(record.get("run_id", "")),
+        agent_id="browser_ai_supervisor",
+        source_lane=str(record.get("source_id", "browser-ai")),
+        input_fingerprint=previous_fingerprint,
+        output_fingerprint=record.get("visible_fingerprint"),
+        progress_class=progress_class_for_outro(record, previous_fingerprint),
+        artifact_paths=artifacts,
+        provider_calls=int(record.get("provider_calls", 0) or 0),
+        quota_reserved=0,
+        blocker=record.get("blocker"),
+        next_action=record.get("next_action"),
+        started_at=str(record.get("started_at") or utc_now()),
+        completed_at=str(record.get("completed_at") or utc_now()),
+        memory_routes=routes,
+    )
+    return append_continuity_record(continuity, ledger)
 
 class DirectorRunner:
     """Tiny injectable runner used by tests and future scheduler glue."""
@@ -509,6 +572,7 @@ class DirectorRunner:
 
     def run_once(self, *, run_id: str, now: str | None = None, provider_window: ProviderWindow | None = None) -> dict[str, Any]:
         memory = read_memory_tail(self.memory_path, limit=1)
+        previous_fingerprint = memory[-1].visible_fingerprint if memory else None
         observation = self.observe()
         decision = decide_source_run(
             source_id=self.config.source_id,
@@ -533,6 +597,7 @@ class DirectorRunner:
         if provider_result is not None:
             record["provider_result_status"] = provider_result.get("status", "unknown")
         append_memory(self.memory_path, record)
+        append_continuity_mirror(record, previous_fingerprint=previous_fingerprint)
         return record
 
 
@@ -633,6 +698,16 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+
+
+
+
+
+
+
 
 
 

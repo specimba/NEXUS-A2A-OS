@@ -39,3 +39,32 @@ def test_browser_cycle_is_mirrored_to_grounding_ledger():
     assert "record_grounding_event.py" in wrapper
     assert 'source_id="browser_ai.grok"' in adapter
 
+
+
+def test_browser_supervisor_sets_continuity_ledger():
+    text = (
+        ROOT / "tools" / "browser_ai_supervisor" / "run_browser_ai_supervisor.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "NEXUS_CONTINUITY_LEDGER" in text
+    assert "NEXUScontinuity_runs.jsonl" in text
+
+
+def test_foreground_repair_is_manual_only_for_automation_paths():
+    repair = (ROOT / "scripts" / "fix_lane_chrome_interactive_window.ps1").read_text(encoding="utf-8")
+    supervisor = (
+        ROOT / "tools" / "browser_ai_supervisor" / "run_browser_ai_supervisor.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "ManualObservation" in repair
+    assert "NEXUS_ALLOW_FOREGROUND_LANE_REPAIR" in repair
+    assert "fix_lane_chrome_interactive_window.ps1" not in supervisor
+
+
+def test_cdp_probe_rejects_duplicate_targets_instead_of_guessing():
+    probe = (
+        ROOT / "tools" / "browser_ai_supervisor" / "grok_cdp_context_probe.mjs"
+    ).read_text(encoding="utf-8")
+
+    assert "duplicate_target_match" in probe
+    assert "matchingTargets.length > 1" in probe

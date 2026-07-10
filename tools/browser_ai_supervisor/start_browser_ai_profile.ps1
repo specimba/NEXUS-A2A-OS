@@ -2,10 +2,21 @@ param(
     [string]$Url = "https://grok.com/project/99253cca-2469-4454-8593-0f173b7f640f?chat=4d8d8598-9da7-4639-918e-4ceb6a8812ba",
     [int]$Port = 9224,
     [string]$ProfileDir = "$env:LOCALAPPDATA\NEXUS\BrowserAI\ChromeProfile",
-    [switch]$ShowWindow = $false
+    # DEFAULT VISIBLE. Offscreen park is opt-in only and not recommended for collab.
+    [switch]$ShowWindow,
+    [switch]$SilentBackground
 )
 
 $ErrorActionPreference = "Stop"
+
+# Invert old default: visible unless -SilentBackground explicitly requested.
+$visible = $true
+if ($SilentBackground) { $visible = $false }
+if ($PSBoundParameters.ContainsKey('ShowWindow') -and -not $ShowWindow) {
+    # Legacy callers that pass -ShowWindow:$false
+    if (-not $SilentBackground) { $visible = $false }
+}
+if ($ShowWindow) { $visible = $true }
 
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 if (-not (Test-Path $chrome)) {
@@ -14,7 +25,7 @@ if (-not (Test-Path $chrome)) {
 
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 
-$args = @(
+$chromeArgs = @(
     "--remote-debugging-port=$Port",
     "--user-data-dir=$ProfileDir",
     "--no-first-run",
@@ -28,13 +39,43 @@ $args = @(
     $Url
 )
 
-if (-not $ShowWindow) {
-    $args += @("--window-position=-32000,-32000", "--window-size=1,1")
-    Start-Process -FilePath $chrome -ArgumentList $args -WindowStyle Hidden
-    Write-Host "Chrome launched SILENT BACKGROUND MODE (offscreen, hidden)."
+if (-not $visible) {
+    Write-Warning "SilentBackground launches offscreen (-32000). Corrupts window_placement. Prefer default visible."
+    $chromeArgs = @(
+        "--remote-debugging-port=$Port",
+        "--user-data-dir=$ProfileDir",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=Translate,InterestCohorts",
+        "--hide-crash-restore-bubble",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-background-media-suspend",
+        "--window-position=-32000,-32000",
+        "--window-size=1,1",
+        $Url
+    )
+    Start-Process -FilePath $chrome -ArgumentList $chromeArgs -WindowStyle Hidden
+    Write-Host "Chrome launched SILENT BACKGROUND (opt-in). Restore with: .\scripts\watch_lane_stack.ps1 -NoObserve"
 } else {
-    Start-Process -FilePath $chrome -ArgumentList $args
-    Write-Host "Chrome launched VISIBLE — log in to Grok once, then close."
+    $chromeArgs = @(
+        "--remote-debugging-port=$Port",
+        "--user-data-dir=$ProfileDir",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=Translate,InterestCohorts",
+        "--hide-crash-restore-bubble",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-background-media-suspend",
+        "--window-position=80,50",
+        "--window-size=1280,900",
+        $Url
+    )
+    Start-Process -FilePath $chrome -ArgumentList $chromeArgs
+    Write-Host "Chrome launched VISIBLE (default) — CDP :$Port"
 }
 
 [pscustomobject]@{
@@ -42,10 +83,11 @@ if (-not $ShowWindow) {
     url = $Url
     port = $Port
     profileDir = $ProfileDir
-    mode = if ($ShowWindow) { "visible" } else { "silent-background" }
-    next = if ($ShowWindow) {
-        "Log into Grok in the opened browser, then run control_surface_doctor.ps1 -RequiredUrlPattern 'grok\\.com'. Future starts will be silent."
+    mode = if ($visible) { "visible" } else { "silent-background-opt-in" }
+    policy = "KEEP_VISIBLE_DEFAULT"
+    next = if ($visible) {
+        "Window stays on-screen. Do not run hide_chrome_window without NEXUS_FORCE_HIDE=1."
     } else {
-        "Running in background. To re-auth: start_browser_ai_profile.ps1 -ShowWindow"
+        "You opted into SilentBackground. Run restore_chrome_cdp_window.ps1 -ForceShow when done."
     }
 } | Format-List

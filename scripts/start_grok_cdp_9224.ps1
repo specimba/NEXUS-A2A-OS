@@ -45,11 +45,12 @@ if ($ForceOpenGrokUrl) {
 }
 
 if ($SilentBackground) {
-    Write-Host "Grok-lane Chrome CDP :$Port SILENT - corrupts window_placement; run reset before visible collab."
+    Write-Warning "SilentBackground is DEPRECATED for collab — parks at -32000 and corrupts window_placement."
+    Write-Warning "Prefer default visible. Continuing only because -SilentBackground was explicit."
     $chromeArgs = $baseArgs + @("--window-position=-32000,-32000", "--window-size=1,1", "--hide-crash-restore-bubble")
     Start-Process -FilePath $chrome -ArgumentList $chromeArgs -WindowStyle Hidden
 } else {
-    Write-Host "Grok-lane Chrome CDP :$Port VISIBLE (1280x900, normal - mouse maximize OK)."
+    Write-Host "Grok-lane Chrome CDP :$Port VISIBLE (1280x900). Policy: NEVER auto-hide."
     $chromeArgs = $baseArgs + @(
         "--window-position=80,50",
         "--window-size=1280,900"
@@ -70,4 +71,5 @@ if (-not $ForceOpenGrokUrl) {
     & "$Repo\scripts\open_all_browser_lanes.ps1" -Port $Port -SkipEnsure
 }
 
-& "$Repo\scripts\restore_chrome_cdp_window.ps1" -Port $Port -SkipEnsure
+# Force visible restore after start (SilentBackground or bad profile placement).
+& "$Repo\scripts\restore_chrome_cdp_window.ps1" -Port $Port -SkipEnsure -ForceShow -NoStealFocus

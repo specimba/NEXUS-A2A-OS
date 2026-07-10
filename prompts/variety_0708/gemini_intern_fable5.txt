@@ -1,0 +1,7 @@
+[DEEP GROUNDING TASK - Gemini lane] 
+Full read required. Analyze the INTERNscienceSHANGLAB_AEON...0707.txt curation + latest FABLE5advisorylogs-03.txt + new SLM integration reports in ARCHIVIST. 
+Extract: 
+1. Key AEON/ELDER/InternScience models and links (Agents-A1, Ornith, CyberStrike, Gemma4 agentic Fable5 variants).
+2. FABLE5 progression, opencode CLI plans, integration with MiMo/Kilocode.
+3. Gaps in NEXUS for incorporating these (local SLM 3.5B stack, fine-tuning, governance).
+Provide structured curation with proofs (exact file/line references where possible). Variety: focus on scientific discovery, benchmarks, and agentic scaling.

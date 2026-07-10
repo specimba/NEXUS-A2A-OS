@@ -46,7 +46,7 @@ COORD_DIR = pathlib.Path(os.getenv("GROK_COORD_DIR", "D:/GROSS/grok-coordination
 FALLBACK_RUNTIME_DIR = pathlib.Path(
     os.getenv("GROK_FALLBACK_RUNTIME_DIR", "scratch/browser_ai_mcp_runtime")
 ).resolve()
-SERVER_VERSION = os.getenv("GROK_MCP_VERSION", "2.3.0-queue-visible")
+SERVER_VERSION = os.getenv("GROK_MCP_VERSION", "2.4.0-p0-continuity")
 SERVER_NAME = os.getenv("GROK_MCP_NAME", "nexus-grok-bridge-v2")
 LOG_LEVEL = os.getenv("GROK_LOG_LEVEL", "INFO").upper()
 LISTEN_HOST = os.getenv("GROK_LISTEN_HOST", "0.0.0.0")
@@ -77,6 +77,8 @@ TOOL_NAMES = [
     "coordination_status", "session_heartbeat", "session_status",
     "agent_publish_message", "agent_retrieve_messages", "agent_list_topics",
     "simulate_probe", "registry_debug",
+    # P0 A2A continuity + CDP visibility (2026-07-10)
+    "continuity_append", "continuity_tail", "cdp_window_probe",
 ]
 
 TOOL_DESCRIPTIONS = {
@@ -102,6 +104,9 @@ TOOL_DESCRIPTIONS = {
     "agent_list_topics": "List A2A channel topics.",
     "simulate_probe": "Run a dry simulated probe pipeline.",
     "registry_debug": "Return bridge tool registry, schema hashes, and drift contract.",
+    "continuity_append": "Append one JSON object to the allowlisted NEXUS continuity ledger JSONL.",
+    "continuity_tail": "Read the last N rows from the allowlisted continuity ledger JSONL.",
+    "cdp_window_probe": "Read-only Chrome CDP probe: version + page sample + window bounds (no navigate).",
 }
 
 
@@ -907,6 +912,220 @@ def handle_simulate_probe(audit_id: str = "test", scenario: str = "pipeline_test
     return json.dumps(parsed, indent=2)
 
 
+# ============================
+# 6b. CONTINUITY LEDGER + CDP PROBE (P0 2026-07-10)
+# ============================
+
+CONTINUITY_DEFAULT = pathlib.Path(
+    os.getenv(
+        "NEXUS_CONTINUITY_LEDGER",
+        r"C:\Users\speci.000\Downloads\NEXUSlogs\NEXUScontinuity_runs.jsonl",
+    )
+)
+# Allowlist: only these basenames / path prefixes may be written/read.
+_CONTINUITY_ALLOWED_NAMES = {
+    "NEXUScontinuity_runs.jsonl",
+    "continuity_runs.jsonl",  # legacy alias (prefer NEXUS-prefixed)
+}
+_CONTINUITY_ALLOWED_PREFIXES = [
+    str(pathlib.Path(r"C:\Users\speci.000\Downloads\NEXUSlogs")).lower(),
+    str(pathlib.Path(r"/mnt/c/Users/speci.000/Downloads/NEXUSlogs")).lower(),
+    str((pathlib.Path(__file__).resolve().parents[2] / "scratch").resolve()).lower(),
+]
+
+
+def _resolve_continuity_path(path_hint: str = "") -> pathlib.Path:
+    raw = (path_hint or "").strip() or str(CONTINUITY_DEFAULT)
+    p = pathlib.Path(raw).expanduser()
+    try:
+        resolved = p.resolve()
+    except OSError:
+        resolved = p
+    name_ok = resolved.name in _CONTINUITY_ALLOWED_NAMES
+    path_l = str(resolved).replace("/", "\\").lower()
+    # also check posix form
+    path_l2 = str(resolved).replace("\\", "/").lower()
+    prefix_ok = any(
+        path_l.startswith(pref.replace("/", "\\")) or path_l2.startswith(pref.replace("\\", "/"))
+        for pref in _CONTINUITY_ALLOWED_PREFIXES
+    )
+    if not (name_ok and prefix_ok):
+        raise ValueError(
+            f"continuity path not allowlisted: {resolved} "
+            f"(need NEXUSlogs/*NEXUScontinuity_runs.jsonl or scratch)"
+        )
+    return resolved
+
+
+@mcp.tool(
+    name="continuity_append",
+    description=(
+        "Append one JSON object to the NEXUS continuity ledger JSONL "
+        "(default Downloads/NEXUSlogs/NEXUScontinuity_runs.jsonl). "
+        "Pass 'record' as a JSON string object. Optional path_hint must stay under NEXUSlogs."
+    ),
+)
+def handle_continuity_append(record: str, path_hint: str = "") -> str:
+    try:
+        obj = json.loads(record) if isinstance(record, str) else record
+        if not isinstance(obj, dict):
+            return json.dumps({"ok": False, "error": "record must be a JSON object"}, indent=2)
+    except json.JSONDecodeError as e:
+        return json.dumps({"ok": False, "error": f"invalid JSON: {e}"}, indent=2)
+    try:
+        path = _resolve_continuity_path(path_hint)
+    except ValueError as e:
+        return json.dumps({"ok": False, "error": str(e)}, indent=2)
+
+    if "ts" not in obj:
+        obj["ts"] = _now_iso()
+    line = json.dumps(obj, ensure_ascii=False)
+    if len(line) > 500_000:
+        return json.dumps({"ok": False, "error": "record too large (>500k)"}, indent=2)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError as e:
+        # fallback under scratch
+        fb = FALLBACK_RUNTIME_DIR / "NEXUScontinuity_runs.jsonl"
+        fb.parent.mkdir(parents=True, exist_ok=True)
+        with open(fb, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+        path = fb
+        note = f"primary write failed ({e}); used fallback"
+    else:
+        note = "ok"
+
+    line_hash = hashlib.sha256(line.encode("utf-8")).hexdigest()[:16]
+    _write_log(
+        "coordination",
+        {"action": "continuity_append", "path": str(path), "hash": line_hash, "kind": obj.get("kind")},
+    )
+    return json.dumps(
+        {
+            "ok": True,
+            "path": str(path),
+            "line_hash": line_hash,
+            "kind": obj.get("kind"),
+            "note": note,
+            "timestamp": obj.get("ts"),
+        },
+        indent=2,
+    )
+
+
+@mcp.tool(
+    name="continuity_tail",
+    description=(
+        "Read the last N lines of the allowlisted NEXUS continuity ledger JSONL. "
+        "Default limit=20, max=100."
+    ),
+)
+def handle_continuity_tail(limit: int = 20, path_hint: str = "") -> str:
+    try:
+        path = _resolve_continuity_path(path_hint)
+    except ValueError as e:
+        return json.dumps({"ok": False, "error": str(e)}, indent=2)
+    lim = max(1, min(int(limit or 20), 100))
+    if not path.exists():
+        return json.dumps({"ok": True, "path": str(path), "rows": [], "count": 0, "note": "file missing"}, indent=2)
+    try:
+        # efficient-ish tail for moderate files
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            block = 8192
+            data = b""
+            while size > 0 and data.count(b"\n") <= lim:
+                step = min(block, size)
+                size -= step
+                f.seek(size)
+                data = f.read(step) + data
+            lines = data.decode("utf-8", errors="replace").splitlines()
+        raw = lines[-lim:]
+        rows = []
+        for ln in raw:
+            ln = ln.strip()
+            if not ln:
+                continue
+            try:
+                rows.append(json.loads(ln))
+            except json.JSONDecodeError:
+                rows.append({"_raw": ln[:500], "_parse_error": True})
+        return json.dumps({"ok": True, "path": str(path), "count": len(rows), "rows": rows}, indent=2)
+    except OSError as e:
+        return json.dumps({"ok": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool(
+    name="cdp_window_probe",
+    description=(
+        "Read-only Chrome CDP probe on localhost. Returns browser version, "
+        "sample page titles/urls (redacted query), and window bounds if available. "
+        "Does not navigate, create, or close targets. Default port 9224."
+    ),
+)
+def handle_cdp_window_probe(port: int = 9224, url_contains: str = "") -> str:
+    p = int(port or 9224)
+    if p < 1 or p > 65535:
+        return json.dumps({"ok": False, "error": "invalid port"}, indent=2)
+    base = f"http://127.0.0.1:{p}"
+    out: Dict[str, Any] = {"ok": False, "port": p, "timestamp": _now_iso()}
+
+    def _get_json(url: str) -> Any:
+        req = urllib.request.Request(url, method="GET", headers={"User-Agent": "nexus-cdp-probe/1.0"})
+        opener = urllib.request.build_opener(_NoRedirectHandler)
+        with opener.open(req, timeout=3.0) as resp:  # nosec B310 — fixed localhost only, redirects refused
+            return json.loads(resp.read().decode("utf-8", errors="replace"))
+
+    try:
+        version = _get_json(f"{base}/json/version")
+        out["browser"] = version.get("Browser")
+        out["protocol"] = version.get("Protocol-Version")
+        out["webSocketDebuggerUrl"] = version.get("webSocketDebuggerUrl")
+    except Exception as e:
+        out["error"] = f"CDP version failed: {e}"
+        return json.dumps(out, indent=2)
+
+    try:
+        pages = _get_json(f"{base}/json/list")
+    except Exception as e:
+        out["error"] = f"CDP list failed: {e}"
+        out["ok"] = True
+        return json.dumps(out, indent=2)
+
+    filt = (url_contains or "").strip().lower()
+    sample = []
+    for t in pages:
+        if t.get("type") != "page":
+            continue
+        url = t.get("url") or ""
+        if filt and filt not in url.lower() and filt not in (t.get("title") or "").lower():
+            continue
+        # redact query
+        redacted = url
+        if "?" in redacted:
+            redacted = redacted.split("?", 1)[0] + "?REDACTED"
+        sample.append(
+            {
+                "id": (t.get("id") or "")[:24],
+                "title": (t.get("title") or "")[:120],
+                "url": redacted[:200],
+            }
+        )
+        if len(sample) >= 12:
+            break
+
+    out["page_count"] = sum(1 for t in pages if t.get("type") == "page")
+    out["sample"] = sample
+    out["offscreen_hint"] = None
+    # Best-effort: flag titles empty + many pages as noisy multi-lane profile
+    out["ok"] = True
+    _write_log("coordination", {"action": "cdp_window_probe", "port": p, "pages": out["page_count"]})
+    return json.dumps(out, indent=2)
+
+
 @mcp.tool(
     name="registry_debug",
     description="Return the exact list of tools registered on this MCP bridge server."
@@ -1391,16 +1610,8 @@ async def handle_health_http(request: Request) -> JSONResponse:
         "version": SERVER_VERSION,
         "server": SERVER_NAME,
         "uptime": _now_iso(),
-        "mcp_tool_count": 22,
-        "tools": [
-            "ping", "echo", "audit_log", "evidence_capture", "http_diagnostic",
-            "query_log", "comparison_add", "comparison_get", "comparison_export",
-            "task_add", "task_list", "task_claim", "task_complete", "task_fail",
-            "coordination_status",
-            "session_heartbeat", "session_status",
-            "agent_publish_message", "agent_retrieve_messages", "agent_list_topics",
-            "simulate_probe", "registry_debug",
-        ],
+        "mcp_tool_count": len(TOOL_NAMES),
+        "tools": list(TOOL_NAMES),
         "a2a": {
             "version": "1.0",
             "agent_card": f"{A2A_PUBLIC_URL}/.well-known/agent.json",

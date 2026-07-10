@@ -44,11 +44,11 @@ switch ($Action) {
         & (Join-Path $Repo "scripts\repair_canonical_lane_urls.ps1") -Port $Port
     }
     "StabilizeChrome" {
-        & (Join-Path $Repo "scripts\fix_lane_chrome_interactive_window.ps1") -Port $Port
+        & (Join-Path $Repo "scripts\fix_lane_chrome_interactive_window.ps1") -Port $Port -ManualObservation
         & (Join-Path $Repo "scripts\align_browser_lanes.ps1") -Port $Port -SkipEnsure
     }
     "FixChromeWindow" {
-        & (Join-Path $Repo "scripts\fix_lane_chrome_interactive_window.ps1") -Port $Port
+        & (Join-Path $Repo "scripts\fix_lane_chrome_interactive_window.ps1") -Port $Port -ManualObservation
     }
     "RecoverChrome" {
         & (Join-Path $Repo "scripts\recover_lane_chrome.ps1") -Port $Port
