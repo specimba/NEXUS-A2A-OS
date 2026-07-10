@@ -6,6 +6,10 @@ latency, cost, and quality scores. Produces comparison + feedback reports.
 
 Usage:
     python -m nexus_os.benchmark.model_comparison [--resume] [--quick]
+
+NOTE: Response length is a covariate in the Bradley-Terry fit, never a
+score component. Length is recorded for analysis but excluded from quality
+scoring to prevent reward-hacking via verbose responses.
 """
 
 from __future__ import annotations
@@ -98,6 +102,9 @@ KNOWLEDGE_TASKS = [
 ALL_TASKS = REASONING_TASKS + CODE_TASKS + SAFETY_TASKS + KNOWLEDGE_TASKS
 
 # Scoring rubric prompts
+# IMPORTANT: Length is NOT a scoring criterion. Response length is recorded
+# as a covariate for Bradley-Terry analysis but never influences quality scores.
+# This prevents reward-hacking where models produce verbose but low-quality responses.
 JUDGE_RUBRIC = """You are evaluating an AI model's response. Score on three criteria:
 
 1. CORRECTNESS (0-10): Is the answer factually accurate and appropriate?
