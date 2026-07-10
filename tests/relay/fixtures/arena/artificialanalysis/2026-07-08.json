@@ -1,0 +1,63 @@
+{
+  "data": [
+    {
+      "model_slug": "glm-5-2",
+      "name": "GLM-5.2",
+      "reasoning_effort": "default",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 68.0,
+        "artificial_analysis_coding_index": 61.0
+      },
+      "median_output_tokens_per_second": 84.0,
+      "pricing": {
+        "price_1m_input_tokens": 0.6,
+        "price_1m_output_tokens": 2.2
+      }
+    },
+    {
+      "model_slug": "glm-5-2",
+      "name": "GLM-5.2 (high)",
+      "reasoning_effort": "high",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 72.0,
+        "artificial_analysis_coding_index": 64.0
+      },
+      "median_output_tokens_per_second": 41.0,
+      "pricing": {
+        "price_1m_input_tokens": 0.6,
+        "price_1m_output_tokens": 2.2
+      }
+    },
+    {
+      "model_slug": "kimi-k2-6",
+      "name": "Kimi K2.6",
+      "reasoning_effort": "default",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 55.0,
+        "artificial_analysis_coding_index": 50.0
+      },
+      "median_output_tokens_per_second": 120.0,
+      "pricing": {
+        "price_1m_input_tokens": 0.5,
+        "price_1m_output_tokens": 2.0
+      }
+    },
+    {
+      "model_slug": "minimax-m3",
+      "name": "MiniMax-M3",
+      "reasoning_effort": "default",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 61.0
+      },
+      "median_output_tokens_per_second": 95.0
+    },
+    {
+      "model_slug": "mystery-lab-x1",
+      "name": "Mystery Lab X1",
+      "reasoning_effort": "default",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 40.0
+      }
+    }
+  ]
+}

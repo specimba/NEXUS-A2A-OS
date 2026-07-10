@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "model_id": "z-ai/glm-5.2",
+      "total_tokens": 5000000000
+    },
+    {
+      "model_id": "minimaxai/minimax-m3",
+      "total_tokens": 1200000000
+    },
+    {
+      "model_id": "meituan/longcat-2.0",
+      "total_tokens": 90000000
+    }
+  ]
+}

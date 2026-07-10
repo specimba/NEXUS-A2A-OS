@@ -1,0 +1,42 @@
+{
+  "categories": {
+    "text": {
+      "entries": [
+        {
+          "model": "glm-5.2",
+          "elo": 1420,
+          "organization": "Zhipu"
+        },
+        {
+          "model": "kimi-k2.6",
+          "elo": 1380,
+          "organization": "Moonshot"
+        },
+        {
+          "model": "minimax-m3",
+          "elo": 1355,
+          "organization": "MiniMax"
+        },
+        {
+          "model": "unlisted-frontier-x",
+          "elo": 1490,
+          "organization": "Unknown"
+        }
+      ]
+    },
+    "code": {
+      "entries": [
+        {
+          "model": "glm-5.2",
+          "elo": 1401,
+          "organization": "Zhipu"
+        },
+        {
+          "model": "kimi-k2.6",
+          "elo": 1340,
+          "organization": "Moonshot"
+        }
+      ]
+    }
+  }
+}
