@@ -1,21 +1,17 @@
-# Start Node.js ModelRelay on port 7350 (leaves 7352 free for Brain API)
+# Start the repo-owned governed ModelRelay on port 7350.
+[CmdletBinding()]
 param(
     [int]$Port = 7350,
-    [string]$ConfigPath = "$env:USERPROFILE\.modelrelay.json"
+    [string]$ConfigPath = "$env:USERPROFILE\.modelrelay.json",
+    [string]$Bind = '0.0.0.0'
 )
 
-$nodeRelay = "$env:APPDATA\npm\node_modules\modelrelay\bin\modelrelay.js"
+$ErrorActionPreference = 'Stop'
+$Runtime = Join-Path $PSScriptRoot 'modelrelay_runtime.ps1'
+if (-not (Test-Path -LiteralPath $Runtime)) { throw "ModelRelay runtime launcher missing: $Runtime" }
 
-if (-not (Test-Path $nodeRelay)) {
-    Write-Error "Node ModelRelay not found at $nodeRelay"
-    Write-Error "Install with: npm install -g modelrelay"
-    exit 1
-}
-
-Write-Host "🚀 Starting NEXUS ModelRelay on port $Port..."
-Write-Host "   Config: $ConfigPath"
-Write-Host "   API:    http://localhost:$Port/v1"
-Write-Host "   Web UI: http://localhost:$Port"
-Write-Host ""
-
-node $nodeRelay --port $Port --config $ConfigPath
+Write-Host "Starting NEXUS ModelRelay on port $Port"
+Write-Host "  Config: $ConfigPath"
+Write-Host "  Bind:   $Bind"
+& $Runtime -Port $Port -ConfigPath $ConfigPath -Bind $Bind
+exit $LASTEXITCODE

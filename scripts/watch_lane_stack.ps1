@@ -1,80 +1,85 @@
-# watch_lane_stack.ps1
-# ONE file you run — no multi-statement paste.
-#
-# Usage (from repo root):
-#   .\scripts\watch_lane_stack.ps1              # fast: restore once if broken + silent preflight
-#   .\scripts\watch_lane_stack.ps1 -Observe     # optional: dwell each lane tab (slow tab carousel)
-#   .\scripts\watch_lane_stack.ps1 -NoObserve   # same as default (explicit)
-#
-# Policy 2026-07-10: never hide Chrome; default does NOT tab-travel for a minute.
+<#
+.SYNOPSIS
+    NEXUS CDP lane window watchdog - keeps multi-lane Chrome visible.
+.DESCRIPTION
+    Uses the proven show-only pattern from Grok automation:
+    - Does NOT kill chrome, restart CDP, reset Preferences, or open/close tabs
+    - Only fixes when window is actually broken (offscreen, tiny, minimized)
+    - Safe to run during A800 training
+.PARAMETER IntervalSeconds
+    Seconds between checks. Default: 60.
+.PARAMETER Port
+    CDP port. Default: 9224.
+.PARAMETER LogPath
+    Log file path.
+.EXAMPLE
+    Start-Job { & "C:\Users\speci.000\Documents\NEXUS\scripts\watch_lane_stack.ps1" }
+#>
 
 param(
+    [int]$IntervalSeconds = 60,
     [int]$Port = 9224,
-    [switch]$Observe,
-    [switch]$NoObserve
+    [string]$LogPath = (Join-Path $PSScriptRoot "watch_lane_stack.log")
 )
 
-$ErrorActionPreference = "Stop"
-$Repo = "C:\Users\speci.000\Documents\NEXUS"
-Set-Location $Repo
+$ErrorActionPreference = "SilentlyContinue"
+$repo = "C:\Users\speci.000\Documents\NEXUS"
+$showScript = "C:\Users\speci.000\Downloads\cdp_agent_scratch\intern_cdp\_show_cdp_chrome.ps1"
 
-$env:VISIBLE_LANES = "1"
-$env:NEXUS_KEEP_VISIBLE = "1"
-$env:NEXUS_FORCE_HIDE = "0"
-$env:NEXUS_CONTINUITY_LEDGER = "C:\Users\speci.000\Downloads\NEXUSlogs\NEXUScontinuity_runs.jsonl"
-
-# Permanent protect lock (survives supervisor restarts)
-$protectDirs = @(
-    "$Repo\NEXUSlogs\a2a_experiment",
-    "C:\Users\speci.000\Downloads\cdp_agent_scratch"
-)
-$protectBody = @{
-    protected = $true
-    keep_visible = $true
-    permanent = $true
-    at = (Get-Date).ToUniversalTime().ToString("o")
-    reason = "watch_lane_stack_keep_visible"
-    port = $Port
-    policy = "NEVER_OFFSCREEN_PARK"
-} | ConvertTo-Json
-foreach ($d in $protectDirs) {
-    try {
-        New-Item -ItemType Directory -Force -Path $d | Out-Null
-        Set-Content -LiteralPath (Join-Path $d "WINDOW_PROTECT.json") -Value $protectBody -Encoding UTF8
-    } catch { }
+# Single-instance file lock
+$lockFile = "C:\Users\speci.000\Downloads\NEXUSlogs\watch_lane_stack.lock"
+try {
+    $lockDir = Split-Path $lockFile
+    if (-not (Test-Path $lockDir)) { New-Item -ItemType Directory -Force -Path $lockDir | Out-Null }
+    $lockStream = [System.IO.File]::Open($lockFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+} catch {
+    Write-Output "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [WARN] watch_lane_stack is already running (failed to acquire lock). Exiting."
+    exit 0
 }
 
-Write-Host "VISIBLE_LANES=1 NEXUS_KEEP_VISIBLE=1 NEXUS_FORCE_HIDE=0"
-Write-Host "Running lane_stack_preflight on port $Port ..."
+if (-not (Test-Path $showScript)) {
+    Write-Output "ERROR: show script not found at $showScript"
+    exit 1
+}
 
-# One-shot restore only if window is offscreen/minimized — does not thrash focus every run path in daemon
-$force = ".\scripts\restore_chrome_cdp_window.ps1"
-if (Test-Path $force) {
+function Write-Log {
+    param([string]$Message, [string]$Level = "INFO")
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $line = "[" + $ts + "] [" + $Level + "] " + $Message
+    Write-Output $line
+    Add-Content -Path $LogPath -Value $line -Encoding UTF8
+}
+
+Write-Log ("=== Lane Watchdog Started (interval=" + $IntervalSeconds + "s, port=" + $Port + ") ===") "START"
+
+$fixCount = 0
+$checkCount = 0
+
+while ($true) {
     try {
-        & $force -Port $Port -SkipEnsure -ForceShow -OnlyIfBroken -NoStealFocus 2>&1 | Out-Null
-    } catch {
-        try { & $force -Port $Port -SkipEnsure -ForceShow 2>&1 | Out-Null } catch { }
+        $checkCount++
+        $output = & $showScript -Port $Port 2>&1
+        $joined = ($output | Out-String)
+
+        if ($joined -match "STATUS=SHOWN") {
+            $fixCount++
+            Write-Log ("CHECK #" + $checkCount + ": window was broken, restored (fix #" + $fixCount + ")") "FIX"
+        }
+        elseif ($joined -match "STATUS=ALREADY_VISIBLE") {
+            if ($checkCount % 10 -eq 0) {
+                Write-Log ("CHECK #" + $checkCount + ": window OK (fixes so far: " + $fixCount + ")") "HEARTBEAT"
+            }
+        }
+        elseif ($joined -match "CDP_DOWN") {
+            Write-Log ("CHECK #" + $checkCount + ": CDP port " + $Port + " is DOWN") "ERROR"
+        }
+        elseif ($joined -match "NO_HWND") {
+            Write-Log ("CHECK #" + $checkCount + ": no Chrome window found") "WARN"
+        }
     }
+    catch {
+        Write-Log ("Loop error: " + $_.Exception.Message) "ERROR"
+    }
+
+    Start-Sleep -Seconds $IntervalSeconds
 }
-
-$nodeArgs = @(".\tools\browser_ai_supervisor\lane_stack_preflight.mjs", "--port", "$Port")
-# DEFAULT: silent (no --observe). Tab carousel only if -Observe explicitly set.
-if ($Observe -and -not $NoObserve) {
-    Write-Host "Observe mode: will dwell each lane tab (slow). Prefer default for daily work."
-    $nodeArgs += "--observe"
-    $nodeArgs += @("--dwellMs", "400")
-} else {
-    # Skip per-lane restore/bringToFront — window already fixed above once.
-    $nodeArgs += "--no-restore"
-}
-
-& node @nodeArgs
-$code = $LASTEXITCODE
-
-Write-Host ""
-Write-Host "Policy: Chrome stays visible. Hide path requires NEXUS_FORCE_HIDE=1 (do not set)."
-Write-Host "If geometry ever breaks (1x1/-32000), optional gentle guard:"
-Write-Host "  .\scripts\keep_visible_daemon.ps1 -OnlyIfBroken"
-Write-Host "You should NOT need watch_lane_stack every few minutes anymore."
-
-exit $code

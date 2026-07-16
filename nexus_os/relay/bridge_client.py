@@ -5,8 +5,10 @@ import json
 import logging
 import threading
 import time
+from pathlib import Path
 from typing import Any, Optional
 from nexus_os.relay.scorer import ModelScores, get_scores, rank_by_dimension, rank_by_intent, resolve
+from nexus_os.relay.score_evidence import load_arena_score_overlay, resolve_arena_score
 from nexus_os.relay.circuit_breaker import ProviderCircuitBreaker
 from nexus_os.relay.quota import QuotaGuard, QuotaType
 
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelRelayBridge:
-    def __init__(self, modelrelay_url: str = "", refresh_interval: int = 3600):
+    def __init__(self, modelrelay_url: str = "", refresh_interval: int = 3600, arena_scores_path: Path | str | None = None):
         if not modelrelay_url:
             import os
             port = int(os.environ.get("NODERELAY_PORT", "7350"))
@@ -22,6 +24,7 @@ class ModelRelayBridge:
         self._url = modelrelay_url.rstrip("/")
         self._refresh_interval = refresh_interval
         self._models: dict[str, dict] = {}
+        self._arena_scores_path = Path(arena_scores_path) if arena_scores_path is not None else None
         self._last_refresh = 0.0
         self._lock = threading.Lock()
         self.circuit_breaker = ProviderCircuitBreaker()
@@ -66,6 +69,7 @@ class ModelRelayBridge:
                     return None
 
                 self._models = {}
+                arena_overlay = load_arena_score_overlay(self._arena_scores_path)
                 for name, raw in raw_models.items():
                     if not isinstance(raw, dict):
                         continue
@@ -76,6 +80,15 @@ class ModelRelayBridge:
                     except (ValueError, TypeError):
                         latency = 0.0
                     scores = _resolve_scores(name) or _resolve_scores(raw.get("model", ""))
+                    arena_score = resolve_arena_score(
+                        [
+                            name,
+                            raw.get("modelId"),
+                            raw.get("id"),
+                            raw.get("model"),
+                        ],
+                        arena_overlay,
+                    )
                     self._models[name] = {
                         "name": name,
                         "provider": provider,
@@ -83,14 +96,20 @@ class ModelRelayBridge:
                         "latency_ms": latency,
                         "tier": int(raw.get("tier", 0)),
                         "uptime": float(raw.get("uptime", raw.get("uptime_pct", 1.0))),
-                        "swe_score": scores.swe if scores else 0.5,
-                        "math_score": scores.math if scores else 0.5,
-                        "code_score": scores.code if scores else 0.5,
-                        "quality_score": scores.quality if scores else 0.5,
-                        "reasoning_score": scores.reasoning if scores else 0.5,
-                        "speed_score": scores.speed if scores else 0.5,
-                        "cost_efficiency_score": scores.cost_efficiency if scores else 0.5,
-                        "overall_score": scores.overall if scores else 0.5,
+                        "swe_score": scores.swe if scores else None,
+                        "math_score": scores.math if scores else None,
+                        "code_score": scores.code if scores else None,
+                        "quality_score": scores.quality if scores else None,
+                        "reasoning_score": scores.reasoning if scores else None,
+                        "speed_score": scores.speed if scores else None,
+                        "cost_efficiency_score": scores.cost_efficiency if scores else None,
+                        "overall_score": arena_score["arena_score"] if arena_score else (scores.overall if scores else None),
+                        "score_provenance": "arena_sidecar" if arena_score else ("legacy_static_registry" if scores else "unknown"),
+                        "score_confidence": arena_score["confidence"] if arena_score else ("legacy_static" if scores else "no_data"),
+                        "score_updated_at": arena_score["generated_at"] if arena_score else None,
+                        "score_coverage": arena_score["evidence_sources"] if arena_score else [],
+                        "score_sources": arena_score["sources"] if arena_score else {},
+                        "isEstimatedScore": not bool(arena_score or scores),
                     }
                 self._last_refresh = time.time()
                 logger.info("Refreshed %d models from %s", len(self._models), self._url)

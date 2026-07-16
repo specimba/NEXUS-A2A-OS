@@ -145,6 +145,22 @@ class GroundingStore:
             "last_event_id": row[3],
         }
 
+    def file_state_snapshot(self) -> dict[str, dict[str, Any]]:
+        """Load the incremental manifest once for a whole reconciliation pass."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT path, size, mtime_ns, content_hash, last_event_id FROM file_state"
+            ).fetchall()
+        return {
+            str(row[0]): {
+                "size": row[1],
+                "mtime_ns": row[2],
+                "content_hash": row[3],
+                "last_event_id": row[4],
+            }
+            for row in rows
+        }
+
     def forget_path(self, path: Path) -> None:
         """Remove a deleted path from the rebuildable current-state index."""
         with self._connect() as connection:

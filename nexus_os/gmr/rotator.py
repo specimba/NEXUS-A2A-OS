@@ -1,6 +1,9 @@
 """GMR v3.0 — Genius Model Rotator (Dual-Pool, Zero-Context-Loss)"""
 import time
 import logging
+import json
+import os
+import urllib.request
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -23,6 +26,39 @@ VATS_ERROR_SANITIZE_PATTERNS = [
     r"(?i)(?:api[_\s]?key|secret|token|password|credential)",
     r"(?i)(?:instead|however|but).{0,30}(?:do|run|execute|try)\s+",
 ]
+
+
+def _local_model_key(name: str) -> str:
+    """Normalize Ollama's optional ``:latest`` suffix for inventory matching."""
+    value = str(name or "").strip().lower()
+    return value[:-7] if value.endswith(":latest") else value
+
+
+def _ollama_inventory() -> set[str] | None:
+    """Return a bounded local Ollama inventory, or ``None`` when unreachable.
+
+    This is deliberately a single GET during a GMR telemetry refresh, not a
+    model ping loop.  A local mapping is not health evidence when its runtime
+    is stopped, so callers can fail closed without consuming cloud quota.
+    """
+    base = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    request = urllib.request.Request(
+        f"{base}/api/tags",
+        headers={"User-Agent": "nexus-gmr-local-health/1"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=1.5) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    except Exception:
+        return None
+    rows = payload.get("models") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return set()
+    return {
+        _local_model_key(item.get("name"))
+        for item in rows
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    }
 
 
 def sanitize_error_output(error_text: str, max_length: int = 120) -> str:
@@ -60,20 +96,39 @@ class ModelProfile:
         self.context_window = args[3] if len(args) > 3 else kwargs.get('context_window', 8192)
         self.supported_domains = args[4] if len(args) > 4 else kwargs.get('supported_domains', kwargs.get('domains', []))
         self.latency_ms = args[5] if len(args) > 5 else kwargs.get('latency_ms', 0)
-        self.is_local = args[6] if len(args) > 6 else kwargs.get('is_local', True)
+        local_provider = str(self.provider).lower() in {"ollama", "local", "lmstudio", "llama.cpp"}
+        self.is_local = args[6] if len(args) > 6 else kwargs.get('is_local', local_provider)
         self.success_rate = args[7] if len(args) > 7 else kwargs.get('success_rate', 1.0)
         self.quality_score = kwargs.get('quality_score', self.success_rate)
         self.tier = kwargs.get('tier', 40)
+        raw_status = str(kwargs.get('status', 'up')).lower()
+        self.status = "up" if raw_status == "local" else raw_status
+        self.health_managed = bool(kwargs.get('health_managed', False))
+        self._failure_count = 0
+        self._cooldown_until = 0.0
         self.pool = kwargs.get('pool', ModelPool.FAST if self.is_local or self.cost_per_million == 0 else ModelPool.PREMIUM)
         self.intent_categories = args[4] if len(args) > 4 else kwargs.get('intent_categories', kwargs.get('supported_domains', ['code', 'reasoning', 'general', 'fast', 'analysis', 'security']))
         self.supported_domains = self.intent_categories
 
     def is_available(self):
-        return True
+        return (
+            self.status == "up"
+            and self.success_rate >= 0.5
+            and time.time() >= self._cooldown_until
+        )
+
+    def record_failure(self) -> None:
+        """Temporarily remove a repeatedly failing route from a live cascade."""
+        self._failure_count += 1
+        if self._failure_count >= 3:
+            self._cooldown_until = time.time() + 60
+
+    def reset_failure_count(self) -> None:
+        self._failure_count = 0
+        self._cooldown_until = 0.0
 
     def __getattr__(self, item):
         if item == "tokens_per_sec": return 50.0
-        if item == "is_available": return lambda: True
         if item == "intent_categories": return ["code", "reasoning", "general", "fast", "analysis", "security", "operations", "unknown"]
         return None
 
@@ -180,11 +235,12 @@ class GeniusModelRotator:
     """
 
     WEIGHTS = {
-        "success_rate": 0.10,
+        "success_rate": 0.15,
         "throughput": 0.05,
-        "latency_inverse": 0.30,
-        "cost_inverse": 0.25,
-        "intent_match": 0.30,
+        "latency_inverse": 0.25,
+        "cost_inverse": 0.15,
+        "intent_match": 0.20,
+        "quality": 0.20,
     }
 
     POOL_RULES = {
@@ -224,14 +280,65 @@ class GeniusModelRotator:
         return len(self.models)
 
     def _sync_profiles(self):
-        """Sync telemetry cache into ModelProfile objects."""
-        for name, tel in self.telemetry.cache.items():
+        """Sync health-aware telemetry into static and dynamic profiles.
+
+        When the Model Arena canonical manifest is available, it is the
+        health authority for cloud routes.  Static cloud aliases omitted from
+        that manifest become unverified rather than silently remaining
+        eligible.  Local profiles remain available under their own local
+        controls so an Arena outage cannot erase the low-VRAM lane.
+        """
+        cache = self.telemetry.cache
+        health_authoritative = "/api/client-manifest" in str(
+            getattr(self.telemetry, "last_source", "") or ""
+        )
+        if health_authoritative:
+            local_inventory = _ollama_inventory()
+            for name, profile in self.models.items():
+                if name not in cache and not profile.is_local:
+                    profile.status = "unverified"
+                    profile.health_managed = True
+                elif profile.is_local and (
+                    local_inventory is None or _local_model_key(name) not in local_inventory
+                ):
+                    profile.status = "unverified"
+                    profile.health_managed = True
+
+        all_intents = list(IntentCategory)
+        for name, tel in cache.items():
             if name in self.models:
                 m = self.models[name]
                 m.latency_ms = tel.latency_ms
                 m.success_rate = tel.uptime_pct
                 m.status = tel.status
-                m.cost_per_million = float(tel.tier)
+                m.tier = int(tel.tier)
+                m.quality_score = min(max(float(tel.tier) / 100.0, 0.0), 1.0)
+                m.health_managed = health_authoritative
+                continue
+
+            # Health-authoritative routes are canonical client IDs.  Register
+            # them dynamically so GMR can actually select new healthy routes
+            # instead of only mutating a stale static mapping.  Unknown cost
+            # gets a neutral non-zero placeholder; it must never be assumed
+            # free merely because price evidence was absent.
+            if health_authoritative:
+                self.register_model(
+                    ModelProfile(
+                        name=name,
+                        provider=tel.provider,
+                        cost_per_million=1.0,
+                        context_window=8192,
+                        intent_categories=all_intents,
+                        latency_ms=tel.latency_ms,
+                        is_local=tel.is_local,
+                        success_rate=tel.uptime_pct,
+                        quality_score=min(max(float(tel.tier) / 100.0, 0.0), 1.0),
+                        tier=int(tel.tier),
+                        status=tel.status,
+                        health_managed=True,
+                        pool=ModelPool.FAST if tel.is_local else ModelPool.PREMIUM,
+                    )
+                )
 
     def register_model(self, profile: ModelProfile):
         """Register a model for routing."""
@@ -254,7 +361,12 @@ class GeniusModelRotator:
             metadata={"is_code_task": task_type == "code", "budget_remaining": budget_remaining},
             task_id=f"select-{task_type}",
         )
-        # Fallbacks from domain mapping
+        # Static domain fallbacks are compatibility guidance, not current
+        # reachability evidence.  Once an Arena manifest is present, retain
+        # only fresh observed cascade members and the relay's resilient alias.
+        health_authoritative = "/api/client-manifest" in str(
+            getattr(self.telemetry, "last_source", "") or ""
+        )
         fallback_list = DOMAIN_MAPPING.get(task_type, {}).get("fallback_chain", [])
         primary_order = [spec["model"] for spec in DOMAIN_MAPPING.get(task_type, {}).get("primary", [])]
         # Re-filter by required tier if specified
@@ -267,7 +379,13 @@ class GeniusModelRotator:
         tier_used = int(getattr(primary_model, "tier", 40) or 40) if primary_model else 40
         primary = cascade[0] if cascade else fallback_list[0] if fallback_list else "osman-coder"
         fallbacks = []
-        for model_name in list(cascade[1:]) + primary_order + fallback_list:
+        if health_authoritative:
+            fallback_candidates = list(cascade[1:])
+            if primary != "nexus-resilient":
+                fallback_candidates.append("nexus-resilient")
+        else:
+            fallback_candidates = list(cascade[1:]) + primary_order + fallback_list
+        for model_name in fallback_candidates:
             if model_name != primary and model_name not in fallbacks:
                 fallbacks.append(model_name)
         return GMRSelection(
@@ -318,12 +436,16 @@ class GeniusModelRotator:
 
     def _calculate_model_score(self, model: ModelProfile, intent: IntentCategory) -> float:
         """Compute composite score for model selection."""
+        quality = float(getattr(model, "quality_score", 0.0) or 0.0)
+        quality = quality / 100.0 if quality > 1.0 else quality
+        quality = min(max(quality, 0.0), 1.0)
         # Base score from metrics
         score = (
             model.success_rate * self.WEIGHTS["success_rate"]
             + (model.tokens_per_sec / 100) * self.WEIGHTS["throughput"]
             + (1000 / (model.latency_ms + 1)) * self.WEIGHTS["latency_inverse"]
             + (1 / (model.cost_per_million + 0.01)) * self.WEIGHTS["cost_inverse"]
+            + quality * self.WEIGHTS["quality"]
         )
         # Intent category matching bonus
         if self._supports_intent(model, intent):
@@ -394,10 +516,19 @@ class GeniusModelRotator:
         candidates.sort(key=lambda x: x[1], reverse=True)
         cascade = [m.name for m, _ in candidates[:3]]
         
-        # Fallback: If cascade empty, use fallbacks from domain mapping
+        # Fallback: if the live health manifest exists but no candidate is
+        # fresh, delegate selection to the relay's bounded health-aware alias
+        # instead of reviving a stale static cloud mapping.
         if not cascade:
-            domain_fallbacks = DOMAIN_MAPPING.get(intent.value, {}).get("fallback_chain", [])
-            cascade = domain_fallbacks[:3] if domain_fallbacks else ["osman-coder"]
+            health_authoritative = "/api/client-manifest" in str(
+                getattr(self.telemetry, "last_source", "") or ""
+            )
+            if health_authoritative:
+                cascade = ["nexus-resilient"]
+            else:
+                domain_key = "fast" if intent is IntentCategory.SPEED else intent.value
+                domain_fallbacks = DOMAIN_MAPPING.get(domain_key, {}).get("fallback_chain", [])
+                cascade = domain_fallbacks[:3] if domain_fallbacks else ["osman-coder"]
             logger.warning(f"No candidates for {intent.value}, using fallbacks: {cascade}")
 
         context = ContextPacket(

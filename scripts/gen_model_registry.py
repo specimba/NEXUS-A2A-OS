@@ -10,7 +10,7 @@ byte-equality drift test can prove the registry and its consumers agree):
 5. nexus_os/gmr/domain_mapping_generated.py — GMR domain routing tables
 6. nexus_os/model_relay/known_quotas_generated.py — structured v3 quota feed
 7. nexus_os/relay/tracing/license_map_generated.py — outputLicense partition map
-8. nexus_os/relay/scores_generated.py — blended arena+tier capability scores
+8. nexus_os/relay/scores_generated.py — evidence-backed benchmark dimensions
 
 Artifacts 3, 5 and 8 additionally read config/arena_scores.snapshot.json —
 a committed lockfile-style arena snapshot (seeded from nexus_os.relay.arena_ingest
@@ -43,15 +43,14 @@ LICENSE_OUT = REPO / "nexus_os" / "relay" / "tracing" / "license_map_generated.p
 SCORES_OUT = REPO / "nexus_os" / "relay" / "scores_generated.py"
 ARENA_SNAPSHOT = REPO / "config" / "arena_scores.snapshot.json"
 
-# Blend weights for arena-covered models. The Track A2 plan was
-# 0.55*arena + 0.30*(tier/100) + 0.15*internal_bench, but the only
-# internal-bench candidate (datasets/ernie/arena_metrics_live.json) is a
-# guard-plane SAFETY bench of four local ollama models
-# (benign_pass_rate / adversarial_detect_rate) — no usable per-model
-# QUALITY signal for the cloud registry — so the internal component is
-# dropped and the remaining weights renormalize 0.55/0.85 and 0.30/0.85.
-ARENA_WEIGHT = round(0.55 / 0.85, 4)  # 0.6471
-TIER_WEIGHT = round(0.30 / 0.85, 4)   # 0.3529
+BENCHMARK_FIELDS = (
+    ("quality", "arena_score"),
+    ("code", "code_score"),
+    ("reasoning", "reasoning_score"),
+    ("swe", "swe_score"),
+    ("speed", "speed_score"),
+    ("cost_efficiency", "cost_efficiency_score"),
+)
 
 #: GMR domain -> registry roles eligible for that domain's primary list.
 DOMAIN_ROLES = {
@@ -85,55 +84,92 @@ def _load_arena(path: Path = ARENA_SNAPSHOT) -> dict:
     """{registry_id: snapshot entry} from the committed arena snapshot.
 
     Tolerates an absent/unreadable file (empty dict -> every model falls
-    back to tier-only quality downstream, per the no-data doctrine).
+    back to explicit unscored values downstream). A fixture-seeded snapshot
+    is tagged here so its self-reported confidence cannot be promoted to
+    high-confidence runtime evidence.
     """
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     models = data.get("models") if isinstance(data, dict) else None
-    return models if isinstance(models, dict) else {}
+    if not isinstance(models, dict):
+        return {}
+    note = str(data.get("note") or "").lower()
+    evidence_kind = "fixture" if "fixture" in note else "benchmark_snapshot"
+    loaded = {}
+    for registry_id, raw_entry in models.items():
+        if not isinstance(raw_entry, dict):
+            continue
+        entry = dict(raw_entry)
+        confidence = str(entry.get("confidence") or "unknown").lower()
+        if evidence_kind == "fixture" and confidence == "high":
+            confidence = "low"
+        entry["_evidence_kind"] = evidence_kind
+        entry["_confidence"] = confidence
+        loaded[registry_id] = entry
+    return loaded
 
 
-def _arena_scale(registry: dict, arena: dict) -> float:
-    """Scale-calibration factor mapping the fused-arena band onto tiers.
+def _bounded_score(value):
+    if not isinstance(value, (int, float)):
+        return None
+    return round(min(max(float(value), 0.0), 1.0), 4)
 
-    Fused arena scores (elo over the 1000-1500 band, AA indices /100) top
-    out well below 1.0, while registry tiers — and the GMR level quality
-    targets (L1 0.70 … L3/L4 0.92) calibrated against them — top out at
-    0.96. Blending raw arena values would deflate every frontier below
-    the L3/L4 target, so the arena component is rescaled to anchor the
-    best arena performer at the best tier/100 among arena-covered
-    registry models. Relative arena ordering is preserved.
+
+def _benchmark_record(model: dict, arena: dict) -> tuple[dict, dict]:
+    """Return independent benchmark dimensions plus explicit provenance.
+
+    Registry tier is retained only under policy_prior. It never fills a
+    missing benchmark category and is never blended into benchmark evidence.
     """
-    covered = []
-    for m in registry["models"]:
-        entry = arena.get(m["id"])
-        if isinstance(entry, dict) and isinstance(entry.get("arena_score"), (int, float)):
-            covered.append((float(entry["arena_score"]), m.get("tier") or 50))
-    if not covered:
-        return 1.0
-    max_arena = max(score for score, _ in covered)
-    if max_arena <= 0:
-        return 1.0
-    max_tier = max(tier for _, tier in covered)
-    return (max_tier / 100.0) / max_arena
+    raw_entry = arena.get(model["id"])
+    entry = raw_entry if isinstance(raw_entry, dict) else None
+    sources = entry.get("sources") if entry else None
+    source_list = list(sources) if isinstance(sources, list) else []
+    dimensions = {
+        dimension: _bounded_score(entry.get(source_key)) if entry else None
+        for dimension, source_key in BENCHMARK_FIELDS
+    }
+    has_evidence = bool(source_list) and any(
+        value is not None for value in dimensions.values()
+    )
+    policy_prior = {"registry_tier": model.get("tier")}
+    if not has_evidence:
+        return ({dimension: None for dimension, _ in BENCHMARK_FIELDS}, {
+            "provenance": "unscored",
+            "weights": {},
+            "components": {},
+            "policy_prior": policy_prior,
+            "as_of": None,
+            "sources": [],
+            "evidence_kind": "none",
+            "confidence": "none",
+        })
+
+    components = {
+        source_key: entry.get(source_key)
+        for _dimension, source_key in BENCHMARK_FIELDS
+        if isinstance(entry.get(source_key), (int, float))
+    }
+    return dimensions, {
+        "provenance": "benchmark_snapshot",
+        "weights": {},
+        "components": components,
+        "policy_prior": policy_prior,
+        "as_of": entry.get("as_of"),
+        "sources": source_list,
+        "evidence_kind": entry.get("_evidence_kind", "benchmark_snapshot"),
+        "confidence": entry.get(
+            "_confidence", str(entry.get("confidence") or "unknown").lower()
+        ),
+    }
 
 
-def _blend(model: dict, arena: dict, scale: float):
-    """(blended 0-1 quality, provenance, snapshot entry | None) for a model.
-
-    Arena-covered: ARENA_WEIGHT*calibrated_arena + TIER_WEIGHT*(tier/100)
-    ("arena+tier"). No arena entry: tier/100 ("tier-only") — a score is
-    never synthesized for uncovered models (no-data doctrine).
-    """
-    tier_q = (model.get("tier") or 50) / 100.0
-    entry = arena.get(model["id"])
-    score = entry.get("arena_score") if isinstance(entry, dict) else None
-    if not isinstance(score, (int, float)):
-        return tier_q, "tier-only", None
-    calibrated = min(float(score) * scale, 1.0)
-    return ARENA_WEIGHT * calibrated + TIER_WEIGHT * tier_q, "arena+tier", entry
+def _evidence_rank(dimensions: dict) -> tuple:
+    ordered = [dimensions.get(name) for name, _source in BENCHMARK_FIELDS]
+    present = sum(value is not None for value in ordered)
+    return (present, *(value if value is not None else -1.0 for value in ordered))
 
 
 def _ts_provider(slug: str, prov: dict) -> dict:
@@ -249,7 +285,6 @@ def emit_quota(registry: dict) -> str:
 
 
 def emit_chimera(registry: dict, arena: dict) -> str:
-    scale = _arena_scale(registry, arena)
     prov_status = {k: v["status"] for k, v in registry["providers"].items()}
     profiles = []
     seen = set()
@@ -264,17 +299,30 @@ def emit_chimera(registry: dict, arena: dict) -> str:
             continue
         seen.add(m["id"])
         caps = m.get("capabilities") or {}
-        blended, quality_provenance, _entry = _blend(m, arena, scale)
+        benchmark_scores, benchmark_provenance = _benchmark_record(m, arena)
+        registry_tier = m.get("tier") or 50
         profiles.append({
             "name": m["id"],
             "provider": m["provider"],
-            "quality_score": round(blended, 2),
-            "quality_provenance": quality_provenance,
+            # Compatibility routing estimate. It is a policy prior, not a bench.
+            "quality_score": round(registry_tier / 100.0, 2),
+            "quality_provenance": "policy_prior.registry_tier",
+            "policy_prior": {"registry_tier": registry_tier},
+            "benchmark_scores": benchmark_scores,
+            "benchmark_provenance": benchmark_provenance,
             "max_context": m.get("context") or 32768,
             "supports_thinking": bool(caps.get("thinking")),
             "roles": m.get("roles", []),
         })
-    return json.dumps({"_comment": HEADER, "cloud_profiles": profiles}, indent=2, ensure_ascii=False) + "\n"
+    payload = {
+        "_comment": HEADER,
+        "_quality_contract": (
+            "quality_score is an operational registry-tier prior; "
+            "benchmark_scores are independent evidenced dimensions or null"
+        ),
+        "cloud_profiles": profiles,
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
 
 def emit_ollama(registry: dict) -> str:
@@ -318,7 +366,6 @@ def emit_ollama(registry: dict) -> str:
 
 
 def emit_domains(registry: dict, arena: dict) -> str:
-    scale = _arena_scale(registry, arena)
     prov_status = {k: v["status"] for k, v in registry["providers"].items()}
     domains: dict = {}
     for domain, roles in DOMAIN_ROLES.items():
@@ -334,25 +381,24 @@ def emit_domains(registry: dict, arena: dict) -> str:
             if domain == "fast" and m["provider"] != "ollama":
                 continue
             local = m["provider"] == "ollama"
-            blended, _prov, _entry = _blend(m, arena, scale)
+            registry_tier = m.get("tier") or 50
+            benchmark_scores, benchmark_provenance = _benchmark_record(m, arena)
             entries.append({
                 "model": m["id"],
                 "provider": m["provider"],
-                "tier": m.get("tier") or 50,
+                "tier": registry_tier,
+                "policy_prior": {"registry_tier": registry_tier},
+                "benchmark_scores": benchmark_scores,
+                "benchmark_provenance": benchmark_provenance,
                 "latency_ms": 50 if local else 500,
                 # Free-tier cloud calls still burn provider quota: a nominal
                 # nonzero cost keeps the rotator's cost-inverse scoring
                 # local-first (the NEXUS SLM-team posture); true-local = 0.
                 "cost_per_1m": 0.0 if local else 1.0,
                 "status": "local" if local else "up",
-                # sort-only blend key (stripped before emission)
-                "_blend_x100": round(blended * 100, 4),
             })
-        # Arena-blended quality ranks first; registry tier breaks ties
-        # (and IS the rank for models with no arena coverage).
-        entries.sort(key=lambda e: (-e["_blend_x100"], -e["tier"]))
-        for e in entries:
-            del e["_blend_x100"]
+        # Sparse/fixture benchmark coverage must not silently reorder policy.
+        entries.sort(key=lambda e: -e["tier"])
         # One slot per model FAMILY: the same frontier served by several
         # providers (e.g. DeepSeek-V4-Pro on baseten+siliconflow+nvidia)
         # must not crowd out distinct models; provider failover is the
@@ -372,7 +418,7 @@ def emit_domains(registry: dict, arena: dict) -> str:
         }
     return (
         f'"""{HEADER}"""\n\n'
-        f"GENERATED_DOMAIN_MAPPING: dict = {json.dumps(domains, indent=4, ensure_ascii=False)}\n"
+        f"GENERATED_DOMAIN_MAPPING: dict = {_py_literal(domains)}\n"
     )
 
 
@@ -440,75 +486,37 @@ def emit_license_map(registry: dict) -> str:
 
 
 def emit_scores(registry: dict, arena: dict) -> str:
-    scale = _arena_scale(registry, arena)
     by_id: dict[str, dict] = {}
     provenance: dict[str, dict] = {}
     alias_of: dict[str, list] = {}
+
     for m in registry["models"]:
-        blended, prov, entry = _blend(m, arena, scale)
-        quality = round(blended, 4)
-        code = quality
-        if entry is not None and isinstance(entry.get("code_score"), (int, float)):
-            # AA-coding/code-elo fusion, on the same calibrated scale.
-            code = round(min(float(entry["code_score"]) * scale, 1.0), 4)
-        dims = {
-            "quality": quality,
-            "code": code,
-            "reasoning": quality,
-            "swe": code,
-            # No per-model latency signal in the snapshot yet: neutral.
-            "speed": 0.5,
-            "cost_efficiency": 1.0 if m.get("free") is not False else 0.2,
-        }
+        dims, evidence = _benchmark_record(m, arena)
         existing = by_id.get(m["id"])
-        # Duplicate registry id (same model on several lanes): highest
-        # blended wins; on a quality tie the free lane beats the paid one
-        # (deterministic — registry order breaks any remaining tie).
-        if existing is not None and (existing["quality"], existing["cost_efficiency"]) >= (quality, dims["cost_efficiency"]):
+        # Duplicate model IDs can exist on several provider lanes. Preserve
+        # the record with the richest independent evidence, then the stronger
+        # dimension values; registry order breaks a full tie deterministically.
+        if existing is not None and _evidence_rank(existing) >= _evidence_rank(dims):
             continue
         by_id[m["id"]] = dims
-        if prov == "arena+tier":
-            provenance[m["id"]] = {
-                "provenance": prov,
-                "weights": {"arena": ARENA_WEIGHT, "tier": TIER_WEIGHT},
-                "components": {
-                    "arena_score": entry.get("arena_score"),
-                    "arena_calibrated": round(min(float(entry["arena_score"]) * scale, 1.0), 4),
-                    "calibration_scale": round(scale, 4),
-                    "tier": m.get("tier") or 50,
-                    # datasets/ernie/arena_metrics_live.json is a guard-plane
-                    # safety bench, not a quality signal: internal_bench
-                    # dropped, weights renormalized (see ARENA_WEIGHT note).
-                    "internal_bench": None,
-                },
-                "as_of": entry.get("as_of"),
-                "sources": entry.get("sources") or [],
-            }
-        else:
-            provenance[m["id"]] = {
-                "provenance": prov,
-                "weights": {"tier": 1.0},
-                "components": {"tier": m.get("tier") or 50},
-                "as_of": None,
-                "sources": [],
-            }
-    alias_of = {}
+        provenance[m["id"]] = evidence
+
     for m in registry["models"]:
         for alias in m.get("aliases", []):
             alias_of.setdefault(alias, []).append(m["id"])
     scores: dict[str, dict] = dict(by_id)
     for alias, ids in sorted(alias_of.items()):
-        best = max((by_id[i] for i in ids), key=lambda d: d["quality"])
+        best = max((by_id[i] for i in ids), key=_evidence_rank)
         current = scores.get(alias)
-        # Alias collision (incl. alias shadowing another model id):
-        # highest blended quality wins.
-        if current is None or current["quality"] < best["quality"]:
+        if current is None or _evidence_rank(current) < _evidence_rank(best):
             scores[alias] = best
     doc = (
-        "Blended capability scores: registry tier fused with the committed"
-        " arena snapshot (config/arena_scores.snapshot.json). Keys are every"
-        " registry model id AND alias; SCORES_PROVENANCE (registry ids only)"
-        " records components, weights, sources and as_of per model."
+        "Independent benchmark dimensions from the committed arena snapshot"
+        " (config/arena_scores.snapshot.json). Models or categories without"
+        " cited measurements remain None/unscored. Registry tier is retained"
+        " only as policy_prior.registry_tier and is never blended into or"
+        " presented as benchmark evidence. Keys are every registry model id"
+        " AND alias; SCORES_PROVENANCE records sources, confidence and as_of."
     )
     return f'''"""{HEADER}
 

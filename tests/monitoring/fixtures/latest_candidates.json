@@ -1,0 +1,15 @@
+[
+  {
+    "provider": "nvidia",
+    "model_id": "z-ai/glm-5.2",
+    "reason": "baseline_established:missing",
+    "source_metadata": {
+      "raw": "must-not-leak"
+    }
+  },
+  {
+    "provider": "openrouter",
+    "model_id": "example/frontier-free",
+    "reason": "new_model"
+  }
+]

@@ -43,6 +43,7 @@ public class NativeWin {
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool OpenIcon(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
@@ -67,12 +68,13 @@ $lanePids = @(
 
 function Test-BrokenGeometry([IntPtr]$h) {
     if ($h -eq [IntPtr]::Zero) { return $true }
-    if ([NativeWin]::IsIconic($h)) { return $true }
+    if ([NativeWin]::IsIconic($h)) { return $false }
     $rect = New-Object NativeWin+RECT
     if (-not [NativeWin]::GetWindowRect($h, [ref]$rect)) { return $true }
     $w = $rect.Right - $rect.Left
     $ht = $rect.Bottom - $rect.Top
     if (($ht -lt 200) -or ($w -lt 400) -or ($rect.Left -lt -500) -or ($rect.Top -lt -500) -or ($w -le 2) -or ($ht -le 2)) {
+        if ([NativeWin]::IsIconic($h)) { return $false }
         return $true
     }
     return $false
@@ -92,7 +94,7 @@ function Show-Window([IntPtr]$h) {
         return $false
     }
     [void](Fix-Geometry $h)
-    if ([NativeWin]::IsIconic($h)) { [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_RESTORE) }
+    if ([NativeWin]::IsIconic($h)) { [void][NativeWin]::OpenIcon($h) }
     [void][NativeWin]::ShowWindow($h, [NativeWin]::SW_SHOW)
     if ($Interactive -or $NoMaximize) {
         if ($broken) {

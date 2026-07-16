@@ -40,11 +40,23 @@ class ModelTelemetry:
 
 
 def default_catalogue_urls() -> List[str]:
-    """Ordered endpoints to try for catalogue telemetry."""
+    """Ordered endpoints to try for catalogue telemetry.
+
+    ModelRelay's OpenAI ``/v1/models`` endpoint is a discovery catalogue: an
+    ID being listed there is not evidence that it can currently serve a
+    request.  Prefer the Model Arena's canonical client manifest, which
+    carries observed freshness and health, then fall back to the older
+    catalogue endpoints for degraded installations.
+    """
     node = int(os.environ.get("NODERELAY_PORT", "7350"))
     god = int(os.environ.get("GODMODE_PORT", "7357"))
     py = int(os.environ.get("PYTHONRELAY_PORT", "7355"))
+    arena = os.environ.get("MODEL_ARENA_URL", "").rstrip("/")
+    if not arena:
+        arena_port = int(os.environ.get("MODEL_ARENA_PORT", "7356"))
+        arena = f"http://127.0.0.1:{arena_port}"
     return [
+        f"{arena}/api/client-manifest",
         f"http://127.0.0.1:{node}/v1/models",
         f"http://127.0.0.1:{god}/v1/models",
         f"http://127.0.0.1:{py}/v1/models",
@@ -62,9 +74,67 @@ def _http_json(url: str, timeout: float = 5.0) -> Any:
 
 
 def parse_models_payload(data: Any, *, timestamp: str) -> Dict[str, ModelTelemetry]:
-    """Parse OpenAI or legacy catalogue JSON into ModelTelemetry map."""
+    """Parse health-aware manifest, OpenAI, or legacy catalogue payloads.
+
+    Fresh observed health is the only input mapped to ``status='up'``.  A
+    discovery-only catalogue remains usable for compatibility, but consumers
+    can distinguish it from the preferred Model Arena projection.
+    """
     out: Dict[str, ModelTelemetry] = {}
     if not isinstance(data, dict):
+        return out
+
+    # Model Arena canonical client manifest.  This must be checked before the
+    # generic ``models`` shape below because it also exposes a models list.
+    contract = data.get("contract")
+    rows = data.get("models")
+    if (
+        isinstance(contract, dict)
+        and contract.get("source") == "nexus-model-arena-live-projection"
+        and isinstance(rows, list)
+    ):
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            mid = str(item.get("id") or "").strip()
+            if not mid:
+                continue
+            health = item.get("health") if isinstance(item.get("health"), dict) else {}
+            state = str(health.get("state") or "unverified").lower()
+            observed = health.get("observed") is True
+            fresh = health.get("fresh") is True
+            if state == "healthy" and observed and fresh:
+                status, uptime_pct = "up", 1.0
+            elif state in {"unavailable", "down", "rate_limited", "banned", "timeout"}:
+                status, uptime_pct = "down", 0.0
+            elif state == "stale" or observed:
+                status, uptime_pct = "stale", 0.0
+            else:
+                status, uptime_pct = "unverified", 0.0
+
+            dimensions = item.get("benchmarks", {}).get("dimensions", {})
+            quality = dimensions.get("quality") if isinstance(dimensions, dict) else None
+            try:
+                tier = float(quality)
+                tier = round(tier * 100) if 0.0 <= tier <= 1.0 else round(tier)
+            except (TypeError, ValueError):
+                tier = 0
+            latency = health.get("latency_ms")
+            try:
+                latency_ms = int(latency) if latency is not None else 0
+            except (TypeError, ValueError):
+                latency_ms = 0
+            checked_at = health.get("last_checked_at")
+            tel = ModelTelemetry(
+                name=mid,
+                provider=str(item.get("provider") or "unknown"),
+                tier=int(tier),
+                latency_ms=latency_ms,
+                uptime_pct=uptime_pct,
+                status=status,
+                timestamp=str(checked_at) if checked_at else timestamp,
+            )
+            out[tel.name] = tel
         return out
 
     # OpenAI: {"object":"list","data":[{"id":...}, ...]}

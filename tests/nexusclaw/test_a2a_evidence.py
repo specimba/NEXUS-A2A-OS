@@ -353,3 +353,38 @@ def test_aggregate_pre_gate_session_with_sends_is_suspected(tmp_path, capsys):
     md = (session_dir / "FINAL_REPORT.md").read_text(encoding="utf-8")
     assert md.splitlines()[0] == "STATUS: SIMULATION_SUSPECTED"
     assert "No CYCLE_EVIDENCE records found" in md
+
+
+def test_preview_mode_requires_preview_dom_proof(real_cycle, tmp_path):
+    events, evidence = real_cycle
+    send_off, wait_off = _write_send_wait(events, lane="qwen_webdev")
+    qwen_registry = {
+        "lanes": [{"id": "qwen_webdev", "host": "chat.qwen.ai"}],
+    }
+    preview = replace(
+        evidence,
+        lane="qwen_webdev",
+        url="https://chat.qwen.ai/c/webdev",
+        send_offset=send_off,
+        wait_offset=wait_off,
+        success_mode="preview_not_chat",
+    )
+
+    verdict, failures = validate(preview, events, qwen_registry)
+    assert verdict == VERDICT_SIMULATED
+    assert "preview_proof_missing" in failures
+
+    preview = replace(
+        preview,
+        artifact_proof={"status": "PREVIEW_SUCCESS", "success": True},
+    )
+    verdict, failures = validate(preview, events, qwen_registry)
+    assert verdict == VERDICT_VERIFIED
+    verified = replace(preview, verdict=verdict, failures=failures)
+    record = json.loads(
+        write_episode(verified, "preview artifact", archivist_root=tmp_path / "ARCHIVIST")
+        .read_text(encoding="utf-8")
+        .splitlines()[-1]
+    )
+    assert record["success_mode"] == "preview_not_chat"
+    assert record["artifact_status"] == "PREVIEW_SUCCESS"

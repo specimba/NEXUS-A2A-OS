@@ -14,6 +14,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import time
+from contextlib import contextmanager
 from typing import Any, Iterable, Mapping
 
 
@@ -59,6 +61,9 @@ def default_ledger_path() -> Path:
     configured = os.environ.get("NEXUS_CONTINUITY_LEDGER")
     if configured:
         return Path(configured)
+    canonical = Path.home() / "Downloads" / "NEXUSlogs" / "NEXUScontinuity_runs.jsonl"
+    if canonical.exists() or canonical.parent.is_dir():
+        return canonical
     local = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".nexus")))
     return local / "NEXUS" / "continuity" / "runs.jsonl"
 
@@ -152,23 +157,45 @@ class ContinuityRunRecord:
 
     @classmethod
     def from_mapping(cls, item: Mapping[str, Any]) -> "ContinuityRunRecord":
-        run_id = str(item.get("run_id", ""))
-        if not run_id:
-            raise ValueError("ContinuityRunRecord.from_mapping: run_id must be non-empty")
+        run_id = str(item.get("run_id") or "")
+        legacy = not run_id
+        if legacy:
+            # The canonical Downloads ledger predates the typed run schema and
+            # contains event-shaped rows (kind/lane/ts) without a run_id. A
+            # content-addressed ID makes those rows readable without mutating
+            # or pretending they were authored through the governed API.
+            canonical = json.dumps(item, sort_keys=True, separators=(",", ":"), default=str)
+            run_id = "legacy-sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        timestamp = str(
+            item.get("started_at")
+            or item.get("ts")
+            or item.get("timestamp")
+            or "1970-01-01T00:00:00Z"
+        )
+        progress = item.get("progress_class")
+        if not progress:
+            status = str(item.get("status") or "").strip().lower()
+            evidence_keys = ("evidence", "proof", "verify", "changes", "milestone", "deliverable")
+            if any(key in item for key in evidence_keys):
+                progress = ProgressClass.EVIDENCE_DELTA.value
+            elif status in {"blocked", "error", "failed", "failure", "halted"}:
+                progress = ProgressClass.ADVISORY_ONLY.value
+            else:
+                progress = ProgressClass.NOOP_RECAP.value
         return cls(
             run_id=run_id,
-            agent_id=str(item.get("agent_id", "")),
-            source_lane=str(item.get("source_lane", "")),
+            agent_id=str(item.get("agent_id") or item.get("agent") or item.get("kind") or "legacy-writer"),
+            source_lane=str(item.get("source_lane") or item.get("lane") or item.get("kind") or "legacy"),
             input_fingerprint=item.get("input_fingerprint"),
             output_fingerprint=item.get("output_fingerprint"),
-            progress_class=str(item.get("progress_class", ProgressClass.NOOP_RECAP.value)),
+            progress_class=str(progress),
             artifact_paths=tuple(str(v) for v in item.get("artifact_paths", []) or ()),
             tests=tuple(str(v) for v in item.get("tests", []) or ()),
             provider_calls=int(item.get("provider_calls", 0) or 0),
             quota_reserved=int(item.get("quota_reserved", 0) or 0),
             blocker=item.get("blocker"),
-            next_action=item.get("next_action"),
-            started_at=str(item.get("started_at", "")),
+            next_action=item.get("next_action") or (str(item.get("kind")) if item.get("kind") else None),
+            started_at=timestamp,
             completed_at=item.get("completed_at"),
             memory_routes=tuple(str(v) for v in item.get("memory_routes", []) or ("EPISODIC", "TASK", "META")),
             origin=classify_origin(item),
@@ -178,7 +205,7 @@ class ContinuityRunRecord:
             proof=(item.get("proof") if isinstance(item.get("proof"), Mapping) else None),
             fenced=bool(item.get("fenced", False)),
             fence_reason=item.get("fence_reason"),
-            schema=str(item.get("schema", SCHEMA_VERSION)),
+            schema=str(item.get("schema") or ("nexus.continuity.legacy.v0" if legacy else SCHEMA_VERSION)),
         )
 
 
@@ -324,12 +351,16 @@ def fence_record(record: "ContinuityRunRecord", *, marker_present: bool = True) 
     )
 
 
-def append_record(
+def prepare_record(
     record: ContinuityRunRecord,
-    path: str | Path | None = None,
     *,
     origin: str | None = None,
-) -> Path:
+) -> ContinuityRunRecord:
+    """Normalize writer identity and apply the proof fence before append.
+
+    Kept public so CLI and other callers can return the exact persisted row
+    instead of an optimistic pre-fence representation.
+    """
     if origin is not None:
         normalized = str(origin).strip().lower()
         if normalized not in KNOWN_ORIGINS:
@@ -340,11 +371,76 @@ def append_record(
         inferred = classify_writer_identity(record.agent_id)
         if inferred != record.origin:
             record = replace(record, origin=inferred)
-    record = fence_record(record)
+    return fence_record(record)
+
+
+@contextmanager
+def _ledger_lock(ledger: Path, *, timeout_seconds: float = 10.0):
+    """Cross-process advisory lock using a stable sibling lock file."""
+    lock_path = ledger.with_name(ledger.name + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+b")
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        handle.write(b"\0")
+        handle.flush()
+    handle.seek(0)
+    deadline = time.monotonic() + timeout_seconds
+    acquired = False
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            while not acquired:
+                try:
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                    acquired = True
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(f"timed out locking continuity ledger: {ledger}")
+                    time.sleep(0.025)
+        else:  # pragma: no cover - exercised by Linux CI
+            import fcntl
+
+            while not acquired:
+                try:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(f"timed out locking continuity ledger: {ledger}")
+                    time.sleep(0.025)
+        yield
+    finally:
+        if acquired:
+            if os.name == "nt":
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:  # pragma: no cover - exercised by Linux CI
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
+
+
+def append_record(
+    record: ContinuityRunRecord,
+    path: str | Path | None = None,
+    *,
+    origin: str | None = None,
+) -> Path:
+    record = prepare_record(record, origin=origin)
     ledger = Path(path) if path else default_ledger_path()
     ledger.parent.mkdir(parents=True, exist_ok=True)
-    with ledger.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":")) + "\n")
+    payload = (json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    with _ledger_lock(ledger):
+        with ledger.open("ab") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
     return ledger
 
 

@@ -169,8 +169,7 @@ class TestTrinityFuguWorkflow:
         assert len(result.used_workers) >= 1
 
     def test_workflow_logs_to_file(self):
-        import os
-        log_path = Path("~/.nexus_pi/state/trinity_fugu_log.jsonl").expanduser()
+        log_path = TrinityFuguWorkflow.LOG_PATH
         log_path.parent.mkdir(parents=True, exist_ok=True)
         # Truncate log
         log_path.write_text("")

@@ -1,0 +1,54 @@
+diff --git a/tools/frontier_scanner/orchestrator.py b/tools/frontier_scanner/orchestrator.py
+--- a/tools/frontier_scanner/orchestrator.py
++++ b/tools/frontier_scanner/orchestrator.py
+@@ -124,8 +124,20 @@ def cmd_omniroute_intel(args) -> int:
+     rendered = json.dumps(bundle, indent=2, sort_keys=True)
+     if args.emit_json:
+         output_path = Path(args.emit_json)
+-        output_path.parent.mkdir(parents=True, exist_ok=True)
+-        output_path.write_text(rendered + "\n", encoding="utf-8")
++        if output_path.suffix.lower() != ".json":
++            print("OmniRoute candidate output must use a .json suffix", file=sys.stderr)
++            return 2
++        try:
++            output_path.parent.mkdir(parents=True, exist_ok=True)
++            with output_path.open("x", encoding="utf-8") as handle:
++                handle.write(rendered + "\n")
++        except OSError as exc:
++            print(
++                f"OmniRoute candidate output rejected (create-only): {exc}",
++                file=sys.stderr,
++            )
++            return 2
+         print(
+             f"-- emitted {bundle['summary']['provider_candidate_count']} "
+             f"quarantined source-card candidates to {output_path}"
+diff --git a/tests/tools/test_omniroute_catalog_intel.py b/tests/tools/test_omniroute_catalog_intel.py
+--- a/tests/tools/test_omniroute_catalog_intel.py
++++ b/tests/tools/test_omniroute_catalog_intel.py
+@@ -164,3 +164,27 @@ def test_cli_requires_explicit_enable_and_emits_only_requested_artifact(tmp_path
+     assert emitted["policy"]["registry_auto_promotion"] is False
+     assert emitted["summary"]["provider_candidate_count"] == 4
+     assert not (tmp_path / "unused-state").exists()
++
++
++def test_cli_candidate_emission_cannot_overwrite_existing_file(tmp_path: Path, capsys):
++    output = tmp_path / "models.registry.json"
++    output.write_text("operator-owned", encoding="utf-8")
++
++    assert main([
++        "omniroute-intel",
++        "--source-root",
++        str(FIXTURE_ROOT),
++        "--expected-version",
++        PINNED_VERSION,
++        "--expected-commit",
++        PINNED_COMMIT,
++        "--provenance-manifest",
++        str(_manifest_path()),
++        "--emit-json",
++        str(output),
++        "--enable-omniroute-intel",
++    ]) == 2
++    assert output.read_text(encoding="utf-8") == "operator-owned"
++    assert "create-only" in capsys.readouterr().err

@@ -244,7 +244,9 @@ export const PROVIDERS_GENERATED: Record<string, ProviderConfig & { keyRef?: str
     "priority": 35,
     "isFree": true,
     "isLocal": false,
-    "models": [],
+    "models": [
+      "labs-leanstral-1-5-1"
+    ],
     "envKey": "MISTRAL_API_KEY",
     "keyRef": "openai-compatible:mistral"
   },
@@ -919,6 +921,22 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "status": "up"
   },
   {
+    "modelId": "mistral/labs-leanstral-1-5-1",
+    "provider": "mistral",
+    "name": "labs-leanstral-1-5-1",
+    "tier": 50,
+    "costPer1mInput": 0,
+    "costPer1mOutput": 0,
+    "contextWindow": 262144,
+    "latencyMsTypical": 500,
+    "supportsVision": true,
+    "supportsFunctionCalling": true,
+    "supportsStreaming": true,
+    "isFree": true,
+    "isLocal": false,
+    "status": "up"
+  },
+  {
     "modelId": "nvidia/deepseek-ai/deepseek-v4-flash",
     "provider": "nvidia",
     "name": "deepseek-ai/deepseek-v4-flash",
@@ -1197,7 +1215,7 @@ export const MODELS_GENERATED: ModelInfo[] = [
     "tier": 96,
     "costPer1mInput": 0,
     "costPer1mOutput": 0,
-    "contextWindow": 202752,
+    "contextWindow": 1048576,
     "latencyMsTypical": 500,
     "supportsVision": false,
     "supportsFunctionCalling": true,

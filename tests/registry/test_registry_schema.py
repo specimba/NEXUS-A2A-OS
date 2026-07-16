@@ -137,6 +137,7 @@ class TestArsenalRegressions:
         ("nvidia", "deepseek-ai/deepseek-v4-pro"),
         ("nvidia", "qwen/qwen3.5-397b-a17b"),
         ("opencode", "mimo-v2.5-free"),
+        ("mistral", "labs-leanstral-1-5-1"),
         ("ollama", "functiongemma:latest"),
     ])
     def test_frontier_model_registered(self, registry, provider, model_id):

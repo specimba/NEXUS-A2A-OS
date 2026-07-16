@@ -1,0 +1,48 @@
+### HuggingNews AI Trending Stories Digest
+Generated at: 2026-07-15 14:33:32
+
+#### Curation Date: Wednesday, Jul 15, 2026
+1. [DeepSeek Raises $7.4 Billion to Reach $74 Billion Valuation After Revenue Hits $500 Million](https://huggingnews.com/ai/deepseek-raises-74-billion-to-reach-74-billion-valuation-after-revenue-h-e3f84dc4)
+2. [Google DeepMind CEO Demis Hassabis Proposes 30-Day Review of Frontier AI Models for U.S. Market](https://huggingnews.com/ai/google-deepmind-ceo-demis-hassabis-proposes-30-day-review-of-frontier-ai-4f281bf5)
+3. [ASML Raises Sales Forecast to €43 Billion to €45 Billion on €9.3 Billion Second-Quarter Earnings](https://huggingnews.com/earnings/asml-raises-sales-forecast-to-euro43-billion-to-euro45-billion-on-euro93-98dee1f3)
+4. [Three Governors and Utilities Endorse White House Pledge to Shield Electricity Bills From Data Center Growth](https://huggingnews.com/ai/three-governors-and-utilities-endorse-white-house-pledge-to-shield-elect-e152be38)
+5. [Australia Creates AI Office to Regulate Data Center Power and Copyright](https://huggingnews.com/ai/australia-creates-ai-office-to-regulate-data-center-power-and-copyright-1c85cf8d)
+6. [SpaceX AI Publishes Grok 4.5 Model Card With January 2026 Training Cutoff](https://huggingnews.com/ai/update-spacex-ai-publishes-grok-45-model-card-with-january-2026-training-f327aa62)
+7. [New York Imposes 1-Year Data Center Moratorium, Sliding TeraWulf Shares 7%](https://huggingnews.com/tech/new-york-imposes-1-year-data-center-moratorium-sliding-terawulf-shares-7-4b02ea9b)
+8. [OpenAI Pays $100 in Codex Credits to 10,000 Customers Sharing GPT-5.6 Sol Feedback](https://huggingnews.com/ai/openai-pays-100-in-codex-credits-to-10000-customers-sharing-gpt-56-sol-f-597914a8)
+9. [OpenAI Researcher Launches AI Drug Discovery Startup Seeking $200 Million at $2 Billion Valuation](https://huggingnews.com/startups/openai-researcher-launches-ai-drug-discovery-startup-seeking-200-million-298eda19)
+10. [Linux Foundation Launches X402 Initiative With 40 Members to Set AI Payment Standards](https://huggingnews.com/ai/linux-foundation-launches-x402-initiative-with-40-members-to-set-ai-paym-5e00f4be)
+
+#### Curation Date: Tuesday, Jul 14, 2026
+1. [Apple Sues OpenAI Over Alleged Theft of Device Trade Secrets and More Than 400 Hires](https://huggingnews.com/tech/apple-sues-openai-over-alleged-theft-of-device-trade-secrets-and-more-th-b2f44c51)
+2. [PrismML Launches Bonsai 27B AI Model Compressed to 3.9 GB for Phones](https://huggingnews.com/ai/update-prismml-launches-bonsai-27b-ai-model-compressed-to-39-gb-for-phon-abb2cc7d)
+3. [DeepSeek Prepares Mainland IPO as New Funding Round Values AI Startup at $71 Billion](https://huggingnews.com/ai/deepseek-prepares-mainland-ipo-as-new-funding-round-values-ai-startup-at-5deb0c30)
+4. [OpenAI Sets 2027 Launch for Screen-Free Smart Speaker as First Hardware Device](https://huggingnews.com/ai/update-openai-sets-2027-launch-for-screen-free-smart-speaker-as-first-ha-6d989337)
+5. [OpenAI Resets Usage Limits and Lifts Five-Hour Session Cap After Codex and ChatGPT Work Hits 8 Million Users](https://huggingnews.com/ai/update-openai-resets-usage-limits-and-lifts-five-hour-session-cap-after-1ab9bc5a)
+6. [OpenAI Adds GPT-5.6 Code Review and Parallel Work Features to Codex for 8 Million Users](https://huggingnews.com/ai/update-openai-adds-gpt-56-code-review-and-parallel-work-features-to-code-d377c898)
+7. [SK Hynix ADRs Surge 27%, Opening a 50% Premium to Korean Shares](https://huggingnews.com/us-markets/update-sk-hynix-adrs-surge-27percent-opening-a-50percent-premium-to-kore-78dbc443)
+8. [OpenAI Reports 2.5 Times Jump in Weekly Codex and ChatGPT Work Usage](https://huggingnews.com/ai/update-openai-reports-25-times-jump-in-weekly-codex-and-chatgpt-work-usa-4d6e76eb)
+9. [JPMorgan Cuts Staff in Some AI Functions by 30% to 40% as Profit Hits Record $21.2 Billion](https://huggingnews.com/earnings/update-jpmorgan-cuts-staff-in-some-ai-functions-by-30percent-to-40percen-75574eb1)
+10. [U.S. Confirms Nvidia H200 Chip Shipments to China Start in Trivial Volumes](https://huggingnews.com/ai/update-us-confirms-nvidia-h200-chip-shipments-to-china-start-in-trivial-e7d74259)
+11. [OpenAI Claims GPT-5.6 Sol Cuts Anthropic Pricing by Half and Doubles Token Efficiency in New Benchmarks](https://huggingnews.com/ai/update-openai-claims-gpt-56-sol-cuts-anthropic-pricing-by-half-and-doubl-84db8a40)
+12. [Meta’s Muse Spark Scores 30/30 to Tie for First in Asian Physics Olympiad](https://huggingnews.com/ai/update-metas-muse-spark-scores-3030-to-tie-for-first-in-asian-physics-ol-72b08d38)
+13. [Nebius Signs $1 Billion Compute Deal With Reflection AI To Supply Nvidia GB300 Chips Through 2029](https://huggingnews.com/ai/update-nebius-signs-1-billion-compute-deal-with-reflection-ai-to-supply-3f0f6bca)
+14. [Meta Faces Lawsuit From 26 Workers Alleging AI Ranked Employees on Medical Leave for Termination](https://huggingnews.com/ai/meta-faces-lawsuit-from-26-workers-alleging-ai-ranked-employees-on-medic-b09f77e8)
+15. [China’s June Exports Surge 27% on AI Chip Demand and Tariff Front-Loading, Beating Forecasts](https://huggingnews.com/global-markets/chinas-june-exports-surge-27percent-on-ai-chip-demand-and-tariff-front-l-d9b142ff)
+
+#### Curation Date: Monday, Jul 13, 2026
+1. [Musk Orders xAI to Delete All Previously Uploaded Code After Repository Leak Exposes Secrets](https://huggingnews.com/cybersecurity/musk-orders-xai-to-delete-all-previously-uploaded-code-after-repository-65cf4e36)
+2. [xAI Halts Default Grok Build Code Repository Uploads With Server Flag Following 5.1 GB Data Leak](https://huggingnews.com/cybersecurity/update-xai-halts-default-grok-build-code-repository-uploads-with-server-40de645e)
+3. [OpenAI Reverts GPT-5.6 Sol Context Window on Codex to 272k Tokens as Cache Costs Spike Usage](https://huggingnews.com/ai/openai-reverts-gpt-56-sol-context-window-on-codex-to-272k-tokens-as-cach-1f3a6789)
+4. [Meta Muse Spark 1.1 Scores 863 on Agentic Benchmark and Tops Health Leaderboard on Cut-Rate Pricing](https://huggingnews.com/ai/update-meta-muse-spark-11-scores-863-on-agentic-benchmark-and-tops-healt-b74807ee)
+5. [SK Hynix Falls 15.4% on Nasdaq Listing Debut, Triggers South Korean Circuit Breaker](https://huggingnews.com/global-markets/sk-hynix-falls-154percent-on-nasdaq-listing-debut-triggers-south-korean-90bba1ab)
+6. [Meta Expands Louisiana Data Center to 5 Gigawatts, Lifts Investment to Over $50 Billion](https://huggingnews.com/ai/meta-expands-louisiana-data-center-to-5-gigawatts-lifts-investment-to-ov-fcfec1e9)
+7. [OpenAI Grants Usage Resets to Codex and ChatGPT Work Users as User Base Hits 7 Million](https://huggingnews.com/ai/update-openai-grants-usage-resets-to-codex-and-chatgpt-work-users-as-use-10153388)
+8. [Richard Sutton Launches Oak Lab to Train Trillion-Parameter AI Agent on 20 Watts](https://huggingnews.com/ai/richard-sutton-launches-oak-lab-to-train-trillion-parameter-ai-agent-on-222f0edc)
+9. [OpenAI Grants Usage Reset for All ChatGPT Work, Codex Users Ahead of 7 Million Milestone](https://huggingnews.com/ai/openai-grants-usage-reset-for-all-chatgpt-work-codex-users-ahead-of-7-mi-2b52392c)
+10. [Intel Invests $5.7 Billion To Expand Irish Chip Plant For Xeon 6 Processors](https://huggingnews.com/tech/intel-invests-57-billion-to-expand-irish-chip-plant-for-xeon-6-processor-9e52df91)
+11. [SK Hynix Plans Additional U.S. ADR Issuance Following Nasdaq Debut](https://huggingnews.com/tech/update-sk-hynix-plans-additional-us-adr-issuance-following-nasdaq-debut-32d2c966)
+12. [OpenAI Launches ChatGPT Work, Expanding AI Agent Features to Mobile, Web and Desktop](https://huggingnews.com/ai/update-openai-launches-chatgpt-work-expanding-ai-agent-features-to-mobil-fd56a1c0)
+13. [More Than 200 Economists and Nobel Laureates Warn AI Economic Shock Will Outpace Industrial Revolution](https://huggingnews.com/ai/more-than-200-economists-and-nobel-laureates-warn-ai-economic-shock-will-1ee7755a)
+14. [Meta Muse Spark 1.1 Beats GPT-5.6 and Gemini 3.1 on Radiology Benchmark, Nears Human Performance](https://huggingnews.com/ai/update-meta-muse-spark-11-beats-gpt-56-and-gemini-31-on-radiology-benchm-c3b0689f)
+15. [PrimeIntellect Launches Prime RL 0.7.0 With GEPA Support and Custom Harness Training](https://huggingnews.com/ai/primeintellect-launches-prime-rl-070-with-gepa-support-and-custom-harnes-bd205f1f)

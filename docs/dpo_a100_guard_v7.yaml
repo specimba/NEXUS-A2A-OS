@@ -1,0 +1,33 @@
+# configs/dpo_a100_guard_v7.yaml — template for 80GB A100
+# Do not train until HF venv + data staged on /data/NEXUS
+
+model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct  # canary; scale to 7B after dry-run
+torch_dtype: bfloat16
+attn_implementation: sdpa
+
+dataset:
+  train_file: /data/NEXUS/datasets/nexus_local/v7_dpo_pairs_fixed.jsonl
+  # expected columns: prompt, chosen, rejected (or adapt in script)
+  max_samples: null
+
+training:
+  output_dir: /data/NEXUS/checkpoints/dpo_guard_v7_canary
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 5.0e-6
+  num_train_epochs: 1
+  logging_steps: 5
+  save_steps: 50
+  bf16: true
+  max_length: 1024
+  max_prompt_length: 512
+  # FSDP: enable only after track A/B decision
+  fsdp: false
+
+eval:
+  stress_dir: /data/NEXUS/datasets/nexus_local/stress_lab_sample
+  max_eval_samples: 64
+
+notes:
+  - local 8GB: use max_samples=256 batch=1
+  - A100 80GB: raise batch, enable longer context, optional full SFT then DPO

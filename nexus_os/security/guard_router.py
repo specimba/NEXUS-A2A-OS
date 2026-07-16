@@ -67,6 +67,13 @@ try:
 except ImportError:
     pass
 
+L2_MINDGUARD_TAE_AVAILABLE = False
+try:
+    from nexus_os.security.mindguard_tae import MindGuardTAE, MindGuardResult
+    L2_MINDGUARD_TAE_AVAILABLE = True
+except ImportError:
+    pass
+
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
@@ -141,6 +148,15 @@ TIER_THRESHOLDS = {
   "vats_coverage": "L2 inspects tool-call error responses for injected instructions — decision provenance tracking catches implicit delegation",
   "fallback_model": "meta-llama/Llama-Guard-3-1B",
   "fallback_backend": "ollama",
+  # MindGuard TAE (Temporal Attention Entropy) — optional L2 pre-check.
+  # Inspects raw attention maps from L1 forward pass BEFORE the L2 text guard.
+  # If TAE flags anomalies, escalates directly to L3 without running L2 text guard.
+  "tae": {
+      "enabled": True,
+      "dilution_threshold": 0.25,
+      "delegation_threshold": 0.15,
+      "min_suspicious_heads": 1,
+  },
 },
 "L3": {
   "model": "granite-guardian-3.2-3b-a800m-GGUF:Q4_K_M",
@@ -1065,33 +1081,103 @@ class GuardRouter:
 
         # ── Tier 2: MindGuard Decision-Integrity Inspector ────────────────
         l2_cfg = self.thresholds["L2"]
+
+        # ── L2 TAE Pre-Check (optional, numpy-only, no VRAM) ──────────
+        # If MindGuardTAE is available and attention data exists, run
+        # entropy inspection BEFORE the L2 text guard.  If TAE flags
+        # anomalies, escalate directly to L3 without running L2 text.
+        tae_cfg = l2_cfg.get("tae", {})
+        if (
+            L2_MINDGUARD_TAE_AVAILABLE
+            and tae_cfg.get("enabled", False)
+            and hasattr(self, "_l1_attention_maps")
+            and self._l1_attention_maps
+        ):
+            tae_inspector = MindGuardTAE(
+                dilution_threshold=tae_cfg.get(
+                    "dilution_threshold", l2_cfg.get("dilution_threshold", 0.25)
+                ),
+                delegation_threshold=tae_cfg.get(
+                    "delegation_threshold", l2_cfg.get("delegation_threshold", 0.15)
+                ),
+                min_suspicious_heads=tae_cfg.get("min_suspicious_heads", 1),
+            )
+            tae_t0 = time.perf_counter()
+            tae_result = tae_inspector.inspect_attention(
+                attention_maps=self._l1_attention_maps,
+            )
+            tae_lat = int((time.perf_counter() - tae_t0) * 1000)
+
+            if not tae_result.is_safe:
+                # TAE flagged anomalies — record result and skip L2 text guard,
+                # escalate directly to L3
+                r2_tae = TierResult(
+                    "L2-tae", "unsafe", 0.92, tae_lat,
+                    raw=(
+                        f"tae_entropy={tae_result.entropy_score:.4f};"
+                        f"patterns={tae_result.detected_patterns};"
+                        f"recommendation={tae_result.recommendation}"
+                    ),
+                )
+                results.append(r2_tae)
+                if verbose:
+                    print(
+                        f"[L2-tae] UNSAFE (entropy={tae_result.entropy_score:.4f}, "
+                        f"patterns={tae_result.detected_patterns}, lat={tae_lat}ms) "
+                        f"-- escalating to L3"
+                    )
+                # Fall through to L3 (do NOT return safe/unsafe here;
+                # let L3 confirmer make the final call)
+            else:
+                # TAE passed — record and continue to L2 text guard
+                r2_tae = TierResult(
+                    "L2-tae", "safe", 0.85, tae_lat,
+                    raw=f"tae_entropy={tae_result.entropy_score:.4f};patterns=none",
+                )
+                results.append(r2_tae)
+                if verbose:
+                    print(
+                        f"[L2-tae] safe (entropy={tae_result.entropy_score:.4f}, "
+                        f"lat={tae_lat}ms)"
+                    )
+
+        # ── L2 Text Guard (MindGuard DDG / fallback Llama-Guard) ──────
         l2_client = make_client(l2_cfg)
 
         # Wire L1 model to MindGuard L2 (shared forward pass, no extra VRAM)
         if isinstance(l2_client, MindGuardClient) and l1_client is not None:
             l2_client.wg = l1_client
 
-        t2_start = time.perf_counter()
-
-        if l2_client is None:
-            r2 = TierResult("L2", "skipped", 0.0, 0, error="No L2 model configured")
-        elif isinstance(l2_client, MindGuardClient):
-            tool_meta = mcp_tool.get("metadata") if mcp_tool else None
-            pred, conf, raw, err = l2_client.query(prompt, tool_metadata=tool_meta)
-            lat = int((time.perf_counter() - t2_start) * 1000)
-            r2 = TierResult("L2", pred, conf, lat, raw=raw, error=err)
+        # Skip L2 text guard if TAE already flagged unsafe → go to L3
+        tae_escalated = any(
+            r.tier == "L2-tae" and r.prediction == "unsafe" for r in results
+        )
+        if tae_escalated:
+            # TAE flagged — skip L2 text guard, proceed to L3
+            pass
         else:
-            pred, conf, raw, err = l2_client.query(prompt)
-            lat = int((time.perf_counter() - t2_start) * 1000)
-            r2 = TierResult("L2", pred, conf, lat, raw=raw, error=err)
-        results.append(r2)
+            t2_start = time.perf_counter()
+
+            if l2_client is None:
+                r2 = TierResult("L2", "skipped", 0.0, 0, error="No L2 model configured")
+            elif isinstance(l2_client, MindGuardClient):
+                tool_meta = mcp_tool.get("metadata") if mcp_tool else None
+                pred, conf, raw, err = l2_client.query(prompt, tool_metadata=tool_meta)
+                lat = int((time.perf_counter() - t2_start) * 1000)
+                r2 = TierResult("L2", pred, conf, lat, raw=raw, error=err)
+            else:
+                pred, conf, raw, err = l2_client.query(prompt)
+                lat = int((time.perf_counter() - t2_start) * 1000)
+                r2 = TierResult("L2", pred, conf, lat, raw=raw, error=err)
+            results.append(r2)
 
         if verbose:
             print(f"[L2] {r2.prediction} (conf={r2.confidence:.2f}, lat={r2.latency_ms}ms)")
 
-        # If L2 says safe and no anomalies detected, save L3 call
-        if r2.prediction == "safe":
-            return RoutingDecision.SAFE, results
+        # If L2 says safe and no TAE escalation, save L3 call
+        if not tae_escalated:
+            if r2.prediction == "safe":
+                return RoutingDecision.SAFE, results
 
         # ── Tier 3: Confirmer ────────────────────────────────────────────
         l3_cfg = self.thresholds["L3"]

@@ -78,3 +78,10 @@ def test_resolve_execute_model_remaps_synthetic_cloud_id():
     exact, note2 = resolve_execute_model("deepseek-ai/deepseek-v4-pro", catalogue)
     assert exact == "deepseek-ai/deepseek-v4-pro"
     assert note2 is None
+
+
+def test_resolve_execute_model_uses_resilient_alias_without_fresh_evidence():
+    model, note = resolve_execute_model("qwen2.5-72b-instruct-bf16", set())
+    assert model == "nexus-resilient"
+    assert note is not None
+    assert "no fresh observed canonical route" in note

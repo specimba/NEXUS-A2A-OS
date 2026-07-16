@@ -1,0 +1,11 @@
+{
+  "ts": "2026-07-15T00:19:41Z",
+  "kind": "hermes_longrun_precheck",
+  "run_id": "hermes-longrun-20260715",
+  "cdp": {
+    "up": false
+  },
+  "lanes": {},
+  "hard_stop": false,
+  "lease_present": false
+}

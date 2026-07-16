@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Internal: do not launch via agent terminal — only read-only.
+# Run Hermes when:
+#   1) Kilo/Cline are open in two panels
+#   2) fillSend piped into both (correct context id)
+#
+set -euo pipefail
+
+# Kilo task (venv still on test2)
+KILO_TASK='New Session. Terminal only. Run to completion (5-10 min OK). No training.
+source /data/NEXUS/venv_m0/bin/activate
+pip install -U pip
+pip install -U transformers peft accelerate datasets trl==0.12.0
+python <<'"'"'PY'"'"'
+import importlib, json
+mods=['torch','transformers','trl','peft','accelerate','datasets','numpy']
+o={}
+for m in mods:
+    try: mod=importlib.import_module(m); o[m]=getattr(mod,'__version__','ok')
+    except Exception as e: o[m]='MISSING:'+str(e)
+try:
+    from trl import DPOTrainer; o['"'"'DPOTrainer'"'"']='"'"'import_ok'"'"'
+except Exception as e: o['"'"'DPOTrainer'"'"']='"'"'FAIL:DPOTrainer:'"'"'+str(e)
+print(json.dumps(o, indent=2))
+open('"'"'/data/NEXUS/m0_prep/deps_versions_venv.json'"'"','w').write(json.dumps(o, indent=2))
+PY
+cat /data/NEXUS/m0_prep/deps_versions_venv.json
+echo T5_INSTALL_DONE'
+
+# Cline task (holdout already there)
+CLINE_TASK='source /data/NEXUS/venv_m0/bin/activate
+python /data/NEXUS/m0_prep/a800_lineage.py --validate /data/NEXUS/m0_prep/holdout_manifest_v1.json
+ls -la /data/NEXUS/m0_prep
+cat /data/NEXUS/m0_prep/deps_versions.json 2>/dev/null || echo NO_VENV_JSON
+python /data/NEXUS/m0_prep/a800_lineage.py --validate /data/NEXUS/m0_prep/holdout_manifest_v1.json
+echo HERMES_CLINE_LINEAGE_DONE'
+
+echo "Kilo task: $KILO_TASK"
+echo "Cline task: $CLINE_TASK"

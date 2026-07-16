@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""
+NEXUS PaddleOCR HTTP Service
+=============================
+Runs a local HTTP server that accepts screenshot images and returns
+structured text extraction results.
+
+Port: 7360
+Endpoints:
+  POST /ocr          - General OCR (PP-OCRv6 fast mode)
+  POST /ocr/struct   - Structured document parsing (PP-StructureV3)
+  POST /ocr/vl       - Vision-language model parsing (PaddleOCR-VL)
+  GET  /health       - Service health check
+
+Usage:
+    python scripts/ocr/paddle_ocr_service.py --port 7360
+    
+Then from PowerShell:
+    # Screenshot OCR
+    $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\screenshot.png"))
+    $body = @{ image = $b64; mode = "fast" } | ConvertTo-Json
+    Invoke-RestMethod -Uri "http://127.0.0.1:7360/ocr" -Method POST -Body $body -ContentType "application/json"
+"""
+
+import argparse
+import base64
+import io
+import json
+import logging
+import os
+import sys
+import time
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
+
+# Windows + paddleocr 3.x: OneDNN/PIR path often throws
+# NotImplementedError ConvertPirAttribute2RuntimeAttribute — disable MKLDNN/PIR early.
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+os.environ.setdefault("FLAGS_onednn", "0")
+os.environ.setdefault("FLAGS_enable_pir_api", "0")
+os.environ.setdefault("FLAGS_enable_pir_in_executor", "0")
+os.environ.setdefault("FLAGS_pir_apply_inplace_pass", "0")
+# Prefer CPU graph without oneDNN fusion issues on Win
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", ""))
+
+# Paths
+REPO = Path(r"C:\Users\speci.000\Documents\NEXUS")
+SCRATCH = REPO / "scratch"
+SCREENSHOTS = SCRATCH / "screenshots"
+SCREENSHOTS.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [OCR] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(SCRATCH / "ocr_service.log", encoding="utf-8"),
+    ],
+)
+log = logging.getLogger("ocr_service")
+
+# Lazy-loaded OCR engines
+_OCR_FAST = None  # PP-OCRv6
+_OCR_STRUCT = None  # PP-StructureV3
+_OCR_VL = None  # PaddleOCR-VL
+
+
+def _make_paddle_ocr(**kwargs):
+    """Create PaddleOCR with API compatibility for 2.x and 3.x.
+
+    PaddleOCR 3.x rejects unknown kwargs with ValueError (e.g. show_log).
+    Never pass show_log. Try modern args first, then minimal.
+    """
+    from paddleocr import PaddleOCR
+
+    lang = kwargs.get("lang", "en")
+    # Order matters: 3.x first (no show_log / use_angle_cls), then 2.x angle flag only.
+    # enable_mkldnn=False when supported avoids Win OneDNN PIR crashes at predict time.
+    attempts = [
+        dict(lang=lang, use_textline_orientation=True, enable_mkldnn=False),
+        dict(lang=lang, use_textline_orientation=True),
+        dict(lang=lang, enable_mkldnn=False),
+        dict(lang=lang),
+        dict(use_textline_orientation=True),
+        {},
+        # paddleocr 2.x only — may ValueError on 3.x, caught below
+        dict(lang=lang, use_angle_cls=True),
+    ]
+    last_err = None
+    for params in attempts:
+        try:
+            log.info("PaddleOCR init try params=%s", sorted(params.keys()))
+            return PaddleOCR(**params)
+        except (TypeError, ValueError) as e:
+            last_err = e
+            log.warning("PaddleOCR init rejected params=%s err=%s", params, e)
+            continue
+    raise RuntimeError(f"Unable to construct PaddleOCR: {last_err}")
+
+
+def _run_ocr(engine, img_path: str):
+    """Run OCR supporting both .ocr() (2.x) and .predict() (3.x)."""
+    if hasattr(engine, "ocr"):
+        try:
+            return engine.ocr(str(img_path), cls=True)
+        except TypeError:
+            try:
+                return engine.ocr(str(img_path))
+            except Exception:
+                pass
+    if hasattr(engine, "predict"):
+        return engine.predict(str(img_path))
+    raise RuntimeError("OCR engine has neither ocr() nor predict()")
+
+
+def get_fast_ocr():
+    """PP-OCR fast text extraction (PP-OCRv4/v5/v6 depending on paddleocr release)."""
+    global _OCR_FAST
+    if _OCR_FAST is None:
+        log.info("Loading PaddleOCR fast engine — first run may take ~30–90s...")
+        _OCR_FAST = _make_paddle_ocr(lang="en")
+        log.info("PaddleOCR fast engine ready")
+    return _OCR_FAST
+
+
+def get_struct_ocr():
+    """Structured / general OCR path (same engine for now; layout later)."""
+    global _OCR_STRUCT
+    if _OCR_STRUCT is None:
+        log.info("Loading PaddleOCR struct engine — first run may take ~60s...")
+        _OCR_STRUCT = _make_paddle_ocr(lang="en")
+        log.info("PaddleOCR struct engine ready")
+    return _OCR_STRUCT
+
+
+def get_vl_ocr():
+    """PaddleOCR-VL when available; else fall back to struct engine."""
+    global _OCR_VL
+    if _OCR_VL is None:
+        log.info("Loading PaddleOCR-VL if available...")
+        try:
+            from paddleocr import PaddleOCRVL
+
+            try:
+                _OCR_VL = PaddleOCRVL()
+            except TypeError:
+                _OCR_VL = PaddleOCRVL()
+            except ValueError:
+                # some builds still accept zero-arg only
+                _OCR_VL = get_struct_ocr()
+                return _OCR_VL
+        except Exception as e:
+            log.warning("PaddleOCR-VL unavailable (%s); falling back to struct", e)
+            _OCR_VL = get_struct_ocr()
+        log.info("PaddleOCR-VL path ready")
+    return _OCR_VL
+
+
+def decode_image(b64_data: str) -> bytes:
+    """Decode base64 image data, handling data URIs."""
+    if "," in b64_data:
+        b64_data = b64_data.split(",", 1)[1]
+    return base64.b64decode(b64_data)
+
+
+def save_screenshot(img_bytes: bytes, prefix: str = "cap") -> Path:
+    """Save screenshot to scratch/screenshots with timestamp."""
+    ts = time.strftime("%Y%m%dT%H%M%SZ")
+    path = SCREENSHOTS / f"{prefix}_{ts}.png"
+    path.write_bytes(img_bytes)
+    return path
+
+
+class OCRHandler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        log.info("%s - %s", self.address_string(), fmt % args)
+
+    def _send_json(self, data: dict, status: int = 200):
+        body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_error(self, message: str, status: int = 400):
+        self._send_json({"error": message, "status": "error"}, status)
+
+    def do_GET(self):
+        if self.path == "/health":
+            self._send_json({
+                "status": "ok",
+                "service": "nexus-ocr",
+                "models": {
+                    "fast": _OCR_FAST is not None,
+                    "struct": _OCR_STRUCT is not None,
+                    "vl": _OCR_VL is not None,
+                },
+            })
+        else:
+            self._send_error("not found", 404)
+
+    def do_POST(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length)
+            payload = json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            self._send_error(f"bad request: {e}")
+            return
+
+        mode = payload.get("mode", "fast")
+        b64_image = payload.get("image", "")
+        if not b64_image:
+            self._send_error("missing 'image' field (base64)")
+            return
+
+        try:
+            img_bytes = decode_image(b64_image)
+            img_path = save_screenshot(img_bytes, prefix=mode)
+        except Exception as e:
+            self._send_error(f"image decode failed: {e}")
+            return
+
+        start = time.monotonic()
+
+        try:
+            if mode == "struct":
+                engine = get_struct_ocr()
+                result = _run_ocr(engine, str(img_path))
+                parsed = _parse_struct_result(result)
+            elif mode == "vl":
+                engine = get_vl_ocr()
+                result = _run_ocr(engine, str(img_path))
+                parsed = _parse_struct_result(result)
+            else:
+                engine = get_fast_ocr()
+                result = _run_ocr(engine, str(img_path))
+                parsed = _parse_fast_result(result)
+
+            elapsed = time.monotonic() - start
+            log.info(
+                "OCR done mode=%s lines=%s elapsed=%.2fs raw_type=%s",
+                mode,
+                parsed.get("line_count"),
+                elapsed,
+                parsed.get("raw_type"),
+            )
+
+            self._send_json({
+                "status": "ok",
+                "mode": mode,
+                "elapsed_s": round(elapsed, 2),
+                "image_saved": str(img_path),
+                "result": parsed,
+            })
+        except Exception as e:
+            log.exception("OCR failed")
+            self._send_error(f"OCR engine error: {e}", 500)
+
+
+def _as_dict(obj):
+    """Best-effort convert paddlex OCRResult / mapping-like objects to dict."""
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    for attr in ("json", "to_dict", "dict"):
+        if hasattr(obj, attr):
+            try:
+                val = getattr(obj, attr)
+                val = val() if callable(val) else val
+                if isinstance(val, dict):
+                    return val
+                # paddlex sometimes nests under res
+                if hasattr(val, "keys"):
+                    return dict(val)
+            except Exception:
+                pass
+    # attribute bag
+    out = {}
+    for k in (
+        "rec_text", "rec_texts", "rec_score", "rec_scores",
+        "dt_polys", "dt_boxes", "texts", "text", "scores",
+        "res",
+    ):
+        if hasattr(obj, k):
+            try:
+                out[k] = getattr(obj, k)
+            except Exception:
+                pass
+    if out:
+        return out
+    try:
+        return dict(obj)
+    except Exception:
+        return {"_raw": repr(obj)[:500]}
+
+
+def _parse_fast_result(result) -> dict:
+    """Parse classic list-of-lines OCR output and newer dict/list predict payloads."""
+    lines = []
+    raw_type = type(result).__name__
+    log.info("OCR raw result type=%s", raw_type)
+
+    # Unwrap single-item list of result objects (paddleocr 3.x predict)
+    items = result
+    if isinstance(result, (list, tuple)):
+        items = list(result)
+    else:
+        items = [result]
+
+    for item in items:
+        # Classic paddleocr 2.x page: list of [box, (text, conf)]
+        if isinstance(item, list) and item and isinstance(item[0], (list, tuple)) and len(item[0]) >= 2:
+            # could be classic lines OR nested page
+            sample = item[0]
+            if isinstance(sample[0], (list, tuple)) or (
+                hasattr(sample[0], "__iter__") and not isinstance(sample[0], (str, bytes))
+            ):
+                for line in item:
+                    try:
+                        if not line or len(line) < 2:
+                            continue
+                        box = line[0]
+                        text_info = line[1]
+                        if isinstance(text_info, (list, tuple)):
+                            text = text_info[0] if text_info else ""
+                            conf = float(text_info[1]) if len(text_info) > 1 else 0.0
+                        elif isinstance(text_info, dict):
+                            text = text_info.get("text") or text_info.get("transcription") or ""
+                            conf = float(text_info.get("score") or text_info.get("confidence") or 0)
+                        else:
+                            text = str(text_info)
+                            conf = 0.0
+                        if text:
+                            box_pts = []
+                            try:
+                                box_pts = [[int(p[0]), int(p[1])] for p in box] if box else []
+                            except Exception:
+                                box_pts = []
+                            lines.append({
+                                "text": str(text),
+                                "confidence": round(float(conf), 3),
+                                "box": box_pts,
+                            })
+                    except Exception:
+                        continue
+                continue
+
+        d = _as_dict(item)
+        if "res" in d and isinstance(d["res"], dict):
+            d = {**d, **d["res"]}
+
+        # paddlex / paddleocr 3.x keys
+        recs = (
+            d.get("rec_texts")
+            or d.get("rec_text")
+            or d.get("texts")
+            or d.get("text")
+        )
+        scores = d.get("rec_scores") or d.get("rec_score") or d.get("scores") or []
+        if isinstance(recs, str):
+            recs = [recs]
+        if recs is None:
+            recs = []
+        if not isinstance(recs, (list, tuple)):
+            recs = [recs]
+        if not isinstance(scores, (list, tuple)):
+            scores = [scores] if scores not in (None, "") else []
+
+        for i, t in enumerate(recs):
+            if t is None or str(t).strip() == "":
+                continue
+            conf = 0.0
+            try:
+                if i < len(scores):
+                    conf = float(scores[i])
+            except Exception:
+                conf = 0.0
+            lines.append({"text": str(t), "confidence": round(conf, 3), "box": []})
+
+    if not lines:
+        # last-ditch: stringify for debug
+        log.warning("OCR parse produced 0 lines; raw_type=%s sample=%s", raw_type, repr(result)[:400])
+
+    return {
+        "lines": lines,
+        "line_count": len(lines),
+        "full_text": "\n".join(l["text"] for l in lines),
+        "raw_type": raw_type,
+    }
+
+
+def _parse_struct_result(result) -> dict:
+    """Parse PP-StructureV3 / VL output."""
+    # Structure output may include layout, tables, etc.
+    parsed = _parse_fast_result(result)
+    parsed["structured"] = True
+    return parsed
+
+
+def main():
+    parser = argparse.ArgumentParser(description="NEXUS PaddleOCR Service")
+    parser.add_argument("--port", type=int, default=7360)
+    parser.add_argument("--host", default="127.0.0.1")
+    args = parser.parse_args()
+
+    server = HTTPServer((args.host, args.port), OCRHandler)
+    log.info("NEXUS OCR Service listening on http://%s:%d", args.host, args.port)
+    log.info("  POST /ocr          - fast PP-OCRv6")
+    log.info("  POST /ocr/struct   - PP-StructureV3")
+    log.info("  POST /ocr/vl       - PaddleOCR-VL")
+    log.info("  GET  /health       - health check")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        log.info("Shutting down OCR service")
+        server.shutdown()
+
+
+if __name__ == "__main__":
+    main()

@@ -25,6 +25,8 @@ MINI_REGISTRY = {
         {"id": "zai-org/GLM-5.2", "provider": "siliconflow", "status": "active", "aliases": ["glm-5.2"]},
         {"id": "moonshotai/Kimi-K2.6", "provider": "siliconflow", "status": "active", "aliases": []},
         {"id": "MiniMaxAI/MiniMax-M3", "provider": "siliconflow", "status": "active", "aliases": ["minimax-m3"]},
+        {"id": "deepseek-ai/DeepSeek-V4-Pro", "provider": "nvidia", "status": "active", "aliases": ["deepseek-v4-pro"]},
+        {"id": "deepseek-ai/DeepSeek-V4-Flash", "provider": "nvidia", "status": "active", "aliases": ["deepseek-v4-flash"]},
         {"id": "LongCat-2.0", "provider": "longcat", "status": "active", "aliases": []},
         {"id": "intern-s2-preview", "provider": "internai", "status": "active", "aliases": []},
     ]
@@ -138,6 +140,38 @@ def test_usage_never_raises_score():
     assert conf == base_conf == "medium"
     # usage alone can never manufacture a score
     assert ai.fuse_signals([_sig("openrouter_usage", 1.0, tier="usage")]) == (None, "no_data")
+    # Source names are not enough: a malformed or downgraded observation
+    # carrying a capability-looking key still cannot enter the score unless
+    # its trust tier itself is Tier 1 or Tier 2.
+    assert ai.fuse_signals([_sig("lmarena_elo", 0.99, tier="usage")]) == (None, "no_data")
+
+
+def test_cli_preserves_existing_sidecar_when_no_fresh_capability_evidence(tmp_path, monkeypatch, capsys):
+    """A failed board refresh must not erase the last usable sidecar."""
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps(MINI_REGISTRY), encoding="utf-8")
+    overrides_path = tmp_path / "overrides.json"
+    overrides_path.write_text("{}", encoding="utf-8")
+    out_path = tmp_path / "scores.json"
+    previous = '{"version": 1, "models": {"previous": {}}}'
+    out_path.write_text(previous, encoding="utf-8")
+
+    # Empty adapter set simulates a fetch failure after the CLI's safe
+    # per-source exception handling.  No network is possible in this test.
+    monkeypatch.setattr(ai, "build_adapters", lambda _spec: [])
+
+    result = ai.main([
+        "--source", "lmarena",
+        "--registry", str(registry_path),
+        "--overrides", str(overrides_path),
+        "--out", str(out_path),
+        "--include-no-data",
+        "--require-capability-evidence",
+    ])
+
+    assert result == 2
+    assert out_path.read_text(encoding="utf-8") == previous
+    assert "no fresh Tier-1/Tier-2 capability evidence" in capsys.readouterr().out
 
 
 def test_name_match_uses_registry_aliases():
@@ -159,6 +193,92 @@ def test_name_match_uses_registry_aliases():
     # honest failure: unknown stays unmatched, never guessed
     assert ai.match_registry_model("gpt-99-unknown", models) is None
     assert ai.match_registry_model("", models) is None
+
+
+def test_name_match_is_separator_tolerant_but_variant_safe():
+    """Board display spelling may vary; a distinct release may not collapse."""
+    models = MINI_REGISTRY["models"]
+    assert ai.match_registry_model("GLM 5.2 (Max)", models) == "zai-org/GLM-5.2"
+    assert ai.match_registry_model("DeepSeek V4 Pro", models) == "deepseek-ai/DeepSeek-V4-Pro"
+    assert ai.match_registry_model("DeepSeek V4 Flash", models) == "deepseek-ai/DeepSeek-V4-Flash"
+    # Do not infer that a distinct thinking release is equivalent to either
+    # plain V4 route.  An operator can add an explicit reviewed override.
+    assert ai.match_registry_model("deepseek-v4-pro-thinking", models) is None
+
+
+def test_lmarena_official_dataset_payload_preserves_board_provenance():
+    payload = {
+        "version": 2,
+        "source": "huggingface_dataset_server",
+        "categories": {
+            "overall": [{
+                "model_name": "glm-5.2-max",
+                "rating": 1460.0,
+                "rating_lower": 1448.0,
+                "rating_upper": 1472.0,
+                "vote_count": 13442,
+                "rank": 22,
+                "category": "overall",
+                "leaderboard_publish_date": "2026-07-10",
+            }],
+            "coding": [{
+                "model_name": "deepseek-v4-pro",
+                "rating": 1449.0,
+                "rating_lower": 1430.0,
+                "rating_upper": 1468.0,
+                "vote_count": 41017,
+                "rank": 34,
+                "category": "coding",
+                "leaderboard_publish_date": "2026-07-10",
+            }],
+        },
+    }
+
+    signals = ai.LMArenaAdapter().parse(payload, FRESH)
+    glm = signals["glm-5.2-max"][0]
+    deepseek = signals["deepseek-v4-pro"][0]
+    assert glm.source == "lmarena_elo"
+    assert glm.normalized == pytest.approx((1460.0 - 1000.0) / 500.0)
+    assert glm.raw["vote_count"] == 13442
+    assert glm.raw["leaderboard_publish_date"] == "2026-07-10"
+    assert deepseek.source == "lmarena_code_elo"
+    assert deepseek.raw["rating_lower"] == 1430.0
+
+
+def test_lmarena_official_fetch_paginates_with_a_hard_per_category_bound(monkeypatch):
+    calls = []
+
+    class _Response:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    def fake_get(url, *, params, timeout, headers):
+        calls.append((url, params, timeout, headers))
+        category = "overall" if "overall" in params["where"] else "coding"
+        offset = params["offset"]
+        if category == "overall" and offset == 0:
+            rows = [{"row": {"model_name": f"overall-{index}", "rating": 1200 + index}} for index in range(100)]
+            return _Response({"num_rows_total": 101, "rows": rows})
+        if category == "overall" and offset == 100:
+            return _Response({"num_rows_total": 101, "rows": [{"row": {"model_name": "overall-last", "rating": 1400}}]})
+        if category == "coding" and offset == 0:
+            return _Response({"num_rows_total": 1, "rows": [{"row": {"model_name": "coding-only", "rating": 1300}}]})
+        raise AssertionError(f"unexpected page: {category} offset={offset}")
+
+    monkeypatch.setattr(ai.requests, "get", fake_get)
+    payload = ai.LMArenaAdapter()._fetch_remote()
+
+    assert [call[1]["offset"] for call in calls] == [0, 100, 0]
+    assert all(call[0] == ai.LMARENA_DATASET_SERVER_FILTER_URL for call in calls)
+    assert all(call[1]["length"] <= ai.LMARENA_PAGE_SIZE for call in calls)
+    assert payload["categories"]["overall"][-1]["model_name"] == "overall-last"
+    assert payload["categories"]["coding"][0]["model_name"] == "coding-only"
 
 
 def test_stale_signals_dropped():

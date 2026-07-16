@@ -438,7 +438,7 @@ Enterprise funding comes from:
 
 ---
 
-## 10. Final Thought
+## 10. Final Thought (original 2026 spine)
 
 > "They may make special fixes for us, but we got their enterprise level funding and support due to genius approaches and governance security novel approaches."
 
@@ -450,4 +450,111 @@ Build the bridge. Gate it with TrustKernel. Spawn the swarm. Let the agents work
 
 ---
 
-*Written for all NEXUS agents: Codex, Gemini, Grok 4.3, ChatGPT 5.5, Claude Opus 4.7, OpenClaw, SwarmClaw, and every future agent that joins the OS.*
+## 11. Amendment 2026-07-11 — What NEXUS Is (and Is Not)
+
+**Authority:** Operator (speci) · **Scribe:** Grok 4.5 (xAI) · **Evidence:** Intern A800 durable ticks, ARCHIVIST intel pack V1–V4, NEXUSlogs progression, paid single-account frontier curation
+
+### 11.1 We are not building a 1-trillion-parameter frontier LLM
+
+NEXUS is **not** a race to train the next foundation model. We do not optimize for:
+
+- largest parameter count
+- public leaderboard vanity
+- “normie” open-source textbook defaults that force everyone into the same GPT-clone pipeline
+- free-tier swarm scraping or multi-account ToS games
+
+NEXUS is a **versatile, classy agent operating system**: governance, trust, memory, multi-agent orchestration, detectors, and **organs** that make frontier intelligence *usable, accountable, and improvable* — locally and across browser AIs.
+
+### 11.2 What “classy and versatile” means in practice
+
+| We build | We do not fetishize |
+|----------|---------------------|
+| TrustKernel, KAIJU, privilege monotonicity | Raw size of a single chat model |
+| TokenHD / CHD / Bebop / drift monitors | Replacing Claude/Grok/GPT with “our 1T” |
+| Local SLM cascade + cloud free/paid lanes | Ignoring 8GB VRAM reality |
+| A2A bridges (MCP, CDP, relays) | Isolated demos without audit trails |
+| Durable train **benches** (A800 organs) | Burning unlimited GPU only on TinyLM forever |
+| Industry-grade standards for multi-agent work | Cargo-cult open-source fashion |
+
+**Success metric:** a human + many AIs can run real work with **evidence, gates, and recovery** — not that we published another 405B GGUF.
+
+### 11.3 Knowledge advantage without Mythos access
+
+We do **not** have Anthropic Mythos weights or partner “glasswing” insider dump access. We **do** have something most glasswing-adjacent partner programs never assemble in one place:
+
+- deep **Fable5 / Mythos research** (ARCHIVIST + ERNIE PART02 + NEXUS docs)
+- **GPT-5.x / Sol / multi-lab** assessments and traces from **legitimate single-account spend**
+- paper warehouses (PAPERS 01–14), ERNIE adversarial defense science
+- live code: TrustKernel, CHD, TokenHD socket, fable_engine, GMR, vault, benches
+- cloud train proof: Intern **A800** durable GH ticks + TokenHD scaffold path
+
+That is **curation density**, not stolen access. When a model “humors” a release or a paid lane is available, operator curates **everything findable** into ARCHIVIST/NEXUS — then we **forge** it into NEXUS-shaped intelligence.
+
+### 11.4 Paid legitimate traces are first-class training property
+
+**Operator doctrine (2026-07-11):**
+
+Traces produced under **our own token spend**, on **one legitimate official account**, for NEXUS-related work, are **ours to train on** after capture, redaction, and provenance tagging. This is **not** swarm free-usage scamming or multi-account harvest.
+
+| Class | Policy |
+|-------|--------|
+| Operator-paid frontier sessions (Fable5, GPT-class, Claude-class, Sol, Intern, …) | **Trainable** under operator authority · private · tagged `source=operator_paid_frontier` |
+| Open Hub jewels (Toucan-1.5M, ToolACE, xLAM-60k, SWE OpenHands trajs, OpenThoughts-Agent, …) | **Trainable** · preferred public diversity |
+| Random Hub “someone else’s fable distill” scrapes | Prefer **our** archives over anonymous mirrors |
+| Eval holdouts / BFCL / Trust Ledger probes | **Never train on frozen holdout** |
+
+**Historical plan language** that said “Fable-5 CoT is REFERENCE/EVAL-ONLY” remains the **default safety posture for agents who lack operator override**. It is **not** a permanent ban when the operator explicitly promotes paid/owned corpora into `trainable`. Residual commercial ToS risk is **operator-accepted (B3)**, not an excuse to freeze elevation forever.
+
+**Local proprietary jewels already held (examples):**
+
+- `ARCHIVIST/PAPERS/DATASETs/fable5_cot_merged.jsonl`
+- `ARCHIVIST/PAPERS/DATASETs/Claude-Opus-4.7-4.8-DeepReason-462x-105M.jsonl`
+- ongoing single-account session harvests under NEXUSlogs / ARCHIVIST
+
+### 11.5 A800 and TokenHD — organs, not foundation-model vanity
+
+Unlimited Intern **A800** (`NEXUS_scientist_v0.1`) is the **durable train bench** for NEXUS **organs**:
+
+1. Conveyor health (CUDA ticks, GH proof, clean notebook automation)  
+2. **TokenHD** detector (~0.6B-class) plugged into existing `tokenhd_lane` / CHD (weight stays 0 until dark eval + F-2)  
+3. Later F-2-gated: guard LoRA / RIFT / small distill — still **not** a 1T base model  
+
+**Public crown data** (e.g. **Agent-Ark/Toucan-1.5M** MCP tool-agent scale) plus **private frontier CoT** is the elevation mix. Glaive/APIGen-MT remain **ballast**, not the identity of the system.
+
+Intel pack (living):  
+`Downloads/ARCHIVIST/reports/GROK45_A800_NEXUS_INTEL_2026-07-11/` (V1–V4)
+
+### 11.6 Open-source intelligence partnership — social future, not only code
+
+NEXUS aims to solidify **industry standards** for a future where humans and many AIs partner in the open:
+
+- **Evidence over vibes** — A2A evidence gates, VAP, cycle-check, grounding  
+- **Governance as product** — TrustKernel in the critical path; commercial use means compliance culture, not only license text  
+- **Multi-model honesty** — heterogeneous guards (ERNIE lesson): no mono-culture detector  
+- **Local dignity** — private SLMs + uncensored lanes under gate, not total cloud dependence  
+- **Paid knowledge is legitimate capital** — single-account professional spend is not “scam scrape”; it is how independent labs stay current without Mythos partner seats  
+- **Community enforcement** — transparent audits and technical enforcement beat pure lawyer-theater  
+
+The social bet: **ungoverned agent swarms become a liability**; the org that defines **governed multi-agent standards** becomes infrastructure. That is classier than racing parameter counts.
+
+### 11.7 Anti-drift rules for all agents
+
+1. Do **not** reframe NEXUS as “we must train a frontier foundation model.”  
+2. Do **not** discard operator-paid Fable5/GPT/Claude/Sol traces by default textbook open-source purity.  
+3. Do **not** treat 2023 100MB FC datasets as the ceiling — pull **jewels** (Toucan, SWE agent trajs, modern agent SFT).  
+4. Do **not** flip TokenHD weight or DPO without operator/F-2 discipline.  
+5. Do **keep** durable proof (GH, project disk, ARCHIVIST reports) over chat claims.  
+6. Prefer **versatile organs + governance** over large concepts that impress public normie timelines but do not serve this OS.
+
+### 11.8 Living pointer
+
+- **Root living summary:** `NEXUS_MANIFEST.md` (repo root)  
+- **This full vision:** `docs/governance/NEXUS_OS_VISION_MANIFEST_2026.md`  
+- **Agent protocol:** `AGENTS.md`  
+- **Canonical state:** `01_PROJECT_STATE.md`  
+- **Upgraded plan:** `docs/plans/NEXUS_UPGRADED_PLAN_2026-07-08.md`  
+
+---
+
+*Amendment written for all NEXUS agents and the operator — Grok 4.5, 2026-07-11.*  
+*Original sections 0–10 remain historical spine; §11 is binding operator clarification.*

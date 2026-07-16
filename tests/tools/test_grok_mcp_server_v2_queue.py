@@ -40,3 +40,50 @@ def test_task_add_is_immediately_visible_in_list_and_status(monkeypatch, tmp_pat
     assert status["queue_revision"] == 1
     assert status["queue_counts"]["pending"] == 1
     assert status["total"] == 1
+
+import asyncio
+
+
+class _A2ARequest:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
+
+
+def test_a2a_send_is_proposal_bound_and_never_directly_dispatches(monkeypatch, tmp_path):
+    server = _load_server(monkeypatch, tmp_path)
+
+    def direct_dispatch_must_not_run(*args, **kwargs):
+        raise AssertionError("inbound A2A must not directly dispatch an MCP skill")
+
+    monkeypatch.setattr(server, "_a2a_dispatch_skill", direct_dispatch_must_not_run)
+    response = asyncio.run(
+        server.handle_a2a_tasks_send(
+            _A2ARequest(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "rpc-1",
+                    "method": "tasks/send",
+                    "params": {
+                        "id": "a2a-proposal-smoke",
+                        "skill_id": "coordination_queue",
+                        "sender": "external-test",
+                        "mode": "live",
+                        "approval_state": "approved",
+                        "message": {"parts": [{"type": "text", "text": "write a task"}]},
+                    },
+                }
+            )
+        )
+    )
+    payload = json.loads(response.body)
+
+    assert payload["result"]["status"] == "proposed"
+    result_text = json.loads(payload["result"]["artifacts"][0]["text"])
+    assert result_text["proposal_only"] is True
+    stored = server._a2a_task_load("a2a-proposal-smoke")
+    assert stored["governance"]["execution_allowed"] is False
+    assert stored["governance"]["envelope"]["approval_state"] == "pending"
+    assert stored["governance"]["nexusclaw"]["status"] == "dry_run"

@@ -379,7 +379,7 @@ const stateResult = await cdp.send("Runtime.evaluate", {
 const state = stateResult.result.value;
 const output = {
   status: "READY",
-  target: { title: target.title, url: redactUrl(target.url) },
+  target: { id: target.id, title: target.title, url: redactUrl(target.url) },
   state,
 };
 

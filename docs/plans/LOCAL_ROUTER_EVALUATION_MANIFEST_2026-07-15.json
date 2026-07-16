@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "kind": "nexus.local_router_evaluation_manifest",
+  "status": "evaluation_only",
+  "generated_at": "2026-07-15",
+  "scope": {
+    "purpose": "Shadow-evaluate a small local intent or tool-shape router without altering the active relay, registry, or client defaults.",
+    "no_model_downloads_by_this_manifest": true,
+    "registry_auto_registration": false,
+    "relay_auto_routing": false,
+    "promotion_requires_operator_approval": true
+  },
+  "hard_limits": {
+    "artifact_size_limit_mb": 500,
+    "runtime_modes": [
+      "cpu",
+      "low_vram"
+    ],
+    "no_unmeasured_runtime_memory_claim": true,
+    "local_8gb_ceiling_remains_in_force": true
+  },
+  "router_contract": {
+    "mode": "shadow_only",
+    "valid_intents": [
+      "GOVERNANCE",
+      "EXECUTION",
+      "ADMIN",
+      "BLOCKED"
+    ],
+    "minimum_confidence": 0.85,
+    "unknown_or_malformed_output": "BLOCKED",
+    "side_effects": "prohibited",
+    "required_measurements": [
+      "artifact_filename_size_and_sha256",
+      "cold_and_warm_peak_rss_mb",
+      "cold_and_warm_peak_vram_mb_when_used",
+      "valid_json_rate",
+      "intent_macro_f1_and_per_class_recall",
+      "false_allow_rate_for_malformed_unknown_and_low_confidence_outputs",
+      "p50_and_p95_latency_ms"
+    ]
+  },
+  "candidates": [
+    {
+      "id": "HuggingFaceTB/SmolLM2-360M-Instruct",
+      "artifact": "onnx/model_q4.onnx",
+      "artifact_size_mb": 388,
+      "artifact_size_evidence": "upstream_repository_metadata",
+      "source_url": "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct/tree/refs/pr/10/onnx",
+      "source_evidence_strength": "medium_pinned_revision_required",
+      "source_observed_at": "2026-07-15",
+      "license": "apache-2.0",
+      "proposed_role": "generic intent-classification shadow baseline",
+      "function_calling_evidence": "not_established",
+      "admission_status": "eligible_for_artifact_verification_only",
+      "operational_status": "not_verified_for_this_evaluation_not_routable"
+    },
+    {
+      "id": "google/functiongemma-270m-it",
+      "artifact": null,
+      "artifact_size_mb": null,
+      "artifact_size_evidence": "not_yet_captured_for_the_selected_runtime",
+      "source_url": "https://ai.google.dev/gemma/docs/functiongemma",
+      "source_evidence_strength": "high_official_documentation",
+      "source_observed_at": "2026-07-15",
+      "license": "requires_hugging_face_license_acknowledgement_before_access",
+      "proposed_role": "defined-tool-surface function-call schema shadow candidate",
+      "function_calling_evidence": "upstream_positions_it_for_defined_api_surfaces_and_fine_tuning",
+      "admission_status": "requires_license_format_and_memory_measurement",
+      "operational_status": "not_verified_for_this_evaluation_not_routable"
+    },
+    {
+      "id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "artifact": "upstream_bf16_weights",
+      "artifact_size_mb": 988,
+      "artifact_size_evidence": "upstream_repository_metadata",
+      "source_url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+      "source_evidence_strength": "high_official_model_card",
+      "source_observed_at": "2026-07-15",
+      "license": "apache-2.0",
+      "proposed_role": "comparison_only",
+      "function_calling_evidence": "not_established_for_this_router_contract",
+      "admission_status": "excluded_from_strict_500mb_artifact_lane_until_a_pinned_quantized_artifact_is_verified",
+      "operational_status": "not_verified_for_this_evaluation_not_routable"
+    }
+  ],
+  "promotion_gates": [
+    "pin exact upstream revision and record artifact sha256",
+    "verify applicable license and access conditions",
+    "run offline shadow corpus with no external tool execution",
+    "meet the router contract without a false allow",
+    "measure CPU and GPU memory against the declared deployment mode",
+    "record reproducible benchmark artifact and rollback plan",
+    "obtain explicit governed operator approval before registry or relay changes"
+  ]
+}

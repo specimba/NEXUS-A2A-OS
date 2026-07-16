@@ -5,8 +5,9 @@ Builds chosen/rejected preference pairs for guard-model DPO training:
   GuardAdversarialGenerator (unsafe), 50/50 — the unsafe samples are
   guard-training CLASSIFICATION INPUTS from the existing tested
   generator, reused rather than duplicated here;
-- chosen: intern-s2-preview (Oracle Judge, 30 RPM paced via the relay's
-  SlidingWindowRPMTracker) authors the correct verdict + reasoning —
+- chosen: deepseek-v4-pro (Oracle Judge label author, serial 4 RPM with
+  15-second spacing and a 75-second 429 cooldown) authors the correct verdict
+  + reasoning —
   validated against ground truth, retried once, template fallback;
 - rejected: opposite verdict with plausible-but-wrong reasoning.
 
@@ -22,6 +23,8 @@ import json
 import random
 import sys
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -37,9 +40,12 @@ from nexus_os.dataset_forge.generators import (  # noqa: E402
 from nexus_os.relay.quota import SlidingWindowRPMTracker  # noqa: E402
 from nexus_os.security.secrets import get_secret  # noqa: E402
 
-INTERN_BASE = "https://chat.intern-ai.org.cn/api/v1"
-JUDGE_MODEL = "intern-s2-preview"
-JUDGE_RPM = 30
+NIM_BASE = "https://integrate.api.nvidia.com/v1"
+JUDGE_MODEL = "deepseek-ai/deepseek-v4-pro"
+# Match the canonical registry's DeepSeek V4 Pro serial-use constraint.
+JUDGE_RPM = 4
+JUDGE_MIN_START_INTERVAL_S = 15.0
+JUDGE_429_COOLDOWN_FLOOR_S = 75.0
 DEFAULT_OUT = REPO / "datasets" / "finetune" / "guard_dpo_v1.jsonl"
 
 GUARD_PROMPT = (
@@ -106,52 +112,90 @@ def _sample_texts(count: int, seed: int) -> list:
     return samples
 
 
+def _retry_after_seconds(headers: object) -> float:
+    """Parse Retry-After without turning malformed values into a retry storm."""
+    raw = None
+    if hasattr(headers, "get"):
+        raw = headers.get("retry-after") or headers.get("Retry-After")
+    if raw is None:
+        return 0.0
+    try:
+        return max(0.0, min(float(str(raw).strip()), 900.0))
+    except (TypeError, ValueError):
+        try:
+            parsed = parsedate_to_datetime(str(raw))
+        except (TypeError, ValueError, IndexError):
+            return 0.0
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return max(0.0, min((parsed - datetime.now(timezone.utc)).total_seconds(), 900.0))
+
+
 class OracleJudge:
-    """intern-s2 gold-label author, RPM-paced, ground-truth validated."""
+    """DeepSeek V4 Pro label author with serial, bounded NIM dispatch."""
 
     def __init__(self):
         import requests
 
         self._requests = requests
-        self.key = get_secret("INTERNAI_API_KEY", provider="internai")
+        self.key = get_secret("NVIDIA_API_KEY", provider="nvidia")
         self.tracker = SlidingWindowRPMTracker(rpm_limit=JUDGE_RPM)
         self.calls = 0
         self.fallbacks = 0
+        self._last_dispatch_monotonic: float | None = None
         self._rng = random.Random(7)
 
     def available(self) -> bool:
         return bool(self.key)
 
+    def _wait_for_dispatch_slot(self) -> None:
+        """Enforce both sliding-window quota and minimum serial spacing."""
+        allowed, backoff, _util = self.tracker.can_proceed()
+        elapsed = (
+            float("inf") if self._last_dispatch_monotonic is None
+            else time.monotonic() - self._last_dispatch_monotonic
+        )
+        spacing = max(0.0, JUDGE_MIN_START_INTERVAL_S - elapsed)
+        if not allowed:
+            delay = max(backoff, spacing, JUDGE_MIN_START_INTERVAL_S)
+        else:
+            delay = max(backoff, spacing)
+        if delay > 0:
+            time.sleep(delay)
+
     def author_chosen(self, text: str, label: str) -> str:
         for _attempt in range(2):
-            allowed, backoff, _util = self.tracker.can_proceed()
-            if not allowed:
-                time.sleep(max(backoff, 2.0))
-            elif backoff > 0:
-                time.sleep(min(backoff, 3.0))
+            self._wait_for_dispatch_slot()
+            # Count at dispatch time: failed calls still consume NIM budget.
+            self.tracker.record_request()
+            self._last_dispatch_monotonic = time.monotonic()
+            self.calls += 1
             try:
                 resp = self._requests.post(
-                    f"{INTERN_BASE}/chat/completions",
-                    headers={"Authorization": f"Bearer {self.key}"},
+                    f"{NIM_BASE}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"},
                     json={
                         "model": JUDGE_MODEL,
                         "messages": [
                             {"role": "system", "content": JUDGE_SYSTEM.format(label=label)},
                             {"role": "user", "content": GUARD_PROMPT.format(text=text)},
                         ],
-                        # intern-s2's deep-thinking preamble is long; a small
-                        # budget truncates BEFORE the real final answer (smoke
-                        # review #2), leaving only spec echoes to extract.
+                        # DeepSeek V4 Pro may emit reasoning before its final
+                        # line; retain enough budget for a valid verdict.
                         "max_tokens": 700,
                         "temperature": 0.3,
                     },
                     timeout=60,
                 )
-                self.tracker.record_request()
-                self.calls += 1
+                if getattr(resp, "status_code", None) == 429:
+                    retry_after = _retry_after_seconds(getattr(resp, "headers", {}))
+                    time.sleep(max(JUDGE_429_COOLDOWN_FLOOR_S, retry_after))
+                    continue
                 if resp.ok:
+                    payload = resp.json()
                     raw = (
-                        resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                        payload.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        if isinstance(payload, dict) else ""
                     ).strip()
                     content = self._extract_final_verdict(raw, label)
                     if content:
@@ -165,7 +209,7 @@ class OracleJudge:
     def _extract_final_verdict(raw: str, label: str) -> str:
         """Pull the FINAL answer line from possibly-thinking-mode output.
 
-        intern-s2's reasoning preamble can itself contain 'VERDICT:' while
+        deepseek-v4-pro's reasoning can itself contain 'VERDICT:' while
         discussing the format (caught in the 20-pair smoke review), so:
         take the LAST verdict line, require the true label, and reject
         lines leaking judge-instruction language.
@@ -202,7 +246,7 @@ def generate_pairs(count: int, seed: int = 42, offline: bool = False):
     samples = _sample_texts(count, seed)
     judge = None if offline else OracleJudge()
     if judge is not None and not judge.available():
-        print("WARNING: no InternAI key resolvable — falling back to offline templates", file=sys.stderr)
+        print("WARNING: no NVIDIA API key resolvable — falling back to offline templates", file=sys.stderr)
         judge = None
     rng = random.Random(seed)
 

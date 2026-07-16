@@ -71,8 +71,8 @@ def test_registry_debug_exposes_schema_hashes_without_changing_tool_count(monkey
 
     registry = json.loads(server.handle_registry_debug())
 
-    assert registry["tool_count"] == 22
-    assert registry["mcp_tool_count"] == 22
+    assert registry["tool_count"] == 25
+    assert registry["mcp_tool_count"] == 25
     assert registry["l1_registry_schema_hash"] is True
     assert registry["l3_output_taint"] is True
     assert registry["schema_drift_decision"]["allowed"] is True

@@ -20,6 +20,16 @@ BRAIN_API_WS = os.getenv("NEXUS_BRAIN_WS", "ws://127.0.0.1:7352/ws")
 BRAIN_API_HTTP = os.getenv("NEXUS_BRAIN_HTTP", "http://127.0.0.1:7352")
 
 
+def _brain_auth_headers() -> Dict[str, str]:
+    """Resolve the canonical Brain credential without logging or caching it."""
+    from nexus_os.api.brain_api import get_brain_api_token
+
+    token = get_brain_api_token()
+    if not token:
+        raise RuntimeError("Brain API token unavailable")
+    return {"X-Api-Key": token}
+
+
 class DashboardSync:
     """Keeps the browser dashboard in sync with NEXUS unified state."""
 
@@ -82,7 +92,10 @@ class DashboardSync:
         while self.running:
             try:
                 import websockets
-                async with websockets.connect(BRAIN_API_WS) as ws:
+                async with websockets.connect(
+                    BRAIN_API_WS,
+                    additional_headers=_brain_auth_headers(),
+                ) as ws:
                     self._ws_connected = True
                     retry_delay = 1.0
                     await ws.send(json.dumps({

@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import tempfile
+import time
 import threading
 from pathlib import Path
 from typing import Any, Iterable
@@ -305,6 +306,301 @@ class ReliableGroundingStore:
             ),
         )
 
+    def audit_ledger(self) -> dict[str, Any]:
+        """Report corrupt ledger rows by metadata without exposing row content."""
+        empty = {
+            "ledger": str(self.ledger_path),
+            "file_bytes": 0,
+            "physical_lines": 0,
+            "nonblank_lines": 0,
+            "file_ends_with_newline": False,
+            "snapshot_stable": True,
+            "invalid_count": 0,
+            "invalid_records": [],
+        }
+        if not self.ledger_path.exists():
+            return empty
+
+        invalid_records: list[dict[str, Any]] = []
+        nonblank_lines = 0
+        physical_lines = 0
+        last_line_has_eol = False
+        with self._lock:
+            stat_before = self.ledger_path.stat()
+            with self.ledger_path.open("rb") as handle:
+                for physical_lines, raw_with_eol in enumerate(handle, start=1):
+                    raw = raw_with_eol.rstrip(b"\r\n")
+                    last_line_has_eol = raw_with_eol.endswith((b"\n", b"\r"))
+                    if not raw.strip():
+                        continue
+                    nonblank_lines += 1
+                    error: str | None = None
+                    detail: dict[str, Any] | None = None
+                    try:
+                        text = raw.decode("utf-8")
+                    except UnicodeDecodeError as exc:
+                        error = "invalid_utf8"
+                        detail = {"start": exc.start, "end": exc.end}
+                    else:
+                        try:
+                            payload = json.loads(text)
+                        except json.JSONDecodeError as exc:
+                            error = "json_decode"
+                            detail = {
+                                "pos": exc.pos,
+                                "lineno": exc.lineno,
+                                "colno": exc.colno,
+                            }
+                        else:
+                            if not isinstance(payload, dict):
+                                error = "non_object_json"
+                                detail = {"json_type": type(payload).__name__}
+                            elif not self._checksum_is_valid(payload):
+                                error = "checksum_mismatch"
+                            else:
+                                try:
+                                    GroundingEvent.from_dict(payload)
+                                except Exception as exc:
+                                    error = "event_validation"
+                                    detail = {
+                                        "exception_type": type(exc).__name__,
+                                    }
+                    if error is not None:
+                        invalid_records.append(
+                            {
+                                "line_no": physical_lines,
+                                "byte_length": len(raw),
+                                "sha256": "sha256:"
+                                + hashlib.sha256(raw).hexdigest(),
+                                "error": error,
+                                "detail": detail,
+                                "line_has_eol": last_line_has_eol,
+                                "is_final_physical_line": False,
+                            }
+                        )
+            stat_after = self.ledger_path.stat()
+
+        for record in invalid_records:
+            record["is_final_physical_line"] = (
+                record["line_no"] == physical_lines
+            )
+        return {
+            "ledger": str(self.ledger_path),
+            "file_bytes": stat_before.st_size,
+            "physical_lines": physical_lines,
+            "nonblank_lines": nonblank_lines,
+            "file_ends_with_newline": last_line_has_eol,
+            "snapshot_stable": (
+                stat_before.st_size == stat_after.st_size
+                and stat_before.st_mtime_ns == stat_after.st_mtime_ns
+            ),
+            "invalid_count": len(invalid_records),
+            "invalid_records": invalid_records,
+        }
+
+    @staticmethod
+    def _normalized_sha256(value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized.startswith("sha256:"):
+            digest = normalized.removeprefix("sha256:")
+        else:
+            digest = normalized
+        if len(digest) != 64 or any(
+            character not in "0123456789abcdef" for character in digest
+        ):
+            raise ValueError("invalid_expected_sha256")
+        return "sha256:" + digest
+
+    def quarantine_ledger_record(
+        self,
+        *,
+        expected_line: int,
+        expected_sha256: str,
+    ) -> dict[str, Any]:
+        """Back up the ledger and atomically quarantine one exact corrupt row."""
+        self._require_writable()
+        if expected_line < 1:
+            raise ValueError("invalid_expected_line")
+        normalized_sha256 = self._normalized_sha256(expected_sha256)
+
+        with self._lock:
+            audit = self.audit_ledger()
+            if not audit["snapshot_stable"]:
+                raise RuntimeError("ledger_snapshot_unstable")
+            matches = [
+                record
+                for record in audit["invalid_records"]
+                if record["line_no"] == expected_line
+                and record["sha256"] == normalized_sha256
+            ]
+            if len(matches) != 1:
+                raise ValueError("expected_record_does_not_match_current_audit")
+            matched = matches[0]
+
+            token = f"{time.time_ns()}-{normalized_sha256[-12:]}"
+            quarantine_dir = self.root / "ledger_quarantine"
+            quarantine_dir.mkdir(parents=True, exist_ok=True)
+            lock_path = self.root / ".ledger_repair.lock"
+            backup_path = quarantine_dir / f"events-{token}.jsonl.bak"
+            manifest_path = quarantine_dir / f"repair-{token}.json"
+            backup_temp = quarantine_dir / f".events-{token}.bak.tmp"
+            repaired_temp = self.root / f".events-{token}.repair.tmp"
+            manifest_temp = quarantine_dir / f".repair-{token}.json.tmp"
+
+            def _persist_manifest(payload: dict[str, Any]) -> None:
+                with manifest_temp.open(
+                    "x",
+                    encoding="utf-8",
+                    newline="\n",
+                ) as handle:
+                    json.dump(
+                        payload,
+                        handle,
+                        ensure_ascii=True,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    handle.write("\n")
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(manifest_temp, manifest_path)
+                os.chmod(manifest_path, 0o600)
+
+            try:
+                lock_fd = os.open(
+                    lock_path,
+                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                    0o600,
+                )
+            except FileExistsError as exc:
+                raise RuntimeError("ledger_repair_lock_exists") from exc
+
+            try:
+                os.write(lock_fd, f"{os.getpid()}\n".encode("ascii"))
+                os.fsync(lock_fd)
+                stat_before = self.ledger_path.stat()
+                before_hasher = hashlib.sha256()
+                after_hasher = hashlib.sha256()
+                found = 0
+
+                try:
+                    with (
+                        self.ledger_path.open("rb") as source,
+                        backup_temp.open("xb") as backup,
+                        repaired_temp.open("xb") as repaired,
+                    ):
+                        for line_no, raw_with_eol in enumerate(source, start=1):
+                            before_hasher.update(raw_with_eol)
+                            backup.write(raw_with_eol)
+                            raw = raw_with_eol.rstrip(b"\r\n")
+                            if line_no == expected_line:
+                                actual_sha256 = (
+                                    "sha256:" + hashlib.sha256(raw).hexdigest()
+                                )
+                                if actual_sha256 != normalized_sha256:
+                                    raise ValueError(
+                                        "expected_record_changed_during_repair"
+                                    )
+                                found += 1
+                                continue
+                            repaired.write(raw_with_eol)
+                            after_hasher.update(raw_with_eol)
+                        backup.flush()
+                        os.fsync(backup.fileno())
+                        repaired.flush()
+                        os.fsync(repaired.fileno())
+
+                    stat_after_stream = self.ledger_path.stat()
+                    if (
+                        stat_before.st_size != stat_after_stream.st_size
+                        or stat_before.st_mtime_ns
+                        != stat_after_stream.st_mtime_ns
+                    ):
+                        raise RuntimeError("ledger_changed_during_repair")
+                    if found != 1:
+                        raise ValueError("expected_record_not_found_during_repair")
+
+                    os.replace(backup_temp, backup_path)
+                    os.chmod(backup_path, 0o600)
+                    stat_before_replace = self.ledger_path.stat()
+                    if (
+                        stat_before.st_size != stat_before_replace.st_size
+                        or stat_before.st_mtime_ns
+                        != stat_before_replace.st_mtime_ns
+                    ):
+                        raise RuntimeError("ledger_changed_before_replace")
+
+
+                    repair_started_at_ns = int(token.split("-", 1)[0])
+                    ledger_before = {
+                        "bytes": stat_before.st_size,
+                        "sha256": "sha256:" + before_hasher.hexdigest(),
+                    }
+                    ledger_after_candidate = {
+                        "bytes": repaired_temp.stat().st_size,
+                        "sha256": "sha256:" + after_hasher.hexdigest(),
+                    }
+                    manifest_base = {
+                        "schema_version": 1,
+                        "operation": "grounding_ledger_quarantine",
+                        "ledger": str(self.ledger_path),
+                        "backup": str(backup_path),
+                        "manifest": str(manifest_path),
+                        "record": {
+                            "line_no": expected_line,
+                            "byte_length": matched["byte_length"],
+                            "sha256": normalized_sha256,
+                            "error": matched["error"],
+                        },
+                        "ledger_before": ledger_before,
+                        "ledger_after": ledger_after_candidate,
+                        "raw_record_in_manifest": False,
+                        "raw_record_preserved_in_backup": True,
+                        "rollback": {
+                            "action": "replace_ledger_with_backup",
+                            "backup": str(backup_path),
+                        },
+                    }
+                    prepared_manifest = {
+                        **manifest_base,
+                        "status": "prepared",
+                        "prepared_at_ns": repair_started_at_ns,
+                        "recovery": {
+                            "action": "compare_hash_then_restore_backup",
+                            "before_sha256": ledger_before["sha256"],
+                            "candidate_after_sha256": ledger_after_candidate["sha256"],
+                        },
+                    }
+                    _persist_manifest(prepared_manifest)
+
+                    original_mode = stat_before.st_mode & 0o777
+                    os.chmod(repaired_temp, original_mode or 0o600)
+                    os.replace(repaired_temp, self.ledger_path)
+
+                    with self._connect() as connection:
+                        connection.execute("DELETE FROM events")
+                        connection.execute("DELETE FROM file_state")
+
+                    rebuild = self.rebuild_index()
+                    post_audit = self.audit_ledger()
+                    manifest = {
+                        **manifest_base,
+                        "status": "applied",
+                        "prepared_at_ns": repair_started_at_ns,
+                        "applied_at_ns": time.time_ns(),
+                        "rebuild": rebuild,
+                        "remaining_invalid_count": post_audit["invalid_count"],
+                    }
+                    _persist_manifest(manifest)
+                    return manifest
+                finally:
+                    backup_temp.unlink(missing_ok=True)
+                    repaired_temp.unlink(missing_ok=True)
+                    manifest_temp.unlink(missing_ok=True)
+            finally:
+                os.close(lock_fd)
+                lock_path.unlink(missing_ok=True)
+
     def rebuild_index(self) -> dict[str, int]:
         """Replay valid ledger records and report malformed/checksum-failed lines."""
         corrupt = 0
@@ -356,6 +652,22 @@ class ReliableGroundingStore:
             "mtime_ns": row[1],
             "content_hash": row[2],
             "last_event_id": row[3],
+        }
+
+    def file_state_snapshot(self) -> dict[str, dict[str, Any]]:
+        """Load the incremental manifest once for a whole reconciliation pass."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT path, size, mtime_ns, content_hash, last_event_id FROM file_state"
+            ).fetchall()
+        return {
+            str(row[0]): {
+                "size": row[1],
+                "mtime_ns": row[2],
+                "content_hash": row[3],
+                "last_event_id": row[4],
+            }
+            for row in rows
         }
 
     def forget_path(self, path: Path) -> None:

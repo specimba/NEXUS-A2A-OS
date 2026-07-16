@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -33,8 +34,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-FUGU_STATE_PATH = Path("~/.nexus_pi/state/fugu_worker_rewards.json").expanduser()
-FUGU_HEAD_PATH = Path("~/.nexus_pi/state/fugu_head.json").expanduser()
+FUGU_STATE_DIR = Path(
+    os.environ.get("NEXUS_PI_STATE_DIR", "~/.nexus_pi/state")
+).expanduser()
+FUGU_STATE_PATH = FUGU_STATE_DIR / "fugu_worker_rewards.json"
+FUGU_HEAD_PATH = FUGU_STATE_DIR / "fugu_head.json"
 
 
 @dataclass
@@ -133,7 +137,8 @@ class FuguDispatcher:
     softmax(reward / temperature). Uses optional trained head for predict-then-
     route workflow.
 
-    State persists to ~/.nexus_pi/state/fugu_worker_rewards.json
+    State persists to ~/.nexus_pi/state/fugu_worker_rewards.json by default,
+    or ``NEXUS_PI_STATE_DIR`` when the runtime needs an isolated state root.
     """
 
     def __init__(

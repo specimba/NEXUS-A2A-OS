@@ -22,7 +22,9 @@ param(
 $ErrorActionPreference = 'Continue'
 $Root        = 'C:\Users\speci.000\Documents\NEXUS'
 $Logs        = Join-Path $Root 'logs\gateway'
-$ModelRelayJs= "$env:APPDATA\npm\node_modules\modelrelay\bin\modelrelay.js"
+$ModelRelayRuntime = "$Root\scripts\modelrelay_runtime.ps1"
+$Pwsh       = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $Pwsh) { $Pwsh = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
 $Node        = (Get-Command node -ErrorAction SilentlyContinue).Source
 $Python      = "$Root\.venv\Scripts\python.exe"
 $DashBat7355 = "$Root\scripts\start_python_relay_7355.bat"
@@ -53,9 +55,10 @@ function Start-IfDead([string]$Label,[int]$Port,[string]$ProbePath,[scriptblock]
     return (Test-Listening $Port)
 }
 
-# 7350 Node ModelRelay
+# 7350 repo-owned governed ModelRelay
 $r0 = Start-IfDead 'Node ModelRelay' 7350 '/' {
-    Start-Process -NoNewWindow -FilePath $Node -ArgumentList "$ModelRelayJs","--port","7350","--config","$env:USERPROFILE\.modelrelay.json" -RedirectStandardOutput "$Logs\modelrelay_7350.out.log" -RedirectStandardError "$Logs\modelrelay_7350.err.log"
+    if (-not $Pwsh -or -not (Test-Path $ModelRelayRuntime)) { throw 'repo ModelRelay runtime missing' }
+    Start-Process -WindowStyle Hidden -FilePath $Pwsh -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ModelRelayRuntime,'-Port','7350','-ConfigPath',"$env:USERPROFILE\.modelrelay.json",'-Bind','0.0.0.0') -RedirectStandardOutput "$Logs\modelrelay_7350.out.log" -RedirectStandardError "$Logs\modelrelay_7350.err.log"
 }
 
 # 7355 Python relay (detached batch with built-in retry loop)

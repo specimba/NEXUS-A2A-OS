@@ -1,0 +1,12 @@
+Write file /data/NEXUS/m0_prep/SESSION_STATE.md with exact content below, then cat it. No other installs. No training.
+
+# NEXUS A100 session state
+- machine: NEXUS-GPU-test2 nb-582b5f51afb6b085773ce464c2654850
+- gpu: NVIDIA A100-SXM4-80GB
+- torch: 2.4.0+cu124 cuda=true
+- data_fs: JuiceFS /data ~30G
+- hermes_longrun: 2026-07-15
+- next: M0 baseline prep only (no train until NXM-020 preconditions)
+- smoke_log: /data/NEXUS/logs/hermes_gpu_smoke.json
+
+Also run: cat /data/NEXUS/logs/hermes_gpu_smoke.json; ls -la /data/NEXUS/m0_prep /data/NEXUS/logs | head -40

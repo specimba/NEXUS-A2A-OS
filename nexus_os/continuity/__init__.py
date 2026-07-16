@@ -18,6 +18,7 @@ from .records import (
     classify_writer_identity,
     default_ledger_path,
     fence_record,
+    prepare_record,
     proof_attached,
     read_records,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "classify_writer_identity",
     "default_ledger_path",
     "fence_record",
+    "prepare_record",
     "proof_attached",
     "read_records",
 ]

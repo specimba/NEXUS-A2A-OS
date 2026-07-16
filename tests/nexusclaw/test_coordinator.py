@@ -47,8 +47,10 @@ def test_runtime_config_rejects_cloud_fallback():
 def test_modelrelay_defaults_are_lazy_and_node_port():
     assert model_relay.HEALTH_CHECK_INTERVAL_S == 0
     assert model_relay.STARTUP_PORT == 7355
-    assert TelemetryIngest().url == "http://localhost:7350/api/models"
-    assert GeniusModelRotator().telemetry.url == "http://localhost:7350/api/models"
+    # Prefer health-aware canonical routes; raw /v1/models remains a compatibility fallback.
+    assert TelemetryIngest().url == "http://127.0.0.1:7356/api/client-manifest"
+    assert "http://127.0.0.1:7350/v1/models" in TelemetryIngest().urls
+    assert "http://127.0.0.1:7350/api/models" in TelemetryIngest().urls
 
 
 def test_propose_and_dispatch_dry_run_result_envelope():

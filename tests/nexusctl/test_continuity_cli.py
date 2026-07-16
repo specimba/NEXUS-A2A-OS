@@ -73,3 +73,24 @@ def test_continuity_corrupt_tail_degrades_without_rewrite(monkeypatch, tmp_path)
     assert payload["status"] == "degraded"
     assert payload["ledger"]["corrupt_tail"] is True
     assert ledger.read_text(encoding="utf-8").endswith("{bad-tail")
+
+
+def test_continuity_close_returns_the_persisted_fenced_row(monkeypatch, tmp_path):
+    ledger = tmp_path / "runs.jsonl"
+    proofless = _args(
+        "close",
+        input_fingerprint="in-1",
+        output_fingerprint="out-1",
+        test=["claimed-browser-test"],
+        origin="browser",
+    )
+    monkeypatch.setenv("NEXUS_CONTINUITY_LEDGER", str(ledger))
+
+    code, payload = run_continuity(proofless)
+
+    assert code == 0
+    assert payload["record"]["verification"] == "UNVERIFIED"
+    assert payload["record"]["evidence_grade"] == "E0"
+    assert payload["record"]["fenced"] is True
+    rows, _ = read_records(ledger)
+    assert rows[-1].to_dict() == payload["record"]

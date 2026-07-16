@@ -1,0 +1,34 @@
+QUARANTINED ENVIRONMENT MARKER
+================================
+
+The main WSL Python environment was poisoned on 2026-07-13 when a PaddleOCR
+install (via Kilo lane) downgraded numpy (2.4.3 -> 2.3.5) and safetensors,
+which broke unsloth and mergekit imports.
+
+DO NOT use the main env for training tooling until NXM-041 repairs it.
+DO NOT delete the main env — it still has packages that may be needed.
+
+The clean venv for NEXUS training TOOLING (not training itself — remote A800
+cells use HF/trl/peft, not local ML frameworks) is at:
+
+    ~/venvs/nexus-tooling
+
+Created by: NXM-012 (HERMES session, 2026-07-15)
+Python: 3.13.13 (via uv venv)
+Installed: pyyaml, requests, httpx, nltk (transitive: urllib3, idna, regex, tqdm)
+Usage: PYTHONPATH=/mnt/c/Users/speci.000/Documents/NEXUS ~/venvs/nexus-tooling/bin/python <script>
+
+What works:
+  - nexus_os.dataset_forge.generators (GuardSafeGenerator, GuardAdversarialGenerator)
+  - nexus_os.finetune.rift (rift_loss)
+  - nexus_os.relay.quota (SlidingWindowRPMTracker)
+  - nexus_os.security.secrets (get_secret)
+  - scripts/finetune/gen_guard_dpo_pairs.py --offline --count N
+
+What is NOT here (by design):
+  - unsloth, mergekit, trl, peft, torch, transformers (remote A800 only)
+  - paddlepaddle, paddleocr (NXM-011 owns OCR venv separately)
+  - playwright (not needed for tooling)
+
+Repair of the poisoned main env: NXM-041 (DEFERRED, post-week, VOID-able
+if remote-only training holds).

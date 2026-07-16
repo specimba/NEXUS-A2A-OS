@@ -54,14 +54,23 @@ await send("Runtime.enable");
 const expr = `(() => {
   // Prefer lane-specific content roots (DeepSeek shell body is ~title only).
   const roots = [];
+  const assistantRoots = [];
+  const pickAssistant = (sel) => {
+    try {
+      document.querySelectorAll(sel).forEach((el) => {
+        roots.push(el);
+        assistantRoots.push(el);
+      });
+    } catch {}
+  };
   const pick = (sel) => {
     try {
       document.querySelectorAll(sel).forEach((el) => roots.push(el));
     } catch {}
   };
-  pick(".ds-markdown.ds-assistant-message-main-content");
-  pick(".ds-assistant-message-main-content");
-  pick("[class*='assistant-message']");
+  pickAssistant(".ds-markdown.ds-assistant-message-main-content");
+  pickAssistant(".ds-assistant-message-main-content");
+  pickAssistant("[class*='assistant-message']");
   pick(".qwen-chat-message");
   pick(".artifacts-body");
   pick("main");
@@ -72,6 +81,7 @@ const expr = `(() => {
   if (!body || body.length < 40) {
     body = (document.body && document.body.innerText) || "";
   }
+  const assistantText = assistantRoots.map((el) => el.innerText || "").join("\n");
   const needles = ${JSON.stringify(needles)};
   const hits = {};
   for (const n of needles) hits[n] = body.includes(n);
@@ -79,6 +89,8 @@ const expr = `(() => {
     hits,
     len: body.length,
     last1500: body.slice(-1500),
+    assistantLen: assistantText.length,
+    assistantLast1500: assistantText.slice(-1500),
     title: document.title,
     url: location.href,
     rootCount: roots.length,
@@ -90,7 +102,7 @@ console.log(
   JSON.stringify(
     {
       status: "SEARCHED",
-      target: { title: t.title, url: (t.url || "").replace(/\?.*$/, "?REDACTED") },
+      target: { id: t.id, title: t.title, url: (t.url || "").replace(/\?.*$/, "?REDACTED") },
       result: r.result?.value || r.result,
     },
     null,

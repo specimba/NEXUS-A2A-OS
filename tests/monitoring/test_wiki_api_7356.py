@@ -126,3 +126,10 @@ class TestBrowseAssets:
         assert "/wiki/vendor/marked.min.js" in html
         assert "ARCHIVE OFFLINE" in html  # offline fallback panel exists
         assert "wikilinkPass" in html     # [[wikilink]] click-through wired
+
+    def test_dashboard_html_is_not_cached(self, server_url):
+        with urllib.request.urlopen(f"{server_url}/", timeout=10) as resp:
+            html = resp.read().decode("utf-8")
+            cache_control = resp.headers.get("Cache-Control")
+        assert "NEXUS Model Arena" in html
+        assert cache_control == "no-store, max-age=0, must-revalidate"

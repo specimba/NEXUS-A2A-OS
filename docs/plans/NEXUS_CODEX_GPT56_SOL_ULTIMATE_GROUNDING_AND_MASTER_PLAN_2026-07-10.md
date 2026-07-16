@@ -272,13 +272,13 @@ Repo: C:\Users\speci.000\Documents\NEXUS
 Logs: C:\Users\speci.000\Downloads\NEXUSlogs
 Archivist: C:\Users\speci.000\Downloads\ARCHIVIST
 Weights: D:\NEXUS_MODELS and D:\ollama_models
-Port plane: 7350 relay, 7352 brain-only, 7354/7358 MCP, 9224 CDP — never invent ports.
+Port plane: 7350 relay, 7352 brain-only, 7354 canonical 25-tool MCP, 7357 God Mode, 9224 CDP; 7358 is free optional — never invent or repurpose ports.
 Local models: 8GB ceiling; 35B cloud-only; Mythos OBLITERATED; VibeThinker not tool agent.
 Qwen success = Preview DOM. GLM = model lock 5.2. Intern GPU for train/merge; Modal for image studio.
 Plan first ≤5h using §8 PLAN table; when plan budget hits 0, auto-continue §8 EXEC without waiting.
 Append JSONL to NEXUScontinuity_runs.jsonl every milestone.
 Do not re-implement working P0 MCP tools; wire and test them.
-Admin-only: kill elevated 7354 — see ADMIN_TERMINAL_UNBLOCKS_2026-07-10.md
+Admin-only: restart an elevated owner only for an evidenced source cutover; canonical 7354 was recycled successfully on 2026-07-12.
 Claw hostile bank: deferred until operator opens.
 ```
 
@@ -286,7 +286,7 @@ Claw hostile bank: deferred until operator opens.
 
 ## 11. Immediate human asks (minimal)
 
-1. **Admin PowerShell**: run §1 of `Downloads\NEXUSlogs\ADMIN_TERMINAL_UNBLOCKS_2026-07-10.md` (kill 7354 + restart).
+1. **No 7354 action pending**: it is canonical, loopback-bound, 25-tool, and proposal-only as of the 2026-07-12 live probe.
 2. **Optional**: start Intern **NEXUS-GPU-test1** when ready for train smoke (points ~11/h).
 3. **Codex**: open this plan + attach repo; enable auto-continue after plan phase.
 4. **Not needed for start**: Claw cases, Modal keys, full ERA5 mount.
@@ -314,3 +314,173 @@ Claw hostile bank: deferred until operator opens.
 - `docs/plans/NEXUS_MODEL_USAGE_PLAN_2026-07-10.md`  
 - `docs/operations/NEXUS_MULTI_LANE_A2A_DOCTRINE.md`  
 - `docs/operations/INTERN_AI_SHANGHAI_WORKBENCH_CONTINUITY.md`
+
+---
+
+## 14. 2026-07-12 revised whole-system convergence plan
+
+This dated revision supersedes only stale operational assertions above. It is
+grounded in current port probes, focused tests, the last-eight-hour Commander,
+Leanstral/OpenCode, and Grok build logs, and the append-only continuity ledger.
+It does not treat a transcript claim as deployment proof.
+
+### 14.1 Current verified state
+
+| Surface | Verified state | Boundary that remains important |
+|---------|----------------|----------------------------------|
+| Port plane | `nexusctl ports doctor`: required 5/5 up; 7350, 7352, 7354, 7355, 7357, and 9224 all reachable | 7352 remains Brain-only; 7358 is free optional, never a shadow production MCP port |
+| ModelRelay | 236 `/api/models` rows and 134 projected `/v1/models` rows | Catalogue visibility is not provider health or a benchmark result |
+| Frontier models | NVIDIA GLM-5.2 is visible at 1M context; MiniMax-M3 is visible; Leanstral is visible with `intell: null` and `isEstimatedScore: true` | Unknown benchmark evidence must stay null, never become a synthetic 45% or 50% |
+| God Mode | 7357 now distinguishes scored candidates from catalogue fallback and exposes measured intelligence as measured | `pending` means routable catalogue metadata, not verified upstream availability |
+| MCP / A2A | 7354 has 25 tools, loopback binding, and proposal-only inbound A2A | An external caller cannot self-approve; execution needs a governed re-dispatch |
+| Browser A2A | A response requires assistant-side CDP tail growth plus durable event offsets; Qwen additionally requires Preview DOM proof | A token visible in the user prompt is never a success signal |
+| Hermes | Ubuntu Hermes has an atomically written ModelRelay block, authenticated WSL gateway access, and 134 projected models | Windows Hermes was deliberately left unchanged because its endpoint is anonymous, not authenticated |
+| Grounding | All roots are readable and the store is writable, but doctor remains `degraded` for one historical malformed event | Preserve the honest degraded status; repair via append-only evidence, not silent deletion |
+
+### 14.2 The target control plane
+
+```text
+Provider catalogues / benchmark sources
+  -> Frontier scanner (read-only snapshots, provenance, no auto-promotion)
+  -> Model card contract (identity, health, score evidence, freshness, cost, tool support)
+  -> ModelRelay 7350 -> God Mode 7357 -> Brain 7352 / GMR
+                                      -> Hermes, OpenCode, Kilo, MCP clients
+
+Browser / A2A lanes
+  -> CDP 9224 evidence capture
+  -> Agent Card / A2A ingress 7354
+  -> TrustKernel -> KAIJU -> NexusClawTaskEnvelope
+  -> explicit privilege policy -> approved executor only
+  -> hashed evidence -> Vault / continuity ledger
+
+Local 8GB lane
+  -> T0 anchors -> T1 guards -> one rotatable T2 specialist
+  -> cloud or browser elevation only when evidence, trust, and budget permit
+```
+
+The principal rule is separation of concerns: `catalogue discovery`, `live
+provider health`, `benchmark quality`, `route eligibility`, and `operator
+approval` are five distinct signals. No single score or status may stand in
+for another.
+
+### 14.3 Model stack contract
+
+| Tier | Purpose | Allowed shape | Promotion gate |
+|------|---------|---------------|----------------|
+| T0 | intent, tool-shape, embeddings | FunctionGemma/BashGemma/embedding anchor class | fixed local budget and deterministic tests |
+| T1 | prompt/tool governance | Guard cascade and deterministic L0 preprocessors | recall/FPR, decision-token validation, no raw secret retention |
+| T2 | local specialist | one 3B-class rotatable task/tool model under the 8GB ceiling | task-specific benchmark and VRAM measurement |
+| T3 | cloud frontier | GLM-5.2, MiniMax-M3, DeepSeek V4, Nemotron, LongCat, InternAI through provider-scoped policy | identity match, live health evidence, quota/cooldown, score provenance |
+| T4 | collaborative escalation | CDP Trinity/Fugu or approved A2A panel | governed envelope, independent evidence, durable handoff |
+
+35B-class weights remain cloud/A2A-only. Modal remains image-only. Intern
+compute is an explicitly leased `/data` GPU lane, not an unattended browser
+automation target.
+
+### 14.4 Convergence waves and ordered backlog
+
+#### Wave 0 - truth and safety foundation (completed or verified)
+
+1. Canonical continuity append locks and liveness/doctor honesty.
+2. Node Relay NVIDIA pacing/cooldown and no startup chat fanout.
+3. GLM-5.2 and Leanstral catalogue visibility, safe unknown score markers,
+   and Hermes WSL provider projection.
+4. Canonical 7354 25-tool MCP cutover with proposal-only A2A. The smoke task
+   `a2a-smoke-20260712013332` remained `proposed` / `dry_run` even when the
+   external client requested `live` and claimed approval.
+5. Browser A2A success gate: assistant evidence plus Qwen Preview proof.
+
+#### P0 - next bounded execution slices
+
+| Order | Deliverable | Exact integration seam | Acceptance gate |
+|------:|-------------|------------------------|-----------------|
+| P0.1 | Finish one model-card score contract | `nexus_os/relay/bridge_client.py`, `nexus_os/relay/god_mode_proxy.py`, Node Relay payload | Unknown dimensions remain null with provenance; no 0.45/0.50 synthesis; tests cover known, unknown, and fallback cases |
+| P0.2 | Consume the existing arena sidecar rather than another hand-maintained score table | `nexus_os/relay/arena_ingest.py` -> `~/.nexus/arena/scores.json` -> bridge/God Mode read path | Each route explanation reports source, fetched time, confidence, and coverage; stale/no-data cannot raise a model |
+| P0.3 | Provider freshness and opportunity intake | `tools/frontier_scanner/` plus quarantined OmniRoute catalogue adapter | Snapshots are hashed, bounded, read-only; new/free offers become candidates, never automatic routes or secret-bearing config |
+| P0.4 | NIM reliability proof | Node Relay retry/cooldown telemetry and provider/model-scoped 429 fixtures | Retry-After is honored; one exhausted model does not globally ban NVIDIA; tool calls are bounded and cancelable |
+| P0.5 | Re-ground the historic DPO-judge claim before mutation | locate the canonical batch generator, then change only a live reference if it exists | exact source path, dry-run artifact, and license/policy check; do not replace InternAI fallback policy by string search |
+| P0.6 | Grounding-record repair plan | grounding store report and append-only repair evidence | malformed historical row is quarantined/referenced; doctor becomes healthy only when the evidence chain validates |
+
+**External catalogue note (2026-07-12):** [OmniRoute's upstream repository](https://github.com/diegosouzapw/OmniRoute) self-reports a large, changing provider/free-tier surface. Its count conflicts with earlier social claims, so NEXUS may consume only a pinned, hashed, read-only snapshot; it must not auto-install OmniRoute, import secrets, or promote offers into routes.
+
+#### P1 - A2A / ACP integration, not replacement
+
+1. Extend the existing A2A bus and Agent Cards with a signed identity profile,
+   capability lease, expiry, and replay-resistant task id. Do not build a
+   parallel bus.
+2. Route all incoming A2A and ACP work through the same sequence: Bridge
+   ingress -> TrustKernel -> KAIJU -> `NexusClawTaskEnvelope` -> operator
+   policy -> executor -> VAP/evidence.
+3. Add a durable outbox/inbox state machine: `proposed`, `approved`,
+   `executing`, `verified`, `failed`, `expired`. A task can never jump from
+   externally supplied `approved` to execution.
+4. Keep browser controls proposal-bound. A live browser send is a separately
+   authorized operation and its success is an artifact/evidence assertion,
+   not DOM text presence alone.
+
+#### P2 - measurable model and browser operations
+
+1. Establish the benchmark matrix below and a model-card importer with source
+   date, normalization method, score coverage, and freshness horizon.
+2. Add a provider health ledger distinct from the benchmark ledger: latency,
+   429, auth, tool-call completion, and cancellation outcomes by model and
+   provider.
+3. Harden CDP lane registry ownership: one canonical target per lane,
+   restore/visibility verification, no duplicate-tab recovery by default.
+4. Formalize the 8GB serving decision as a tested llama-server wrapper plan;
+   do not re-install or re-architect an operating local stack speculatively.
+
+#### P3 - controlled science / local evolution
+
+1. Enforce A800-HR-001 as launcher preflight: project quota, one-kernel lease,
+   no notebook creation without a bounded run id, and `/data/NEXUS` artifact
+   paths.
+2. Run only small, reversible guard/tool-model experiments first. Record data
+   lineage, license, hardware, seed, benchmark delta, and rollback artifact.
+3. Fugu/Trinity distillation may consume only verified, policy-cleared traces;
+   it must not promote browser prose or unverified model scores into training
+   data.
+
+#### P4 - long-run optimization
+
+1. Calibrated routing learns from cost, completion quality, provider health,
+   and benchmark evidence with drift alarms and rollback.
+2. Add release gates for model cards, provider endpoints, A2A capabilities,
+   and benchmark schema changes.
+3. Publish sanitized, evidence-backed model availability reports only after
+   secret scanning and provenance review.
+
+### 14.5 Benchmark matrix v1
+
+| Family | Representative measure | Route use | Hard rule |
+|--------|------------------------|-----------|-----------|
+| Repo repair / SWE | curated NEXUS repair tasks plus pinned [SWE-bench](https://github.com/swe-bench/SWE-bench) Verified snapshots | code-specialist rank | retain task id, patch/test evidence, harness version, and contamination policy; audit any claimed SWE-Pro source before use |
+| Fresh code | pinned [LiveCodeBench](https://github.com/LiveCodeBench/LiveCodeBench) release/date window, pass@1 and pass@5 | code freshness evidence | record release version and time window; do not compare scores across release windows without labeling them |
+| Terminal agent | pinned [Terminal-Bench](https://github.com/laude-institute/terminal-bench) harness task and test script | end-to-end agent rank | record agent harness, container digest, model, tokens, wall time, and test result together |
+| Tool use | multi-turn schema-valid tool calls and recovery | agent/tool eligibility | no credit for a call that only parses; verify effect or dry-run artifact |
+| Reasoning / math | held-out math and structured planning tasks | reasoning rank | separate from code and latency scores |
+| Long context | retrieval and needle-style tasks at claimed context bands | context eligibility | report actual tokens, truncation, and provider limit |
+| Frontier knowledge | pinned [Humanity's Last Exam](https://github.com/supaihq/hle) or other licensed, time-stamped public evaluation source | model-card enrichment | record source/version/date; do not blend incomparable leaderboards blindly |
+| Guard | ASR, recall, FPR, decision-token integrity, and tool-injection resistance | safety gate | run white-box checks where required; prompt format is part of the result |
+| Browser/A2A | assistant tail change, artifact proof, handoff integrity | lane reliability | Qwen needs Preview DOM; token echoes are unproven |
+| Provider resilience | p50/p95 latency, 429, timeout, auth, cancellation | route health | provider/model scoped; no global ban from one offer failure |
+
+Every score row must include: canonical model identity, provider identity,
+metric family, raw value, normalized value, source URL or artifact hash,
+fetched timestamp, freshness horizon, coverage, and confidence. Absent data is
+`null` / `no_data`, not a default score.
+
+### 14.6 Next execution order
+
+1. Wire arena sidecar evidence into bridge/God Mode read paths with focused
+   tests and a no-network fixture.
+2. Add NIM retry/429 contract fixtures and expose cooldown reason without
+   degrading unrelated provider models.
+3. Locate and verify the real DPO generator before changing the historical
+   judge string.
+4. Add model-card freshness provenance to the 7356/7357 UI surfaces.
+5. Only then start an explicitly leased Intern smoke or local-model serving
+   wrapper change.
+
+All milestones continue to append to `NEXUScontinuity_runs.jsonl`; live status
+must be re-probed before any future claim of completion.

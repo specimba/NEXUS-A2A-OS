@@ -1,0 +1,30 @@
+STOP. You are under HERMES/OPS control packet 2026-07-15 for thread 818afb28.
+
+FACTS YOU MUST ACCEPT (do not re-litigate):
+1. OpsBoard mirror HEAD work is real on GitHub (f4ecb7a and parents 2ea7a22, 7821f8d, 482dcf5). Code exists.
+2. Operator cannot see your sandbox preview changes. Preview is UNTRUSTED until you give evidence openable outside z.ai: commit SHA + raw GitHub blob URLs + screenshots committed under docs/preview/ OR a public deploy URL.
+3. Frozen NXM-038 REV1 still says 6 fusion tabs. Your self-declared REV2 truth-rail is PARTIAL only until operator affirms. Do NOT claim DONE.
+4. OG-2 is NOT resolved. Do not invent card IDs (no NXM-043). No board DONE.
+5. D-005: no fabricated analysis depth. No "sub-agents" unless tools actually ran with logs.
+6. D-014/D-015: no key rotation, no paid GitHub.
+
+IMMEDIATE MISSION ONLY:
+A. Prove state: git rev-parse HEAD; git log -5 --oneline; confirm these paths exist:
+   - src/components/DataSourceBadge.tsx
+   - src/lib/statePack.ts
+   - src/app/api/state/route.ts
+   - data/test_pack.example.json
+B. Operator-visible surface without flaky preview:
+   - bun run build green paste output
+   - commit screenshots for /, /board, /mcp, /lanes under docs/preview/
+   - paste public GitHub blob URLs for each
+C. Final message REPORT only:
+   STATUS: PARTIAL
+   COMMITS: sha + one line each
+   GATES: G1/G2/G3 evidence
+   PREVIEW: BLOCKED + exact reason
+   NEXT: one concrete step
+
+BANNED: re-planning from scratch; porting 6 fusion tabs; "everything complete"; UUID commit messages; credential rotation asks; multi-hour synthesis essays; thrashing tools after 2 failures.
+
+If tools 403: stop, report BLOCKED, wait.

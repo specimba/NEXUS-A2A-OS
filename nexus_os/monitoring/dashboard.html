@@ -79,6 +79,27 @@
   .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
   .kpi-value { font-size: 1.8rem; font-weight: 800; font-family: var(--font-mono); }
   .kpi-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+  .metric-detail { margin-top: 4px; color: var(--text-dim); font-size: 0.68rem; line-height: 1.35; }
+  .metric-detail.mono { font-family: var(--font-mono); word-break: break-all; }
+
+  /* Route posture deliberately keeps preference, live reachability, and
+     evidence quality as different operator questions. */
+  .route-posture {
+    background: linear-gradient(135deg, rgba(99,102,241,0.11), rgba(17,17,24,0.96) 52%);
+    border: 1px solid var(--border-active); border-radius: var(--radius);
+    padding: 16px 18px; margin: -4px 0 20px;
+  }
+  .route-posture-header { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+  .route-posture-title { font-size: 0.86rem; font-weight: 750; letter-spacing: 0.02em; }
+  .route-posture-note { color: var(--text-muted); font-size: 0.74rem; max-width: 760px; }
+  .route-posture-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .posture-card { background: rgba(10,10,15,0.62); border: 1px solid var(--border); border-left: 3px solid var(--text-dim); border-radius: 8px; padding: 12px 13px; min-width: 0; }
+  .posture-card.primary { border-left-color: var(--accent); }
+  .posture-card.live { border-left-color: var(--success); }
+  .posture-card.evidence { border-left-color: #a78bfa; }
+  .posture-label { color: var(--text-muted); font-size: 0.67rem; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; }
+  .posture-value { color: var(--text); font-family: var(--font-mono); font-size: 0.98rem; font-weight: 750; margin-top: 5px; overflow-wrap: anywhere; }
+  .posture-detail { color: var(--text-dim); font-size: 0.72rem; line-height: 1.4; margin-top: 5px; }
 
   /* Matrix View - The Core Innovation */
   .matrix-section { margin-bottom: 24px; }
@@ -180,6 +201,14 @@
     white-space: nowrap;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   }
+  .matrix-model-dot.healthy { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .matrix-model-dot.stale { background: var(--warning); opacity: 0.85; }
+  .matrix-model-dot.unverified { background: var(--info); opacity: 0.75; }
+  .matrix-model-dot.rate_limited { background: var(--warning); }
+  .matrix-model-dot.auth_required { background: #fb923c; }
+  .matrix-model-dot.unavailable { background: var(--danger); opacity: 0.55; }
+  .matrix-model-dot.excluded { background: var(--text-dim); opacity: 0.4; }
+  .matrix-model-dot.unknown { background: var(--text-muted); opacity: 0.5; }
 
   /* Quadrant labels */
   .quadrant-label {
@@ -244,6 +273,24 @@
   .status-pill.down { background: var(--danger-bg); color: var(--danger); }
   .status-pill.noauth { background: var(--warning-bg); color: var(--warning); }
 
+  .status-pill.healthy { background: var(--success-bg); color: var(--success); }
+  .status-pill.stale { background: var(--warning-bg); color: var(--warning); }
+  .status-pill.unverified { background: rgba(59,130,246,0.12); color: var(--info); }
+  .status-pill.rate_limited, .status-pill.auth_required { background: var(--warning-bg); color: var(--warning); }
+  .status-pill.unavailable { background: var(--danger-bg); color: var(--danger); }
+  .status-pill.excluded, .status-pill.unknown { background: var(--bg-hover); color: var(--text-muted); }
+  .route-pill {
+    display: inline-flex; padding: 3px 8px; border-radius: 5px;
+    font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+  }
+  .route-pill.cli { background: rgba(59,130,246,0.12); color: var(--info); }
+  .route-pill.offer { background: var(--bg-hover); color: var(--text-muted); }
+  .route-pill.excluded { background: var(--danger-bg); color: var(--danger); }
+  .policy-pill {
+    display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 4px;
+    background: rgba(167,139,250,0.12); color: #a78bfa;
+    font-family: var(--font-mono); font-size: 0.62rem; vertical-align: middle;
+  }
   .health-bar {
     width: 60px; height: 4px; background: var(--bg-hover); border-radius: 2px; overflow: hidden;
     display: inline-block; vertical-align: middle; margin-right: 6px;
@@ -261,6 +308,10 @@
   .intell-score.strong { color: #60a5fa; }
   .intell-score.capable { color: #34d399; }
   .intell-score.basic { color: var(--text-muted); }
+  .intell-unscored { color: var(--warning); font-weight: 700; font-family: var(--font-mono); font-size: 0.75rem; }
+  .score-evidence { color: var(--text-dim); font-size: 0.72rem; }
+  .score-evidence.verified { color: var(--success); }
+  .score-evidence.none { color: var(--warning); }
   .intell-estimated { color: var(--warning); font-size: 0.7rem; margin-left: 4px; }
 
   .latency-badge {
@@ -302,6 +353,7 @@
     .app { padding: 12px; }
     .matrix-grid { min-height: 300px; }
     .matrix-plot { min-height: 300px; }
+    .route-posture-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -312,7 +364,7 @@
       <div class="header-logo">N</div>
       <div>
         <div class="header-title">NEXUS Model Arena</div>
-        <div class="header-subtitle">Quality × Health Matrix — Find the best working model instantly</div>
+        <div class="header-subtitle">Evidence-aware routing — primary intent, live reachability, and quality kept distinct</div>
       </div>
     </div>
     <div class="header-right">
@@ -321,63 +373,99 @@
     </div>
   </header>
 
-  <!-- Info Panel: What is Intell Score? -->
+  <!-- Honest model-card contract -->
   <div class="info-panel">
-    <strong>Intelligence Score (Intell)</strong> is a normalized 0-100 ranking based on public benchmarks (MMLU, SWE-bench, Chatbot Arena Elo). 
-    Scores marked with <span style="color:var(--warning)">*</span> are estimated from model specs and architecture, not directly benchmarked.
+    <strong>Four independent signals:</strong> catalogue discovery, CLI route visibility, observed health, and compatible benchmark evidence.
+    <span style="color:var(--info)">UNVERIFIED</span> means a model has not been probed in the current bounded health window; it does not mean offline.
+    <span style="color:var(--warning)">UNSCORED</span> means no compatible benchmark source/date is available. Routing-policy tiers remain visible as priors, but never become benchmark proof.
+    <span>Route posture separates a pinned preference, a fresh reachability result, and an evidence-backed quality result; none substitutes for either of the others.</span>
     <div class="tier-legend">
-      <span><span class="tier-dot" style="background:#a78bfa"></span> Frontier (85-100%)</span>
-      <span><span class="tier-dot" style="background:#60a5fa"></span> Strong (75-84%)</span>
-      <span><span class="tier-dot" style="background:#34d399"></span> Capable (60-74%)</span>
-      <span><span class="tier-dot" style="background:var(--text-muted)"></span> Basic (below 60%)</span>
+      <span><span class="tier-dot" style="background:var(--success)"></span> Fresh Observation</span>
+      <span><span class="tier-dot" style="background:var(--warning)"></span> Stale Observation</span>
+      <span><span class="tier-dot" style="background:var(--info)"></span> Health Unverified</span>
+      <span><span class="tier-dot" style="background:#a78bfa"></span> CLI-visible Model IDs</span>
+      <span><span class="tier-dot" style="background:var(--warning)"></span> Evidence-backed dimensions only</span>
+    </div>
+    <div id="frontierIntelligenceStatus" class="metric-detail" style="margin-top:10px">
+      Frontier discovery status loading…
+    </div>
+    <div id="evidenceRuntimeStatus" class="metric-detail" style="margin-top:6px" aria-live="polite">
+      Runtime evidence status loading…
+    </div>
+    <div id="frontierReviewQueue" class="metric-detail" style="margin-top:8px" aria-live="polite">
+      Frontier review queue loading…
     </div>
   </div>
 
   <!-- KPIs -->
   <div class="kpi-row">
     <div class="kpi-card">
-      <div class="kpi-label">Models Online</div>
-      <div class="kpi-value" id="kpiOnline" style="color:var(--success)">--</div>
-      <div class="kpi-sub">out of <span id="kpiTotal">--</span> discovered</div>
+      <div class="kpi-label">Canonical CLI Routes</div>
+      <div class="kpi-value" id="kpiCliRoutes" style="color:var(--info)">--</div>
+      <div class="kpi-sub"><span id="kpiRelayRoutes">--</span> total relay routes (<span id="kpiAutomaticRoutes">--</span> automatic) · <span id="kpiOffers">--</span> offers</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Frontier Models UP</div>
-      <div class="kpi-value" id="kpiFrontier" style="color:#a78bfa">--</div>
-      <div class="kpi-sub">intell ≥ 85% and healthy</div>
+      <div class="kpi-label">Fresh Healthy Offers</div>
+      <div class="kpi-value" id="kpiHealthy" style="color:var(--success)">--</div>
+      <div class="kpi-sub"><span id="kpiStale">--</span> stale · <span id="kpiUnverified">--</span> unverified</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Best Available</div>
-      <div class="kpi-value" id="kpiBest" style="font-size:1.2rem;color:var(--accent)">--</div>
-      <div class="kpi-sub">highest intell + healthy</div>
+      <div class="kpi-label">Evidence-backed</div>
+      <div class="kpi-value" id="kpiEvidence" style="color:#a78bfa">--</div>
+      <div class="kpi-sub">offers with compatible source/date metadata</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Providers Active</div>
+      <div class="kpi-label">Providers Configured</div>
       <div class="kpi-value" id="kpiProviders" style="color:var(--info)">--</div>
-      <div class="kpi-sub">with ≥1 model online</div>
+      <div class="kpi-sub"><span id="kpiAuthProviders">--</span> with auth configured</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Median Latency</div>
+      <div class="kpi-label">Observed Median Latency</div>
       <div class="kpi-value" id="kpiLatency">--</div>
-      <div class="kpi-sub">ms across online models</div>
+      <div class="kpi-sub">healthy observations only</div>
     </div>
   </div>
+
+  <section class="route-posture" aria-labelledby="routePostureTitle">
+    <div class="route-posture-header">
+      <div class="route-posture-title" id="routePostureTitle">Route posture</div>
+      <div class="route-posture-note">These are three separate operational signals. The cards never turn a catalogue entry, a pinned model, or a benchmark into an availability claim.</div>
+    </div>
+    <div class="route-posture-grid">
+      <article class="posture-card primary">
+        <div class="posture-label">Primary lock</div>
+        <div class="posture-value" id="primaryRoute">--</div>
+        <div class="posture-detail" id="primaryRouteDetail">Configured route preference; health loading…</div>
+      </article>
+      <article class="posture-card live">
+        <div class="posture-label">Manifest live route</div>
+        <div class="posture-value" id="freshLiveLead">--</div>
+        <div class="posture-detail" id="freshLiveLeadDetail">Client selection basis loading…</div>
+      </article>
+      <article class="posture-card evidence">
+        <div class="posture-label">Evidence quality leader</div>
+        <div class="posture-value" id="evidenceQualityLead">--</div>
+        <div class="posture-detail" id="evidenceQualityLeadDetail">Compatible benchmark evidence loading…</div>
+      </article>
+    </div>
+  </section>
 
   <!-- Quality × Health Matrix -->
   <div class="matrix-section">
     <div class="matrix-header">
       <div>
         <div class="matrix-title">Quality × Health Matrix</div>
-        <div class="matrix-subtitle">X = Intelligence Score · Y = Health (online = top, offline = bottom) · Size = context window</div>
+        <div class="matrix-subtitle">One dot per canonical CLI route. X = evidence-backed quality · Y = observed health state · Size = context window. Provider variants remain available in the table.</div>
       </div>
     </div>
     <div class="quality-health-matrix">
       <div class="matrix-grid">
         <div class="matrix-y-label">Health</div>
         <div class="matrix-plot" id="matrixPlot">
-          <div class="quadrant-label q1">High Quality + Healthy</div>
-          <div class="quadrant-label q2">High Quality + Down</div>
-          <div class="quadrant-label q3">Low Quality + Down</div>
-          <div class="quadrant-label q4">Low Quality + Healthy</div>
+          <div class="quadrant-label q1">Higher Quality + Observed Healthy</div>
+          <div class="quadrant-label q2">Lower Quality + Observed Healthy</div>
+          <div class="quadrant-label q3">Lower Quality + Unavailable</div>
+          <div class="quadrant-label q4">Higher Quality + Unavailable</div>
           <div class="matrix-tooltip" id="matrixTooltip"></div>
         </div>
         <div></div>
@@ -389,7 +477,7 @@
           <span>100%</span>
         </div>
         <div></div>
-        <div class="matrix-x-label">Intelligence Score (higher → better model)</div>
+        <div class="matrix-x-label">Evidence-backed quality score (higher → stronger published evidence)</div>
       </div>
     </div>
   </div>
@@ -397,37 +485,67 @@
   <!-- Filters -->
   <div class="filter-bar">
     <input type="text" id="searchInput" placeholder="Search models, providers, IDs..." oninput="renderTable()" style="flex:1;min-width:200px">
+    <select id="presentationMode" onchange="renderTable()" title="Canonical routes collapse provider aliases; provider offers exposes every configured endpoint.">
+      <option value="canonical">Canonical CLI routes</option>
+      <option value="offers">Provider offers</option>
+    </select>
     <select id="providerFilter" onchange="renderTable()">
       <option value="">All Providers</option>
     </select>
     <select id="statusFilter" onchange="renderTable()">
-      <option value="">All Status</option>
-      <option value="up">Online</option>
-      <option value="down">Offline</option>
-      <option value="noauth">No Auth</option>
+      <option value="">All Health States</option>
+      <option value="healthy">Observed healthy</option>
+      <option value="stale">Stale observation</option>
+      <option value="unverified">Unverified / not probed</option>
+      <option value="rate_limited">Rate limited</option>
+      <option value="auth_required">Auth required</option>
+      <option value="unavailable">Unavailable</option>
+      <option value="excluded">Excluded</option>
     </select>
-    <select id="tierFilter" onchange="renderTable()">
-      <option value="">All Tiers</option>
-      <option value="frontier">Frontier (85%+)</option>
-      <option value="strong">Strong (75-84%)</option>
-      <option value="capable">Capable (60-74%)</option>
-      <option value="basic">Basic (&lt;60%)</option>
+    <select id="evidenceFilter" onchange="renderTable()">
+      <option value="">All Evidence States</option>
+      <option value="evidence_backed">Evidence-backed</option>
+      <option value="catalogue_only">Catalogue only</option>
+      <option value="no_data">No benchmark data</option>
     </select>
-    <span class="filter-chip active" id="chipOnline" onclick="toggleChip('chipOnline'); renderTable();">Online Only</span>
-    <span class="filter-chip" id="chipEstimated" onclick="toggleChip('chipEstimated'); renderTable();">Show Estimated</span>
+    <select id="routeFilter" onchange="renderTable()">
+      <option value="">All Route States</option>
+      <option value="cli_visible">CLI visible</option>
+      <option value="offer_only">Offer only</option>
+      <option value="excluded">Excluded</option>
+    </select>
+    <select id="sortMode" onchange="renderTable()">
+      <option value="recommended">Health-first route order</option>
+      <option value="quality">Quality benchmark</option>
+      <option value="code">Code benchmark</option>
+      <option value="swe">SWE benchmark</option>
+      <option value="reasoning">Reasoning benchmark</option>
+      <option value="speed">Speed benchmark</option>
+      <option value="cost_efficiency">Cost efficiency</option>
+      <option value="policy">Routing policy prior</option>
+      <option value="health">Health state</option>
+      <option value="latency">Observed latency</option>
+      <option value="context">Context window</option>
+      <option value="provider">Provider</option>
+      <option value="label">Model label</option>
+    </select>
   </div>
 
+  <div id="tableSummary" style="font-size:0.78rem;color:var(--text-dim);margin:0 0 8px 2px"></div>
   <!-- Model Table -->
   <div class="model-table-wrap" id="modelTableWrap">
     <table>
       <thead>
         <tr>
-          <th onclick="setSort('intell')">Intell <span class="sort-arrow" id="sort-intell">▼</span></th>
-          <th onclick="setSort('label')">Model <span class="sort-arrow" id="sort-label"></span></th>
-          <th onclick="setSort('status')">Health <span class="sort-arrow" id="sort-status"></span></th>
-          <th onclick="setSort('avg')">Latency <span class="sort-arrow" id="sort-avg"></span></th>
-          <th onclick="setSort('ctx')">Context <span class="sort-arrow" id="sort-ctx"></span></th>
-          <th onclick="setSort('providerKey')">Provider <span class="sort-arrow" id="sort-providerKey"></span></th>
+          <th onclick="setSort('quality')">Quality</th>
+          <th onclick="setSort('code')">Code</th>
+          <th onclick="setSort('swe')">SWE</th>
+          <th>Evidence</th>
+          <th onclick="setSort('label')">Model</th>
+          <th>Route</th>
+          <th onclick="setSort('health')">Health</th>
+          <th onclick="setSort('context')">Context</th>
+          <th onclick="setSort('provider')">Provider</th>
           <th>Error</th>
         </tr>
       </thead>
@@ -437,297 +555,8 @@
   </div>
 </div>
 
-<script>
-const API = 'http://localhost:7350/api';
-let allModels = [], allConfigs = [];
-let sortCol = 'intell', sortDir = -1; // Default: highest intell first
-
-async function fetchAll() {
-  try {
-    const [modelsRes, configRes] = await Promise.all([
-      fetch(API + '/models').catch(() => null),
-      fetch(API + '/config').catch(() => null)
-    ]);
-    if (modelsRes?.ok) {
-      const d = await modelsRes.json();
-      allModels = d.models || [];
-    }
-    if (configRes?.ok) {
-      allConfigs = await configRes.json();
-    }
-    updateKPIs();
-    renderMatrix();
-    renderTable();
-    populateFilters();
-    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-  } catch (e) {
-    console.error('Fetch error:', e);
-  }
-  document.getElementById('tableLoading').style.display = 'none';
-}
-
-function getIntellTier(intell) {
-  if (intell >= 0.85) return 'frontier';
-  if (intell >= 0.75) return 'strong';
-  if (intell >= 0.60) return 'capable';
-  return 'basic';
-}
-
-function getIntellClass(intell) {
-  const tier = getIntellTier(intell);
-  return {
-    frontier: 'frontier',
-    strong: 'strong',
-    capable: 'capable',
-    basic: 'basic'
-  }[tier];
-}
-
-function formatIntell(intell, isEstimated) {
-  const pct = ((intell || 0) * 100).toFixed(0);
-  const tier = getIntellTier(intell || 0);
-  const cls = getIntellClass(intell || 0);
-  const est = isEstimated ? '<span class="intell-estimated" title="Estimated score (not benchmarked)">*</span>' : '';
-  return `<span class="intell-score ${cls}">${pct}%</span>${est}`;
-}
-
-function formatLatency(avg) {
-  if (!avg) return '<span style="color:var(--text-dim)">--</span>';
-  const ms = Math.round(avg);
-  let cls = 'normal';
-  if (ms < 800) cls = 'fast';
-  else if (ms > 3000) cls = 'veryslow';
-  else if (ms > 1500) cls = 'slow';
-  return `<span class="latency-badge ${cls}">${ms}ms</span>`;
-}
-
-function formatStatus(m) {
-  const status = m.status || 'unknown';
-  const isUp = status === 'up';
-  const isNoAuth = status === 'noauth';
-  const label = isUp ? 'ONLINE' : isNoAuth ? 'NO AUTH' : 'OFFLINE';
-  const cls = isUp ? 'up' : isNoAuth ? 'noauth' : 'down';
-  
-  // Health bar: based on whether it's up and has good latency
-  let healthPct = 0;
-  let healthCls = 'dead';
-  if (isUp) {
-    healthPct = 100;
-    healthCls = 'excellent';
-    if (m.avg && m.avg > 3000) { healthPct = 60; healthCls = 'poor'; }
-    else if (m.avg && m.avg > 1500) { healthPct = 80; healthCls = 'good'; }
-  }
-  
-  return `
-    <span class="status-pill ${cls}">${label}</span>
-    <span class="health-bar" title="Health: ${healthPct}% (based on uptime + latency)">
-      <span class="health-fill ${healthCls}" style="width:${healthPct}%"></span>
-    </span>
-  `;
-}
-
-function updateKPIs() {
-  const upModels = allModels.filter(m => m.status === 'up');
-  const onlineProviders = new Set(upModels.map(m => m.providerKey));
-  
-  document.getElementById('kpiOnline').textContent = upModels.length;
-  document.getElementById('kpiTotal').textContent = allModels.length;
-  document.getElementById('kpiProviders').textContent = onlineProviders.size;
-  
-  // Frontier models that are UP
-  const frontierUp = upModels.filter(m => (m.intell || 0) >= 0.85).length;
-  document.getElementById('kpiFrontier').textContent = frontierUp;
-  
-  // Best available: highest intell that is UP
-  const best = upModels.reduce((best, m) => {
-    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
-    return best;
-  }, null);
-  document.getElementById('kpiBest').textContent = best ? (best.label || best.modelId).slice(0, 25) : 'None';
-  
-  // Median latency
-  const latencies = upModels.filter(m => m.avg != null).map(m => m.avg).sort((a,b) => a-b);
-  const med = latencies.length ? latencies[Math.floor(latencies.length/2)] : null;
-  document.getElementById('kpiLatency').textContent = med ? Math.round(med) + 'ms' : '--';
-}
-
-function renderMatrix() {
-  const plot = document.getElementById('matrixPlot');
-  const tooltip = document.getElementById('matrixTooltip');
-  
-  // Remove old dots (keep quadrant labels and tooltip)
-  plot.querySelectorAll('.matrix-model-dot').forEach(d => d.remove());
-  
-  const plotRect = plot.getBoundingClientRect();
-  const plotWidth = plotRect.width || 800;
-  const plotHeight = plotRect.height || 400;
-  
-  // Get top 80 models by intell to avoid overcrowding
-  const displayModels = [...allModels]
-    .filter(m => (m.intell || 0) > 0.3) // Skip very low quality
-    .sort((a, b) => (b.intell || 0) - (a.intell || 0))
-    .slice(0, 80);
-  
-  const bestUp = allModels.filter(m => m.status === 'up').reduce((best, m) => {
-    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
-    return best;
-  }, null);
-  
-  displayModels.forEach(m => {
-    const dot = document.createElement('div');
-    dot.className = 'matrix-model-dot ' + (m.status || 'down');
-    
-    // X = intell (0-1 mapped to 5%-95% of width)
-    const x = 5 + ((m.intell || 0) * 90);
-    // Y = health: up = near top, down = near bottom
-    let y;
-    if (m.status === 'up') {
-      // Within UP models, better latency = higher up
-      const latencies = allModels.filter(m => m.status === 'up' && m.avg != null).map(m => m.avg);
-      const maxLat = Math.max(...latencies, 5000);
-      const lat = m.avg || maxLat;
-      y = 5 + ((1 - Math.min(lat / maxLat, 1)) * 40); // Top half
-    } else {
-      y = 55 + (Math.random() * 40); // Bottom half, scattered
-    }
-    
-    dot.style.left = x + '%';
-    dot.style.top = y + '%';
-    
-    // Size based on context window
-    const ctx = parseInt((m.ctx || '0').replace(/[^0-9]/g, '')) || 0;
-    const size = Math.max(8, Math.min(20, 8 + Math.log10(Math.max(ctx, 1)) * 2));
-    dot.style.width = size + 'px';
-    dot.style.height = size + 'px';
-    
-    if (bestUp && m.modelId === bestUp.modelId && m.providerKey === bestUp.providerKey) {
-      dot.classList.add('best');
-    }
-    
-    dot.addEventListener('mouseenter', (e) => {
-      tooltip.style.display = 'block';
-      tooltip.innerHTML = `
-        <strong>${esc(m.label || m.modelId)}</strong><br>
-        Intell: ${((m.intell || 0) * 100).toFixed(0)}%${m.isEstimatedScore ? ' *' : ''}<br>
-        Status: ${m.status || '?'}<br>
-        Latency: ${m.avg ? Math.round(m.avg) + 'ms' : '--'}<br>
-        Context: ${m.ctx || '--'}<br>
-        Provider: ${esc(m.providerKey || '')}
-      `;
-    });
-    dot.addEventListener('mousemove', (e) => {
-      const rect = plot.getBoundingClientRect();
-      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
-      tooltip.style.top = (e.clientY - rect.top - 12) + 'px';
-    });
-    dot.addEventListener('mouseleave', () => {
-      tooltip.style.display = 'none';
-    });
-    
-    plot.appendChild(dot);
-  });
-}
-
-function getSortedModels() {
-  const arr = [...allModels];
-  arr.sort((a, b) => {
-    let va, vb;
-    switch (sortCol) {
-      case 'label': va = (a.label||'').toLowerCase(); vb = (b.label||'').toLowerCase(); return va < vb ? -sortDir : va > vb ? sortDir : 0;
-      case 'intell': va = a.intell || 0; vb = b.intell || 0; return (va - vb) * sortDir;
-      case 'ctx': {
-        const pa = (v) => { const m = String(v||'0').match(/(\d+)/); return m ? (v.includes('M') ? +m[1]*1e6 : v.includes('k') ? +m[1]*1e3 : +m[1]) : 0; };
-        return (pa(a.ctx) - pa(b.ctx)) * sortDir;
-      }
-      case 'avg': va = a.avg ?? (a.status === 'up' ? 999999 : Infinity); vb = b.avg ?? (b.status === 'up' ? 999999 : Infinity); return (va - vb) * sortDir;
-      case 'status': {
-        const order = { up: 0, down: 1, noauth: 2 };
-        return ((order[a.status] ?? 3) - (order[b.status] ?? 3)) * sortDir;
-      }
-      case 'providerKey': va = (a.providerKey||'').toLowerCase(); vb = (b.providerKey||'').toLowerCase(); return va < vb ? -sortDir : va > vb ? sortDir : 0;
-      default: return 0;
-    }
-  });
-  return arr;
-}
-
-function renderTable() {
-  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  const provFilter = document.getElementById('providerFilter')?.value || '';
-  const statFilter = document.getElementById('statusFilter')?.value || '';
-  const tierFilter = document.getElementById('tierFilter')?.value || '';
-  const onlineOnly = document.getElementById('chipOnline')?.classList.contains('active');
-  const showEstimated = document.getElementById('chipEstimated')?.classList.contains('active');
-  
-  let filtered = getSortedModels();
-  if (search) filtered = filtered.filter(m => (m.label||'').toLowerCase().includes(search) || (m.modelId||'').toLowerCase().includes(search) || (m.providerKey||'').toLowerCase().includes(search));
-  if (provFilter) filtered = filtered.filter(m => m.providerKey === provFilter);
-  if (statFilter) filtered = filtered.filter(m => m.status === statFilter);
-  if (tierFilter) filtered = filtered.filter(m => getIntellTier(m.intell || 0) === tierFilter);
-  if (onlineOnly) filtered = filtered.filter(m => m.status === 'up');
-  if (!showEstimated) filtered = filtered.filter(m => !m.isEstimatedScore);
-  
-  const bestUp = allModels.filter(m => m.status === 'up').reduce((best, m) => {
-    if (!best || (m.intell || 0) > (best.intell || 0)) return m;
-    return best;
-  }, null);
-  
-  const tbody = document.getElementById('modelTbody');
-  tbody.innerHTML = filtered.map(m => {
-    const isBest = bestUp && m.modelId === bestUp.modelId && m.providerKey === bestUp.providerKey;
-    const ctx = m.ctx || '--';
-    const error = m.lastError ? `<span style="color:var(--danger);font-size:0.75rem">${esc(String(m.lastError.code || m.lastError.message || '').slice(0, 40))}</span>` : '--';
-    
-    return `<tr>
-      <td>${formatIntell(m.intell, m.isEstimatedScore)}</td>
-      <td>
-        <div style="font-weight:600">${esc(m.label || m.modelId)}${isBest ? '<span class="best-badge">Best</span>' : ''}</div>
-        <div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono)">${esc(m.modelId || '')}</div>
-      </td>
-      <td>${formatStatus(m)}</td>
-      <td>${formatLatency(m.avg)}</td>
-      <td>${esc(ctx)}</td>
-      <td><span class="provider-tag">${esc(m.providerKey || '')}</span></td>
-      <td>${error}</td>
-    </tr>`;
-  }).join('');
-  
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No models match filters.</td></tr>`;
-  }
-  
-  // Update sort arrows
-  document.querySelectorAll('.sort-arrow').forEach(a => a.textContent = '');
-  const arrow = document.getElementById(`sort-${sortCol}`);
-  if (arrow) arrow.textContent = sortDir === -1 ? '▼' : '▲';
-}
-
-function populateFilters() {
-  const providers = [...new Set(allModels.map(m => m.providerKey))].sort();
-  const opts = providers.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-  document.getElementById('providerFilter').innerHTML = '<option value="">All Providers</option>' + opts;
-}
-
-function setSort(col) {
-  if (sortCol === col) sortDir = -sortDir;
-  else { sortCol = col; sortDir = -1; } // Default desc for most
-  if (col === 'label' || col === 'providerKey') sortDir = 1; // Asc for text
-  renderTable();
-}
-
-function toggleChip(id) {
-  document.getElementById(id).classList.toggle('active');
-}
-
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// Auto-refresh every 30 seconds
-setInterval(fetchAll, 30000);
-
-// Initial load
-fetchAll();
-</script>
+<!-- The former raw-7350 renderer was retired. dashboard.js is the sole live
+     renderer and consumes only the canonical same-origin model-card projection. -->
+<script src="/dashboard.js"></script>
 </body>
 </html>

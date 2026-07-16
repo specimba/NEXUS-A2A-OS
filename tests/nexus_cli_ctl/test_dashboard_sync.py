@@ -105,6 +105,84 @@ class TestDashboardSyncProbeLoop:
         await ds._push_to_dashboard({"type": "test"})
 
 
+class TestDashboardSyncBrainAuthentication:
+    @pytest.mark.asyncio
+    async def test_websocket_connects_with_brain_auth_header(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+        import websockets
+
+        ds = DashboardSync()
+        ds.running = True
+        connect_calls = []
+        sent_messages = []
+
+        class FakeWebSocket:
+            async def send(self, message):
+                sent_messages.append(message)
+
+            async def recv(self):
+                ds.running = False
+                raise RuntimeError("end test connection")
+
+        class FakeConnection:
+            async def __aenter__(self):
+                return FakeWebSocket()
+
+            async def __aexit__(self, exc_type, exc, traceback):
+                return False
+
+        def fake_connect(uri, **kwargs):
+            connect_calls.append((uri, kwargs))
+            return FakeConnection()
+
+        monkeypatch.setattr(
+            brain_api,
+            "get_brain_api_token",
+            lambda: "test-brain-token",
+        )
+        monkeypatch.setattr(websockets, "connect", fake_connect)
+
+        await ds._connect_ws()
+
+        assert connect_calls == [
+            (
+                BRAIN_API_WS,
+                {"additional_headers": {"X-Api-Key": "test-brain-token"}},
+            )
+        ]
+        assert sent_messages
+
+    @pytest.mark.asyncio
+    async def test_websocket_does_not_connect_when_brain_token_is_unavailable(
+        self,
+        monkeypatch,
+    ):
+        import nexus_os.api.brain_api as brain_api
+        import nexus_cli_ctl.integrations.dashboard_sync as dashboard_sync_module
+        import websockets
+
+        ds = DashboardSync()
+        ds.running = True
+        connect_called = False
+
+        def fake_connect(*args, **kwargs):
+            nonlocal connect_called
+            connect_called = True
+            raise AssertionError("anonymous WebSocket connection attempted")
+
+        async def stop_retry_loop(_delay):
+            ds.running = False
+
+        monkeypatch.setattr(brain_api, "get_brain_api_token", lambda: "")
+        monkeypatch.setattr(websockets, "connect", fake_connect)
+        monkeypatch.setattr(dashboard_sync_module.asyncio, "sleep", stop_retry_loop)
+
+        await ds._connect_ws()
+
+        assert connect_called is False
+        assert ds._ws_connected is False
+
+
 class TestDashboardSyncSingleton:
     def test_singleton(self):
         a = get_dashboard_sync()

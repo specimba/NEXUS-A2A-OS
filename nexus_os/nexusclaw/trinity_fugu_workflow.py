@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import uuid
@@ -43,6 +44,11 @@ from nexus_os.nexusclaw.trinity_coordinator import (
     TrinityWorkflow,
     WORKER_POOL,
 )
+
+
+TRINITY_FUGU_STATE_DIR = Path(
+    os.environ.get("NEXUS_PI_STATE_DIR", "~/.nexus_pi/state")
+).expanduser()
 
 
 # ── ClawTrojan detection (5-step attack chain) ──────────────────────────────
@@ -196,7 +202,7 @@ class TrinityFuguWorkflow:
     6. Soft-target SFT updates after outcome is known
     """
 
-    LOG_PATH = Path("~/.nexus_pi/state/trinity_fugu_log.jsonl").expanduser()
+    LOG_PATH = TRINITY_FUGU_STATE_DIR / "trinity_fugu_log.jsonl"
 
     def __init__(
         self,

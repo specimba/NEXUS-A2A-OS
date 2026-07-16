@@ -29,10 +29,14 @@ Known limitations:
 import hashlib
 import json
 import logging
+import os
 import re
+import sqlite3
 import time
+import uuid
 from dataclasses import dataclass, field
 from enum import IntEnum
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Set
 
 logger = logging.getLogger("nexus_os.security.steg.csi_guard")
@@ -126,6 +130,9 @@ class SessionStarterRecord:
     source: str = "manual"
 
 
+_DEFAULT_CSI_AUDIT_DB = str(Path.cwd() / ".nexus" / "csi_audit.db")
+
+
 class CSIGuard:
     """Conversation-Starter Injection defense.
 
@@ -133,6 +140,11 @@ class CSIGuard:
     content is trusted by default and can reframe the entire session.
     Implements hash-pinning + semantic content checks per the DERDDRE
     writeup Section 2.5.
+
+    Audit logging is MANDATORY.  All verification results are persisted
+    to an append-only SQLite table.  The optional ``audit_log_path``
+    parameter adds a *supplementary* JSONL file log on top of the
+    always-on SQLite channel.
     """
 
     def __init__(
@@ -140,6 +152,7 @@ class CSIGuard:
         risk_threshold: float = 0.5,
         trust_unknown_as_user: bool = True,
         audit_log_path: Optional[str] = None,
+        audit_db_path: Optional[str] = None,
     ):
         self.risk_threshold = risk_threshold
         self.trust_unknown_as_user = trust_unknown_as_user
@@ -147,6 +160,41 @@ class CSIGuard:
         self._authorized_starters: Dict[str, SessionStarterRecord] = {}
         self._session_starters: Dict[str, str] = {}
         self._audit_entries: List[Dict[str, Any]] = []
+
+        # ── Mandatory SQLite audit channel (append-only) ──────────
+        resolved_db = audit_db_path or os.environ.get(
+            "NEXUS_CSI_AUDIT_DB"
+        ) or _DEFAULT_CSI_AUDIT_DB
+        self.audit_db_path = str(Path(resolved_db).resolve())
+        Path(self.audit_db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._audit_conn = sqlite3.connect(
+            self.audit_db_path, check_same_thread=False, timeout=30.0
+        )
+        self._audit_conn.execute("PRAGMA journal_mode=WAL;")
+        self._audit_conn.execute("PRAGMA synchronous=NORMAL;")
+        self._audit_conn.row_factory = sqlite3.Row
+        self._setup_audit_schema()
+
+    def _setup_audit_schema(self) -> None:
+        """Create the append-only CSI audit table.  No UPDATE/DELETE."""
+        self._audit_conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS csi_audit_log (
+                audit_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                session_id   TEXT NOT NULL,
+                verdict      TEXT NOT NULL,
+                evidence_hash TEXT NOT NULL,
+                source       TEXT NOT NULL DEFAULT '',
+                risk_score   REAL NOT NULL DEFAULT 0.0,
+                threat_types TEXT NOT NULL DEFAULT '[]',
+                trust_level  TEXT NOT NULL DEFAULT 'user',
+                blocked      INTEGER NOT NULL DEFAULT 0,
+                details      TEXT NOT NULL DEFAULT '{}'
+            )
+            """
+        )
+        self._audit_conn.commit()
 
     def register_authorized_starter(
         self, starter_id: str, content: str, source: str = "manual"
@@ -260,6 +308,7 @@ class CSIGuard:
         source: str,
         result: CSIVerificationResult,
     ) -> None:
+        verdict = "BLOCK" if result.is_blocked else "ALLOW"
         entry = {
             "timestamp": time.time(),
             "session_id": session_id,
@@ -273,6 +322,32 @@ class CSIGuard:
         }
         self._audit_entries.append(entry)
 
+        # ── Mandatory SQLite audit write (append-only INSERT) ─────
+        try:
+            self._audit_conn.execute(
+                """
+                INSERT INTO csi_audit_log
+                    (session_id, verdict, evidence_hash, source,
+                     risk_score, threat_types, trust_level, blocked, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    verdict,
+                    content_hash,
+                    source,
+                    round(result.risk_score, 4),
+                    json.dumps(result.threat_types, default=str),
+                    result.trust_level,
+                    1 if result.is_blocked else 0,
+                    json.dumps(entry, ensure_ascii=True, default=str),
+                ),
+            )
+            self._audit_conn.commit()
+        except Exception:
+            logger.warning("CSI mandatory SQLite audit write failed", exc_info=True)
+
+        # ── Supplementary JSONL file log (optional) ───────────────
         if self.audit_log_path:
             try:
                 with open(self.audit_log_path, "a", encoding="utf-8") as f:

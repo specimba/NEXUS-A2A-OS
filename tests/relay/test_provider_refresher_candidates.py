@@ -212,3 +212,56 @@ def test_effective_status_ages_on_read():
     ten_days = {"status": "active", "first_missing": now - 10 * 86400}
     assert pr.effective_status(ten_days, now) == "suspended"
     assert pr.effective_status({"status": "active", "first_missing": None}, now) == "active"
+
+
+def test_catalogue_shape_normalization_accepts_common_provider_responses():
+    assert pr._listed_model_ids([{"id": "one"}, {"name": "two"}, "three"]) == [
+        "one", "two", "three",
+    ]
+    assert pr._listed_model_ids({"data": [{"modelId": "one"}]}) == ["one"]
+    assert pr._listed_model_ids({"models": [{"model": "two"}]}) == ["two"]
+    assert pr._listed_model_ids({"data": {"id": "not-a-list"}}) == []
+
+
+def test_top_level_list_response_does_not_abort_provider_probe(tmp_path, monkeypatch):
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps(REGISTRY), encoding="utf-8")
+
+    class _ListResponse:
+        ok = True
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return [
+                {"id": "zai-org/glm-5.2"},
+                {"name": "qwen/qwen3-coder-next"},
+            ]
+
+    monkeypatch.setattr(pr.requests, "get", lambda *args, **kwargs: _ListResponse())
+    refresher = pr.ProviderRefresher(
+        registry_path=registry_path, sidecar_path=tmp_path / "sidecar.json", persist=False,
+    )
+
+    result = refresher.probe_provider("testprov", chat_probe_absentees=False)
+
+    assert result.reachable is True
+    assert result.listed_models == ["zai-org/glm-5.2", "qwen/qwen3-coder-next"]
+    assert result.missing_from_listing == []
+
+
+def test_malformed_sidecar_and_missing_provider_status_are_safe(tmp_path, monkeypatch):
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps(REGISTRY), encoding="utf-8")
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text(json.dumps({"models": [], "providers": []}), encoding="utf-8")
+    refresher = pr.ProviderRefresher(registry_path=registry_path, sidecar_path=sidecar, persist=False)
+
+    assert refresher.health == {"models": {}, "providers": {}}
+    monkeypatch.setattr(
+        refresher, "probe_provider",
+        lambda slug, *, chat_probe_absentees: pr.ProbeResult(provider=slug, reachable=True),
+    )
+    results = refresher.refresh_all(chat_probe=False)
+
+    assert [result.provider for result in results] == ["testprov"]

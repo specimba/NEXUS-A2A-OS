@@ -1,5 +1,8 @@
+import json
+import os
 from pathlib import Path
 
+import nexus_os.grounding.service as service_module
 from nexus_os.grounding.service import GroundingService, is_sensitive_or_excluded
 from nexus_os.grounding.store import GroundingStore
 
@@ -27,6 +30,9 @@ def test_sensitive_and_generated_paths_are_excluded(tmp_path: Path):
     assert is_sensitive_or_excluded(Path(".env"))
     assert is_sensitive_or_excluded(Path("secret.pem"))
     assert is_sensitive_or_excluded(Path(".git") / "config")
+    assert is_sensitive_or_excluded(Path("tests_tmp") / "generated.bin")
+    assert is_sensitive_or_excluded(Path("pytest-cache-files-abc123") / "nodeids")
+    assert is_sensitive_or_excluded(Path(".ruff_cache") / "cache.db")
     assert not is_sensitive_or_excluded(Path("paper.pdf"))
 
 
@@ -97,3 +103,78 @@ def test_public_ingest_path_has_no_authorization_bypass(tmp_path: Path):
 
     sig = inspect.signature(GroundingService.ingest_path)
     assert "authorized" not in sig.parameters
+
+
+def test_reconcile_prunes_excluded_directories_before_scandir(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    excluded = source / "node_modules"
+    excluded.mkdir(parents=True)
+    (excluded / "never-read.txt").write_text("dependency", encoding="utf-8")
+    (source / "keep.txt").write_text("evidence", encoding="utf-8")
+    real_scandir = os.scandir
+
+    def guarded(path):
+        if Path(path).name == "node_modules":
+            raise AssertionError("excluded directory was traversed")
+        return real_scandir(path)
+
+    monkeypatch.setattr(service_module.os, "scandir", guarded)
+    service = GroundingService(
+        store=GroundingStore(tmp_path / "state"),
+        roots={"test": source},
+    )
+
+    result = service.reconcile(stability_delay_seconds=0)
+
+    assert result["discovered"] == 1
+    assert result["ingested"] == 1
+    assert result["scan_errors"] == 0
+
+
+def test_reconcile_contains_denied_directory_and_keeps_scanning(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    blocked = source / "blocked-cache"
+    blocked.mkdir(parents=True)
+    (blocked / "hidden.txt").write_text("hidden", encoding="utf-8")
+    (source / "visible.txt").write_text("visible", encoding="utf-8")
+    real_scandir = os.scandir
+
+    def guarded(path):
+        if Path(path) == blocked:
+            raise PermissionError("synthetic denied directory")
+        return real_scandir(path)
+
+    monkeypatch.setattr(service_module.os, "scandir", guarded)
+    service = GroundingService(
+        store=GroundingStore(tmp_path / "state"),
+        roots={"test": source},
+    )
+
+    result = service.reconcile(stability_delay_seconds=0)
+
+    assert result["discovered"] == 1
+    assert result["ingested"] == 1
+    assert result["scan_errors"] == 1
+
+
+def test_nested_source_root_is_owned_once_by_its_specific_source(tmp_path):
+    archivist = tmp_path / "ARCHIVIST"
+    papers = archivist / "PAPERS"
+    papers.mkdir(parents=True)
+    (archivist / "general.txt").write_text("general", encoding="utf-8")
+    nested = papers / "paper-notes.txt"
+    nested.write_text("paper notes", encoding="utf-8")
+    store = GroundingStore(tmp_path / "state")
+    service = GroundingService(
+        store=store,
+        roots={"archivist": archivist, "papers": papers},
+    )
+
+    result = service.reconcile(stability_delay_seconds=0)
+
+    assert result["discovered"] == 2
+    assert result["ingested"] == 2
+    events = [json.loads(line) for line in store.ledger_path.read_text(encoding="utf-8").splitlines()]
+    nested_events = [event for event in events if event["path"] == str(nested)]
+    assert len(nested_events) == 1
+    assert nested_events[0]["source_id"] == "papers"

@@ -1,10 +1,9 @@
-"""Tests for generated artifact #8 (nexus_os/relay/scores_generated.py) and
-the arena-blend wiring in scripts/gen_model_registry.py (Track A2).
+"""Tests for evidence-backed model benchmark artifacts.
 
-The blend reads config/arena_scores.snapshot.json — a committed
-lockfile-style arena snapshot — so everything here is offline and
-deterministic. Models absent from the snapshot must stay tier-only
-(no-data doctrine): a capability score is never synthesized.
+The generator reads config/arena_scores.snapshot.json as a committed,
+offline snapshot. Every benchmark dimension is independent: missing
+categories remain null, while registry tier is isolated as a routing policy
+prior and is never presented or blended as benchmark evidence.
 """
 from __future__ import annotations
 
@@ -33,8 +32,6 @@ def _load_generator():
 
 
 GEN = _load_generator()
-SCALE = GEN._arena_scale(REGISTRY, ARENA)
-
 
 def _chimera_profiles():
     data = json.loads(
@@ -43,20 +40,20 @@ def _chimera_profiles():
     return data["cloud_profiles"]
 
 
-def test_scores_artifact_in_sync():
-    """Byte-equality drift gate for the blend-consuming artifacts."""
+def test_registry_artifacts_in_sync():
+    """Byte-equality drift gate for every registry consumer."""
     result = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "gen_model_registry.py"),
-         "--check", "--only", "scores,chimera,domains"],
+         "--check"],
         capture_output=True, text=True, cwd=REPO, timeout=60,
     )
     assert result.returncode == 0, "artifacts stale: " + result.stdout + result.stderr
 
 
 def test_no_data_models_not_faked():
-    """KNOWN_GAPS models carry no arena component — tier-only, never synthesized."""
+    """KNOWN_GAPS models carry no synthetic tier or neutral scores."""
     from nexus_os.relay.arena_ingest import KNOWN_GAPS
-    from nexus_os.relay.scores_generated import SCORES_PROVENANCE
+    from nexus_os.relay.scores_generated import SCORES_GENERATED, SCORES_PROVENANCE
 
     registry_ids = {m["id"] for m in REGISTRY["models"]}
     gap_ids = sorted(rid for rid in KNOWN_GAPS if rid in registry_ids)
@@ -64,14 +61,53 @@ def test_no_data_models_not_faked():
     for rid in gap_ids:
         assert rid not in ARENA, rid + " must not appear in the arena snapshot"
         prov = SCORES_PROVENANCE[rid]
-        assert prov["provenance"] == "tier-only", rid
+        assert prov["provenance"] == "unscored", rid
         assert "arena_score" not in prov["components"], rid
         assert prov["sources"] == [], rid
-        assert prov["weights"] == {"tier": 1.0}, rid
+        assert prov["weights"] == {}, rid
+        assert all(value is None for value in SCORES_GENERATED[rid].values()), rid
+
+
+def test_fixture_snapshot_never_claims_high_confidence():
+    """Fixture-seeded evidence is useful for wiring, never high-confidence truth."""
+    from nexus_os.relay.scores_generated import SCORES_PROVENANCE
+
+    assert "fixture-seeded" in SNAPSHOT_PATH.read_text(encoding="utf-8")
+    covered = sorted(rid for rid in ARENA if rid in SCORES_PROVENANCE)
+    assert covered, "fixture snapshot lost all registry overlap"
+    for rid in covered:
+        prov = SCORES_PROVENANCE[rid]
+        assert prov["evidence_kind"] == "fixture", rid
+        assert prov["confidence"].lower() != "high", rid
+
+def test_registry_tier_is_policy_prior_not_benchmark_evidence():
+    """Registry tier may guide routing, but never contributes to benchmark score."""
+    from nexus_os.relay.scores_generated import SCORES_GENERATED, SCORES_PROVENANCE
+
+    for rid, prov in SCORES_PROVENANCE.items():
+        assert "tier" not in prov["weights"], rid
+        assert "registry_tier" not in prov["weights"], rid
+        assert set(prov["policy_prior"]) == {"registry_tier"}, rid
+
+    covered = sorted(rid for rid in ARENA if rid in SCORES_PROVENANCE)
+    assert covered
+    for rid in covered:
+        assert SCORES_GENERATED[rid]["quality"] == round(
+            float(ARENA[rid]["arena_score"]), 4
+        ), rid
+
+
+
+def test_glm_5_2_registry_context_is_at_least_one_million():
+    """Every hosted GLM-5.2 route advertises its >=1M context contract."""
+    rows = [m for m in REGISTRY["models"] if m["id"].lower().endswith("glm-5.2")]
+    assert rows, "GLM-5.2 missing from registry"
+    for row in rows:
+        assert row.get("context", 0) >= 1_000_000, (row["provider"], row.get("context"))
 
 
 def test_alias_resolution_matches_registry():
-    """Every registry id AND alias resolves; collisions take highest blended."""
+    """Every registry id and alias resolves to the richest evidenced record."""
     from nexus_os.relay.scores_generated import SCORES_GENERATED
 
     for m in REGISTRY["models"]:
@@ -89,49 +125,66 @@ def test_alias_resolution_matches_registry():
         pool = list(ids)
         if alias in registry_ids:
             pool.append(alias)  # alias shadows a real id: it competes too
-        expected = max(SCORES_GENERATED[i]["quality"] for i in pool)
+        candidates = [SCORES_GENERATED[i]["quality"] for i in pool]
+        expected = max((score for score in candidates if score is not None), default=None)
         assert SCORES_GENERATED[alias]["quality"] == expected, alias
 
 
-def test_chimera_quality_prefers_blend():
-    """Arena-covered profiles carry the blend (provenance arena+tier);
-    uncovered ones stay at tier/100 (tier-only)."""
+def test_chimera_separates_policy_prior_from_benchmarks():
+    """Compatibility quality is labelled policy; benchmarks stay dimensional."""
+    from nexus_os.relay.scores_generated import SCORES_GENERATED, SCORES_PROVENANCE
+
     rows = {(m["id"], m["provider"]): m for m in REGISTRY["models"]}
-    moved = []
+    covered = 0
+    unscored = 0
     for profile in _chimera_profiles():
         m = rows[(profile["name"], profile["provider"])]
-        blended, provenance, _entry = GEN._blend(m, ARENA, SCALE)
-        assert profile["quality_score"] == round(blended, 2), profile["name"]
-        assert profile["quality_provenance"] == provenance, profile["name"]
-        tier_quality = round((m.get("tier") or 50) / 100.0, 2)
-        if provenance == "tier-only":
-            assert profile["quality_score"] == tier_quality, profile["name"]
-        elif profile["quality_score"] != tier_quality:
-            moved.append(profile["name"])
-    if ARENA:
-        covered = [p for p in _chimera_profiles() if p["quality_provenance"] == "arena+tier"]
-        assert covered, "snapshot has data but no chimera profile consumed it"
-        assert moved, "blend never moved any quality off tier/100 — wiring inert"
+        registry_tier = m.get("tier") or 50
+        assert profile["quality_score"] == round(registry_tier / 100.0, 2)
+        assert profile["quality_provenance"] == "policy_prior.registry_tier"
+        assert profile["policy_prior"] == {"registry_tier": registry_tier}
+        assert profile["benchmark_scores"] == SCORES_GENERATED[m["id"]]
+        assert profile["benchmark_provenance"] == SCORES_PROVENANCE[m["id"]]
+        if profile["benchmark_provenance"]["provenance"] == "unscored":
+            unscored += 1
+            assert all(value is None for value in profile["benchmark_scores"].values())
+        else:
+            covered += 1
+    assert covered > 0
+    assert unscored > 0
+    serialized = json.dumps(_chimera_profiles())
+    assert "arena+tier" not in serialized
+    assert "tier-only" not in serialized
 
 
-def test_domains_order_uses_blend():
-    """Domain primaries rank by (-blend_x100, -tier), not raw tier."""
+def _parse_generated_domains(text: str) -> dict:
+    marker = "GENERATED_DOMAIN_MAPPING: dict = "
+    return ast.literal_eval(text.split(marker, 1)[1])
+
+
+def test_domains_rank_by_policy_prior_and_expose_benchmarks():
+    """Sparse fixture evidence is visible but cannot silently reorder policy."""
     from nexus_os.gmr.domain_mapping_generated import GENERATED_DOMAIN_MAPPING
 
-    rows = {(m["id"], m["provider"]): m for m in REGISTRY["models"]}
     for domain, cfg in GENERATED_DOMAIN_MAPPING.items():
-        keys = []
+        tiers = [entry["tier"] for entry in cfg["primary"]]
+        assert tiers == sorted(tiers, reverse=True), domain + " not tier-ordered"
         for entry in cfg["primary"]:
-            m = rows[(entry["model"], entry["provider"])]
-            blended, _prov, _entry = GEN._blend(m, ARENA, SCALE)
-            keys.append((round(blended * 100, 4), entry["tier"]))
-        assert keys == sorted(keys, reverse=True), domain + " not blend-ordered"
-    if ARENA:
-        # The blend must actually influence the emitted mapping (order or
-        # top-6 membership) relative to a blend-free (tier-only) emission.
-        with_arena = GEN.emit_domains(REGISTRY, ARENA)
-        without_arena = GEN.emit_domains(REGISTRY, {})
-        assert with_arena != without_arena, "arena snapshot had no effect on domain mapping"
+            assert entry["policy_prior"] == {"registry_tier": entry["tier"]}
+            assert set(entry["benchmark_scores"]) == {
+                "quality", "code", "reasoning", "swe", "speed", "cost_efficiency"
+            }
+            provenance = entry["benchmark_provenance"]
+            assert "tier" not in provenance["weights"]
+            assert provenance["policy_prior"] == entry["policy_prior"]
+
+    with_arena = _parse_generated_domains(GEN.emit_domains(REGISTRY, GEN._load_arena()))
+    without_arena = _parse_generated_domains(GEN.emit_domains(REGISTRY, {}))
+    assert with_arena != without_arena, "benchmark snapshot was not exposed"
+    for domain in with_arena:
+        with_routes = [entry["model"] for entry in with_arena[domain]["primary"]]
+        without_routes = [entry["model"] for entry in without_arena[domain]["primary"]]
+        assert with_routes == without_routes, domain + " fixture evidence reordered policy"
 
 
 def _gmr_level_targets():
@@ -159,8 +212,7 @@ def _gmr_level_targets():
 
 
 def test_chimera_gmr_targets_still_reachable():
-    """Scale-calibration guard: blending must not deflate the cloud tier
-    below the GMR quality targets — every level keeps >= 2 profiles."""
+    """The explicit routing prior still satisfies each GMR target."""
     targets = _gmr_level_targets()
     assert set(targets) == {"L1", "L2", "L3", "L4"}
     profiles = _chimera_profiles()

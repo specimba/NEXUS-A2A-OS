@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
@@ -94,3 +96,116 @@ class TestBrainAPIAuth:
         t1 = brain_api.get_brain_api_token()
         t2 = brain_api.get_brain_api_token()
         assert t1 == t2 and len(t1) >= 32
+
+
+class TestBrainAPIServerBinding:
+    def test_direct_runner_defaults_to_loopback(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+        import uvicorn
+
+        calls = []
+        monkeypatch.delenv(
+            "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND",
+            raising=False,
+        )
+        monkeypatch.setattr(
+            uvicorn,
+            "run",
+            lambda app, *, host, port: calls.append((app, host, port)),
+        )
+
+        brain_api.run_brain_api()
+
+        assert calls == [(brain_api.brain_app, "127.0.0.1", 7352)]
+
+    def test_non_loopback_bind_fails_closed_without_unsafe_opt_in(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+        import uvicorn
+
+        monkeypatch.delenv(
+            "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND",
+            raising=False,
+        )
+        run_called = False
+
+        def fake_run(*args, **kwargs):
+            nonlocal run_called
+            run_called = True
+
+        monkeypatch.setattr(uvicorn, "run", fake_run)
+
+        with pytest.raises(
+            RuntimeError,
+            match="NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND=1",
+        ):
+            brain_api.run_brain_api(host="0.0.0.0")
+        assert run_called is False
+
+    def test_non_loopback_bind_requires_exact_unsafe_opt_in(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+        import uvicorn
+
+        calls = []
+        monkeypatch.setenv(
+            "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND",
+            "1",
+        )
+        monkeypatch.setattr(
+            uvicorn,
+            "run",
+            lambda app, *, host, port: calls.append((app, host, port)),
+        )
+
+        brain_api.run_brain_api(host="0.0.0.0", port=7352)
+
+        assert calls == [(brain_api.brain_app, "0.0.0.0", 7352)]
+
+
+class TestBrainAPIWebSocketAuth:
+    def test_websocket_rejects_anonymous_before_accept(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+
+        monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "secret-token")
+
+        with TestClient(brain_api.brain_app) as client:
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                with client.websocket_connect("/ws"):
+                    pass
+
+        assert exc_info.value.code == 1008
+
+    def test_websocket_rejects_credentials_in_query_string(self, monkeypatch):
+        import nexus_os.api.brain_api as brain_api
+
+        monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "secret-token")
+
+        with TestClient(brain_api.brain_app) as client:
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                with client.websocket_connect("/ws?token=secret-token"):
+                    pass
+
+        assert exc_info.value.code == 1008
+
+    @pytest.mark.parametrize(
+        ("path", "headers"),
+        [
+            ("/ws", {"X-Api-Key": "secret-token"}),
+            ("/ws", {"Authorization": "Bearer secret-token"}),
+        ],
+    )
+    def test_websocket_accepts_existing_brain_credentials(
+        self,
+        monkeypatch,
+        path,
+        headers,
+    ):
+        import nexus_os.api.brain_api as brain_api
+
+        monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "secret-token")
+
+        with TestClient(brain_api.brain_app) as client:
+            with client.websocket_connect(path, headers=headers) as websocket:
+                message = websocket.receive_json()
+
+        assert message["type"] == "connected"
+        assert message["connection_id"].startswith("ws-")

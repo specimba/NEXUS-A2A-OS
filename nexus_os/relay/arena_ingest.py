@@ -7,9 +7,9 @@ live truth (same doctrine as provider_refresher's health sidecar).
 
 Sources and trust tiers per docs/handoff/BENCHMARK_TRUST_REGISTRY.md:
 
-- LMArena elo boards (text + code) via the MIT-licensed daily-snapshot
-  mirror at api.wulong.dev/arena-ai-leaderboards — dynamic live human
-  preference, no public static test text: Tier 1 (weight 1.0).
+- LMArena text boards (overall + coding) via LMArena's official
+  `lmarena-ai/leaderboard-dataset` Dataset Server projection — dynamic live
+  human-preference evidence, no public static test text: Tier 1 (weight 1.0).
 - ArtificialAnalysis v2 language-models API — the coding index tracks
   LiveCodeBench-class dynamic evals: Tier 1 (1.0); the blended
   intelligence index folds in periodically-rotated material: Tier 2
@@ -43,7 +43,6 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import requests
 
-from nexus_os.relay.discovery_rules import _family_stem
 from nexus_os.security.secrets import get_secret
 
 logger = logging.getLogger("nexus.relay.arena_ingest")
@@ -58,7 +57,17 @@ SCORES_PATH = ARENA_DIR / "scores.json"
 FETCH_TIMEOUT_S = 15
 
 AA_URL = "https://artificialanalysis.ai/api/v2/language/models"
-LMARENA_URL = "https://api.wulong.dev/arena-ai-leaderboards/v1/"
+# Official LMArena dataset, queried through Hugging Face's documented Dataset
+# Viewer filter endpoint.  The source is public and bounded: two categories,
+# at most five pages per category, 100 rows per request.  Do not replace this
+# with a page scrape or a third-party mirror; a network failure must preserve
+# the previous valid runtime sidecar instead of fabricating evidence.
+LMARENA_DATASET_SERVER_FILTER_URL = "https://datasets-server.huggingface.co/filter"
+LMARENA_DATASET_ID = "lmarena-ai/leaderboard-dataset"
+LMARENA_CONFIG = "text"
+LMARENA_SPLIT = "latest"
+LMARENA_PAGE_SIZE = 100
+LMARENA_MAX_ROWS_PER_CATEGORY = 500
 OPENROUTER_RANKINGS_URL = "https://openrouter.ai/api/v1/rankings-daily"
 
 # Usage is a popularity signal, not a capability signal. It gets a small
@@ -81,6 +90,7 @@ TRUST_WEIGHTS: Dict[str, float] = {
 
 # Sources whose signals are usage-only (excluded from capability fusion).
 USAGE_SOURCES = frozenset({"openrouter_usage"})
+CAPABILITY_TIERS = frozenset({"tier1", "tier2"})
 
 # Per-adapter freshness horizon: older signals are flagged stale and
 # excluded from fusion; anything past DROP_AFTER_DAYS is dropped even
@@ -94,12 +104,15 @@ DROP_AFTER_DAYS = 30
 
 # Registry models with known board-coverage gaps: their absence is
 # expected and documented, never papered over with a synthetic score.
+# A benchmark-coverage gap is independent of provider reachability: an active
+# route remains usable, but the Arena must state when it has no compatible
+# Tier-1/Tier-2 public benchmark evidence.
 KNOWN_GAPS: Dict[str, str] = {
-    "intern-s2-preview": "vendor-only preview distribution; no AA/LMArena coverage yet",
     "stepfun-ai/step-3.5-flash": "not tracked by AA or LMArena boards (3.7 superseded it on boards)",
     "qwen/qwen3.5-122b-a10b": "board coverage gap; only the 397b sibling is ranked",
     "moonshotai/Kimi-K2.7-Code": "vendor-only code variant; boards list base K2.7 only",
     "LongCat-2.0": "too new; daily board snapshots not yet updated",
+    "intern-s2-preview": "no current Tier-1/Tier-2 public benchmark coverage; provider availability is tracked separately",
 }
 
 
@@ -342,26 +355,96 @@ class ArtificialAnalysisAdapter(_BaseAdapter):
 
 
 class LMArenaAdapter(_BaseAdapter):
-    """LMArena daily snapshots via the MIT mirror (api.wulong.dev).
+    """Official LMArena text leaderboard dataset (overall + coding).
 
-    Text and code category boards; elo normalized over the 1000-1500
-    band, clamped 0-1. No API key required.
+    The Dataset Viewer returns row envelopes under ``rows[*].row``.  Query
+    only the two comparable text categories in rank order and stop at the
+    hard per-category bound so benchmark refresh never becomes an unbounded
+    crawling job.  Rating remains a source-specific human-preference signal;
+    it is never a proxy for provider availability or SWE performance.
     """
 
     name = "lmarena"
-    CATEGORY_SIGNALS = {"text": "lmarena_elo", "code": "lmarena_code_elo"}
+    CATEGORY_SIGNALS = {"overall": "lmarena_elo", "coding": "lmarena_code_elo"}
+    # Kept only for deterministic historical fixtures / offline recovery.
+    LEGACY_CATEGORY_SIGNALS = {"text": "lmarena_elo", "code": "lmarena_code_elo"}
 
     def _fetch_remote(self) -> Any:
-        resp = requests.get(LMARENA_URL, timeout=FETCH_TIMEOUT_S)
-        resp.raise_for_status()
-        return resp.json()
+        categories: Dict[str, List[Dict[str, Any]]] = {}
+        page_meta: Dict[str, Dict[str, Any]] = {}
+        for category in self.CATEGORY_SIGNALS:
+            rows: List[Dict[str, Any]] = []
+            offset = 0
+            reported_total: Optional[int] = None
+            while offset < LMARENA_MAX_ROWS_PER_CATEGORY:
+                length = min(LMARENA_PAGE_SIZE, LMARENA_MAX_ROWS_PER_CATEGORY - offset)
+                resp = requests.get(
+                    LMARENA_DATASET_SERVER_FILTER_URL,
+                    params={
+                        "dataset": LMARENA_DATASET_ID,
+                        "config": LMARENA_CONFIG,
+                        "split": LMARENA_SPLIT,
+                        "where": '"category"=\'' + category + '\'',
+                        "orderby": '"rank"',
+                        "offset": offset,
+                        "length": length,
+                    },
+                    headers={"User-Agent": "NEXUS-Model-Arena/1.0"},
+                    timeout=FETCH_TIMEOUT_S,
+                )
+                resp.raise_for_status()
+                payload = resp.json()
+                page = payload.get("rows") if isinstance(payload, dict) else None
+                if not isinstance(page, list):
+                    raise ValueError("LMArena Dataset Server response lacks a rows list")
+                total = payload.get("num_rows_total") if isinstance(payload, dict) else None
+                if total is not None:
+                    if isinstance(total, bool) or not isinstance(total, int) or total < 0:
+                        raise ValueError("LMArena Dataset Server returned invalid num_rows_total")
+                    reported_total = total
+
+                unwrapped: List[Dict[str, Any]] = []
+                for envelope in page:
+                    row = envelope.get("row") if isinstance(envelope, dict) else None
+                    if not isinstance(row, dict):
+                        raise ValueError("LMArena Dataset Server returned a malformed row envelope")
+                    unwrapped.append(row)
+                rows.extend(unwrapped)
+                offset += len(page)
+
+                if not page or len(page) < length:
+                    break
+                if reported_total is not None and offset >= min(reported_total, LMARENA_MAX_ROWS_PER_CATEGORY):
+                    break
+
+            categories[category] = rows
+            page_meta[category] = {
+                "reported_rows": reported_total,
+                "fetched_rows": len(rows),
+                "truncated": bool(reported_total is not None and reported_total > len(rows)),
+            }
+        return {
+            "version": 2,
+            "source": "huggingface_dataset_server",
+            "dataset": LMARENA_DATASET_ID,
+            "config": LMARENA_CONFIG,
+            "split": LMARENA_SPLIT,
+            "categories": categories,
+            "page_meta": page_meta,
+        }
 
     def parse(self, payload: Any, fetched_at: str) -> Dict[str, List[ArenaSignal]]:
         categories = payload.get("categories", payload) if isinstance(payload, dict) else {}
         out: Dict[str, List[ArenaSignal]] = {}
-        for category, signal_key in self.CATEGORY_SIGNALS.items():
+        category_signals = {**self.LEGACY_CATEGORY_SIGNALS, **self.CATEGORY_SIGNALS}
+        for category, signal_key in category_signals.items():
             board = categories.get(category) or {}
-            entries = board.get("entries", board if isinstance(board, list) else [])
+            if isinstance(board, dict):
+                entries = board.get("entries", [])
+            elif isinstance(board, list):
+                entries = board
+            else:
+                entries = []
             for entry in entries or []:
                 if not isinstance(entry, dict):
                     continue
@@ -369,10 +452,28 @@ class LMArenaAdapter(_BaseAdapter):
                 elo = entry.get("elo", entry.get("rating", entry.get("score")))
                 if not model or elo is None:
                     continue
+                try:
+                    rating = float(elo)
+                except (TypeError, ValueError):
+                    continue
+                if not math.isfinite(rating):
+                    continue
+                raw = {
+                    key: entry[key]
+                    for key in (
+                        "model", "model_name", "organization", "license", "elo", "rating",
+                        "rating_lower", "rating_upper", "variance", "vote_count", "rank",
+                        "category", "leaderboard_publish_date",
+                    )
+                    if key in entry
+                }
+                raw["source_model_id"] = str(model)
+                raw["category"] = str(entry.get("category") or category)
+                raw["rating"] = rating
                 out.setdefault(model, []).append(ArenaSignal(
                     signal_key,
-                    {"model": model, "category": category, "elo": elo},
-                    normalize_elo(float(elo)), "tier1", fetched_at,
+                    raw,
+                    normalize_elo(rating), "tier1", fetched_at,
                 ))
         return out
 
@@ -433,21 +534,21 @@ def _bare(name: str) -> str:
     return name.split("/")[-1].strip().lower()
 
 
-_VERSION_RUNS = re.compile("[0-9]+(?:[.][0-9]+)*")
+_NON_RELEASE_CHARS = re.compile("[^a-z0-9]+")
+_KNOWN_BOARD_EFFORT_SUFFIX = re.compile(r"\s*\(\s*max\s*\)\s*$", re.IGNORECASE)
 
 
-def _stem_version_key(name: str) -> str:
-    """Family stem + full digit-run sequence, e.g. "glm-5-2" -> "glm:5.2".
+def _release_key(name: str) -> str:
+    """Normalize harmless board spelling differences without merging releases.
 
-    Joins ALL digit runs so "glm-5-2" and "glm-5.2" collide with each
-    other but not with plain "glm-5".
+    LMArena labels some operator-selected maximum-effort rows as
+    ``GLM 5.2 (Max)`` while NEXUS routes the base release as ``glm-5.2``.
+    That one documented display suffix is stripped.  Other qualifiers such
+    as ``thinking``, ``flash``, ``vl``, or ``preview`` deliberately remain in
+    the key: silently scoring a different release is worse than no score.
     """
-    bare = _bare(name)
-    stem = _family_stem(bare)
-    runs = _VERSION_RUNS.findall(bare)
-    if not stem or not runs:
-        return ""
-    return stem + ":" + ".".join(runs)
+    bare = _KNOWN_BOARD_EFFORT_SUFFIX.sub("", _bare(name))
+    return _NON_RELEASE_CHARS.sub("", bare.lower())
 
 
 def load_overrides(path: Path = OVERRIDES_PATH) -> Dict[str, str]:
@@ -471,10 +572,12 @@ def match_registry_model(
     """Map an external board name to a canonical registry model id.
 
     Order: overrides -> exact id -> case-insensitive id -> alias ->
-    bare name (org prefix stripped) -> family-stem+version. Ambiguity
-    (same bare name under several registry ids) resolves to the first
-    active entry in registry order; pin with an override when that is
-    not the intended canonical id.
+    bare name (org prefix stripped) -> separator-tolerant exact release key.
+    It intentionally does not use a broad family/version fallback: a board
+    record for a ``thinking`` or ``flash`` variant must not become evidence
+    for a different canonical route.  Ambiguity resolves to the first active
+    entry in registry order; pin it with an override when that is not the
+    intended canonical id.
     """
     if not external_id:
         return None
@@ -522,15 +625,15 @@ def match_registry_model(
     if bare_hits:
         return pick(bare_hits)
 
-    key = _stem_version_key(ext)
+    key = _release_key(ext)
     if key:
-        stem_hits = [
+        release_hits = [
             m for m in registry_models
-            if _stem_version_key(m.get("id") or "") == key
-            or any(_stem_version_key(alias) == key for alias in (m.get("aliases") or []))
+            if _release_key(m.get("id") or "") == key
+            or any(_release_key(alias) == key for alias in (m.get("aliases") or []))
         ]
-        if stem_hits:
-            return pick(stem_hits)
+        if release_hits:
+            return pick(release_hits)
 
     return None
 
@@ -577,6 +680,7 @@ def fuse_signals(
         s for s in signals
         if not s.stale
         and s.normalized is not None
+        and s.trust_tier in CAPABILITY_TIERS
         and s.source not in USAGE_SOURCES
         and table.get(s.source, 0.0) > 0.0
     ]
@@ -701,6 +805,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--overrides", default=str(OVERRIDES_PATH), help="name-overrides JSON path")
     parser.add_argument("--out", default=str(SCORES_PATH), help="scores overlay output path")
     parser.add_argument("--include-no-data", action="store_true", help="emit explicit no_data entries for uncovered registry models")
+    parser.add_argument(
+        "--require-capability-evidence",
+        action="store_true",
+        help="refuse to overwrite --out unless at least one fresh Tier-1/Tier-2 capability score was produced",
+    )
     args = parser.parse_args(argv)
 
     cache_dir = Path(args.cache_dir) if args.cache_dir else DEFAULT_CACHE_DIR
@@ -715,10 +824,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     registry = json.loads(Path(args.registry).read_text(encoding="utf-8"))
     overrides = load_overrides(Path(args.overrides))
     overlay = build_scores_overlay(registry, per_source, overrides, include_no_data=args.include_no_data)
-    out_path = write_scores(overlay, Path(args.out))
 
     scored = [m for m in overlay["models"].values() if not m["no_data"]]
     no_data = [m for m in overlay["models"].values() if m["no_data"]]
+    if args.require_capability_evidence and not scored:
+        print(
+            "arena_ingest: no fresh Tier-1/Tier-2 capability evidence; "
+            "refusing to overwrite " + str(Path(args.out))
+        )
+        return 2
+
+    out_path = write_scores(overlay, Path(args.out))
     print("arena_ingest: " + str(len(scored)) + " scored, " + str(len(no_data)) + " no_data -> " + str(out_path))
     for source_name, ids in sorted((overlay.get("unmatched") or {}).items()):
         print("  unmatched[" + source_name + "]: " + str(len(ids)) + " (" + ", ".join(ids[:5]) + ")")

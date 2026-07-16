@@ -15,12 +15,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def _choose_test_temp_root() -> Path:
     """Pick a writable temp root that avoids stale repo-local ACL problems.
 
-    Prefer system temp and explicit env over repo-local `.tmp/pytest_runtime`,
-    which often hits WinError 5 on locked Windows trees.
+    Prefer an explicit root and a short Windows path over repo-local
+    `.tmp/pytest_runtime`, which often hits WinError 5 or MAX_PATH limits.
     """
     candidates: list[Path] = []
     if os.environ.get("NEXUS_TEST_TEMP_ROOT"):
         candidates.append(Path(os.environ["NEXUS_TEST_TEMP_ROOT"]))
+    if os.name == "nt":
+        candidates.append(Path("C:/tmp") / "nexus_pytest")
     candidates.extend([
         Path(tempfile.gettempdir()) / "nexus_pytest",
         Path("C:/tmp") / "nexus_pytest",
@@ -60,6 +62,10 @@ os.environ.setdefault(
 )
 os.environ.setdefault("NEXUS_TEST_DB_PATH", str(_NEXUS_HOME / "test.db"))
 os.environ.setdefault("NEXUS_TEST_TEMP_ROOT", str(_TEST_TEMP_ROOT))
+os.environ.setdefault("NEXUS_PI_STATE_DIR", str(_NEXUS_HOME / "state"))
+os.environ.setdefault(
+    "NEXUS_PROVIDER_BUDGET_DB", str(_NEXUS_HOME / "provider_budget.sqlite3")
+)
 
 try:
     import asyncio  # noqa: F401

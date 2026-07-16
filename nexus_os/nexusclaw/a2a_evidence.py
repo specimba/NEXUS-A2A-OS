@@ -53,6 +53,8 @@ class CycleEvidence:
     wait_offset: int = -1
     verdict: str = ""
     failures: list[str] = field(default_factory=list)
+    success_mode: str = "chat_response"
+    artifact_proof: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -142,6 +144,17 @@ def validate(
         failures.append("no_tail_delta")
     if evidence.tail_growth <= 0:
         failures.append("no_tail_growth")
+
+    # Qwen WebDev is successful only when the actual Preview/Code/Deploy
+    # surface is visible. A chat token or prose response is not sufficient.
+    if evidence.success_mode == "preview_not_chat":
+        proof = evidence.artifact_proof
+        if (
+            not isinstance(proof, dict)
+            or proof.get("status") != "PREVIEW_SUCCESS"
+            or proof.get("success") is not True
+        ):
+            failures.append("preview_proof_missing")
 
     # Check 3 — wall-clock sanity.
     sent = _parse_ts(evidence.send_ts)
@@ -242,6 +255,8 @@ def write_episode(
         "response_sha256": evidence.tail_after_sha256,
         "elapsed_sec": evidence.elapsed_sec,
         "verdict": evidence.verdict,
+        "success_mode": evidence.success_mode,
+        "artifact_status": evidence.artifact_proof.get("status"),
         "evidence": {
             "cdp_target_id": evidence.cdp_target_id,
             "send_offset": evidence.send_offset,

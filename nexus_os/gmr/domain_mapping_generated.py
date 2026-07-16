@@ -2,265 +2,941 @@
 
 GENERATED_DOMAIN_MAPPING: dict = {
     "code": {
-        "primary": [
-            {
-                "model": "z-ai/glm-5.2",
-                "provider": "nvidia",
-                "tier": 96,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-ai/DeepSeek-V4-Flash",
-                "provider": "siliconflow",
-                "tier": 92,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "zai-org/GLM-5.1",
-                "provider": "siliconflow",
-                "tier": 91,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "qwen3-coder:480b",
-                "provider": "ollama-cloud",
-                "tier": 86,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "glm-4.7",
-                "provider": "ollama-cloud",
-                "tier": 82,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "north-mini-code-free",
-                "provider": "opencode",
-                "tier": 70,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            }
-        ],
         "fallback_chain": [
             "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Flash",
             "zai-org/GLM-5.1",
             "qwen3-coder:480b"
+        ],
+        "primary": [
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.7161,
+                        "code_score": 0.684
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 96
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.684,
+                    "cost_efficiency": None,
+                    "quality": 0.7161,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "z-ai/glm-5.2",
+                "policy_prior": {
+                    "registry_tier": 96
+                },
+                "provider": "nvidia",
+                "status": "up",
+                "tier": 96
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 92
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "deepseek-ai/DeepSeek-V4-Flash",
+                "policy_prior": {
+                    "registry_tier": 92
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 92
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 91
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "zai-org/GLM-5.1",
+                "policy_prior": {
+                    "registry_tier": 91
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 91
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 86
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "qwen3-coder:480b",
+                "policy_prior": {
+                    "registry_tier": 86
+                },
+                "provider": "ollama-cloud",
+                "status": "up",
+                "tier": 86
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 82
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "glm-4.7",
+                "policy_prior": {
+                    "registry_tier": 82
+                },
+                "provider": "ollama-cloud",
+                "status": "up",
+                "tier": 82
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 70
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "north-mini-code-free",
+                "policy_prior": {
+                    "registry_tier": 70
+                },
+                "provider": "opencode",
+                "status": "up",
+                "tier": 70
+            }
+        ]
+    },
+    "fast": {
+        "fallback_chain": [
+            "nemotron-3-nano:4b"
+        ],
+        "primary": [
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 45
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 0.0,
+                "latency_ms": 50,
+                "model": "nemotron-3-nano:4b",
+                "policy_prior": {
+                    "registry_tier": 45
+                },
+                "provider": "ollama",
+                "status": "local",
+                "tier": 45
+            }
+        ]
+    },
+    "general": {
+        "fallback_chain": [
+            "z-ai/glm-5.2",
+            "deepseek-ai/DeepSeek-V4-Pro",
+            "zai-org/GLM-5.1",
+            "MiniMaxAI/MiniMax-M3"
+        ],
+        "primary": [
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.7161,
+                        "code_score": 0.684
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 96
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.684,
+                    "cost_efficiency": None,
+                    "quality": 0.7161,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "z-ai/glm-5.2",
+                "policy_prior": {
+                    "registry_tier": 96
+                },
+                "provider": "nvidia",
+                "status": "up",
+                "tier": 96
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 95
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "deepseek-ai/DeepSeek-V4-Pro",
+                "policy_prior": {
+                    "registry_tier": 95
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 95
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 91
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "zai-org/GLM-5.1",
+                "policy_prior": {
+                    "registry_tier": 91
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 91
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.6641
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 90
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_intelligence_index",
+                        "aa_speed",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": 0.6641,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "MiniMaxAI/MiniMax-M3",
+                "policy_prior": {
+                    "registry_tier": 90
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 90
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.6253,
+                        "code_score": 0.59
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 90
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.59,
+                    "cost_efficiency": None,
+                    "quality": 0.6253,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "moonshotai/Kimi-K2.6",
+                "policy_prior": {
+                    "registry_tier": 90
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 90
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 89
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "zai-org/GLM-5",
+                "policy_prior": {
+                    "registry_tier": 89
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 89
+            }
         ]
     },
     "reasoning": {
-        "primary": [
-            {
-                "model": "z-ai/glm-5.2",
-                "provider": "nvidia",
-                "tier": 96,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "siliconflow",
-                "tier": 95,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "MiniMaxAI/MiniMax-M3",
-                "provider": "siliconflow",
-                "tier": 90,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "moonshotai/Kimi-K2-Thinking",
-                "provider": "siliconflow",
-                "tier": 88,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "qwen/qwen3.5-397b-a17b",
-                "provider": "nvidia",
-                "tier": 86,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "Qwen/Qwen3-235B-A22B",
-                "provider": "siliconflow",
-                "tier": 85,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            }
-        ],
         "fallback_chain": [
             "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
             "MiniMaxAI/MiniMax-M3",
             "moonshotai/Kimi-K2-Thinking"
+        ],
+        "primary": [
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.7161,
+                        "code_score": 0.684
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 96
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.684,
+                    "cost_efficiency": None,
+                    "quality": 0.7161,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "z-ai/glm-5.2",
+                "policy_prior": {
+                    "registry_tier": 96
+                },
+                "provider": "nvidia",
+                "status": "up",
+                "tier": 96
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 95
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "deepseek-ai/DeepSeek-V4-Pro",
+                "policy_prior": {
+                    "registry_tier": 95
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 95
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.6641
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 90
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_intelligence_index",
+                        "aa_speed",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": 0.6641,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "MiniMaxAI/MiniMax-M3",
+                "policy_prior": {
+                    "registry_tier": 90
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 90
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 88
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "moonshotai/Kimi-K2-Thinking",
+                "policy_prior": {
+                    "registry_tier": 88
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 88
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 86
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "qwen/qwen3.5-397b-a17b",
+                "policy_prior": {
+                    "registry_tier": 86
+                },
+                "provider": "nvidia",
+                "status": "up",
+                "tier": 86
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 85
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "Qwen/Qwen3-235B-A22B",
+                "policy_prior": {
+                    "registry_tier": 85
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 85
+            }
         ]
     },
     "research": {
-        "primary": [
-            {
-                "model": "z-ai/glm-5.2",
-                "provider": "nvidia",
-                "tier": 96,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "siliconflow",
-                "tier": 95,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "zai-org/GLM-5.1",
-                "provider": "siliconflow",
-                "tier": 91,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "MiniMaxAI/MiniMax-M3",
-                "provider": "siliconflow",
-                "tier": 90,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "zai-org/GLM-5",
-                "provider": "siliconflow",
-                "tier": 89,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                "provider": "nvidia",
-                "tier": 88,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            }
-        ],
         "fallback_chain": [
             "z-ai/glm-5.2",
             "deepseek-ai/DeepSeek-V4-Pro",
             "zai-org/GLM-5.1",
             "MiniMaxAI/MiniMax-M3"
-        ]
-    },
-    "fast": {
+        ],
         "primary": [
             {
-                "model": "nemotron-3-nano:4b",
-                "provider": "ollama",
-                "tier": 45,
-                "latency_ms": 50,
-                "cost_per_1m": 0.0,
-                "status": "local"
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.7161,
+                        "code_score": 0.684
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 96
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.684,
+                    "cost_efficiency": None,
+                    "quality": 0.7161,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "z-ai/glm-5.2",
+                "policy_prior": {
+                    "registry_tier": 96
+                },
+                "provider": "nvidia",
+                "status": "up",
+                "tier": 96
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 95
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "deepseek-ai/DeepSeek-V4-Pro",
+                "policy_prior": {
+                    "registry_tier": 95
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 95
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 91
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "zai-org/GLM-5.1",
+                "policy_prior": {
+                    "registry_tier": 91
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 91
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.6641
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 90
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_intelligence_index",
+                        "aa_speed",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": 0.6641,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "MiniMaxAI/MiniMax-M3",
+                "policy_prior": {
+                    "registry_tier": 90
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 90
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": "2026-07-08T00:00:00+00:00",
+                    "components": {
+                        "arena_score": 0.6253,
+                        "code_score": 0.59
+                    },
+                    "confidence": "low",
+                    "evidence_kind": "fixture",
+                    "policy_prior": {
+                        "registry_tier": 90
+                    },
+                    "provenance": "benchmark_snapshot",
+                    "sources": [
+                        "aa_coding",
+                        "aa_intelligence_index",
+                        "aa_price",
+                        "aa_speed",
+                        "lmarena_code_elo",
+                        "lmarena_elo"
+                    ],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": 0.59,
+                    "cost_efficiency": None,
+                    "quality": 0.6253,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "moonshotai/Kimi-K2.6",
+                "policy_prior": {
+                    "registry_tier": 90
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 90
+            },
+            {
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 89
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
+                "cost_per_1m": 1.0,
+                "latency_ms": 500,
+                "model": "zai-org/GLM-5",
+                "policy_prior": {
+                    "registry_tier": 89
+                },
+                "provider": "siliconflow",
+                "status": "up",
+                "tier": 89
             }
-        ],
-        "fallback_chain": [
-            "nemotron-3-nano:4b"
         ]
     },
     "security": {
-        "primary": [
-            {
-                "model": "intern-s2-preview",
-                "provider": "internai",
-                "tier": 85,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            }
-        ],
         "fallback_chain": [
             "intern-s2-preview"
-        ]
-    },
-    "general": {
+        ],
         "primary": [
             {
-                "model": "z-ai/glm-5.2",
-                "provider": "nvidia",
-                "tier": 96,
-                "latency_ms": 500,
+                "benchmark_provenance": {
+                    "as_of": None,
+                    "components": {},
+                    "confidence": "none",
+                    "evidence_kind": "none",
+                    "policy_prior": {
+                        "registry_tier": 85
+                    },
+                    "provenance": "unscored",
+                    "sources": [],
+                    "weights": {}
+                },
+                "benchmark_scores": {
+                    "code": None,
+                    "cost_efficiency": None,
+                    "quality": None,
+                    "reasoning": None,
+                    "speed": None,
+                    "swe": None
+                },
                 "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "deepseek-ai/DeepSeek-V4-Pro",
-                "provider": "siliconflow",
-                "tier": 95,
                 "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "zai-org/GLM-5.1",
-                "provider": "siliconflow",
-                "tier": 91,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "MiniMaxAI/MiniMax-M3",
-                "provider": "siliconflow",
-                "tier": 90,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "zai-org/GLM-5",
-                "provider": "siliconflow",
-                "tier": 89,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
-            },
-            {
-                "model": "nvidia/nemotron-3-ultra-550b-a55b",
-                "provider": "nvidia",
-                "tier": 88,
-                "latency_ms": 500,
-                "cost_per_1m": 1.0,
-                "status": "up"
+                "model": "intern-s2-preview",
+                "policy_prior": {
+                    "registry_tier": 85
+                },
+                "provider": "internai",
+                "status": "up",
+                "tier": 85
             }
-        ],
-        "fallback_chain": [
-            "z-ai/glm-5.2",
-            "deepseek-ai/DeepSeek-V4-Pro",
-            "zai-org/GLM-5.1",
-            "MiniMaxAI/MiniMax-M3"
         ]
     }
 }

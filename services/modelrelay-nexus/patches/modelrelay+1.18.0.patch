@@ -1,0 +1,1773 @@
+diff --git a/node_modules/modelrelay/lib/config.js b/node_modules/modelrelay/lib/config.js
+index 2d2f5f5..0161e34 100644
+--- a/node_modules/modelrelay/lib/config.js
++++ b/node_modules/modelrelay/lib/config.js
+@@ -54,7 +54,10 @@ import { homedir } from 'os'
+ import { join } from 'path'
+ 
+ // 📖 Primary JSON config path — stores all providers' API keys + enabled state
+-export const CONFIG_PATH = join(homedir(), '.modelrelay.json')
++// NEXUS_CONFIG_PATH_MARKER: the pinned runtime may use an isolated fixture.
++export const CONFIG_PATH = process.env.MODELRELAY_CONFIG_PATH
++  ? process.env.MODELRELAY_CONFIG_PATH
++  : join(homedir(), '.modelrelay.json')
+ const CONFIG_TRANSFER_PREFIX = 'mrconf:v1:'
+ 
+ // 📖 OpenAI-compatible multi-instance support
+diff --git a/node_modules/modelrelay/lib/server.js b/node_modules/modelrelay/lib/server.js
+index e807ae3..98e4e82 100644
+--- a/node_modules/modelrelay/lib/server.js
++++ b/node_modules/modelrelay/lib/server.js
+@@ -2,16 +2,17 @@ import express from 'express';
+ import chalk from 'chalk';
+ import path, { join } from 'path';
+ import { fileURLToPath } from 'url';
+-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
++import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync } from 'fs';
+ import { homedir } from 'os';
+ import { MODELS, sources, canonicalizeModelId, getPreferredModelContext, getPreferredModelLabel, getScore, resolveAliasedModelId } from '../sources.js';
+ import { API_KEY_SIGNUP_URLS } from './providerLinks.js';
+ import { getApiKey, getApiKeyPool, getMaxTurns, getPinningMode, getProviderBaseUrl, getProviderModelId, hasMultipleKeys, isProviderEnabled, getProviderPingIntervalMs, isAutoPingEnabled, loadConfig, saveConfig, exportConfigToken, importConfigToken, isOpenAICompatibleInstanceKey, getBaseProviderKey, listOpenAICompatibleEndpoints, upsertOpenAICompatibleEndpoint, removeOpenAICompatibleEndpoint, buildOpenAICompatibleInstanceKey, getOpenAICompatibleInstanceId } from './config.js';
+-import { buildModelGroups, computeQoSMap, findBestModel, getAvg, getUptime, getVerdict, isRetryableProxyStatus, rankModelsForRouting, getRoutingModelKey, parseOpenRouterKeyRateLimit, filterModelsByRequested, selectNextApiKeyFromPool } from './utils.js';
++import { buildModelGroups, computeQoSMap, createOfferScopedAbortSignal, filterModelsByRequested, findBestModel, getAvg, getRoutingModelKey, getUptime, getVerdict, isOfferFailoverStatus, isRetryableProxyStatus, parseOpenRouterKeyRateLimit, rankModelsForRouting, sanitizeProxyAttempts, selectNextApiKeyFromPool } from './utils.js';
+ import { getPreferredLanIpv4Address } from './network.js';
+ import { createHash, randomUUID } from 'crypto';
+ import { getAutostartStatus } from './autostart.js';
+ import { buildWindowsPostUpdateRestartCommand, fetchLatestNpmVersion, isRunningFromSource, isVersionNewer, runUpdateCommand } from './update.js';
++import { BoundedCanarySampler, NEXUS_RESILIENT_MODEL_ID, NEXUS_SAFE_RUNTIME, ProviderAttemptBudget, ProviderGovernor, classifyOfferAccessFailure, classifyRateLimitScope, computeOfferFirstByteDeadlineMs, installNexusSecurityMiddleware, isNexusResilientModelId, parseRetryAfterMs, projectRoutableModelIds, sanitizeConfigResponse, selectNexusResilientOffers, validateBindPolicy } from '../../../src/nexus-runtime-policy.js';
+ 
+ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = path.dirname(__filename);
+@@ -27,7 +28,35 @@ try {
+ 
+ const PING_TIMEOUT = 15_000;
+ const PING_INTERVAL = 1 * 60_000;
+-const MAX_PROACTIVE_RETRIES = 5;
++const HEALTH_SAMPLER_PATH = process.env.MODELRELAY_HEALTH_SAMPLER_PATH || join(homedir(), '.modelrelay-health-sampler.json');
++
++function accessFailureMessage(accessClass) {
++  if (accessClass === 'auth_required') return 'Authentication is required for this provider offer.';
++  if (accessClass === 'payment_required') return 'This provider offer requires an enabled subscription or credits.';
++  if (accessClass === 'access_denied') return 'The provider denied access to this offer.';
++  return 'Provider access is unavailable for this offer.';
++}
++
++function loadHealthSamplerState() {
++  if (!existsSync(HEALTH_SAMPLER_PATH)) return {};
++  try {
++    const parsed = JSON.parse(readFileSync(HEALTH_SAMPLER_PATH, 'utf8'));
++    return parsed && typeof parsed === 'object' ? parsed : {};
++  } catch {
++    return {};
++  }
++}
++
++function saveHealthSamplerState(sampler) {
++  const temporaryPath = HEALTH_SAMPLER_PATH + '.' + process.pid + '.tmp';
++  try {
++    writeFileSync(temporaryPath, JSON.stringify(sampler.exportState(), null, 2), 'utf8');
++    renameSync(temporaryPath, HEALTH_SAMPLER_PATH);
++  } catch (error) {
++    console.warn(chalk.yellow('  Health sampler state was not persisted: ' + (error?.message || error)));
++  }
++}
++const MAX_PROACTIVE_RETRIES = NEXUS_SAFE_RUNTIME ? 1 : 5;
+ const NPM_LATEST_CACHE_MS = 10 * 60_000;
+ const KILOCODE_PROVIDER_KEY = 'kilocode';
+ const KILOCODE_MODELS_URL = 'https://api.kilo.ai/api/gateway/models';
+@@ -69,7 +98,8 @@ const KIRO_DEFAULT_TOKEN_EXPIRY_MS = 50 * 60_000;
+ const KIRO_BROWSER_AUTH_PROVIDERS = new Set(['google', 'github']);
+ const KIRO_MAX_CONTEXT_TOKENS = 200_000; // Kiro/Claude model max context window for usage estimation
+ 
+-const DEFAULT_DYNAMIC_MODEL_INTELL = 0.45;
++// NEXUS_NULL_UNKNOWN_SCORE_MARKER: unknown evidence is never a synthetic 45%.
++const DEFAULT_DYNAMIC_MODEL_INTELL = NEXUS_SAFE_RUNTIME ? null : 0.45;
+ const DEFAULT_DYNAMIC_MODEL_CTX = '128k';
+ const EXCLUDED_DYNAMIC_MODEL_BASE_IDS = new Set([
+   'meta-llama/llama-guard-4-12b',
+@@ -243,6 +273,82 @@ function parseErrorBodyText(rawText) {
+   }
+ }
+ 
++// NEXUS_NIM_DEGRADED_FUNCTION: NVIDIA NIM uses a 400 response for a
++// temporary function-health condition.  Keep the provider's opaque function
++// UUID out of telemetry and treat the affected offer as a short failover
++// condition rather than as a permanently malformed model ID.
++function isNvidiaNimDegradedFunctionMessage(value) {
++  return /(?:degraded\s+function|function(?:\s+\w+){0,5}\s+degraded|function\s+cannot\s+be\s+invoked)/i.test(String(value || ''));
++}
++
++async function responseIsNvidiaNimDegradedFunction(response, providerKey) {
++  if (providerKey !== 'nvidia' || response?.status !== 400) return false;
++  try {
++    const message = parseErrorBodyText(await response.clone().text());
++    return isNvidiaNimDegradedFunctionMessage(message);
++  } catch {
++    return false;
++  }
++}
++
++// Return an actionable, sanitized reason when an exact requested route has no
++// viable response. Clients such as Hermes can still use their configured
++// fallback on the 503, but operators should not have to infer "NIM degraded"
++// or a first-byte timeout from a generic "no models" message.
++export function nexusUnavailableRouteError(attempts = [], options = {}) {
++  const codes = (Array.isArray(attempts) ? attempts : [])
++    .map(attempt => String(attempt?.errorCode || '').trim())
++    .filter(Boolean);
++  const allCodesAre = code => codes.length > 0 && codes.every(candidate => candidate === code);
++  if (allCodesAre('UPSTREAM_HTTP_402')) {
++    return {
++      status: 402,
++      code: 'NEXUS_PROVIDER_PAYMENT_REQUIRED',
++      message: 'The selected provider offer requires an enabled subscription or credits.',
++    };
++  }
++  if (allCodesAre('UPSTREAM_HTTP_403')) {
++    return {
++      status: 403,
++      code: 'NEXUS_PROVIDER_ACCESS_DENIED',
++      message: 'The selected provider denied access to this offer.',
++    };
++  }
++  if (allCodesAre('UPSTREAM_HTTP_429')) {
++    return {
++      status: 429,
++      code: 'NEXUS_PROVIDER_OFFER_RATE_LIMITED',
++      message: 'The selected provider offer is rate limited. Retry after its advertised cooldown.',
++    };
++  }
++  if (codes.length > 0 && codes.every(code => code === 'NEXUS_NIM_DEGRADED_FUNCTION')) {
++    return {
++      status: 503,
++      code: 'NEXUS_NIM_FUNCTION_DEGRADED',
++      message: 'NVIDIA NIM reports the requested model function is temporarily degraded. Use the configured fallback or retry after the short route cooldown.',
++    };
++  }
++  if (codes.length > 0 && codes.every(code => code === 'NEXUS_FIRST_BYTE_TIMEOUT' || code === 'NEXUS_ROUTE_FIRST_BYTE_BUDGET')) {
++    return {
++      status: 503,
++      code: 'NEXUS_UPSTREAM_FIRST_BYTE_TIMEOUT',
++      message: 'The requested provider did not return response headers inside the bounded route deadline. Use the configured fallback while upstream recovers.',
++    };
++  }
++  if (options.exactOfferRequested) {
++    return {
++      status: 503,
++      code: 'NEXUS_NO_ELIGIBLE_PROVIDER_OFFER',
++      message: 'No eligible provider offer is currently available for the requested exact route.',
++    };
++  }
++  return {
++    status: 503,
++    code: 'NEXUS_NO_HEALTHY_MODEL_OFFER',
++    message: 'No models currently available for this request.',
++  };
++}
++
+ function getNetworkErrorMessage(err) {
+   if (!err) return null;
+   if (typeof err === 'string') return err;
+@@ -390,7 +496,7 @@ function buildConfigurableProviderModelMeta(config, providerKey, defaultBaseUrl
+     label: known?.label || formatGenericProviderModelLabel(modelId),
+     intell: knownScore ?? known?.intell ?? DEFAULT_DYNAMIC_MODEL_INTELL,
+     isEstimatedScore: !hasScore,
+-    ctx: known?.ctx || DEFAULT_DYNAMIC_MODEL_CTX,
++    ctx: getPreferredModelContext(modelId, known?.ctx || DEFAULT_DYNAMIC_MODEL_CTX),
+     providerKey,
+     providerUrl: baseUrl,
+   };
+@@ -587,7 +693,10 @@ export function toOpenAICompatibleDiscoveredModelMeta(record, instanceKey, provi
+   const ctxRaw = record && typeof record === 'object'
+     ? (record.context_length ?? record.contextLength ?? record.ctx ?? null)
+     : null;
+-  const ctx = parseKiloCodeContext(ctxRaw) || known?.ctx || DEFAULT_DYNAMIC_MODEL_CTX;
++  const observedContext = ctxRaw == null
++    ? (known?.ctx || DEFAULT_DYNAMIC_MODEL_CTX)
++    : parseKiloCodeContext(ctxRaw);
++  const ctx = getPreferredModelContext(scoreLookupId, observedContext);
+ 
+   return {
+     modelId,
+@@ -600,6 +709,18 @@ export function toOpenAICompatibleDiscoveredModelMeta(record, instanceKey, provi
+   };
+ }
+ 
++export function mergeConfiguredAndDiscoveredModels(configured, discovered = []) {
++  const merged = [];
++  const seen = new Set();
++  for (const model of [...discovered, ...(configured ? [configured] : [])]) {
++    const canonicalId = resolveAliasedModelId(model?.modelId);
++    if (!model?.modelId || seen.has(canonicalId)) continue;
++    seen.add(canonicalId);
++    merged.push(model);
++  }
++  return merged;
++}
++
+ export async function fetchOpenAICompatibleDiscoveredModels(config, instanceKey) {
+   const baseUrl = getProviderBaseUrl(config, instanceKey);
+   if (!baseUrl) return [];
+@@ -2227,10 +2348,27 @@ function getAutoUpdateStatusSnapshot() {
+   };
+ }
+ 
++function boundedRuntimePositiveInteger(value, fallback, minimum, maximum) {
++  const parsed = Math.floor(Number(value));
++  if (!Number.isFinite(parsed)) return fallback;
++  return Math.min(maximum, Math.max(minimum, parsed));
++}
++
+ export async function runServer(config, port, enableLog = true, bannedModels = []) {
+   // 📖 pinnedModelId: when set, ALL proxy requests are locked to this model (in-memory, resets on restart)
+   let pinnedModelId = null;
+   let pinnedProviderKey = null;
++  const nexusBind = validateBindPolicy({
++    bind: process.env.MODELRELAY_BIND || '127.0.0.1',
++    bearerToken: process.env.MODELRELAY_BEARER_TOKEN || '',
++  });
++  const nexusGovernor = new ProviderGovernor();
++  const nexusHealthSampler = new BoundedCanarySampler({
++    state: loadHealthSamplerState(),
++    globalLimit: boundedRuntimePositiveInteger(process.env.MODELRELAY_CANARY_HOURLY_BUDGET, 24, 6, 60),
++    minSpacingMs: boundedRuntimePositiveInteger(process.env.MODELRELAY_CANARY_MIN_SPACING_MS, 150_000, 60_000, 900_000),
++    defaultProviderCooldownMs: boundedRuntimePositiveInteger(process.env.MODELRELAY_CANARY_PROVIDER_COOLDOWN_MS, 30 * 60 * 1000, 60_000, 2 * 60 * 60 * 1000),
++  });
+ 
+   // Multi-account round-robin state
+   const KEY_POOL_COOLDOWN_MS = 60_000
+@@ -2286,7 +2424,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       label: getPreferredModelLabel(modelId, label),
+       intell: hasScore ? intell : DEFAULT_DYNAMIC_MODEL_INTELL,
+       isEstimatedScore: isEstimatedScoreOverride ?? !hasScore,
+-      ctx,
++      ctx: getPreferredModelContext(modelId, ctx),
+       providerKey,
+       status: 'pending',
+       pings: [],
+@@ -2298,6 +2436,8 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+   };
+ 
+   let results = MODELS.map((row, i) => toResultRow(row, i));
++  nexusHealthSampler.hydrate(results);
++  nexusHealthSampler.restoreCooldowns(nexusGovernor, results);
+   let lastKiloCodeModelRefreshAt = 0;
+   let lastOpenCodeModelRefreshAt = 0;
+   let lastOllamaModelRefreshAt = 0;
+@@ -2339,6 +2479,8 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     }
+ 
+     reindexResults();
++    nexusHealthSampler.hydrate(results);
++    nexusHealthSampler.restoreCooldowns(nexusGovernor, results);
+   };
+ 
+   const refreshKiloCodeModels = async (force = false) => {
+@@ -2457,9 +2599,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       }
+ 
+       // Merge fallback (manually-configured modelId) with discovered list, de-duped.
+-      const merged = fallbackModel
+-        ? [fallbackModel, ...discovered.filter(m => m.modelId !== fallbackModel.modelId)]
+-        : discovered;
++      const merged = mergeConfiguredAndDiscoveredModels(fallbackModel, discovered);
+       mergeDynamicProviderModels(ep.instanceKey, merged);
+       refreshed.push(...merged);
+     }
+@@ -2587,6 +2727,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       }
+     }
+ 
++    const accessClass = classifyOfferAccessFailure(code);
+     if (code === '200') {
+       r.status = 'up';
+       r.httpCode = null;
+@@ -2609,12 +2750,21 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+         updatedAt: now,
+       };
+     }
+-    else if (code === '401') {
+-      r.status = 'noauth';
++    else if (r.providerKey === 'nvidia' && isNvidiaNimDegradedFunctionMessage(errorMessage)) {
++      r.status = 'down';
++      r.httpCode = code;
++      r.lastError = {
++        code,
++        message: 'NVIDIA NIM reports this model function is currently degraded.',
++        updatedAt: now,
++      };
++    }
++    else if (accessClass) {
++      r.status = accessClass;
+       r.httpCode = code;
+       r.lastError = {
+         code,
+-        message: errorMessage || 'Unauthorized. Check API key.',
++        message: errorMessage || accessFailureMessage(accessClass),
+         updatedAt: now,
+       };
+     }
+@@ -2645,6 +2795,99 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     }
+   };
+ 
++  const healthCanaryOffer = (model) => ({
++    providerKey: model.providerKey,
++    modelId: model.modelId,
++    offerId: getRoutingModelKey(model),
++  });
++
++  const canaryRetryAfterMs = (model, code) => {
++    if (String(code) !== '429') return 0;
++    const resetAt = Math.max(
++      Number(model.rateLimit?.resetRequestsAt) || 0,
++      Number(model.rateLimit?.resetTokensAt) || 0,
++    );
++    return Math.max(60_000, resetAt > Date.now() ? resetAt - Date.now() : 0);
++  };
++
++  const runHealthCanary = async (model, source) => {
++    const offer = healthCanaryOffer(model);
++    const priorPingCount = Array.isArray(model.pings) ? model.pings.length : 0;
++    try {
++      await nexusGovernor.run(
++        model.providerKey,
++        () => pingModel(model),
++        { offer },
++      );
++      const lastPing = Array.isArray(model.pings) && model.pings.length > priorPingCount
++        ? model.pings[model.pings.length - 1]
++        : null;
++      const code = lastPing?.code || model.httpCode || null;
++      const numericStatus = /^[0-9]+$/.test(String(code || '')) ? Number(code) : null;
++      const retryAfterMs = canaryRetryAfterMs(model, code);
++      if (numericStatus === 429) {
++        nexusGovernor.openRateLimit(offer, { scope: 'offer', retryAfterMs });
++      } else if (numericStatus !== null) {
++        nexusGovernor.recordOfferStatus(offer, numericStatus, { retryAfterMs: retryAfterMs || undefined });
++      }
++      const access = nexusGovernor.offerAccessStatus(offer);
++      model.accessClass = access.accessClass;
++      model.accessUntil = access.until;
++      const outcome = String(code) === '200'
++        ? 'success'
++        : String(code) === '429'
++          ? 'rate_limited'
++          : String(code) === '401'
++            ? 'auth_required'
++            : String(code) === '000'
++              ? 'timeout'
++              : lastPing
++                ? 'failed'
++                : 'skipped';
++      nexusHealthSampler.observe(model, {
++        status: model.status,
++        httpCode: model.httpCode,
++        lastPingAt: model.lastPingAt,
++        lastModelResponseAt: model.lastModelResponseAt,
++        pings: model.pings,
++        lastError: model.lastError,
++        cooldownUntil: retryAfterMs > 0 ? Date.now() + retryAfterMs : 0,
++        accessClass: model.accessClass,
++        accessUntil: model.accessUntil,
++      });
++      nexusHealthSampler.record(offer, {
++        outcome,
++        status: numericStatus,
++        latencyMs: lastPing?.ms,
++        retryAfterMs,
++      });
++      saveHealthSamplerState(nexusHealthSampler);
++      return model;
++    } catch (error) {
++      nexusHealthSampler.record(offer, {
++        outcome: error?.code || error?.name || 'error',
++        retryAfterMs: Number(error?.retryAfterMs) || 0,
++      });
++      saveHealthSamplerState(nexusHealthSampler);
++      throw error;
++    }
++  };
++
++  const runScheduledHealthCanary = async () => {
++    const model = nexusHealthSampler.claim(results, {
++      governor: nexusGovernor,
++      source: 'scheduled',
++    });
++    if (!model) return null;
++    saveHealthSamplerState(nexusHealthSampler);
++    try {
++      return await runHealthCanary(model, 'scheduled');
++    } catch (error) {
++      console.warn(chalk.yellow('  Health canary failed for ' + model.providerKey + '/' + model.modelId + ': ' + (error?.message || error)));
++      return null;
++    }
++  };
++
+   const triggerImmediateProviderPing = async (providerKey) => {
+     if (!providerKey) return;
+     if (providerKey === KILOCODE_PROVIDER_KEY) {
+@@ -2665,7 +2908,9 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       await refreshOllamaModels(true);
+     }
+     const providerModels = results.filter(r => r.providerKey === providerKey);
+-    if (providerModels.length === 0) return;
++    if (providerModels.length === 0 || NEXUS_SAFE_RUNTIME) return;
++    // Completion probes are intentionally excluded from NEXUS safe runtime.
++    // An explicit, provider-scoped canary is implemented outside this refresh path.
+     void Promise.allSettled(providerModels.map(r => pingModel(r)));
+   };
+ 
+@@ -2680,7 +2925,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+   const schedulePing = () => {
+     setTimeout(async () => {
+       const currentConfig = loadConfig();
+-      if (!isAutoPingEnabled(currentConfig)) {
++      if (!NEXUS_SAFE_RUNTIME && !isAutoPingEnabled(currentConfig)) {
+         schedulePing();
+         return;
+       }
+@@ -2689,12 +2934,16 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       await safeRefreshProviderModels(() => refreshOpenRouterModels());
+       await safeRefreshProviderModels(() => refreshOpenAICompatibleModels());
+       await safeRefreshProviderModels(() => refreshOllamaModels());
+-      const now = Date.now();
+-      for (const r of results) {
+-        const pingIntervalMs = getProviderPingIntervalMs(currentConfig, r.providerKey);
+-        const lastActivityAt = Math.max(r.lastModelResponseAt || 0, r.lastPingAt || 0);
+-        if (now - lastActivityAt < pingIntervalMs) continue;
+-        pingModel(r).catch(() => { });
++      if (!NEXUS_SAFE_RUNTIME) {
++        const now = Date.now();
++        for (const r of results) {
++          const pingIntervalMs = getProviderPingIntervalMs(currentConfig, r.providerKey);
++          const lastActivityAt = Math.max(r.lastModelResponseAt || 0, r.lastPingAt || 0);
++          if (now - lastActivityAt < pingIntervalMs) continue;
++          pingModel(r).catch(() => { });
++        }
++      } else {
++        await runScheduledHealthCanary();
+       }
+       schedulePing();
+     }, PING_INTERVAL);
+@@ -2704,6 +2953,9 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     if (autoUpdateInProgress) return { ok: false, message: 'Auto-update already in progress.' };
+ 
+     const currentConfig = loadConfig();
++    if (NEXUS_SAFE_RUNTIME || process.env.MODELRELAY_DISABLE_AUTO_UPDATE === '1') {
++      return { ok: true, message: 'Auto-update is disabled by NEXUS runtime policy.' };
++    }
+     const state = normalizeAutoUpdateState(currentConfig);
+     const enabled = state.enabled !== false;
+     if (!enabled && !force) return { ok: true, message: 'Auto-update is disabled.' };
+@@ -2790,12 +3042,13 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     }, 10 * 60_000);
+   };
+ 
+-  process.stdout.write(chalk.dim('  ⏳ Initializing model health checks... '));
++  process.stdout.write(chalk.dim(NEXUS_SAFE_RUNTIME ? '  ⏳ Initializing provider catalogues... ' : '  ⏳ Initializing model health checks... '));
+   await safeRefreshProviderModels(() => refreshKiloCodeModels(true));
++  await safeRefreshProviderModels(() => refreshOpenCodeModels(true));
+   await safeRefreshProviderModels(() => refreshOpenRouterModels(true));
+   await safeRefreshProviderModels(() => refreshOpenAICompatibleModels(null, true));
+   await safeRefreshProviderModels(() => refreshOllamaModels(true));
+-  await Promise.all(results.map(r => pingModel(r)));
++  if (!NEXUS_SAFE_RUNTIME) await Promise.all(results.map(r => pingModel(r)));
+   console.log(chalk.green('Done!'));
+ 
+   schedulePing();
+@@ -2805,19 +3058,25 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+   const app = express();
+   const jsonBodyLimit = process.env.MODELRELAY_JSON_LIMIT || '10mb';
+ 
+-  app.use(express.static(path.join(__dirname, '../public')));
+-  app.use(express.json({ limit: jsonBodyLimit }));
++  if (NEXUS_SAFE_RUNTIME) {
++    installNexusSecurityMiddleware(app, {
++      allowedOrigins: process.env.MODELRELAY_ALLOWED_ORIGINS || 'http://127.0.0.1:7356,http://localhost:7356,http://127.0.0.1:3001,http://localhost:3001',
++      bearerToken: process.env.MODELRELAY_BEARER_TOKEN || '',
++    });
++  }
+ 
+   // CORS
+-  app.use((req, res, next) => {
+-    res.header('Access-Control-Allow-Origin', '*');
+-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+-    if (req.method === 'OPTIONS') {
+-      return res.sendStatus(204);
+-    }
+-    next();
+-  });
++  if (!NEXUS_SAFE_RUNTIME) {
++    app.use((req, res, next) => {
++      res.header('Access-Control-Allow-Origin', '*');
++      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
++      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
++      if (req.method === 'OPTIONS') return res.sendStatus(204);
++      next();
++    });
++  }
++  app.use(express.static(path.join(__dirname, '../public')));
++  app.use(express.json({ limit: jsonBodyLimit }));
+ 
+   // API for Web UI
+   app.get('/api/oauth/kiro/auto-import', (req, res) => {
+@@ -3002,6 +3261,8 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+   });
+ 
+   app.get('/api/models', (req, res) => {
++    nexusHealthSampler.hydrate(results);
++    nexusHealthSampler.restoreCooldowns(nexusGovernor, results);
+     const currentConfig = loadConfig();
+     const pinningMode = getPinningMode(currentConfig);
+     const qosMap = computeQoSMap(results);
+@@ -3089,7 +3350,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     for (const ep of listOpenAICompatibleEndpoints(currentConfig)) {
+       providers.push(buildProviderConfigEntry(currentConfig, ep.instanceKey, ep.name));
+     }
+-    res.json(providers);
++    res.json(NEXUS_SAFE_RUNTIME ? sanitizeConfigResponse(providers) : providers);
+   });
+ 
+   app.post('/api/openai-compatible/endpoints', (req, res) => {
+@@ -3146,7 +3407,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     try {
+       const models = await refreshProviderModelsForApi(providerKey);
+       const providerModels = results.filter(r => r.providerKey === providerKey);
+-      void Promise.allSettled(providerModels.map(r => pingModel(r)));
++      if (!NEXUS_SAFE_RUNTIME) void Promise.allSettled(providerModels.map(r => pingModel(r)));
+       return res.json({
+         success: true,
+         providerKey,
+@@ -3200,8 +3461,8 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       }
+     }
+ 
+-    // Ping all models after refreshing
+-    void Promise.allSettled(results.map(r => pingModel(r)));
++    // Catalogue refresh is inference-free in the NEXUS safe runtime.
++    if (!NEXUS_SAFE_RUNTIME) void Promise.allSettled(results.map(r => pingModel(r)));
+ 
+     return res.json({
+       success: true,
+@@ -3574,19 +3835,45 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     res.json({ success: true, bannedModels: currentBans });
+   });
+ 
++  app.get('/api/health-sampler', (req, res) => {
++    res.json(nexusHealthSampler.snapshot());
++  });
++
+   app.post('/api/models/ping', async (req, res) => {
+-    const { modelId } = req.body || {};
++    const { modelId, providerKey } = req.body || {};
+     if (!modelId) return res.status(400).json({ error: 'Missing modelId' });
+ 
+-    const model = results.find(r => r.modelId === modelId);
+-    if (!model) return res.status(404).json({ error: 'Model not found' });
++    const matches = results.filter(r => r.modelId === modelId && (!providerKey || r.providerKey === providerKey));
++    if (matches.length === 0) return res.status(404).json({ error: 'Model offer not found' });
++    if (!providerKey && matches.length > 1) {
++      return res.status(409).json({
++        error: 'Model ID is ambiguous; providerKey is required.',
++        modelId,
++        providers: matches.map(model => model.providerKey).sort(),
++      });
++    }
++
++    const model = matches[0];
++    const claimed = nexusHealthSampler.claim([model], {
++      governor: nexusGovernor,
++      source: 'manual',
++    });
++    if (!claimed) {
++      return res.status(429).json({
++        error: 'Health canary budget or provider cooldown is active.',
++        sampler: nexusHealthSampler.snapshot(),
++      });
++    }
++    saveHealthSamplerState(nexusHealthSampler);
+ 
+     try {
+-      await pingModel(model);
++      await runHealthCanary(model, 'manual');
+       res.json({
+         success: true,
++        sampler: nexusHealthSampler.snapshot(),
+         model: {
+           modelId: model.modelId,
++          providerKey: model.providerKey,
+           status: model.status,
+           avg: getAvg(model),
+           uptime: getUptime(model),
+@@ -3597,7 +3884,10 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+         },
+       });
+     } catch (error) {
+-      res.status(500).json({ error: error?.message || 'Failed to ping model' });
++      res.status(503).json({
++        error: error?.message || 'Failed to ping model offer',
++        sampler: nexusHealthSampler.snapshot(),
++      });
+     }
+   });
+ 
+@@ -3665,6 +3955,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+   // Proxy endpoint
+   app.get('/v1/models', (req, res) => {
+     const groups = buildModelGroups(results, canonicalizeModelId)
++    const routableModels = projectRoutableModelIds(groups)
+     const data = [
+       {
+         id: 'auto-fastest',
+@@ -3673,12 +3964,22 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+         created: Date.now(),
+         owned_by: 'router'
+       },
+-      ...groups.map(group => ({
+-        id: group.id,
+-        name: group.label,
++      // NEXUS_RESILIENT_ALIAS: explicit opt-in route.  Its request path uses
++      // only fresh observed-healthy offers and fails closed when none exist;
++      // it is not a synonym for auto-fastest or a new default.
++      {
++        id: NEXUS_RESILIENT_MODEL_ID,
++        name: 'NEXUS Resilient (opt-in fresh-health failover)',
+         object: "model",
+         created: Date.now(),
+-        owned_by: 'relay'
++        owned_by: 'relay-policy'
++      },
++      ...routableModels.map(model => ({
++        id: model.id,
++        name: model.name,
++        object: "model",
++        created: Date.now(),
++        owned_by: model.providerQualified ? 'relay-offer' : 'relay'
+       }))
+     ]
+ 
+@@ -3712,11 +4013,6 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+ 
+     if (Object.keys(rateLimit).length > 0) {
+       model.rateLimit = rateLimit;
+-      for (const r of results) {
+-        if (r.providerKey === model.providerKey) {
+-          r.rateLimit = rateLimit;
+-        }
+-      }
+     }
+ 
+     if (model.providerKey === 'openrouter') {
+@@ -3732,28 +4028,106 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+     }
+   };
+ 
++  const estimateNexusPromptTokens = (payload) => {
++    let characters = 0;
++    const append = (value) => {
++      if (value == null) return;
++      try {
++        const text = typeof value === 'string' ? value : JSON.stringify(value);
++        characters += Math.min(String(text || '').length, 4_000_000);
++      } catch {
++        characters += 4_096;
++      }
++    };
++    for (const message of Array.isArray(payload?.messages) ? payload.messages : []) {
++      append(message?.content);
++      append(message?.tool_calls);
++      append(message?.function_call);
++    }
++    append(payload?.tools);
++    // This is a capacity guard, not billing telemetry. It deliberately rounds
++    // conservatively so a long-lived agent session cannot be sent to a route
++    // whose advertised context is too small.
++    return Math.min(1_000_000, Math.ceil(characters / 4));
++  };
++
+   app.post('/v1/chat/completions', async (req, res) => {
+     let logEntry = null;
++    const requestAbort = new AbortController();
++    const nexusAttemptBudget = new ProviderAttemptBudget(2);
++    const totalTimeoutMs = Math.max(1, Number(process.env.MODELRELAY_TOTAL_TIMEOUT_MS || 180_000));
++    const firstByteTimeoutMs = Math.max(1, Number(process.env.MODELRELAY_FIRST_BYTE_TIMEOUT_MS || 45_000));
++    const routeFirstByteBudgetMs = Math.max(1, Number(process.env.MODELRELAY_ROUTE_FIRST_BYTE_BUDGET_MS || 25_000));
++    const routeFirstByteStartedAt = performance.now();
++    const totalTimer = setTimeout(() => {
++      const error = new Error(`Provider request exceeded total deadline ${totalTimeoutMs}ms.`);
++      error.name = 'TimeoutError';
++      error.code = 'NEXUS_TOTAL_TIMEOUT';
++      requestAbort.abort(error);
++    }, totalTimeoutMs);
++    const abortForClient = () => requestAbort.abort(new DOMException('Client disconnected.', 'AbortError'));
++    req.once('aborted', abortForClient);
++    res.once('close', () => {
++      clearTimeout(totalTimer);
++      if (!res.writableEnded) abortForClient();
++    });
++    res.once('finish', () => clearTimeout(totalTimer));
+     try {
+       const payload = req.body;
++      nexusHealthSampler.hydrate(results);
++      nexusHealthSampler.restoreCooldowns(nexusGovernor, results);
+       const attemptedModelKeys = new Set();
+       const attempts = [];
+-      const requestedModels = filterModelsByRequested(results, payload.model, canonicalizeModelId);
+-
+-      if (payload.model && payload.model !== 'auto-fastest' && requestedModels.length === 0) {
+-        return res.status(404).json({ error: { message: `Requested model not found: ${payload.model}` } });
++      // NEXUS_RESILIENT_ALIAS: retain normal canonical and pinned routing for
++      // every existing model ID.  Only the explicit virtual alias enters the
++      // fresh-health failover lane, so GLM-5.2 remains a separately locked
++      // primary route for clients that request it.
++      const resilientAliasRequested = isNexusResilientModelId(payload.model);
++      const estimatedPromptTokens = estimateNexusPromptTokens(payload);
++      const outputReserveTokens = Math.max(
++        0,
++        Math.floor(Number(payload.max_tokens ?? payload.max_completion_tokens ?? payload.max_output_tokens) || 0),
++      );
++      const requestedModels = resilientAliasRequested
++        ? selectNexusResilientOffers(results, {
++          governor: nexusGovernor,
++          estimatedPromptTokens,
++          outputReserveTokens,
++        })
++        : filterModelsByRequested(results, payload.model, canonicalizeModelId);
++      const requestedModelId = String(payload.model || 'auto-fastest').slice(0, 256);
++      const routeEvaluationLimit = NEXUS_SAFE_RUNTIME
++        ? Math.max(1, Math.min(requestedModels.length || 1, 32))
++        : MAX_PROACTIVE_RETRIES + 1;
++
++      if (payload.model && payload.model !== 'auto-fastest' && !resilientAliasRequested && requestedModels.length === 0) {
++        return res.status(404).json({ error: { message: `Requested model not found: ${requestedModelId}` } });
+       }
+ 
+       const pickNextModel = () => {
++        const eligible = NEXUS_SAFE_RUNTIME
++          ? requestedModels.filter(r => nexusGovernor.isAvailable(r.providerKey) && nexusGovernor.isOfferAvailable({
++            providerKey: r.providerKey,
++            modelId: r.modelId,
++            offerId: getRoutingModelKey(r),
++          }))
++          : requestedModels;
++        // The resilient selector already returned a strict, health-evidence
++        // ordered lane with provider diversification.  Do not run QoS ranking
++        // (or a global pin) over it, because either could reintroduce a
++        // score-driven ordering that the virtual alias explicitly avoids.
++        if (resilientAliasRequested) {
++          return eligible.find(r => !attemptedModelKeys.has(getRoutingModelKey(r))) || null;
++        }
+         if (pinnedModelId) {
+           const pinningMode = getPinningMode(loadConfig());
+-          const pinned = getPinnedModelCandidate(results, pinnedModelId, pinningMode, Array.from(attemptedModelKeys), pinnedProviderKey);
++          const pinned = getPinnedModelCandidate(eligible, pinnedModelId, pinningMode, Array.from(attemptedModelKeys), pinnedProviderKey);
+           if (pinned) {
+             return pinned;
+           }
+         }
+ 
+-        const ranked = rankModelsForRouting(requestedModels, Array.from(attemptedModelKeys));
++        const ranked = rankModelsForRouting(eligible, Array.from(attemptedModelKeys));
+         return ranked[0] || null;
+       };
+ 
+@@ -3796,7 +4170,8 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       let selectedResponse = null;
+       let selectedT0 = 0;
+ 
+-      for (let retry = 0; retry <= MAX_PROACTIVE_RETRIES; retry++) {
++      for (let retry = 0; retry < routeEvaluationLimit; retry++) {
++        if (NEXUS_SAFE_RUNTIME && nexusAttemptBudget.remaining === 0) break;
+         const best = pickNextModel();
+         if (!best) break;
+ 
+@@ -3812,7 +4187,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+         let providerUrl = resolveProviderUrl(currentConfig, best.providerKey, providerAuth.providerUrlOverride, best.providerUrl);
+ 
+         const attemptMeta = {
+-          index: retry + 1,
++          index: attempts.length + 1,
+           model: best.modelId,
+           provider: best.providerKey,
+           status: 'pending',
+@@ -3834,7 +4209,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+           continue;
+         }
+ 
+-        console.log(chalk.dim(`  [Router] ➡️ Proxying request (attempt ${retry + 1}/${MAX_PROACTIVE_RETRIES + 1}) to ${best.providerKey}/${best.modelId} (${best.status === 'up' && best.pings.length > 0 ? best.pings[best.pings.length - 1].ms + 'ms' : 'fallback'})`));
++        console.log(chalk.dim(`  [Router] ➡️ Proxying request (route ${retry + 1}/${routeEvaluationLimit}; upstream budget ${nexusAttemptBudget.remaining}) to ${best.providerKey}/${best.modelId} (${best.status === 'up' && best.pings.length > 0 ? best.pings[best.pings.length - 1].ms + 'ms' : 'fallback'})`));
+ 
+         let headers = buildProviderRequestHeaders(best.providerKey, {
+           apiKey: providerAuth.token,
+@@ -3848,14 +4223,58 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+ 
+         const t0 = performance.now();
+         let response;
++        const nexusOffer = () => ({
++          providerKey: best.providerKey,
++          modelId: best.modelId,
++          offerId: getRoutingModelKey(best),
++          accountKey: providerAuth.token ? createHash('sha256').update(String(providerAuth.token)).digest('hex').slice(0, 16) : null,
++          connectionKey: providerUrl ? createHash('sha256').update(String(providerUrl)).digest('hex').slice(0, 16) : null,
++        });
++        const fetchProvider = async (url, init) => {
++          const fetchOnce = async () => {
++            const routeFirstByteRemainingMs = Math.floor(
++              routeFirstByteBudgetMs - (performance.now() - routeFirstByteStartedAt),
++            );
++            if (routeFirstByteRemainingMs <= 0) {
++              const error = new Error(`No provider returned headers inside the ${routeFirstByteBudgetMs}ms route budget.`);
++              error.code = 'NEXUS_ROUTE_FIRST_BYTE_BUDGET';
++              error.name = 'TimeoutError';
++              throw error;
++            }
++            const offerFirstByteTimeoutMs = computeOfferFirstByteDeadlineMs(best, {
++              configuredMs: firstByteTimeoutMs,
++              remainingMs: routeFirstByteRemainingMs,
++              estimatedPromptTokens,
++            });
++            attemptMeta.firstByteDeadlineMs = offerFirstByteTimeoutMs;
++            const offerAbort = createOfferScopedAbortSignal(requestAbort.signal, offerFirstByteTimeoutMs);
++            let responseStarted = false;
++            try {
++              const upstreamResponse = await fetch(url, { ...init, signal: offerAbort.signal });
++              offerAbort.headersReceived();
++              responseStarted = true;
++              res.once('finish', offerAbort.cleanup);
++              res.once('close', offerAbort.cleanup);
++              return upstreamResponse;
++            } finally {
++              if (!responseStarted) offerAbort.cleanup();
++            }
++          };
++          if (!NEXUS_SAFE_RUNTIME) return fetchOnce();
++          return nexusGovernor.run(
++            best.providerKey,
++            () => nexusAttemptBudget.run(fetchOnce),
++            { signal: requestAbort.signal, offer: nexusOffer() },
++          );
++        };
+         try {
+-          response = await fetch(providerUrl, {
++          response = await fetchProvider(providerUrl, {
+             method: 'POST',
+             headers,
+             body: JSON.stringify(providerPayload)
+           });
+ 
+-          if (shouldRetryOptionalProviderWithBearer(currentConfig, best.providerKey, providerAuth, String(response.status), null)) {
++          if ((!NEXUS_SAFE_RUNTIME || nexusAttemptBudget.remaining > 0) && shouldRetryOptionalProviderWithBearer(currentConfig, best.providerKey, providerAuth, String(response.status), null)) {
+             const fallbackToken = getNextApiKey(currentConfig, best.providerKey);
+             if (fallbackToken) {
+               providerAuth = { token: fallbackToken, authSource: 'api-key', providerUrlOverride: providerAuth.providerUrlOverride };
+@@ -3865,7 +4284,7 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+                 requestId: makeOpencodeHeaderId('req'),
+               });
+               providerPayload = buildProviderRequestBody(best.providerKey, payload, best.modelId, kiroOptions);
+-              response = await fetch(providerUrl, {
++              response = await fetchProvider(providerUrl, {
+                 method: 'POST',
+                 headers,
+                 body: JSON.stringify(providerPayload)
+@@ -3878,24 +4297,115 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+           attemptMeta.error = err?.message || 'Unknown network error';
+           attemptMeta.retryable = true;
+           attempts.push(attemptMeta);
+-          if (retry === MAX_PROACTIVE_RETRIES) {
++          attemptMeta.errorCode = err?.code || err?.name || 'UPSTREAM_ERROR';
++          const callerAbort = err?.name === 'AbortError' && !err?.code;
++          if (NEXUS_SAFE_RUNTIME && !callerAbort) {
++            const failureAt = Date.now();
++            const timeoutFailure = String(err?.code || '').startsWith('NEXUS_') || err?.name === 'TimeoutError';
++            best.lastPingAt = failureAt;
++            best.pings.push({ ms: attemptMeta.duration, code: timeoutFailure ? '000' : 'ERR', ts: failureAt });
++            if (best.pings.length > 50) best.pings.shift();
++            best.status = timeoutFailure ? 'timeout' : 'down';
++            best.httpCode = timeoutFailure ? '000' : 'ERR';
++            best.lastError = {
++              code: best.httpCode,
++              message: String(err?.message || 'Provider request failed').slice(0, 500),
++              updatedAt: failureAt,
++            };
++            nexusHealthSampler.observe(best, {
++              status: best.status,
++              httpCode: best.httpCode,
++              lastPingAt: best.lastPingAt,
++              lastModelResponseAt: best.lastModelResponseAt,
++              pings: best.pings,
++              lastError: best.lastError,
++            });
++            saveHealthSamplerState(nexusHealthSampler);
++          }
++          if (NEXUS_SAFE_RUNTIME && requestAbort.signal.aborted) throw requestAbort.signal.reason;
++          if (NEXUS_SAFE_RUNTIME) {
++            if (nexusAttemptBudget.remaining === 0) break;
++            continue;
++          }
++          if (retry === routeEvaluationLimit - 1) {
+             throw err;
+           }
+           continue;
+         }
+ 
++        const nvidiaNimDegradedFunction = NEXUS_SAFE_RUNTIME
++          && await responseIsNvidiaNimDegradedFunction(response, best.providerKey);
+         attemptMeta.duration = Math.round(performance.now() - t0);
+         attemptMeta.status = String(response.status);
+-        attemptMeta.retryable = isRetryableProxyStatus(response.status);
++        attemptMeta.retryable = NEXUS_SAFE_RUNTIME
++          ? (isOfferFailoverStatus(response.status) || nvidiaNimDegradedFunction)
++          : isRetryableProxyStatus(response.status);
++        if (nvidiaNimDegradedFunction) attemptMeta.errorCode = 'NEXUS_NIM_DEGRADED_FUNCTION';
+         attempts.push(attemptMeta);
+ 
+-        // On 429: mark this account as rate-limited so next retry picks a different key
++        // NEXUS_ENTITLEMENT_AWARE: 401/402/403 are surfaced as bounded
++        // offer-level access holds, never conflated with a transient outage.
++        let offerAccess = { accessClass: null, until: 0 };
++        // 429 is scoped to the account/connection/model/offer, never the whole provider.
++        if (NEXUS_SAFE_RUNTIME) {
++          if (nvidiaNimDegradedFunction) {
++            nexusGovernor.openOfferCircuit(nexusOffer());
++          } else if (response.status === 429) {
++            const limitedOffer = nexusOffer();
++            nexusGovernor.openRateLimit(limitedOffer, {
++              scope: classifyRateLimitScope(response.headers, limitedOffer),
++              retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
++            });
++          } else {
++            const retryAfter = response.headers.get('retry-after');
++            nexusGovernor.recordOfferStatus(nexusOffer(), response.status, {
++              retryAfterMs: retryAfter ? parseRetryAfterMs(retryAfter) : undefined,
++            });
++          }
++          offerAccess = nexusGovernor.offerAccessStatus(nexusOffer());
++        }
++        // Preserve upstream multi-account cooldown behavior.
+         if (response.status === 429 && hasMultipleKeys(currentConfig, best.providerKey)) {
+           markRateLimited(best.providerKey, providerAuth.token)
+         }
+ 
+         await captureProxyRateLimit(best, response, providerAuth.token);
+ 
++        if (NEXUS_SAFE_RUNTIME && !response.ok) {
++          const failureAt = Date.now();
++          const failureCode = String(response.status);
++          const retryAfterMs = response.status === 429
++            ? parseRetryAfterMs(response.headers.get('retry-after'))
++            : (nvidiaNimDegradedFunction ? 60_000 : 0);
++          best.lastPingAt = failureAt;
++          best.pings.push({ ms: attemptMeta.duration, code: failureCode, ts: failureAt });
++          if (best.pings.length > 50) best.pings.shift();
++          const accessClass = classifyOfferAccessFailure(response.status);
++          best.status = accessClass || 'down';
++          best.httpCode = failureCode;
++          best.lastError = {
++            code: failureCode,
++            message: nvidiaNimDegradedFunction
++              ? 'NVIDIA NIM reports this model function is currently degraded.'
++              : (accessClass ? accessFailureMessage(accessClass) : ('Upstream HTTP ' + failureCode)),
++            updatedAt: failureAt,
++          };
++          best.accessClass = offerAccess.accessClass;
++          best.accessUntil = offerAccess.until;
++          nexusHealthSampler.observe(best, {
++            status: best.status,
++            httpCode: best.httpCode,
++            lastPingAt: best.lastPingAt,
++            lastModelResponseAt: best.lastModelResponseAt,
++            pings: best.pings,
++            lastError: best.lastError,
++            cooldownUntil: retryAfterMs > 0 ? failureAt + retryAfterMs : 0,
++            accessClass: best.accessClass,
++            accessUntil: best.accessUntil,
++          });
++          saveHealthSamplerState(nexusHealthSampler);
++        }
++
+         if (response.ok) {
+           if (best.providerKey === KIRO_PROVIDER_KEY) {
+             response = await transformKiroResponse(response, best.modelId, Boolean(payload.stream));
+@@ -3907,12 +4417,47 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+           best.status = 'up';
+           best.httpCode = null;
+           best.lastError = null;
++          best.accessClass = null;
++          best.accessUntil = 0;
++          nexusHealthSampler.observe(best, {
++            status: best.status,
++            httpCode: null,
++            lastPingAt: best.lastPingAt,
++            lastModelResponseAt: best.lastModelResponseAt,
++            pings: best.pings,
++            lastError: null,
++            accessClass: null,
++            accessUntil: 0,
++          });
++          saveHealthSamplerState(nexusHealthSampler);
+           selectedModel = best;
+           selectedResponse = response;
+           selectedT0 = t0;
+           break;
+         }
+ 
++        if (NEXUS_SAFE_RUNTIME && attemptMeta.retryable) {
++          try {
++            await response.arrayBuffer();
++            attemptMeta.error = nvidiaNimDegradedFunction
++              ? 'NVIDIA NIM reports this model function is currently degraded; response body omitted.'
++              : `Upstream HTTP ${response.status}; response body omitted.`;
++          } catch {
++            attemptMeta.error = `Upstream HTTP ${response.status}; response body unavailable.`;
++          }
++          attemptMeta.errorCode = nvidiaNimDegradedFunction
++            ? 'NEXUS_NIM_DEGRADED_FUNCTION'
++            : `UPSTREAM_HTTP_${response.status}`;
++          if (nexusAttemptBudget.remaining > 0 && retry < routeEvaluationLimit - 1) {
++            const reason = nvidiaNimDegradedFunction
++              ? 'NVIDIA NIM function is degraded'
++              : `Offer failed with HTTP ${response.status}`;
++            console.log(chalk.yellow(`  [Router] 🔁 ${reason}; trying a distinct offer.`));
++            continue;
++          }
++          break;
++        }
++
+         if (attemptMeta.retryable && retry < MAX_PROACTIVE_RETRIES) {
+           let retryBody = '';
+           try {
+@@ -3932,11 +4477,25 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+       }
+ 
+       if (!selectedResponse || !selectedModel) {
+-        logEntry.status = '503';
+-        logEntry.error = { message: 'No models currently available for this request.', attempts };
++        const routeReceipt = sanitizeProxyAttempts(attempts);
++        const unavailable = nexusUnavailableRouteError(attempts, {
++          exactOfferRequested: requestedModelId.includes('/'),
++        });
++        logEntry.status = String(unavailable.status);
++        logEntry.error = {
++          code: unavailable.code,
++          message: unavailable.message,
++          requestedModel: requestedModelId,
++          attempts: routeReceipt,
++        };
+         logEntry.retryCount = Math.max(0, attempts.length - 1);
+         saveLogs();
+-        return res.status(503).json({ error: { message: 'No models currently available for this request.' } });
++        return res.status(unavailable.status).json({ error: {
++          code: unavailable.code,
++          message: unavailable.message,
++          requested_model: requestedModelId,
++          attempts: routeReceipt,
++        } });
+       }
+ 
+       logEntry.model = selectedModel.modelId;
+@@ -4070,7 +4629,14 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+           }
+         });
+ 
+-        Readable.fromWeb(selectedResponse.body).pipe(captureStream).pipe(res);
++        const upstreamStream = Readable.fromWeb(selectedResponse.body);
++        upstreamStream.on('error', error => {
++          logEntry.status = 'err';
++          logEntry.error = error?.message || String(error);
++          saveLogs();
++          if (!res.destroyed) res.destroy(error);
++        });
++        upstreamStream.pipe(captureStream).pipe(res);
+       } else {
+         const text = await selectedResponse.text();
+         logEntry.ttft = logEntry.duration;
+@@ -4112,17 +4678,20 @@ export async function runServer(config, port, enableLog = true, bannedModels = [
+         saveLogs();
+       }
+     } catch (e) {
++      clearTimeout(totalTimer);
+       if (logEntry) {
+         logEntry.status = 'err';
+         logEntry.error = e.message;
+       }
+       console.error(chalk.red(`  [Router] Error processing request: ${e.message}`));
+       if (logEntry) saveLogs();
+-      res.status(400).json({ error: { message: e.message } });
++      if (res.headersSent || res.destroyed) return;
++      const timeout = e?.name === 'TimeoutError' || String(e?.code || '').startsWith('NEXUS_');
++      res.status(timeout ? 504 : 400).json({ error: { message: e.message } });
+     }
+   });
+ 
+-  app.listen(port, () => {
++  app.listen(port, nexusBind, () => {
+     const lanIp = getPreferredLanIpv4Address();
+     console.log();
+     console.log(chalk.green(`  ✅ Web UI active at ${chalk.bold(`http://localhost:${port}`)}`));
+diff --git a/node_modules/modelrelay/lib/utils.js b/node_modules/modelrelay/lib/utils.js
+index e2f4e33..0e4484d 100644
+--- a/node_modules/modelrelay/lib/utils.js
++++ b/node_modules/modelrelay/lib/utils.js
+@@ -5,7 +5,7 @@
+ 
+ import { MODELS, cleanModelDisplayLabel, getPreferredModelLabel, resolveAliasedModelId } from '../sources.js'
+ 
+-export const VERDICT_ORDER = ['Perfect', 'Normal', 'Slow', 'Very Slow', 'Overloaded', 'Unstable', 'Not Active', 'Pending']
++export const VERDICT_ORDER = ['Perfect', 'Normal', 'Slow', 'Very Slow', 'Overloaded', 'Unstable', 'Auth Required', 'Subscription Required', 'Access Denied', 'Not Active', 'Pending']
+ 
+ export const DEFAULT_PING_WINDOW_MS = 35 * 60 * 1000
+ 
+@@ -26,6 +26,9 @@ export const getVerdict = (r) => {
+   const wasUpBefore = r.pings.length > 0 && r.pings.some(p => p.code === '200')
+ 
+   if (r.httpCode === '429') return 'Overloaded'
++  if (r.status === 'noauth' || r.status === 'auth_required') return 'Auth Required'
++  if (r.status === 'payment_required') return 'Subscription Required'
++  if (r.status === 'access_denied') return 'Access Denied'
+   if ((r.status === 'timeout' || r.status === 'down') && wasUpBefore) return 'Unstable'
+   if (r.status === 'timeout' || r.status === 'down') return 'Not Active'
+   if (avg === Infinity) return 'Pending'
+@@ -159,6 +162,21 @@ export function isModelEligibleForRouting(r) {
+   return r.status !== 'banned' && r.status !== 'disabled' && r.status !== 'excluded'
+ }
+ 
++// Routing must distinguish a catalogue offer from evidence that the exact
++// provider-qualified route has recently answered.  Scores remain useful for
++// ordering within a health band, but a high-scoring `pending` offer must not
++// displace an observed-healthy route merely because the catalogue knows it.
++// Terminal/held states remain last-resort only; the governor applies the
++// authoritative circuit, rate-limit, and access-block checks immediately
++// before an upstream call.
++function routingHealthRank(r) {
++  const status = String(r?.status || '').trim().toLowerCase()
++  if (status === 'up') return 3
++  if (status === 'pending' || status === 'unverified') return 2
++  if (status === 'degraded') return 1
++  return 0
++}
++
+ export function getRoutingModelKey(r) {
+   const provider = normalizeModelAlias(r?.providerKey)
+   const model = normalizeModelAlias(r?.modelId)
+@@ -178,7 +196,10 @@ export function rankModelsForRouting(results, excludedModelIds = []) {
+   const eligible = results.filter(r => isModelEligibleForRouting(r) && !isRoutingModelExcluded(r, excluded))
+   const qosMap = computeQoSMap(eligible)
+   const scored = eligible.map(r => ({ r, qos: qosMap.get(r) || 0 }))
+-  scored.sort((a, b) => b.qos - a.qos)
++  scored.sort((a, b) => {
++    const healthDifference = routingHealthRank(b.r) - routingHealthRank(a.r)
++    return healthDifference || (b.qos - a.qos)
++  })
+   return scored.map(s => s.r)
+ }
+ 
+@@ -344,7 +365,17 @@ export function buildModelGroups(results, canonicalizeFn) {
+     }
+   }
+ 
+-  return Array.from(groups.values())
++  const deduped = new Map()
++  for (const group of groups.values()) {
++    const existing = deduped.get(group.id)
++    if (!existing) {
++      deduped.set(group.id, group)
++      continue
++    }
++    for (const alias of group.aliases) existing.aliases.add(alias)
++    existing.models.push(...group.models)
++  }
++  return Array.from(deduped.values())
+     .map(group => ({
+       id: group.id,
+       label: group.label,
+@@ -361,9 +392,29 @@ export function filterModelsByRequested(results, requestedModel, canonicalizeFn)
+   const providerQualifiedMatches = results.filter(r => getRoutingModelKey(r) === requested)
+   if (providerQualifiedMatches.length > 0) return providerQualifiedMatches
+ 
++  const canonicalTarget = typeof canonicalizeFn === 'function'
++    ? normalizeModelAlias(canonicalizeFn(requestedModel).base)
++    : ''
++  const groups = buildModelGroups(results, canonicalizeFn)
++  const matchedGroup = groups.find(group => {
++    const groupId = normalizeModelAlias(group.id)
++    return groupId === requested
++      || group.aliases.includes(requested)
++      || (canonicalTarget && (
++        groupId === canonicalTarget
++        || group.aliases.includes(canonicalTarget)
++      ))
++  })
++  if (matchedGroup) return matchedGroup.models
++
+   const exactMatches = results.filter(r => normalizeModelAlias(r.modelId) === requested)
+   if (exactMatches.length > 0) return exactMatches
+ 
++  if (canonicalTarget && canonicalTarget !== requested) {
++    const canonicalMatches = results.filter(r => normalizeModelAlias(r.modelId) === canonicalTarget)
++    if (canonicalMatches.length > 0) return canonicalMatches
++  }
++
+   if (typeof canonicalizeFn === 'function') {
+     const baseMatches = results.filter(r => {
+       const { base } = canonicalizeFn(r.modelId)
+@@ -372,9 +423,58 @@ export function filterModelsByRequested(results, requestedModel, canonicalizeFn)
+     if (baseMatches.length > 0) return baseMatches
+   }
+ 
+-  const groups = buildModelGroups(results, canonicalizeFn)
+-  const matchedGroup = groups.find(group => group.aliases.includes(requested))
+-  return matchedGroup ? matchedGroup.models : []
++  return []
++}
++
++export function createOfferScopedAbortSignal(requestSignal, firstByteMs) {
++  const controller = new AbortController()
++  let complete = false
++  const abortFromRequest = () => {
++    controller.abort(requestSignal?.reason || new DOMException('Request aborted.', 'AbortError'))
++  }
++  if (requestSignal?.aborted) abortFromRequest()
++  else requestSignal?.addEventListener('abort', abortFromRequest, { once: true })
++
++  const timer = setTimeout(() => {
++    const error = new Error(`Provider did not return response headers within ${firstByteMs}ms.`)
++    error.name = 'TimeoutError'
++    error.code = 'NEXUS_FIRST_BYTE_TIMEOUT'
++    controller.abort(error)
++  }, Math.max(1, Number(firstByteMs) || 45_000))
++
++  const cleanup = () => {
++    if (complete) return
++    complete = true
++    clearTimeout(timer)
++    requestSignal?.removeEventListener('abort', abortFromRequest)
++  }
++
++  return {
++    signal: controller.signal,
++    headersReceived() {
++      if (!complete) clearTimeout(timer)
++    },
++    cleanup,
++  }
++}
++
++export function isOfferFailoverStatus(status) {
++  const code = Number(status)
++  if (!Number.isInteger(code)) return false
++  return (code >= 401 && code <= 404) || code === 429 || code >= 500
++}
++
++export function sanitizeProxyAttempts(attempts = []) {
++  return (Array.isArray(attempts) ? attempts : []).slice(0, 32).map((attempt, index) => ({
++    index: Number.isInteger(attempt?.index) ? attempt.index : index + 1,
++    provider: String(attempt?.provider || '').slice(0, 160),
++    model: String(attempt?.model || '').slice(0, 256),
++    status: String(attempt?.status || 'ERR').slice(0, 64),
++    duration_ms: Number.isFinite(Number(attempt?.duration)) ? Math.max(0, Math.round(Number(attempt.duration))) : null,
++    first_byte_deadline_ms: Number.isFinite(Number(attempt?.firstByteDeadlineMs)) ? Math.max(1, Math.round(Number(attempt.firstByteDeadlineMs))) : null,
++    retryable: Boolean(attempt?.retryable),
++    error_code: String(attempt?.errorCode || '').slice(0, 96) || null,
++  }))
+ }
+ 
+ export function isRetryableProxyStatus(status) {
+diff --git a/node_modules/modelrelay/public/index.html b/node_modules/modelrelay/public/index.html
+index 5471fae..9dfe46a 100644
+--- a/node_modules/modelrelay/public/index.html
++++ b/node_modules/modelrelay/public/index.html
+@@ -1713,11 +1713,12 @@
+       <div>
+         <p class="dashboard-eyebrow">Router Control Center</p>
+         <h1 class="dashboard-heading">Dashboard</h1>
+-        <p class="dashboard-subtitle">Live model telemetry, provider health, and routing controls in one place.
++        <p class="dashboard-subtitle">Live model telemetry, provider health, and routing controls. Evidence-backed quality and canonical CLI route ranking live in Model Arena.
+         </p>
+         <p style="margin: 8px 0 0; color: var(--text-muted); font-size: 0.78rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+           <span>Version <span id="dashboard-version">Loading...</span></span>
+           <span id="update-pill" style="display:none;"></span>
++          <a href="http://127.0.0.1:7356/dashboard.html" target="_blank" rel="noopener" title="Open the evidence-backed Model Arena on port 7356" style="color:var(--accent); font-weight:600; text-decoration:none;">Evidence Arena ↗</a>
+           <button id="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" style="background: var(--surface-alt); border: 1px solid var(--border); cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px; color: var(--text);">
+             <span id="theme-icon">🌙</span>
+           </button>
+@@ -1730,13 +1731,16 @@
+         <svg class="kpi-bg-svg" id="bg-current-svg" preserveAspectRatio="xMidYMid slice"></svg>
+         <div class="kpi-content">
+           <div class="kpi-label">
+-            Current Model
++            Best Available Route
+             <svg class="signal-icon" viewBox="0 0 24 24">
+               <circle cx="12" cy="12" r="10" />
+             </svg>
+           </div>
+           <div class="kpi-value" id="kpi-best">Calculating...</div>
+-          <div style="margin-top:6px; min-height:20px;">
++          <div style="margin-top:6px; min-height:20px; color:var(--text-muted); font-size:0.72rem;">
++            Fresh observed health only; a pinned model remains a request preference.
++          </div>
++          <div style="margin-top:3px; min-height:20px;">
+             <span class="pin-badge" id="pin-badge" style="display:none; cursor:pointer;" onclick="pinModel('')"
+               title="Click to unpin">📌 Pinned ×</span>
+           </div>
+@@ -1780,7 +1784,10 @@
+     <div id="models-view">
+       <div class="table-container">
+         <div class="table-header">
+-          <div class="table-title">Models</div>
++          <div>
++            <div class="table-title">Provider telemetry</div>
++            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px;">Route scores are control-plane metadata, not benchmark evidence. Open Evidence Arena for source-dated rankings.</div>
++          </div>
+           <div class="search-bar">
+             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2">
+@@ -1869,7 +1876,13 @@
+             </div>
+             <div class="checkbox-group" id="filter-status-group">
+               <label class="cb-label"><input type="checkbox" value="up" checked onchange="render(true)"> Up</label>
++              <label class="cb-label"><input type="checkbox" value="pending" checked onchange="render(true)"> Unverified</label>
+               <label class="cb-label"><input type="checkbox" value="down" checked onchange="render(true)"> Down</label>
++              <label class="cb-label"><input type="checkbox" value="timeout" checked onchange="render(true)"> Timeout</label>
++              <label class="cb-label"><input type="checkbox" value="noauth" checked onchange="render(true)"> Auth Required</label>
++              <label class="cb-label"><input type="checkbox" value="auth_required" checked onchange="render(true)"> Auth Required</label>
++              <label class="cb-label"><input type="checkbox" value="payment_required" checked onchange="render(true)"> Subscription Required</label>
++              <label class="cb-label"><input type="checkbox" value="access_denied" checked onchange="render(true)"> Access Denied</label>
+               <label class="cb-label"><input type="checkbox" value="disabled" checked onchange="render(true)">
+                 Disabled</label>
+               <label class="cb-label"><input type="checkbox" value="excluded" checked onchange="render(true)">
+@@ -1888,7 +1901,7 @@
+                   id="arrow-model">↕</i></th>
+               <th class="sortable" onclick="setSort('qos')" id="th-qos">QoS <i class="sort-arrow"
+                   id="arrow-qos">↕</i></th>
+-              <th class="sortable" onclick="setSort('intell')" id="th-intell">SWE% <i class="sort-arrow"
++              <th class="sortable" onclick="setSort('intell')" id="th-intell" title="Provider/catalogue routing score only; not a verified SWE-bench result">Route score <i class="sort-arrow"
+                   id="arrow-intell">↕</i></th>
+               <th class="sortable text-right" onclick="setSort('ping')" id="th-ping">Ping <i
+                   class="sort-arrow" id="arrow-ping">↕</i></th>
+@@ -2178,7 +2191,7 @@
+     let searchTerm = '';
+     // null = default multi-sort; otherwise { col: string, dir: 'asc'|'desc' }
+     let sortState = null;
+-    let openDrawerModelId = null;
++    let openDrawerRowKey = null;
+     let currentRenderedOrder = [];
+     let activePinnedModelId = null; // tracks the current pinned selection key
+     let activePinnedProviderKey = null;
+@@ -2189,6 +2202,7 @@
+     let logsViewMode = 'history';
+     let logsAutoRefreshPaused = false;
+     const PROVIDER_ERROR_MAX_AGE_MS = 120 * 60_000;
++    const MODEL_HEALTH_FRESHNESS_MS = 35 * 60_000;
+     let filterRules = { minSweScore: null, excludedProviders: [] };
+     let providerRefreshInFlight = new Set();
+     let kiroDeviceAuthState = null;
+@@ -2277,8 +2291,8 @@
+ 
+         render(); // triggers automatic (non-user) layout pass
+         updateKPIs(allModels, data.best);
+-        if (openDrawerModelId) {
+-          const m = allModels.find(x => x.modelId === openDrawerModelId);
++        if (openDrawerRowKey) {
++          const m = allModels.find(x => getModelRowKey(x) === openDrawerRowKey);
+           if (m) updateDrawerContent(m);
+         }
+         // Live-update logs if that tab is currently active
+@@ -2448,10 +2462,66 @@
+       }, 2500);
+     }
+ 
++    function latestModelObservationAt(model) {
++      const pingAt = Number(model.lastPingAt) || 0;
++      const responseAt = Number(model.lastModelResponseAt) || 0;
++      const latestPingAt = Array.isArray(model.pings)
++        ? model.pings.reduce((latest, ping) => Math.max(latest, Number(ping && ping.ts) || 0), 0)
++        : 0;
++      return Math.max(pingAt, responseAt, latestPingAt);
++    }
++
++    function formatObservationAge(ageMs) {
++      const minutes = Math.max(0, Math.floor(ageMs / 60_000));
++      if (minutes < 60) return minutes + 'm';
++      const hours = Math.floor(minutes / 60);
++      if (hours < 48) return hours + 'h';
++      return Math.floor(hours / 24) + 'd';
++    }
++
++    function formatAccessRetry(accessUntil) {
++      const remainingMs = Math.max(0, Number(accessUntil) - Date.now());
++      if (remainingMs <= 0) return '';
++      const minutes = Math.ceil(remainingMs / 60_000);
++      if (minutes < 60) return ' · RECHECK ' + minutes + 'M';
++      return ' · RECHECK ' + Math.ceil(minutes / 60) + 'H';
++    }
++
++    function modelHealthView(model) {
++      const raw = String(model.status || 'pending').toLowerCase();
++      const observedAt = latestModelObservationAt(model);
++      const ageMs = observedAt > 0 ? Math.max(0, Date.now() - observedAt) : null;
++      if (model.isRateLimited || String(model.httpCode) === '429') {
++        return { state: 'rate_limited', label: 'RATE LIMITED', color: 'var(--warning)', pingLabel: 'COOLDOWN' };
++      }
++      if (raw === 'banned' || raw === 'excluded' || raw === 'disabled') {
++        return { state: raw, label: raw.toUpperCase(), color: 'var(--text-muted)', pingLabel: raw.toUpperCase() };
++      }
++      const retryHint = formatAccessRetry(model.accessUntil);
++      if (raw === 'noauth' || raw === 'auth_required') {
++        return { state: 'auth_required', label: 'AUTH REQUIRED' + retryHint, color: 'var(--warning)', pingLabel: 'AUTH REQUIRED' };
++      }
++      if (raw === 'payment_required') {
++        return { state: 'payment_required', label: 'SUBSCRIPTION REQUIRED' + retryHint, color: 'var(--warning)', pingLabel: 'SUBSCRIPTION REQUIRED' };
++      }
++      if (raw === 'access_denied') {
++        return { state: 'access_denied', label: 'ACCESS DENIED' + retryHint, color: 'var(--warning)', pingLabel: 'ACCESS DENIED' };
++      }
++      if (raw === 'down' || raw === 'timeout') {
++        return { state: 'unavailable', label: raw === 'timeout' ? 'TIMEOUT' : 'UNAVAILABLE', color: 'var(--error)', pingLabel: raw === 'timeout' ? 'TIMEOUT' : 'FAILED' };
++      }
++      if (raw === 'up' && observedAt > 0 && ageMs <= MODEL_HEALTH_FRESHNESS_MS) {
++        return { state: 'healthy', label: 'OBSERVED HEALTHY', color: 'var(--success)', pingLabel: 'FRESH', ageMs };
++      }
++      if (raw === 'up' && observedAt > 0) {
++        return { state: 'stale', label: 'STALE · ' + formatObservationAge(ageMs), color: 'var(--warning)', pingLabel: 'STALE', ageMs };
++      }
++      return { state: 'unverified', label: 'UNVERIFIED', color: 'var(--status-info-text)', pingLabel: 'NOT PROBED' };
++    }
++
+     function calculateBestModel(models) {
+-      const candidates = models.filter(m => m.status === 'up' && m.avg !== Infinity);
++      const candidates = models.filter(m => modelHealthView(m).state === 'healthy');
+       if (candidates.length === 0) return null;
+-
+       return [...candidates].sort((a, b) => (b.qos || 0) - (a.qos || 0))[0];
+     }
+ 
+@@ -2484,8 +2554,8 @@
+       const badge = document.getElementById('pin-badge');
+       if (badge) badge.style.display = activePinnedRowKeys.length > 0 ? 'inline-block' : 'none';
+ 
+-      if (openDrawerModelId) {
+-        const openModel = allModels.find(m => m.modelId === openDrawerModelId);
++      if (openDrawerRowKey) {
++        const openModel = allModels.find(m => getModelRowKey(m) === openDrawerRowKey);
+         if (openModel) updateDrawerContent(openModel);
+       }
+     }
+@@ -2501,18 +2571,10 @@
+     }
+ 
+     function updateKPIs(models, bestModelId) {
+-      const upModels = models.filter(m => m.status === 'up');
++      const upModels = models.filter(m => modelHealthView(m).state === 'healthy');
+ 
+       const allProviders = new Set(models.map(m => m.providerKey));
+-      const onlineProviders = new Set();
+-      const now = Date.now();
+-      models.forEach(m => {
+-        if (m.status === 'up' && !m.isRateLimited) {
+-          if (m.lastPing !== 'TIMEOUT' || m.uptime > 0) {
+-            onlineProviders.add(m.providerKey);
+-          }
+-        }
+-      });
++      const onlineProviders = new Set(upModels.map(m => m.providerKey));
+ 
+       document.getElementById('kpi-active').textContent = upModels.length;
+       document.getElementById('kpi-providers').textContent = onlineProviders.size;
+@@ -2520,9 +2582,11 @@
+       drawModelsConstellation(models.length, upModels.length);
+       drawProvidersNetwork(allProviders.size, onlineProviders.size);
+ 
+-      // Show the model the server is actually routing to
+-      const bestModel = bestModelId ? models.find(m => m.modelId === bestModelId) : null;
+-      document.getElementById('kpi-best').textContent = bestModel ? bestModel.label : 'None Online';
++      const routed = bestModelId ? models.find(m => m.modelId === bestModelId) : null;
++      const bestModel = routed && modelHealthView(routed).state === 'healthy'
++        ? routed
++        : calculateBestModel(models);
++      document.getElementById('kpi-best').textContent = bestModel ? bestModel.label : 'No Fresh Route';
+ 
+       drawCurrentModelAnimation(!!bestModel);
+     }
+@@ -2790,7 +2854,11 @@
+     // Returns a comparable value for each column (lower = sorts first in asc)
+     function colValue(m, col) {
+       switch (col) {
+-        case 'status': return m.status === 'up' ? 0 : 1;
++        case 'status': {
++          const order = ['healthy', 'stale', 'unverified', 'rate_limited', 'auth_required', 'payment_required', 'access_denied', 'unavailable', 'disabled', 'excluded', 'banned'];
++          const rank = order.indexOf(modelHealthView(m).state);
++          return rank < 0 ? order.length : rank;
++        }
+         case 'ping': return (m.avg === Infinity || m.avg === null) ? Infinity : m.avg;
+         case 'availability': return m.uptime;
+         case 'qos': return m.qos || 0;
+@@ -2922,8 +2990,10 @@
+         // but allow new data updates. New models fall to bottom.
+         const orderMap = new Map(currentRenderedOrder.map((id, i) => [id, i]));
+         sorted = [...filtered].sort((a, b) => {
+-          const idxA = orderMap.has(a.modelId) ? orderMap.get(a.modelId) : Infinity;
+-          const idxB = orderMap.has(b.modelId) ? orderMap.get(b.modelId) : Infinity;
++          const rowKeyA = getModelRowKey(a);
++          const rowKeyB = getModelRowKey(b);
++          const idxA = orderMap.has(rowKeyA) ? orderMap.get(rowKeyA) : Infinity;
++          const idxB = orderMap.has(rowKeyB) ? orderMap.get(rowKeyB) : Infinity;
+           if (idxA !== Infinity && idxB !== Infinity) return idxA - idxB;
+           if (idxA !== Infinity) return -1;
+           if (idxB !== Infinity) return 1;
+@@ -2931,7 +3001,7 @@
+         });
+       }
+ 
+-      const newOrderIds = sorted.map(m => m.modelId).join(',');
++      const newOrderIds = sorted.map(m => getModelRowKey(m)).join(',');
+       const oldOrderIds = currentRenderedOrder.join(',');
+       const currentRows = Array.from(tbody.rows);
+ 
+@@ -2939,14 +3009,15 @@
+       if (newOrderIds !== oldOrderIds || sorted.length !== currentRows.length) {
+         tbody.innerHTML = '';
+         sorted.forEach(m => tbody.appendChild(createRow(m)));
+-        currentRenderedOrder = sorted.map(m => m.modelId);
++        currentRenderedOrder = sorted.map(m => getModelRowKey(m));
+         return;
+       }
+ 
+       // Update existing rows
+       sorted.forEach((m, i) => {
+         const row = currentRows[i];
+-        const hasPing = m.avg !== Infinity && m.avg !== null;
++        const healthView = modelHealthView(m);
++        const hasPing = m.avg !== Infinity && m.avg !== null && healthView.state === 'healthy';
+ 
+         // Update pin button state in first cell
+         const pinBtn = row.cells[0].querySelector('.pin-row-btn');
+@@ -2962,7 +3033,9 @@
+         const isBannedRow = m.status === 'banned';
+         const isExcludedRow = m.status === 'excluded';
+         row.style.opacity = isExcludedRow || isBannedRow ? '0.5' : '1';
+-        modelCell.querySelector('div').firstChild.textContent = (isBannedRow ? '🚫 ' : (isExcludedRow ? '⛔ ' : '')) + m.label;
++        modelCell.innerHTML = `<div style="font-weight: 600;">${isBannedRow ? '🚫 ' : (isExcludedRow ? '⛔ ' : '')}${escapeHtml(m.label)}</div>
++          <div style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace; word-break: break-all;">${escapeHtml(m.modelId)}</div>
++          <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(m.providerKey)}</div>`;
+         modelCell.onclick = () => openDrawer(m);
+ 
+         // Update QoS
+@@ -2977,8 +3050,8 @@
+         const statusCell = row.cells[6];
+         statusCell.innerHTML = `
+             <div style="display: flex; align-items: center; gap: 6px;">
+-              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${m.status === 'up' ? 'var(--success)' : (m.status === 'disabled' || m.status === 'banned' || m.status === 'excluded') ? 'var(--text-muted)' : 'var(--error)'}"></span>
+-              <span style="font-size: 0.75rem; font-weight: 500; text-transform: capitalize;">${m.status === 'noauth' ? 'No Auth' : m.status}</span>
++              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${healthView.color}"></span>
++              <span style="font-size: 0.75rem; font-weight: 600;">${healthView.label}</span>
+             </div>
+           `;
+ 
+@@ -2994,7 +3067,7 @@
+           if (pingTextEl) pingTextEl.innerHTML = `<div style="font-size:0.82rem;">${m.avg}ms</div><div style="font-size:0.7rem; color:var(--text-muted);">(${m.lastPing}ms)</div>`;
+         } else {
+           if (pingDot) pingDot.className = 'ping-dot';
+-          if (pingTextEl) pingTextEl.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted);">OFFLINE</span>';
++          if (pingTextEl) pingTextEl.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted);">' + healthView.pingLabel + '</span>';
+         }
+ 
+         // Update uptime and rate icon
+@@ -3017,7 +3090,8 @@
+     function createRow(m) {
+       const tr = document.createElement('tr');
+       tr.style.opacity = m.status === 'excluded' || m.status === 'banned' ? '0.5' : '1';
+-      const hasPing = m.avg !== Infinity && m.avg !== null;
++      const healthView = modelHealthView(m);
++      const hasPing = m.avg !== Infinity && m.avg !== null && healthView.state === 'healthy';
+       const pingClass = getPingAnimClass(m.avg);
+       const pingSpeed = getPingSpeed(m.avg);
+ 
+@@ -3033,7 +3107,8 @@
+           </td>
+           <td style="cursor:pointer;" onclick='openDrawer(${JSON.stringify(m).replace(/'/g, "&apos;")})'>
+             <div style="font-weight: 600;">${m.status === 'banned' ? '🚫 ' : (m.status === 'excluded' ? '⛔ ' : '')}${m.label}</div>
+-            <div style="font-size: 0.75rem; color: var(--text-muted);">${m.providerKey}</div>
++            <div style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace; word-break: break-all;">${m.modelId}</div>
++            <div style="font-size: 0.72rem; color: var(--text-muted);">${m.providerKey}</div>
+           </td>
+           <td>
+             <div style="font-weight: 700; color: ${getQosColor(m.qos)}">${getQosDisplayValue(m.qos)}</div>
+@@ -3045,7 +3120,7 @@
+               <div style="font-variant-numeric: tabular-nums; text-align:right; line-height:1.3;">
+                 ${hasPing
+           ? `<div style="font-size:0.82rem;">${m.avg}ms</div><div style="font-size:0.7rem; color:var(--text-muted);">(${m.lastPing}ms)</div>`
+-          : '<span style="font-size: 0.75rem; color: var(--text-muted);">OFFLINE</span>'}
++          : `<span style="font-size: 0.75rem; color: var(--text-muted);">${healthView.pingLabel}</span>`}
+               </div>
+             </div>
+           </td>
+@@ -3060,8 +3135,8 @@
+           </td>
+           <td>
+             <div style="display: flex; align-items: center; gap: 6px;">
+-              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${m.status === 'up' ? 'var(--success)' : (m.status === 'disabled' || m.status === 'banned' || m.status === 'excluded') ? 'var(--text-muted)' : 'var(--error)'}"></span>
+-              <span style="font-size: 0.75rem; font-weight: 500; text-transform: capitalize;">${m.status === 'noauth' ? 'No Auth' : m.status}</span>
++              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${healthView.color}"></span>
++              <span style="font-size: 0.75rem; font-weight: 600;">${healthView.label}</span>
+             </div>
+           </td>
+         `;
+@@ -3435,13 +3510,13 @@
+           <div style="display: flex; flex-direction: column; gap: 20px;">
+             <div>
+               <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.875rem;">
+-                Minimum SWE Score
++                Minimum routing score
+               </label>
+               <div style="display: flex; align-items: center; gap: 8px;">
+                 <input type="number" id="min-swe-score" min="0" max="100" step="1" value="${minSweScore !== null ? Math.round(minSweScore * 100) : ''}" placeholder="e.g. 50" style="width: 80px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem;">
+                 <span style="color: var(--text-muted); font-size: 0.875rem;">%</span>
+               </div>
+-              <p style="color: var(--text-muted); font-size: 0.78rem; margin-top: 6px;">Models with SWE% below this threshold will be excluded from pinging and routing.</p>
++              <p style="color: var(--text-muted); font-size: 0.78rem; margin-top: 6px;">Models below this routing-policy threshold will be excluded from pinging and routing. It is not a benchmark filter; use Evidence Arena for benchmark evidence.</p>
+             </div>
+ 
+             <div>
+@@ -3511,7 +3586,7 @@
+       const items = models
+         .slice()
+         .sort((a, b) => (a.label || a.modelId || '').localeCompare(b.label || b.modelId || ''))
+-        .map(model => `<li><b>${escapeHtml(model.label || model.modelId)}</b><br><span style="color:var(--text-muted);">${escapeHtml(model.modelId)} • ${escapeHtml(model.ctx || '128k')} • SWE ${escapeHtml(formatSyncScore(model))}</span></li>`)
++        .map(model => `<li><b>${escapeHtml(model.label || model.modelId)}</b><br><span style="color:var(--text-muted);">${escapeHtml(model.modelId)} • ${escapeHtml(model.ctx || '128k')} • Route score ${escapeHtml(formatSyncScore(model))}</span></li>`)
+         .join('');
+ 
+       openProviderSyncModal(
+@@ -5194,7 +5269,7 @@
+     }
+ 
+     function openDrawer(m) {
+-      openDrawerModelId = m.modelId;
++      openDrawerRowKey = getModelRowKey(m);
+       document.getElementById('drawer-title').textContent = m.label;
+       updateDrawerContent(m);
+       document.getElementById('drawer').classList.add('open');
+@@ -5254,7 +5329,7 @@
+             <button onclick="pinModel('${isModelPinned ? '' : m.modelId}', '${m.providerKey}')" style="background: ${isModelPinned ? 'var(--status-info-bg)' : 'var(--surface-alt)'}; border: ${isModelPinned ? '1px solid var(--status-info-border)' : '1px solid transparent'}; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; color: ${isModelPinned ? 'var(--status-info-text)' : 'var(--text)'}; cursor: pointer;">
+               ${isModelPinned ? '📌 Unpin Model' : '📌 Pin Model'}
+             </button>
+-            <button onclick="pingModelNow('${m.modelId}')" style="background: var(--status-info-bg); border: 1px solid var(--status-info-border); padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; color: var(--status-info-text); cursor: pointer;">
++            <button onclick="pingModelNow('${m.modelId}', '${m.providerKey}')" style="background: var(--status-info-bg); border: 1px solid var(--status-info-border); padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; color: var(--status-info-text); cursor: pointer;">
+               📶 Ping Now
+             </button>
+             <button onclick="toggleBan('${m.modelId}', '${m.status}')" style="background: ${m.status === 'banned' ? 'var(--text-muted)' : 'var(--status-error-bg)'}; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; color: ${m.status === 'banned' ? 'var(--input-bg)' : 'var(--status-error-text)'}; cursor: pointer;">
+@@ -5266,7 +5341,7 @@
+         <div id="drawer-ping-status" style="margin: -8px 0 16px; font-size: 0.75rem; color: var(--text-muted);"></div>
+         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px;">
+           <div style="background: var(--chat-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">SWE-bench</div>
++            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Routing score</div>
+             <div style="font-weight: 700;">${getBenchmarkDisplayValue(m.intell, m.isEstimatedScore)}</div>
+           </div>
+           <div style="background: var(--chat-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+@@ -5282,12 +5357,12 @@
+     }
+ 
+     function closeDrawer() {
+-      openDrawerModelId = null;
++      openDrawerRowKey = null;
+       document.getElementById('drawer').classList.remove('open');
+       document.getElementById('overlay').classList.remove('active');
+     }
+ 
+-    async function pingModelNow(modelId) {
++    async function pingModelNow(modelId, providerKey) {
+       const statusEl = document.getElementById('drawer-ping-status');
+       if (statusEl) {
+         statusEl.style.color = 'var(--text-muted)';
+@@ -5298,7 +5373,7 @@
+         const res = await fetch('/api/models/ping', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({ modelId })
++          body: JSON.stringify({ modelId, providerKey })
+         });
+         const data = await res.json().catch(() => ({}));
+         if (!res.ok || !data.success) {
+@@ -5313,8 +5388,8 @@
+ 
+         await fetchData();
+ 
+-        if (openDrawerModelId === modelId) {
+-          const updatedModel = allModels ? allModels.find(r => r.modelId === modelId) : null;
++        if (openDrawerRowKey === getModelRowKey(providerKey, modelId)) {
++          const updatedModel = allModels ? allModels.find(r => getModelRowKey(r) === openDrawerRowKey) : null;
+           if (updatedModel) updateDrawerContent(updatedModel);
+         }
+       } catch (e) {
+@@ -5338,9 +5413,9 @@
+         await fetchData();
+         if (typeof loadLogs === 'function') loadLogs(true);
+ 
+-        // Re-render drawer if it is currently open for this model
+-        if (openDrawerModelId === modelId) {
+-          const updatedModel = allModels ? allModels.find(r => r.modelId === modelId) : null;
++        // Re-render the exact provider row that was open before the refresh.
++        if (openDrawerRowKey && openDrawerRowKey.endsWith('::' + modelId)) {
++          const updatedModel = allModels ? allModels.find(r => getModelRowKey(r) === openDrawerRowKey) : null;
+           if (updatedModel) updateDrawerContent(updatedModel);
+         }
+       } catch (e) {
+diff --git a/node_modules/modelrelay/scores.js b/node_modules/modelrelay/scores.js
+index 507a1d6..c9bb0c1 100644
+--- a/node_modules/modelrelay/scores.js
++++ b/node_modules/modelrelay/scores.js
+@@ -85,7 +85,7 @@ export const scores = {
+   "minimaxai/minimax-m3": 0.805,
+   "mistral-small-3.2-24b-instruct-2506": 0.32,
+   "mistralai/devstral-2-123b-instruct-2512": 0.722,
+-  "mistralai/magistral-small-2506": 0.45,
++  "mistralai/magistral-small-2506": null, // NEXUS_UNSCORED_STATIC_MARKER
+   "ministral-3:3b": 0.548,
+   "ministral-3:8b": 0.616,
+   "mistralai/ministral-14b-instruct-2512": 0.34,
+diff --git a/node_modules/modelrelay/sources.js b/node_modules/modelrelay/sources.js
+index 7ac9558..bd9f3f7 100644
+--- a/node_modules/modelrelay/sources.js
++++ b/node_modules/modelrelay/sources.js
+@@ -23,6 +23,9 @@ export const MODEL_ID_ALIASES = {
+   'glm-4.6': 'glm-4.6',
+   'glm-5': 'z-ai/glm5',
+   'glm-5.2': 'z-ai/glm-5.2',
++  'labs-leanstral-1-5': 'labs-leanstral-1-5-1',
++  'leanstral': 'labs-leanstral-1-5-1',
++  'mistralai/Leanstral-1.5-119B-A6B': 'labs-leanstral-1-5-1',
+   'kimi-k2': 'moonshotai/kimi-k2-instruct',
+   'kimi-k2-thinking': 'moonshotai/kimi-k2-thinking',
+   'kimi-k2.5': 'moonshotai/kimi-k2.5',
+@@ -95,6 +98,10 @@ export const MODEL_LABEL_OVERRIDES = {
+   'glm-5': 'GLM 5',
+   'glm-5.1': 'GLM 5.1',
+   'glm-5.2': 'GLM 5.2',
++  'labs-leanstral-1-5-1': 'Leanstral 1.5',
++  'labs-leanstral-1-5': 'Leanstral 1.5',
++  'leanstral': 'Leanstral 1.5',
++  'mistralai/Leanstral-1.5-119B-A6B': 'Leanstral 1.5',
+   'hy3-free': 'Hy3',
+   'kimi-k2': 'Kimi K2',
+   'kimi-k2-thinking': 'Kimi K2 Thinking',
+@@ -139,6 +146,9 @@ export const MODEL_LABEL_OVERRIDES = {
+ }
+ 
+ export const MODEL_CONTEXT_OVERRIDES = {
++  'labs-leanstral-1-5-1': '256k',
++  'z-ai/glm-5.2': '1M',
++  'zai-org/GLM-5.2': '1M',
+   'cohere/north-mini-code': '256k',
+   'hy3-free': '262k',
+   'kimi-k2.7-code': '262k',
+@@ -203,7 +213,7 @@ export const sources = {
+     "name": "NIM",
+     "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+     "models": [
+-      ["z-ai/glm-5.2", "GLM 5.2", "200k"],
++      ["z-ai/glm-5.2", "GLM 5.2", "1M"],
+       ["moonshotai/kimi-k2.7-code", "Kimi K2.7 Code", "262k"],
+       ["minimaxai/minimax-m3", "MiniMax M3", "1M"],
+       ["nvidia/nemotron-3-ultra-550b-a55b", "Nemotron 3 Ultra", "1M"],

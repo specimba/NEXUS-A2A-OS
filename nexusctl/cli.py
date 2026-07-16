@@ -1,12 +1,52 @@
 import argparse
+from collections import Counter
 import importlib.util
 import json
+import os
 import subprocess
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 
+class _ConsoleSafeArgumentParser(argparse.ArgumentParser):
+    """Render argparse help on legacy Windows consoles without crashing.
+
+    ``argparse`` writes help directly to ``sys.stdout``/``sys.stderr``.  A
+    cp1252 console cannot encode characters such as a right-arrow, which used
+    to make a harmless ``nexusctl gmr --help`` exit with a traceback.  Keep
+    Unicode for capable terminals, but fall back to readable ASCII where the
+    selected stream cannot represent it.
+    """
+
+    _ASCII_FALLBACKS = str.maketrans(
+        {
+            "\u2192": "->",
+            "\u2190": "<-",
+            "\u2013": "-",
+            "\u2014": "-",
+            "\u2026": "...",
+        }
+    )
+
+    def _print_message(self, message: str | None, file=None) -> None:
+        if message:
+            stream = file or sys.stdout
+            encoding = getattr(stream, "encoding", None) or "utf-8"
+            try:
+                message.encode(encoding)
+            except UnicodeEncodeError:
+                message = message.translate(self._ASCII_FALLBACKS)
+                message = message.encode(encoding, errors="backslashreplace").decode(
+                    encoding, errors="replace"
+                )
+        super()._print_message(message, file)
+
+
 def _state_dir() -> Path:
+    configured = os.environ.get("NEXUS_STATE_DIR")
+    if configured:
+        return Path(configured).expanduser()
     repo_root = _find_repo_root()
     return (repo_root or Path.cwd()) / ".nexus_pi" / "state"
 
@@ -68,6 +108,85 @@ def _module_presence(module_names: list[str]) -> dict:
     return presence
 
 
+def _has_cycle_evidence(value: object) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (dict, list)):
+        return bool(value)
+    return False
+
+
+def _validated_cycle(compact: dict) -> tuple[dict | None, str | None]:
+    last_cycle = compact.get("last_cycle")
+    if isinstance(last_cycle, dict):
+        cycle_id = last_cycle.get("cycle_id")
+        cycle_status = str(last_cycle.get("status", "")).strip().lower()
+        completed_at = last_cycle.get("completed_at")
+        checks = last_cycle.get("checks")
+        if not isinstance(cycle_id, str) or not cycle_id.strip():
+            return None, "Structured cycle is missing cycle_id"
+        if cycle_status not in {"verified", "passed", "complete", "completed"}:
+            return None, "Structured cycle is not in a verified terminal state"
+        if not isinstance(completed_at, str) or not completed_at.strip():
+            return None, "Structured cycle is missing completed_at"
+        if not isinstance(checks, list) or not checks:
+            return None, "Structured cycle has no verification checks"
+        for check in checks:
+            if not isinstance(check, dict):
+                return None, "Structured cycle contains an invalid check"
+            name = check.get("name")
+            check_status = str(check.get("status", "")).strip().lower()
+            passed = check.get("passed") is True or check_status in {"ok", "passed"}
+            if (
+                not isinstance(name, str)
+                or not name.strip()
+                or not passed
+                or not _has_cycle_evidence(check.get("evidence"))
+            ):
+                return None, "Structured cycle contains an unverified check"
+        return {
+            "cycle_format": "structured",
+            "last_cycle": {
+                "cycle_id": cycle_id,
+                "status": cycle_status,
+                "completed_at": completed_at,
+                "check_count": len(checks),
+            },
+            "updated_at": compact.get("updated_at") or completed_at,
+        }, None
+
+    if isinstance(last_cycle, int) and not isinstance(last_cycle, bool) and last_cycle > 0:
+        last_result = _as_dict(compact.get("last_result"))
+        test_count = last_result.get("test_count")
+        timestamp = last_result.get("timestamp")
+        valid = (
+            last_result.get("cycle") == last_cycle
+            and last_result.get("tests_passed") is True
+            and last_result.get("canary_passed") is not False
+            and last_result.get("error") in (None, "")
+            and isinstance(test_count, int)
+            and not isinstance(test_count, bool)
+            and test_count > 0
+            and isinstance(timestamp, str)
+            and bool(timestamp.strip())
+        )
+        if not valid:
+            return None, "Legacy cycle marker has no passing verification evidence"
+        return {
+            "cycle_format": "legacy_agent_cycle",
+            "last_cycle": {
+                "cycle": last_cycle,
+                "timestamp": timestamp,
+                "tests_passed": True,
+                "test_count": test_count,
+            },
+            "updated_at": compact.get("updated_at") or timestamp,
+        }, None
+
+    if last_cycle is None:
+        return None, "No completed cycle recorded"
+    return None, "Cycle marker has no passing verification evidence"
+
 def run_cycle_check() -> int:
     state_dir = _state_dir()
     compact_path = state_dir / "session_compact.json"
@@ -97,11 +216,23 @@ def run_cycle_check() -> int:
                 "source": str(compact_path),
             })
             return 2
+        validated, reason = _validated_cycle(compact)
+        if validated is None:
+            _json_print({
+                "status": "unavailable",
+                "reason": reason,
+                "source": str(compact_path),
+                "observed_state": {
+                    "status": compact.get("status"),
+                    "timestamp": compact.get("updated_at")
+                    or compact.get("timestamp"),
+                },
+            })
+            return 2
         _json_print({
             "status": "ok",
             "source": str(compact_path),
-            "last_cycle": compact.get("last_cycle"),
-            "updated_at": compact.get("updated_at"),
+            **validated,
         })
         return 0
 
@@ -117,10 +248,9 @@ def run_doctor_memory(report_only: bool) -> int:
     modules = [
         "nexus_os.vault.memory_adapter",
         "nexus_os.governor.trust_kernel",
-        "src.nexus_os.governor.trust_kernel",
-        "src.nexus_os.governor.trust_scoring",
-        "src.nexus_os.monitoring.token_guard",
-        "src.nexus_os.monitoring.token_policy",
+        "nexus_os.governor.trust_scoring",
+        "nexus_os.monitoring.token_guard",
+        "nexus_os.monitoring.token_policy",
     ]
     checks = _module_presence(modules)
     payload = {
@@ -130,11 +260,11 @@ def run_doctor_memory(report_only: bool) -> int:
         "checks": checks,
         "trust_kernel": {
             "root_compat": checks["nexus_os.governor.trust_kernel"],
-            "src_public": checks["src.nexus_os.governor.trust_kernel"],
+            "src_public": checks["nexus_os.governor.trust_scoring"],
         },
         "token_policy_plane": {
-            "token_guard": checks["src.nexus_os.monitoring.token_guard"],
-            "token_policy": checks["src.nexus_os.monitoring.token_policy"],
+            "token_guard": checks["nexus_os.monitoring.token_guard"],
+            "token_policy": checks["nexus_os.monitoring.token_policy"],
         },
         "memory_backend": {
             "adapter_present": checks["nexus_os.vault.memory_adapter"],
@@ -262,7 +392,11 @@ def run_grounding(args: argparse.Namespace) -> int:
             })
             return 0
         payload = store.status()
-        status = "degraded" if payload.get("read_only") else "ok"
+        status = (
+            "degraded"
+            if payload.get("read_only") or int(payload.get("corrupt_lines") or 0) > 0
+            else "ok"
+        )
         _json_print({"status": status, "command": "grounding status", **payload})
         return 0
     if args.grounding_command == "doctor":
@@ -282,7 +416,11 @@ def run_grounding(args: argparse.Namespace) -> int:
         else:
             store_payload = store.status()
             overall = "ok"
-            if store_payload.get("read_only") or store_payload.get("init_error"):
+            if (
+                store_payload.get("read_only")
+                or store_payload.get("init_error")
+                or int(store_payload.get("corrupt_lines") or 0) > 0
+            ):
                 overall = "degraded"
             if not all(item["exists"] for item in root_status.values()):
                 overall = "degraded"
@@ -301,6 +439,73 @@ def run_grounding(args: argparse.Namespace) -> int:
             "error": store_error,
         })
         return 1
+    if args.grounding_command == "repair-ledger":
+        if args.apply:
+            if args.expected_line is None or args.expected_sha256 is None:
+                _json_print({
+                    "status": "blocked",
+                    "command": "grounding repair-ledger",
+                    "mode": "apply",
+                    "reason": "exact_line_and_sha256_required",
+                    "ledger_mutation_performed": False,
+                    "operator_approval_required": True,
+                })
+                return 2
+            try:
+                result = store.quarantine_ledger_record(
+                    expected_line=args.expected_line,
+                    expected_sha256=args.expected_sha256,
+                )
+            except (OSError, PermissionError, RuntimeError, ValueError) as exc:
+                _json_print({
+                    "status": "blocked",
+                    "command": "grounding repair-ledger",
+                    "mode": "apply",
+                    "reason": str(exc),
+                    "error_type": type(exc).__name__,
+                    "ledger_mutation_performed": False,
+                    "operator_approval_required": True,
+                })
+                return 2
+            remaining = int(result.get("remaining_invalid_count") or 0)
+            _json_print({
+                "status": "ok" if remaining == 0 else "degraded",
+                "command": "grounding repair-ledger",
+                "mode": "apply",
+                "ledger_mutation_performed": True,
+                "canonical_mutation_allowed": False,
+                "operator_approval_required": False,
+                "next_action": (
+                    "none"
+                    if remaining == 0
+                    else "review_remaining_hashed_records"
+                ),
+                "result": result,
+            })
+            return 0
+
+        report = store.audit_ledger()
+        invalid_count = int(report.get("invalid_count") or 0)
+        snapshot_stable = bool(report.get("snapshot_stable", False))
+        _json_print({
+            "status": (
+                "degraded"
+                if invalid_count > 0 or not snapshot_stable
+                else "ok"
+            ),
+            "command": "grounding repair-ledger",
+            "mode": "dry_run",
+            "ledger_mutation_performed": False,
+            "canonical_mutation_allowed": False,
+            "operator_approval_required": invalid_count > 0,
+            "next_action": (
+                "quarantine_exact_hashed_rows_after_review"
+                if invalid_count > 0
+                else "none"
+            ),
+            "report": report,
+        })
+        return 0
     if getattr(store, "read_only", False) and args.grounding_command in {
         "scan", "watch", "promote"
     }:
@@ -389,7 +594,7 @@ def run_status() -> int:
 
     # Module health checks (same set as nexus_os.cli _cmd_health)
     modules = [
-        ("engine.router", "nexus_os.engine.router", "TaskRouter"),
+        ("engine.router", "nexus_os.engine.router", "EngineRouter"),
         ("governor.base", "nexus_os.governor.base", "NexusGovernor"),
         ("vault.manager", "nexus_os.vault.manager", "VaultManager"),
         ("bridge.server", "nexus_os.bridge.server", "BridgeServer"),
@@ -637,6 +842,57 @@ def run_nexusclaw_dispatch_dry_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_nexusclaw_dispatch(args: argparse.Namespace) -> int:
+    """`nexusctl nexusclaw dispatch` - dry-run by default; --live is opt-in.
+
+    Live execution goes through the governed path: envelope approval state,
+    human approval marker for high/critical risk, fail-closed privilege
+    check, then a continuity evidence row (origin=core).
+    """
+    from nexus_os.nexusclaw.coordinator import NexusClawCoordinator
+    from nexus_os.nexusclaw.envelope import NexusClawTaskEnvelope, ResultStatus
+    import sys
+    repo_root = _find_repo_root()
+    if repo_root and str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    task_payload = {
+        "task_id": args.task_id,
+        "source": args.source,
+        "lane": "orchestrator",
+        "intent": args.intent,
+        "risk_level": args.risk_level,
+        "required_capabilities": args.capability,
+        "evidence_refs": args.evidence_ref,
+        "resource_budget": {"max_tokens": 4000},
+        "approval_state": "approved" if args.approved else "pending",
+        "human_approved": bool(args.human_approved),
+    }
+
+    privilege_control = None
+    if args.live and args.privilege_policy:
+        from nexus_os.governor.privilege_control import PrivilegePolicy, ProgentPrivilegeControl
+        policy_data = json.loads(Path(args.privilege_policy).read_text(encoding="utf-8"))
+        privilege_control = ProgentPrivilegeControl(
+            PrivilegePolicy(
+                allowed_tools=policy_data.get("allowed_tools", {}),
+                forbidden_tools=policy_data.get("forbidden_tools", {}),
+            )
+        )
+
+    coordinator = NexusClawCoordinator(privilege_control=privilege_control)
+    envelope = NexusClawTaskEnvelope.from_dict(task_payload)
+    result = coordinator.dispatch(envelope, live=args.live)
+
+    res = {
+        "command": "nexusclaw.dispatch",
+        "live": bool(args.live),
+        "result": result.to_dict(),
+    }
+    print(json.dumps(res, indent=2))
+    return 0 if result.status in (ResultStatus.DRY_RUN, ResultStatus.COMPLETED) else 1
+
+
 def run_models_list(refresh: bool) -> int:
     """`nexusctl models` — list installed CLIs and current reachability."""
     from nexusctl.model_sync import fetch_live_state, list_cli_inventory
@@ -807,6 +1063,19 @@ def run_model_sync(args: argparse.Namespace) -> int:
     return model_sync.main(argv if argv else None)
 
 
+def run_relay_health(args: argparse.Namespace) -> int:
+    """`nexusctl relay-health` — GET-only ModelRelay + Model Arena report."""
+    from nexusctl.relay_health import build_report
+
+    code, payload = build_report(
+        relay_url=getattr(args, "relay_url", "http://127.0.0.1:7350"),
+        arena_url=getattr(args, "arena_url", "http://127.0.0.1:7356"),
+        timeout=float(getattr(args, "timeout", 3.0)),
+    )
+    _json_print(payload)
+    return code
+
+
 def run_ports(args: argparse.Namespace) -> int:
     """`nexusctl ports doctor` — probe the 7350–7360 plane + pipeline layers."""
     from nexus_os.bridge.port_plane import doctor_report
@@ -832,12 +1101,25 @@ def run_gmr(args: argparse.Namespace) -> int:
 
         ingest = TelemetryIngest()
         cache = ingest.fetch()
+        ordered = sorted(
+            cache.values(),
+            key=lambda item: (
+                not item.is_available,
+                -item.quality_score,
+                item.latency_ms or 10**9,
+                item.name,
+            ),
+        )
+        limit = max(1, min(int(getattr(args, "catalogue_limit", 40)), 200))
         payload = {
             "command": "gmr catalogue",
             "status": "ok" if cache else "degraded",
             "source": ingest.last_source,
             "error": ingest.last_error,
             "count": len(cache),
+            "fresh_available": sum(item.is_available for item in cache.values()),
+            "health_counts": dict(sorted(Counter(item.status for item in cache.values()).items())),
+            "showing": min(len(ordered), limit),
             "models": [
                 {
                     "name": t.name,
@@ -846,7 +1128,7 @@ def run_gmr(args: argparse.Namespace) -> int:
                     "tier": t.tier,
                     "latency_ms": t.latency_ms,
                 }
-                for t in list(cache.values())[:80]
+                for t in ordered[:limit]
             ],
         }
         _json_print(payload)
@@ -1131,7 +1413,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="nexusctl")
+    parser = _ConsoleSafeArgumentParser(prog="nexusctl")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.required = True
     subparsers.required = True
@@ -1189,6 +1471,25 @@ def main() -> int:
     dispatch.add_argument("--risk-level", required=True)
     dispatch.add_argument("--capability", action="append", default=[])
     dispatch.add_argument("--evidence-ref", action="append", default=[])
+
+    dispatch_exec = nexusclaw_sub.add_parser(
+        "dispatch",
+        help="Dispatch a task (dry-run by default; --live executes approved envelopes through governance)",
+    )
+    dispatch_exec.add_argument("--task-id", required=True)
+    dispatch_exec.add_argument("--source", required=True)
+    dispatch_exec.add_argument("--intent", required=True)
+    dispatch_exec.add_argument("--risk-level", required=True)
+    dispatch_exec.add_argument("--capability", action="append", default=[])
+    dispatch_exec.add_argument("--evidence-ref", action="append", default=[])
+    dispatch_exec.add_argument("--live", action="store_true",
+                               help="Opt-in live execution through the governed path (default: dry-run)")
+    dispatch_exec.add_argument("--approved", action="store_true",
+                               help="Mark the envelope approval_state=approved (live refuses otherwise)")
+    dispatch_exec.add_argument("--human-approved", action="store_true",
+                               help="Explicit human approval marker (required for high/critical live execution)")
+    dispatch_exec.add_argument("--privilege-policy", type=Path, default=None,
+                               help="JSON file with allowed_tools/forbidden_tools for the live privilege check")
 
     pipeline = subparsers.add_parser("pipeline", help="Run the ARCHIVIST pipeline: import → compile → fit")
     pipeline.add_argument("--import-dir", type=Path, default=None,
@@ -1259,6 +1560,9 @@ def main() -> int:
     p_cont_close.add_argument("--proof-path", default=None,
                               help="Path to a proof artifact; an existing file makes browser/MCP rows eligible for E1")
     continuity_sub.add_parser("resume-plan", help="Print resume plan from latest ledger record")
+    p_cont_repair = continuity_sub.add_parser("repair", help="Repair ledger: add hash chains, schema, idempotency keys")
+    p_cont_repair.add_argument("--ledger", default=None, help="Override ledger path")
+    p_cont_repair.add_argument("--output", default=None, help="Output path (default: overwrite)")
 
     intel = subparsers.add_parser("intel", help="LLMWiki dossier pipeline: ingest evidence/synthesis, lint, stats")
     intel_sub = intel.add_subparsers(dest="intel_command")
@@ -1301,12 +1605,20 @@ def main() -> int:
     quota_plan = quota_sub.add_parser("plan", help="Calculate protected utilization schedule")
     quota_plan.add_argument("--provider", required=True, choices=["longcat", "internai", "nvidia"])
     quota_plan.add_argument("--json", action="store_true")
-    models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (opencode, kilo, cline, hermes, mimo)")
+    models_sync = subparsers.add_parser("model-sync", help="Sync live models/lanes to every CLI (including Hermes Windows and Hermes WSL)")
     models_sync.add_argument("--refresh", action="store_true", help="Force upstream cache refresh first")
     models_sync.add_argument("--dry-run", action="store_true", help="Preview without writing")
-    models_sync.add_argument("--only", choices=["opencode", "mimo", "kilo", "cline", "hermes", "nexusctl"], help="Sync only this CLI")
+    models_sync.add_argument("--only", choices=["opencode", "mimo", "kilo", "cline", "hermes", "hermes-wsl", "nexusctl"], help="Sync only this CLI instance")
     models_sync.add_argument("--install-schedule", action="store_true", help="Install 1-hour Windows scheduled task for automatic model sync")
     models_sync.add_argument("--log", default=None, help="Append JSON log to this path")
+
+    relay_health = subparsers.add_parser(
+        "relay-health",
+        help="Read-only 7350 + 7356 health summary; never calls providers",
+    )
+    relay_health.add_argument("--relay-url", default="http://127.0.0.1:7350")
+    relay_health.add_argument("--arena-url", default="http://127.0.0.1:7356")
+    relay_health.add_argument("--timeout", type=float, default=3.0, help="Per-request timeout seconds (0.1-10)")
 
     a2a = subparsers.add_parser("a2a-channels", help="Inter-session A2A message bus (Plan 20): list, publish, subscribe, consolidate")
     a2a.add_argument("--list", dest="list_channels", action="store_true", help="List all channels")
@@ -1347,6 +1659,17 @@ def main() -> int:
     grounding_doctor = grounding_sub.add_parser("doctor", help="Validate roots and durable grounding store")
     grounding_doctor.add_argument("--json", action="store_true", help="Emit JSON (default output)")
     grounding_sub.add_parser("status", help="Show grounding ledger and index status")
+    grounding_repair = grounding_sub.add_parser(
+        "repair-ledger",
+        help="Audit corrupt ledger rows; --apply requires an exact line and SHA-256",
+    )
+    grounding_repair.add_argument(
+        "--apply",
+        action="store_true",
+        help="Back up the ledger and quarantine the exact matched corrupt row",
+    )
+    grounding_repair.add_argument("--expected-line", type=int)
+    grounding_repair.add_argument("--expected-sha256")
     grounding_scan = grounding_sub.add_parser("scan", help="Run incremental source reconciliation")
     grounding_scan.add_argument("--changed-only", action="store_true", default=True)
     grounding_scan.add_argument("--stability-delay", type=float, default=2.0)
@@ -1382,9 +1705,16 @@ def main() -> int:
     )
     gmr_sub = gmr.add_subparsers(dest="gmr_command")
     gmr_sub.required = True
-    gmr_sub.add_parser(
+    gmr_catalogue = gmr_sub.add_parser(
         "catalogue",
         help="Fetch ModelRelay/GodMode catalogue telemetry (JSON)",
+    )
+    gmr_catalogue.add_argument(
+        "--limit",
+        dest="catalogue_limit",
+        type=int,
+        default=40,
+        help="Maximum routes to show (1-200; default 40)",
     )
     gmr_pipe = gmr_sub.add_parser(
         "pipeline",
@@ -1446,6 +1776,8 @@ def main() -> int:
             return run_nexusclaw_status()
         if args.nexusclaw_command == "dispatch-dry-run":
             return run_nexusclaw_dispatch_dry_run(args)
+        if args.nexusclaw_command == "dispatch":
+            return run_nexusclaw_dispatch(args)
     if args.command == "pipeline":
         return run_pipeline(args)
     if args.command == "memory":
@@ -1456,7 +1788,8 @@ def main() -> int:
         return code
     if args.command == "continuity":
         from nexusctl.continuity_cli import run_continuity
-        code, _payload = run_continuity(args)
+        code, payload = run_continuity(args)
+        _json_print(payload)
         if code != 0:
             raise SystemExit(code)
         return code
@@ -1491,6 +1824,8 @@ def main() -> int:
         return run_monitor(args)
     if args.command == "model-sync":
         return run_model_sync(args)
+    if args.command == "relay-health":
+        return run_relay_health(args)
     if args.command == "grok-lane":
         return run_grok_lane(args)
     if args.command == "ports":

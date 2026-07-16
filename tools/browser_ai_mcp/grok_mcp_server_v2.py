@@ -23,6 +23,7 @@ import os
 import sys
 import uuid
 import hashlib
+import hmac
 import datetime
 import pathlib
 import logging
@@ -34,7 +35,9 @@ from urllib.parse import unquote, urlparse
 
 from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
+from nexus_os.bridge.sage_governance import build_sage_program_proposal
 from starlette.responses import JSONResponse
+from nexus_os.bridge.a2a_governance import build_governed_a2a_proposal
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -49,7 +52,7 @@ FALLBACK_RUNTIME_DIR = pathlib.Path(
 SERVER_VERSION = os.getenv("GROK_MCP_VERSION", "2.4.0-p0-continuity")
 SERVER_NAME = os.getenv("GROK_MCP_NAME", "nexus-grok-bridge-v2")
 LOG_LEVEL = os.getenv("GROK_LOG_LEVEL", "INFO").upper()
-LISTEN_HOST = os.getenv("GROK_LISTEN_HOST", "0.0.0.0")
+LISTEN_HOST = os.getenv("GROK_LISTEN_HOST", "127.0.0.1")
 LISTEN_PORT = int(os.getenv("GROK_LISTEN_PORT", "7354"))
 
 HTTP_ALLOWED_HOSTS_RAW = os.getenv(
@@ -1387,9 +1390,9 @@ A2A_TASKS_DIR = COORD_DIR / "a2a_tasks"
 A2A_AGENT_CARD = {
     "name": A2A_AGENT_NAME,
     "description": (
-        "NEXUS Grok-side MCP bridge. Exposes governance audit, evidence "
-        "capture, coordination queue, session heartbeat, and bridge "
-        "channels for A2A collaboration with Codex/Grok/custom agents."
+        "NEXUS Grok-side MCP bridge. A2A submissions are mapped into "
+        "TrustKernel, KAIJU, and NexusClaw proposal envelopes; inbound "
+        "callers cannot self-approve live execution."
     ),
     "version": A2A_AGENT_VERSION,
     "provider": {"organization": "NEXUS OS", "url": "https://nexus.local"},
@@ -1400,43 +1403,46 @@ A2A_AGENT_CARD = {
         "stateTransitionHistory": True,
         "tools": True,
         "browserHttpDiagnostic": True,
+        "proposalBound": True,
+        "clientSelfApproval": False,
+        "governedEnvelope": "NexusClawTaskEnvelope",
     },
-    "authentication": {"type": "none"},
+    "authentication": {"type": "none", "scope": "discovery_and_proposal_only"},
     "skills": [
         {
             "id": "audit_log",
             "name": "Governance Audit Logging",
-            "description": "Write immutable hash-chained audit records (scenario + payload).",
+            "description": "Propose an immutable hash-chained audit record write for governed execution.",
             "tags": ["governance", "audit", "compliance"],
         },
         {
             "id": "evidence_capture",
             "name": "Evidence Capture",
-            "description": "Capture content + SHA-256 to tamper-evident evidence store.",
+            "description": "Propose tamper-evident content capture for governed execution.",
             "tags": ["evidence", "forensic"],
         },
         {
             "id": "coordination_queue",
             "name": "Coordination Queue",
-            "description": "Persistent task queue: add / claim / complete / fail.",
+            "description": "Propose a persistent coordination-queue action.",
             "tags": ["coordination", "queue", "agent-mesh"],
         },
         {
             "id": "a2a_channel",
             "name": "A2A Channel Bridge",
-            "description": "@-publish/-subscribe channel for cross-agent messaging.",
+            "description": "Propose a bounded cross-agent channel publication.",
             "tags": ["a2a", "messaging"],
         },
         {
             "id": "phase2_probe",
             "name": "Phase 2 Probe Pipeline",
-            "description": "Run / log / compare files.grok.com probe results with hash chain.",
+            "description": "Propose a governed Phase 2 probe/log action.",
             "tags": ["probe", "comparison"],
         },
         {
             "id": "browser_http_diagnostic",
             "name": "Governed Browser HTTP Diagnostic",
-            "description": "Read-only HTTPS GET/HEAD diagnostics for browser-agent evidence gathering; no crawling, writes, or auth bypass.",
+            "description": "Propose a scoped HTTPS GET/HEAD diagnostic; no crawling or auth bypass.",
             "tags": ["browser", "http", "diagnostic", "evidence"],
         },
     ],
@@ -1476,7 +1482,7 @@ async def handle_a2a_discover(request: Request) -> JSONResponse:
 
 @mcp.custom_route("/a2a/tasks/send", methods=["POST"])
 async def handle_a2a_tasks_send(request: Request) -> JSONResponse:
-    """JSON-RPC 2.0 method `tasks/send`. Submits a task; routes to internal MCP tool."""
+    """JSON-RPC 2.0 tasks/send; records a governed proposal, never direct execution."""
     try:
         rpc = await request.json()
     except Exception:
@@ -1492,16 +1498,32 @@ async def handle_a2a_tasks_send(request: Request) -> JSONResponse:
     parts = message.get("parts", []) or []
     text_payload = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
     task_id = params.get("id") or f"a2a-{_today_str()}-{uuid.uuid4().hex[:8]}"
+    try:
+        proposal = build_governed_a2a_proposal(
+            task_id=task_id,
+            skill_id=skill_id,
+            params=params,
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            _jsonrpc_err(rpc_id, -32602, str(exc)), status_code=400
+        )
 
     rec = _a2a_task_record(task_id, {"skill_id": skill_id, "text": text_payload, "params": params})
-    rec["history"].append({"state": "working", "ts": _now_iso()})
-    rec["status"] = "working"
-    _a2a_task_save(rec)
-
-    result_text = _a2a_dispatch_skill(skill_id, text_payload, params)
-    rec["result"] = {"kind": "text", "text": result_text}
-    rec["status"] = "completed"
-    rec["history"].append({"state": "completed", "ts": _now_iso()})
+    rec["history"].append({"state": "governed_proposal", "ts": _now_iso()})
+    rec["status"] = "proposed"
+    rec["governance"] = proposal
+    result_text = json.dumps(
+        {
+            "proposal_only": True,
+            "execution_allowed": False,
+            "nexusclaw_status": proposal["nexusclaw"]["status"],
+            "operator_next_step": proposal["operator_next_step"],
+        },
+        ensure_ascii=True,
+        sort_keys=True,
+    )
+    rec["result"] = {"kind": "governance", "text": result_text}
     _a2a_task_save(rec)
 
     return JSONResponse({
@@ -1625,6 +1647,10 @@ async def handle_health_http(request: Request) -> JSONResponse:
                 "a2a_channel", "phase2_probe", "browser_http_diagnostic",
             ],
             "skill_count": 6,
+            "governance": "TrustKernel -> KAIJU -> NexusClawTaskEnvelope",
+            "mode": "proposal_only",
+            "client_self_approval": False,
+            "direct_skill_dispatch": False,
         },
         "directories": {
             "audit": str(AUDIT_DIR),
@@ -1696,6 +1722,1002 @@ async def handle_receive_file(request: Request) -> JSONResponse:
     })
 
 
+
+# ---------------------------------------------------------------------------
+# NEXUS SAGE REST Facade & Action Gateway
+# ---------------------------------------------------------------------------
+import sqlite3
+import collections
+import time
+from starlette.routing import Route
+from starlette.responses import HTMLResponse, Response
+
+# The legacy MCP-hosted SAGE facade is permanently disabled. NEXUS Brain on
+# 127.0.0.1:7352 is the sole supported SAGE ingress and credential owner.
+_requested_legacy_sage_mode = (
+    os.getenv("NEXUS_SAGE_GATEWAY_MODE") or "disabled"
+).strip().lower()
+if _requested_legacy_sage_mode != "disabled":
+    logger.warning("Legacy MCP SAGE facade is unavailable; use Brain port 7352")
+NEXUS_SAGE_API_KEY = ""
+SAGE_GATEWAY_MODE = "disabled"
+# Initialize SAGE gateway database
+_SAGE_DB_PATH = FALLBACK_RUNTIME_DIR / "sage_gateway.db"
+def _init_sage_db():
+    conn = sqlite3.connect(str(_SAGE_DB_PATH))
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS idempotency_keys (
+            key TEXT PRIMARY KEY,
+            receipt TEXT,
+            created_at TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+class SageRateLimiter:
+    def __init__(self, limit: int = 100, window: float = 60.0):
+        self.limit = limit
+        self.window = window
+        self.requests = collections.defaultdict(list)
+        
+    def check(self, client_host: str) -> bool:
+        now = time.time()
+        self.requests[client_host] = [t for t in self.requests[client_host] if now - t < self.window]
+        if len(self.requests[client_host]) >= self.limit:
+            return False
+        self.requests[client_host].append(now)
+        return True
+_sage_limiter = SageRateLimiter(limit=100, window=60.0)
+
+async def _sage_auth_and_limit(request: Request):
+    if SAGE_GATEWAY_MODE == "disabled":
+        return JSONResponse({"detail": "SAGE gateway is disabled"}, status_code=503)
+    cl = request.headers.get("content-length")
+    try:
+        content_length = int(cl) if cl else 0
+    except (TypeError, ValueError):
+        return JSONResponse({"detail": "Invalid Content-Length"}, status_code=400)
+    if content_length > 100000:
+        return JSONResponse({"detail": "Payload too large (limit 100,000 characters)"}, status_code=413)
+    
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return JSONResponse({"detail": "Missing Bearer token"}, status_code=401)
+    token = auth.split(" ", 1)[1].strip()
+    if not NEXUS_SAGE_API_KEY:
+        return JSONResponse({"detail": "SAGE gateway credential is not provisioned"}, status_code=503)
+    if not hmac.compare_digest(token, NEXUS_SAGE_API_KEY):
+        return JSONResponse({"detail": "Invalid Bearer token"}, status_code=401)
+    
+    client_host = request.client.host if request.client else "unknown"
+    if not _sage_limiter.check(client_host):
+        return JSONResponse({"detail": "Rate limit exceeded (100 requests/min)"}, status_code=429)
+    
+    return None
+def _sage_require_write_mode() -> Optional[JSONResponse]:
+    if LISTEN_PORT == 7354 or SAGE_GATEWAY_MODE != "proposal_write":
+        return JSONResponse(
+            {"detail": "SAGE writes are forbidden on MCP port 7354; use governed Brain ingress"},
+            status_code=403,
+        )
+    return None
+
+def _get_cached_receipt(key: str) -> Optional[Dict[str, Any]]:
+    conn = sqlite3.connect(str(_SAGE_DB_PATH))
+    cursor = conn.cursor()
+    cursor.execute("SELECT receipt FROM idempotency_keys WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        receipt = json.loads(row[0])
+        receipt["status"] = "duplicate"
+        return receipt
+    return None
+
+def _save_receipt(key: str, receipt: Dict[str, Any]):
+    conn = sqlite3.connect(str(_SAGE_DB_PATH))
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO idempotency_keys (key, receipt, created_at) VALUES (?, ?, ?)",
+                   (key, json.dumps(receipt), _now_iso()))
+    conn.commit()
+    conn.close()
+
+async def sage_route_health(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_ping())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_registry(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_registry_debug())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_coordination_status(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_coordination_status())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_list_tasks(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    status = request.query_params.get("status", "all")
+    task_id = request.query_params.get("task_id", "")
+    res = json.loads(handle_task_list(status, task_id))
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_propose_task(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    kind = body.get("kind", "")
+    prompt = body.get("prompt", "")
+    priority = body.get("priority", 5)
+    
+    try:
+        res = json.loads(handle_task_add(kind, prompt, priority))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusProposeTask",
+            "lane": "SAGE-C1",
+            "status": "accepted",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": res.get("task_id"),
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusProposeTask",
+            "lane": "SAGE-C1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_list_topics(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_agent_list_topics())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_read_messages(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    topic = request.query_params.get("topic", "")
+    limit = int(request.query_params.get("limit", "20"))
+    if not topic:
+        return JSONResponse({"detail": "Missing topic parameter"}, status_code=400)
+    res = json.loads(handle_agent_retrieve_messages(topic, limit))
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_publish_message(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    topic = body.get("topic", "")
+    message = body.get("message", "")
+    sender = body.get("sender", "nexus-sage")
+    
+    try:
+        res = json.loads(handle_agent_publish_message(topic, message, sender))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusPublishMessage",
+            "lane": "SAGE-C1",
+            "status": "accepted",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusPublishMessage",
+            "lane": "SAGE-C1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_session_status(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    session_id = request.query_params.get("session_id", "")
+    res = json.loads(handle_session_status(session_id))
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_heartbeat(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    session_id = body.get("session_id", "")
+    status = body.get("status", "alive")
+    metadata = json.dumps(body.get("metadata", {}))
+    
+    try:
+        res = json.loads(handle_session_heartbeat(session_id, status, metadata))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusHeartbeat",
+            "lane": "SAGE-C1",
+            "status": "accepted",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusHeartbeat",
+            "lane": "SAGE-C1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_capture_evidence(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    label = body.get("label", "")
+    content = body.get("content", "")
+    provenance = body.get("provenance", {})
+    metadata = json.dumps({"provenance": provenance})
+    
+    try:
+        res = json.loads(handle_evidence_capture(label, content, metadata))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusCaptureEvidence",
+            "lane": "SAGE-E1",
+            "status": "recorded",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": res.get("hash"),
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusCaptureEvidence",
+            "lane": "SAGE-E1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_append_audit(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    scenario = body.get("scenario", "")
+    data = json.dumps(body.get("data", {}))
+    
+    try:
+        res = json.loads(handle_audit_log(scenario, data))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusAppendAudit",
+            "lane": "SAGE-E1",
+            "status": "recorded",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": res.get("hash"),
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusAppendAudit",
+            "lane": "SAGE-E1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_get_comparison(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_comparison_get())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_add_comparison(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+        
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+        
+    query_label = body.get("query_label", "")
+    browser_result = body.get("browser_result", "")
+    cli_result = body.get("cli_result", "")
+    match = body.get("match", "unknown")
+    notes = body.get("notes", "")
+    
+    try:
+        res = json.loads(handle_comparison_add(query_label, browser_result, cli_result, match, notes))
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusAddComparison",
+            "lane": "SAGE-E1",
+            "status": "recorded",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": res.get("hash"),
+            "timestamp": _now_iso(),
+            "error": None
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusAddComparison",
+            "lane": "SAGE-E1",
+            "status": "failed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": None,
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": str(exc)
+        }, status_code=500)
+
+async def sage_route_export_comparison(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    res = json.loads(handle_comparison_export())
+    return JSONResponse({
+        "ok": True,
+        "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(),
+        "schema_version": "1.0",
+        "data": res,
+        "error": None
+    })
+
+async def sage_route_privacy(request: Request) -> Response:
+    privacy_file = pathlib.Path(r"C:\Users\speci.000\Downloads\ARCHIVIST\sage_v1\nexus_sage_v1_privacy_policy.md")
+    if privacy_file.exists():
+        content = privacy_file.read_text(encoding="utf-8")
+    else:
+        content = "NEXUS SAGE Action Gateway Privacy Notice."
+    
+    html = f"""
+    <html>
+    <head>
+        <title>NEXUS SAGE Action Gateway Privacy Notice</title>
+        <style>
+            body {{ font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }}
+            h1 {{ border-bottom: 1px solid #ccc; padding-bottom: 10px; }}
+            h2 {{ margin-top: 30px; }}
+        </style>
+    </head>
+    <body>
+        <h1>NEXUS SAGE Action Gateway Privacy Notice</h1>
+        <p><strong>Last updated: 2026-07-12</strong></p>
+        <h2>Scope</h2>
+        <p>This notice covers the private NEXUS SAGE Action Gateway used by a Custom GPT to access NEXUS coordination, audit, evidence, diagnostic, session, and A2A services.</p>
+        <h2>Data processed</h2>
+        <p>When an action is invoked, the gateway may receive only the fields required for that operation, such as task identifiers, topic names, bounded messages, audit payloads, evidence text, URLs for public diagnostics, session identifiers, and action metadata.</p>
+        <p>Do not submit passwords, API keys, private keys, authentication cookies, payment information, medical data, or other unnecessary sensitive information.</p>
+        <h2>Purpose</h2>
+        <p>Data is processed solely to execute the requested NEXUS action, return its result, maintain operational evidence, and protect the system through auditing, rate limits, schema validation, and abuse detection.</p>
+        <h2>Retention</h2>
+        <p>Operational receipts, audit records, task state, and evidence records may be retained according to the NEXUS governance and ARCHIVIST retention policy. Diagnostic request bodies should be minimized and bounded.</p>
+        <h2>Sharing and sale</h2>
+        <p>The gateway does not sell personal data. Data is not shared with advertisers. Service providers used to host or tunnel the gateway may process network and operational metadata under their own terms.</p>
+        <h2>Security</h2>
+        <p>The gateway uses HTTPS, authentication, bounded payloads, input validation, rate limiting, allowlists, and least-privilege operation exposure. No internet-facing system is risk-free.</p>
+        <h2>User control</h2>
+        <p>The operator may request inspection or deletion of non-canonical records where deletion does not conflict with required security, audit, or governance retention.</p>
+        <h2>Contact</h2>
+        <p>Publish a real operator-controlled contact address here before sharing the GPT beyond private use.</p>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
+# ---------------------------------------------------------------------------
+# NEXUS SAGE v2 ULTRA Endpoints — Swarm, Program, Grounding, Agents
+# Backed by: GPT-5.6 ultra mode multi-agent + Programmatic Tool Calling
+# Architecture: SAGE is request-response (NOT 24/7). NEXUS backend runs
+# 24/7 via NexusClawRunner. SAGE triggers, NEXUS executes, SAGE polls.
+# ---------------------------------------------------------------------------
+
+# ── POST /v1/swarm/dispatch ── Triggers NexusClaw parallel agents ──
+async def sage_route_swarm_dispatch(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+    task_desc = body.get("task_description", "")
+    agent_count = min(body.get("agent_count", 4), 8)
+    specializations = body.get("specializations", ["code", "research"])
+    complexity = body.get("complexity", "L2")
+    brainstorm_mode = body.get("brainstorm_mode", "redundant")
+    try:
+        # Submit as a NEXUS task — the NexusClaw Orchestrator handles
+        # the parallel agent dispatch on the NEXUS backend (24/7).
+        # SAGE gets a task_id and can poll /v1/swarm/status later.
+        result_str = handle_task_add(
+            kind="swarm_dispatch",
+            prompt=json.dumps({
+                "task_description": task_desc,
+                "agent_count": agent_count,
+                "specializations": specializations,
+                "complexity": complexity,
+                "brainstorm_mode": brainstorm_mode,
+                "source": "sage_ultra",
+            }),
+            priority=body.get("priority", 5),
+        )
+        res = json.loads(result_str) if isinstance(result_str, str) else result_str
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusSwarmDispatch",
+            "lane": "SAGE-C1",
+            "status": "accepted",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": res.get("task_id"),
+            "attempt": 1,
+            "evidence_hash": None,
+            "timestamp": _now_iso(),
+            "error": None,
+            "agent_count": agent_count,
+            "complexity": complexity,
+            "brainstorm_mode": brainstorm_mode,
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except Exception as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusSwarmDispatch", "lane": "SAGE-C1",
+            "status": "failed", "source_msg_id": body.get("source_msg_id"),
+            "task_id": None, "attempt": 1, "evidence_hash": None,
+            "timestamp": _now_iso(), "error": str(exc)
+        }, status_code=500)
+
+# ── GET /v1/swarm/status/{task_id} ── Poll swarm task status ──
+async def sage_route_swarm_status(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    task_id = request.path_params.get("task_id", "")
+    if not task_id:
+        return JSONResponse({"detail": "Missing task_id"}, status_code=400)
+    try:
+        res = json.loads(handle_task_list(status="all", task_id=task_id))
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": res, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── POST /v1/program ── Proposal-only programmatic planning ──
+# Raw program text is hashed and discarded. HERMES/operator approval plus a
+# separately governed sandbox executor is required for any future execution.
+async def sage_route_run_program(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    write_err = _sage_require_write_mode()
+    if write_err: return write_err
+    body = await request.json()
+    idempotency_key = body.get("idempotency_key", "")
+    if not idempotency_key:
+        return JSONResponse({"detail": "Missing idempotency_key"}, status_code=400)
+    cached = _get_cached_receipt(idempotency_key)
+    if cached:
+        return JSONResponse(cached)
+    program = body.get("program", "")
+    try:
+        timeout_s = body.get("timeout_s", 30)
+        task_id = f"sage-program-{_today_str()}-{uuid.uuid4().hex[:8]}"
+        proposal = build_sage_program_proposal(
+            task_id=task_id,
+            program=program,
+            timeout_s=timeout_s,
+            sender="nexus-sage",
+            requested_mode=str(body.get("mode") or "dry_run"),
+        )
+        receipt = {
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusRunProgram",
+            "lane": "SAGE-C1",
+            "status": "proposed",
+            "source_msg_id": body.get("source_msg_id"),
+            "task_id": task_id,
+            "attempt": 1,
+            "evidence_hash": proposal["program_sha256"],
+            "timestamp": _now_iso(),
+            "error": None,
+            "execution_allowed": False,
+            "program_executed": False,
+            "proposal": proposal,
+        }
+        _save_receipt(idempotency_key, receipt)
+        return JSONResponse(receipt)
+    except ValueError as exc:
+        return JSONResponse({
+            "receipt_id": f"rcpt_{uuid.uuid4().hex[:12]}",
+            "operation": "nexusRunProgram", "lane": "SAGE-C1",
+            "status": "rejected", "source_msg_id": body.get("source_msg_id"),
+            "task_id": None, "attempt": 1, "evidence_hash": None,
+            "timestamp": _now_iso(), "error": str(exc)
+        }, status_code=400)
+
+# ── GET /v1/grounding ── Fetch fresh canonical NEXUS context ──
+# SAGE calls this at the start of each new thread for fresh context.
+# Cached for 5 minutes to avoid re-reading files on every call.
+_grounding_cache = {"data": None, "timestamp": 0}
+async def sage_route_grounding(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    import time as _time
+    # 5-minute cache
+    if _grounding_cache["data"] and (_time.time() - _grounding_cache["timestamp"]) < 300:
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": _grounding_cache["data"], "error": None
+        })
+    repo = pathlib.Path(r"C:\Users\speci.000\Documents\NEXUS")
+    files_to_read = [
+        "01_PROJECT_STATE.md", "GROUNDING.md", "LANES.md", "AGENTS.md",
+    ]
+    grounding = {}
+    for fname in files_to_read:
+        fpath = repo / fname
+        if fpath.exists():
+            content = fpath.read_text(encoding="utf-8")
+            grounding[fname] = content[:20000]  # Bounded per file
+    _grounding_cache["data"] = grounding
+    _grounding_cache["timestamp"] = _time.time()
+    return JSONResponse({
+        "ok": True, "request_id": uuid.uuid4().hex,
+        "timestamp": _now_iso(), "schema_version": "1.0",
+        "data": grounding, "error": None
+    })
+
+# ── GET /v1/agents ── List registered NEXUS agents and status ──
+async def sage_route_list_agents(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    try:
+        from nexus_os.nexusclaw.agent_pool import get_agent_pool
+        pool = get_agent_pool()
+        agents = pool.list_all()
+        data = {
+            "agents": [
+                {
+                    "agent_id": a.agent_id, "name": a.name,
+                    "type": a.agent_type.value, "status": a.status.value,
+                    "trust_score": a.trust_score, "lane": a.lane,
+                    "success_rate": a.success_rate, "task_count": a.task_count,
+                    "capabilities": [c.to_dict() for c in a.capabilities],
+                } for a in agents
+            ],
+            "total": len(agents),
+            "online": len([a for a in agents if a.status.value == "online"]),
+        }
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": data, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── GET /v1/evidence/search ── Search existing evidence records ──
+async def sage_route_search_evidence(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    query = request.query_params.get("query", "")
+    limit = min(int(request.query_params.get("limit", "10")), 50)
+    if not query:
+        return JSONResponse({"detail": "Missing query parameter"}, status_code=400)
+    try:
+        import glob
+        results = []
+        # Search evidence JSONL files
+        for pattern in [str(EVIDENCE_DIR / "*.jsonl"), str(AUDIT_DIR / "*.jsonl")]:
+            for fpath in glob.glob(pattern):
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if query.lower() in line.lower():
+                                entry = json.loads(line.strip())
+                                results.append({
+                                    "file": pathlib.Path(fpath).name,
+                                    "entry": entry,
+                                    "match_snippet": line.strip()[:500],
+                                })
+                                if len(results) >= limit:
+                                    break
+                        if len(results) >= limit:
+                            break
+                except Exception:
+                    continue
+                if len(results) >= limit:
+                    break
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {"results": results, "count": len(results), "query": query},
+            "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── GET /v1/models/health ── Check local model health and VRAM ──
+async def sage_route_models_health(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    try:
+        import urllib.request as _urlreq
+        # Read from ModelRelay /api/models
+        relay_url = "http://127.0.0.1:7350/api/models"
+        try:
+            req = _urlreq.Request(relay_url)
+            with _urlreq.urlopen(req, timeout=5) as resp:
+                models_data = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            models_data = {"models": [], "error": "ModelRelay unreachable"}
+        data = {
+            "models": models_data.get("models", [])[:20],  # Bounded
+            "total_count": len(models_data.get("models", [])),
+            "relay_url": relay_url,
+        }
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": data, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── GET /v1/trust/{agent_id} ── Read agent trust score ──
+async def sage_route_trust_score(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    agent_id = request.path_params.get("agent_id", "")
+    try:
+        from nexus_os.nexusclaw.agent_pool import get_agent_pool
+        pool = get_agent_pool()
+        agent = pool.get(agent_id)
+        if not agent:
+            return JSONResponse({"detail": f"Agent {agent_id} not found"}, status_code=404)
+        data = {
+            "agent_id": agent.agent_id,
+            "name": agent.name,
+            "trust_score": agent.trust_score,
+            "status": agent.status.value,
+            "success_rate": agent.success_rate,
+            "task_count": agent.task_count,
+            "success_count": agent.success_count,
+            "failure_count": agent.failure_count,
+            "lane": agent.lane,
+            "capabilities": [c.to_dict() for c in agent.capabilities],
+        }
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": data, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── GET /v1/memory/{channel} ── Read from NEXUS 8-channel memory vault ──
+# SAGE can READ (not write) from the 8 channels:
+# sensory, working, episodic, semantic, procedural, trust, task, meta
+async def sage_route_memory_read(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    agent_id = request.query_params.get("agent_id", "").strip()
+    if not agent_id:
+        return JSONResponse({"detail": "agent_id is required for scoped memory reads"}, status_code=400)
+    if len(agent_id) > 64 or any(
+        not (char.isalnum() or char in "._:-") for char in agent_id
+    ):
+        return JSONResponse({"detail": "agent_id contains invalid characters"}, status_code=400)
+
+    channel = request.path_params.get("channel", "")
+    valid_channels = {"sensory", "working", "episodic", "semantic",
+                       "procedural", "trust", "task", "meta"}
+    if channel not in valid_channels:
+        return JSONResponse({"detail": f"Invalid channel. Must be one of: {sorted(valid_channels)}"}, status_code=400)
+    limit = min(int(request.query_params.get("limit", "10")), 50)
+    try:
+        from nexus_os.vault.memory_channels import get_manager
+        from dataclasses import asdict
+        mgr = get_manager()
+        channel_map = {
+            "sensory": "sensory", "working": "working", "episodic": "episodic",
+            "semantic": "semantic", "procedural": "procedural", "trust": "trust",
+            "task": "task", "meta": "meta",
+        }
+        ch_name = channel_map[channel]
+        
+        records = mgr.get_records(agent_id, ch_name, limit=limit)
+            
+        serialized_entries = []
+        for r in records:
+            try:
+                d = asdict(r)
+                if "channel" in d and hasattr(d["channel"], "value"):
+                    d["channel"] = d["channel"].value
+                serialized_entries.append(d)
+            except Exception:
+                serialized_entries.append({"raw": str(r)})
+                
+        data = {
+            "channel": channel,
+            "agent_id": agent_id,
+            "entries": serialized_entries,
+            "count": len(serialized_entries),
+        }
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": data, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+# ── GET /v1/providers/status ── Check provider health and quota ──
+async def sage_route_providers_status(request: Request) -> Response:
+    err = await _sage_auth_and_limit(request)
+    if err: return err
+    try:
+        # Read coordination status which includes queue/health info
+        res = json.loads(handle_coordination_status())
+        data = {
+            "coordination": res,
+            "providers": {
+                "note": "Provider health is managed by ModelRelay registry v3",
+                "registry_debug": json.loads(handle_registry_debug()),
+            },
+        }
+        return JSONResponse({
+            "ok": True, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": data, "error": None
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "ok": False, "request_id": uuid.uuid4().hex,
+            "timestamp": _now_iso(), "schema_version": "1.0",
+            "data": {}, "error": {"detail": str(exc)}
+        }, status_code=500)
+
+_SAGE_ROUTES = [
+    Route("/v1/health", endpoint=sage_route_health, methods=["GET"]),
+    Route("/v1/registry", endpoint=sage_route_registry, methods=["GET"]),
+    Route("/v1/coordination/status", endpoint=sage_route_coordination_status, methods=["GET"]),
+    Route("/v1/tasks", endpoint=sage_route_list_tasks, methods=["GET"]),
+    Route("/v1/tasks", endpoint=sage_route_propose_task, methods=["POST"]),
+    Route("/v1/a2a/topics", endpoint=sage_route_list_topics, methods=["GET"]),
+    Route("/v1/a2a/messages", endpoint=sage_route_read_messages, methods=["GET"]),
+    Route("/v1/a2a/messages", endpoint=sage_route_publish_message, methods=["POST"]),
+    Route("/v1/sessions/status", endpoint=sage_route_session_status, methods=["GET"]),
+    Route("/v1/sessions/heartbeat", endpoint=sage_route_heartbeat, methods=["POST"]),
+    Route("/v1/evidence", endpoint=sage_route_capture_evidence, methods=["POST"]),
+    Route("/v1/audit", endpoint=sage_route_append_audit, methods=["POST"]),
+    Route("/v1/comparison", endpoint=sage_route_get_comparison, methods=["GET"]),
+    Route("/v1/comparison", endpoint=sage_route_add_comparison, methods=["POST"]),
+    Route("/v1/comparison/export", endpoint=sage_route_export_comparison, methods=["GET"]),
+    Route("/privacy", endpoint=sage_route_privacy, methods=["GET"]),
+    # ── SAGE v2 ULTRA Endpoints ──
+    Route("/v1/swarm/dispatch", endpoint=sage_route_swarm_dispatch, methods=["POST"]),
+    Route("/v1/swarm/status/{task_id}", endpoint=sage_route_swarm_status, methods=["GET"]),
+    Route("/v1/program", endpoint=sage_route_run_program, methods=["POST"]),
+    Route("/v1/grounding", endpoint=sage_route_grounding, methods=["GET"]),
+    Route("/v1/agents", endpoint=sage_route_list_agents, methods=["GET"]),
+    Route("/v1/evidence/search", endpoint=sage_route_search_evidence, methods=["GET"]),
+    Route("/v1/models/health", endpoint=sage_route_models_health, methods=["GET"]),
+    Route("/v1/trust/{agent_id}", endpoint=sage_route_trust_score, methods=["GET"]),
+    Route("/v1/memory/{channel}", endpoint=sage_route_memory_read, methods=["GET"]),
+    Route("/v1/providers/status", endpoint=sage_route_providers_status, methods=["GET"]),
+]
+# Deliberately never register _SAGE_ROUTES on any port.
+# The definitions remain temporarily for compatibility archaeology only.
+
+
 # ============================
 # MAIN
 # ============================
@@ -1723,6 +2745,7 @@ if __name__ == "__main__":
     print("=" * 60)
     sys.stdout.flush()
     mcp.run(transport="sse")
+
 
 
 

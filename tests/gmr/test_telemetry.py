@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from nexus_os.gmr.telemetry import ModelTelemetry, TelemetryIngest
+from nexus_os.gmr.telemetry import ModelTelemetry, TelemetryIngest, default_catalogue_urls, parse_models_payload
 
 
 class TestModelTelemetry:
@@ -46,6 +46,11 @@ class TestModelTelemetry:
 
 
 class TestTelemetryIngest:
+    def test_default_urls_prefer_health_aware_model_arena_manifest(self):
+        urls = default_catalogue_urls()
+        assert urls[0] == "http://127.0.0.1:7356/api/client-manifest"
+        assert "http://127.0.0.1:7350/v1/models" in urls
+
     def test_initial_cache_empty(self):
         ingest = TelemetryIngest(url="http://fake:9999")
         assert ingest.cache == {}
@@ -83,6 +88,40 @@ class TestTelemetryIngest:
         ingest = TelemetryIngest(url="http://fake:9999")
         result = ingest.fetch()
         assert result == {}
+
+
+def test_parse_model_arena_manifest_requires_fresh_observed_health_for_availability():
+    payload = {
+        "contract": {"source": "nexus-model-arena-live-projection"},
+        "models": [
+            {
+                "id": "fresh-code",
+                "provider": "opencode",
+                "health": {"state": "healthy", "observed": True, "fresh": True, "latency_ms": 123},
+                "benchmarks": {"dimensions": {"quality": 0.81}},
+            },
+            {
+                "id": "stale-model",
+                "provider": "nvidia",
+                "health": {"state": "stale", "observed": True, "fresh": False, "latency_ms": 456},
+                "benchmarks": {"dimensions": {"quality": 0.9}},
+            },
+            {
+                "id": "unverified-model",
+                "provider": "nvidia",
+                "health": {"state": "unverified", "observed": False, "fresh": False},
+                "benchmarks": {"dimensions": {}},
+            },
+        ],
+    }
+
+    models = parse_models_payload(payload, timestamp="now")
+    assert models["fresh-code"].is_available is True
+    assert models["fresh-code"].tier == 81
+    assert models["stale-model"].status == "stale"
+    assert models["stale-model"].is_available is False
+    assert models["unverified-model"].status == "unverified"
+    assert models["unverified-model"].is_available is False
 
 
 # ─────────────────────────────────────────────────────────────────────────

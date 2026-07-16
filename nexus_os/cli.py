@@ -136,7 +136,7 @@ def _cmd_health(args):
     """Quick health check of core modules."""
     results = {}
     for module_name, import_path, import_name in [
-        ("engine.router", "nexus_os.engine.router", "TaskRouter"),
+        ("engine.router", "nexus_os.engine.router", "EngineRouter"),
         ("governor.base", "nexus_os.governor.base", "NexusGovernor"),
         ("vault.manager", "nexus_os.vault.manager", "VaultManager"),
         ("bridge.server", "nexus_os.bridge.server", "BridgeServer"),

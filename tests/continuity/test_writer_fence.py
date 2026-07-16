@@ -9,6 +9,7 @@ Fence contract:
 """
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 from nexus_os.continuity.records import (
@@ -217,12 +218,30 @@ def test_legacy_and_corrupt_rows_stay_tolerated(tmp_path):
     ledger.write_text(original, encoding="utf-8")
 
     records, meta = read_records(ledger)
-    assert len(records) == 1
-    (legacy,) = records
-    assert legacy.origin == ORIGIN_CORE
-    assert legacy.fenced is False  # floor row: cap is identity, no flag
-    assert legacy.progress_class == ProgressClass.NOOP_RECAP.value
+    assert len(records) == 2
+    typed, foreign = records
+    assert typed.origin == ORIGIN_CORE
+    assert typed.fenced is False  # floor row: cap is identity, no flag
+    assert typed.progress_class == ProgressClass.NOOP_RECAP.value
+    assert foreign.run_id.startswith("legacy-sha256:")
+    assert foreign.origin == ORIGIN_BROWSER
+    assert foreign.source_lane == "lane_stack_preflight"
     assert meta["corrupt_tail"] is True
-    assert len(meta["errors"]) == 2
+    assert len(meta["errors"]) == 1
     # read path never rewrites the ledger
     assert ledger.read_text(encoding="utf-8") == original
+
+
+def test_concurrent_appends_remain_complete_jsonl(tmp_path):
+    ledger = tmp_path / "runs.jsonl"
+
+    def write(index):
+        append_record(_record(run_id=f"run-{index}"), ledger)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(write, range(40)))
+
+    rows, meta = read_records(ledger)
+    assert meta["corrupt_tail"] is False
+    assert len(rows) == 40
+    assert {row.run_id for row in rows} == {f"run-{i}" for i in range(40)}

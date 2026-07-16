@@ -113,10 +113,17 @@ class TestModelProfile:
         mp = ModelProfile(name="test", provider="ollama", cost_per_1m=0.0)
         assert mp.name == "test"
         assert mp.cost_per_million == 0.0
+        assert mp.is_local is True
 
-    def test_is_available_always_true(self):
+    def test_cloud_provider_is_not_implicitly_local(self):
+        mp = ModelProfile(name="test", provider="nvidia", cost_per_1m=0.0)
+        assert mp.is_local is False
+
+    def test_is_available_respects_health_status(self):
         mp = ModelProfile("t", "p")
         assert mp.is_available()
+        mp.status = "unverified"
+        assert mp.is_available() is False
 
     def test_pool_auto_assignment_local(self):
         mp = ModelProfile(name="m", provider="ollama", is_local=True, cost_per_million=0)
@@ -253,40 +260,122 @@ class TestGeniusModelRotator:
         assert "connection lost" in result["error"]
 
 
-class TestKnownProductionBugs:
-    """Regression tests documenting pre-existing bugs in production code.
-    These tests verify the *current* (buggy) behavior so they break when fixed.
-    """
+class TestProductionRegressions:
+    """Regression tests for repaired health-aware GMR behavior."""
 
-    def test_sync_profiles_overwrites_cost_with_tier(self):
-        """BUG: _sync_profiles sets cost_per_million = float(tel.tier)
-        instead of preserving the actual cost. See rotator.py:211."""
+    def test_sync_profiles_preserves_cost_and_updates_quality_tier(self):
         gmr = GeniusModelRotator()
         gmr.telemetry = MockTelemetryIngest()
-        # Before sync, osman-coder has cost 0 from domain mapping
         original_cost = gmr.models.get("osman-coder")
         if original_cost:
             assert original_cost.cost_per_million == 0.0
         gmr._sync_profiles()
         synced = gmr.models.get("osman-coder")
         if synced:
-            # After sync, cost is incorrectly set to tier value (40)
-            assert synced.cost_per_million == 40.0  # BUG: should remain 0.0
+            assert synced.cost_per_million == 0.0
+            assert synced.tier == 40
+            assert synced.quality_score == 0.4
 
-    def test_speed_intent_value_mismatches_domain_key(self):
-        """BUG: IntentCategory.SPEED.value is 'speed' but DOMAIN_MAPPING
-        uses 'fast' as the key. The fallback path in get_routing_cascade
-        uses intent.value, so SPEED fallbacks are never found."""
+    def test_speed_intent_fallback_maps_to_fast_domain(self):
         from nexus_os.gmr.domain_mapping import DOMAIN_MAPPING
-        assert IntentCategory.SPEED.value == "speed"
-        assert "speed" not in DOMAIN_MAPPING  # BUG: should match
-        assert "fast" in DOMAIN_MAPPING
 
-    def test_model_profile_missing_record_failure_method(self):
-        """BUG: ModelProfile.__getattr__ returns None for record_failure
-        and reset_failure_count, causing TypeError in
-        execute_with_fallback. See rotator.py:427,451,455."""
+        class EmptyTelemetry:
+            cache = {}
+            last_source = None
+
+            def fetch(self):
+                return self.cache
+
+        gmr = GeniusModelRotator()
+        gmr.telemetry = EmptyTelemetry()
+        for profile in gmr.models.values():
+            profile.status = "unverified"
+        cascade, _ = gmr.get_routing_cascade(
+            "quick summarize this list",
+            intent=IntentCategory.SPEED,
+            metadata={"budget_remaining": 10000},
+        )
+        assert "fast" in DOMAIN_MAPPING
+        assert cascade[0] in DOMAIN_MAPPING["fast"]["fallback_chain"]
+
+    def test_health_authoritative_sync_registers_dynamic_routes_and_excludes_down(self, monkeypatch):
+        class ManifestTelemetry:
+            last_source = "http://127.0.0.1:7356/api/client-manifest"
+            cache = {
+                "fresh-route": ModelTelemetry("fresh-route", "opencode", 81, 123, 1.0, "up", "now"),
+                "down-route": ModelTelemetry("down-route", "nvidia", 91, 0, 0.0, "down", "now"),
+            }
+
+            def fetch(self):
+                return self.cache
+
+        gmr = GeniusModelRotator()
+        monkeypatch.setattr("nexus_os.gmr.rotator._ollama_inventory", lambda: set())
+        gmr.telemetry = ManifestTelemetry()
+        gmr._sync_profiles()
+
+        assert gmr.models["fresh-route"].health_managed is True
+        assert gmr.models["fresh-route"].is_available() is True
+        assert gmr.models["down-route"].health_managed is True
+        assert gmr.models["down-route"].is_available() is False
+
+    def test_health_authoritative_sync_marks_offline_local_models_unverified(self, monkeypatch):
+        class ManifestTelemetry:
+            last_source = "http://127.0.0.1:7356/api/client-manifest"
+            cache = {}
+
+            def fetch(self):
+                return self.cache
+
+        gmr = GeniusModelRotator()
+        monkeypatch.setattr("nexus_os.gmr.rotator._ollama_inventory", lambda: None)
+        gmr.telemetry = ManifestTelemetry()
+        gmr._sync_profiles()
+
+        assert gmr.models["osman-coder"].status == "unverified"
+        assert gmr.models["osman-coder"].is_available() is False
+
+    def test_health_authoritative_sync_keeps_observed_local_inventory_available(self, monkeypatch):
+        class ManifestTelemetry:
+            last_source = "http://127.0.0.1:7356/api/client-manifest"
+            cache = {}
+
+            def fetch(self):
+                return self.cache
+
+        gmr = GeniusModelRotator()
+        monkeypatch.setattr("nexus_os.gmr.rotator._ollama_inventory", lambda: {"osman-coder"})
+        gmr.telemetry = ManifestTelemetry()
+        gmr._sync_profiles()
+
+        assert gmr.models["osman-coder"].status == "up"
+        assert gmr.models["osman-coder"].is_available() is True
+
+    def test_health_authoritative_selection_never_appends_static_cloud_fallbacks(self):
+        class ManifestTelemetry:
+            last_source = "http://127.0.0.1:7356/api/client-manifest"
+            cache = {
+                "fresh-route": ModelTelemetry("fresh-route", "opencode", 81, 123, 1.0, "up", "now"),
+            }
+
+            def fetch(self):
+                return self.cache
+
+        gmr = GeniusModelRotator()
+        for profile in gmr.models.values():
+            profile.status = "unverified"
+        gmr.telemetry = ManifestTelemetry()
+        gmr._sync_profiles()
+
+        selection = gmr.select("code", budget_remaining=100000)
+        assert selection.primary == "fresh-route"
+        assert selection.fallbacks == ["nexus-resilient"]
+
+    def test_model_profile_failure_methods_are_callable(self):
         mp = ModelProfile("test", "p")
-        assert mp.record_failure is None  # BUG: should be a callable
-        with pytest.raises(TypeError):
+        assert callable(mp.record_failure)
+        for _ in range(3):
             mp.record_failure()
+        assert mp.is_available() is False
+        mp.reset_failure_count()
+        assert mp.is_available() is True

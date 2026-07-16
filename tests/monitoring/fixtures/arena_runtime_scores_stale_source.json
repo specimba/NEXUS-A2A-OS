@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "generated_at": "2026-07-14T12:00:00+00:00",
+  "models": {
+    "zai-org/GLM-5.2": {
+      "key": "zai-org/GLM-5.2",
+      "arena_score": 0.99,
+      "confidence": "high",
+      "no_data": false,
+      "sources": {
+        "aa_coding": {
+          "normalized": 0.99,
+          "trust_tier": "tier1",
+          "fetched_at": "2026-07-01T12:00:00+00:00",
+          "stale": false,
+          "external_id": "stale-flag-lie"
+        }
+      }
+    }
+  }
+}

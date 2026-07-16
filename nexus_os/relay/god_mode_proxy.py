@@ -35,6 +35,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from nexus_os.relay.score_evidence import load_arena_score_overlay, resolve_arena_score
 
 # Node/npm ModelRelay (primary, port 7350), Python relay fallback (port 7355)
 _NODERELAY_PORT = int(__import__("os").environ.get("NODERELAY_PORT", "7350"))
@@ -226,6 +227,25 @@ def _provider_diversity_penalty(provider: str) -> float:
 def _record_provider_use(provider: str):
     _recent_provider_use[provider].append(time.time())
 
+ROUTABLE_MODEL_STATUSES = frozenset({"up", "pending"})
+
+
+def _is_routable_model(model: dict) -> bool:
+    """Allow catalogue-only rows without misreporting them as verified healthy."""
+    status = str(model.get("status") or "").strip().lower()
+    return (
+        status in ROUTABLE_MODEL_STATUSES
+        and not bool(model.get("hidden"))
+        and not bool(model.get("isRateLimited"))
+    )
+
+
+def _routable_models(models: list) -> list:
+    return [model for model in models if _is_routable_model(model)]
+
+
+def _verified_up_models(models: list) -> list:
+    return [model for model in models if str(model.get("status") or "").lower() == "up"]
 
 async def get_models():
     now = time.time()
@@ -271,6 +291,7 @@ def get_known_provider_pool() -> list[str]:
         "openai-compatible:mistral",
         "openai-compatible:github",
         "nvidia",
+        "internai",
         # Tier 2
         "openrouter",
         "cerebras",
@@ -282,7 +303,6 @@ def get_known_provider_pool() -> list[str]:
         "openai-compatible:sambanova",
         "openai-compatible:fireworks",
         "openai-compatible:siliconflow",
-        "internai",
     ]
 
 
@@ -315,9 +335,56 @@ def parse_context_window(ctx_str: str) -> int:
         return 0
 
 
+def _observed_intelligence(model: dict) -> Optional[float]:
+    """Return a valid measured intelligence score, never a synthetic default."""
+    if model.get("isEstimatedScore") is True:
+        return None
+    try:
+        value = float(model.get("intell"))
+    except (TypeError, ValueError):
+        return None
+    return value if 0.0 <= value <= 1.0 else None
+
+
+def _intelligence_fields(model: dict) -> dict:
+    observed = _observed_intelligence(model)
+    fields = {
+        "intelligence": observed,
+        "intelligence_evidence": (
+            str(model.get("intelligence_provenance") or "modelrelay_catalogue")
+            if observed is not None else "unknown"
+        ),
+    }
+    if observed is not None and isinstance(model.get("intelligence_sources"), dict):
+        fields["intelligence_sources"] = model["intelligence_sources"]
+    if observed is not None and model.get("intelligence_updated_at"):
+        fields["intelligence_updated_at"] = model["intelligence_updated_at"]
+    return fields
+
+
+def _with_arena_intelligence(model: dict, overlay: dict) -> dict:
+    """Add fresh exact-ID Arena evidence only to an otherwise unscored row."""
+    if _observed_intelligence(model) is not None:
+        return model
+    evidence = resolve_arena_score(
+        [model.get("modelId"), model.get("id"), model.get("model"), model.get("label")],
+        overlay,
+    )
+    if evidence is None:
+        return model
+    enriched = dict(model)
+    enriched["intell"] = evidence["arena_score"]
+    enriched["isEstimatedScore"] = False
+    enriched["intelligence_provenance"] = "arena_sidecar"
+    enriched["intelligence_sources"] = evidence["sources"]
+    enriched["intelligence_updated_at"] = evidence["generated_at"]
+    return enriched
+
+
 def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
     """Score a model based on profile. Returns higher = better."""
-    intell = float(m.get("intell", 0.45) or 0.45)
+    intell = _observed_intelligence(m)
+    intell_for_routing = 0.0 if intell is None else intell
     avg_lat = float(m.get("avg", 5000) or 5000)
     qos = float(m.get("qos", 0.5) or 0.5)
     uptime = float(m.get("uptime", 0.5) or 0.5)
@@ -329,7 +396,7 @@ def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
     # Profile-specific scoring
     if profile_name == "Smart":
         # Intelligence-first, then adequate context, then health
-        intell_score = intell * 100
+        intell_score = intell_for_routing * 100
         ctx_score = 20 if ctx >= 256_000 else (10 if ctx >= 128_000 else 0)
         health_score = (qos + uptime) * 25
         latency_penalty = min(15, avg_lat / 500)  # Small penalty: 500ms=1pt, 5s=10pt
@@ -340,7 +407,7 @@ def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
     elif profile_name == "Fast":
         # Latency-first, with minimum intelligence floor
         latency_score = max(0, 100 - (avg_lat / 30))  # 100ms=97, 1s=67, 3s=0
-        intell_score = intell * 40  # 0.8 = 32pts bonus
+        intell_score = intell_for_routing * 40  # 0.8 = 32pts bonus
         health_score = (qos + uptime) * 10
         tier_bonus = TIER_BONUS.get(PROVIDER_TIER.get(provider, 1), 0)
         diversity_penalty = _provider_diversity_penalty(provider)
@@ -349,7 +416,7 @@ def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
     elif profile_name == "1M+ Ctx":
         # Context is king, then intelligence
         ctx_score = 100 if ctx >= 1_000_000 else (50 if ctx >= 256_000 else 0)
-        intell_score = intell * 60
+        intell_score = intell_for_routing * 60
         health_score = (qos + uptime) * 20
         latency_penalty = min(10, avg_lat / 1000)
         tier_bonus = TIER_BONUS.get(PROVIDER_TIER.get(provider, 1), 0)
@@ -358,7 +425,7 @@ def score_model(m: dict, profile: dict, estimated_tok: int) -> float:
 
     else:
         # Normal / Code / Reason / Auto — balanced weighted score
-        intell_score = intell * 100
+        intell_score = intell_for_routing * 100
         latency_score = max(0, 100 - (avg_lat / 50))
         health_score = (qos * 50) + (uptime * 50)
         if ctx >= 1_000_000:
@@ -401,9 +468,11 @@ def select_candidates(models: list, profile: dict, messages: list, top_n: int = 
     Returns list of (score, model) tuples sorted by score descending.
     Optional `mode` applies lane preferences for provider-pinned routes.
     """
-    up = [m for m in models if m.get("status") == "up"]
-    if not up:
+    routable = _routable_models(models)
+    if not routable:
         return []
+    score_overlay = load_arena_score_overlay()
+    routable = [_with_arena_intelligence(model, score_overlay) for model in routable]
 
     estimated_tok = estimate_tokens(messages)
     min_ctx = profile.get("min_ctx", 0)
@@ -414,10 +483,13 @@ def select_candidates(models: list, profile: dict, messages: list, top_n: int = 
     lane_pref = _lane_preference(mode) if mode else {}
     require_provider = lane_pref.get("require_provider")
 
-    # Filter by minimum intelligence
-    candidates = [m for m in up if float(m.get("intell", 0) or 0) >= min_intell]
+    # Prefer measured benchmark evidence. Models without it remain a
+    # catalogue fallback; they never receive an invented 45% score.
+    observed = [(m, _observed_intelligence(m)) for m in routable]
+    candidates = [m for m, intelligence in observed
+                  if intelligence is not None and intelligence >= min_intell]
     if not candidates:
-        candidates = up  # Fallback: ignore intelligence floor
+        candidates = routable  # Bounded fallback when no measured score qualifies.
 
     # Context filtering with fallback
     if min_ctx > 0:
@@ -479,7 +551,8 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
             "error": "No models pass filters",
             "mode": mode,
             "profile": profile["name"],
-            "total_up": len([m for m in models if m.get("status") == "up"]),
+            "total_up": len(_verified_up_models(models)),
+            "total_routable": len(_routable_models(models)),
         }, []
 
     best = candidates[0][1]
@@ -495,7 +568,7 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
                 "model_id": m.get("modelId"),
                 "model_name": m.get("label"),
                 "provider": pk,
-                "intelligence": float(m.get("intell", 0) or 0),
+                **_intelligence_fields(m),
                 "latency_ms": int(m.get("avg", 0) or 0),
                 "context": m.get("ctx"),
                 "score": score,
@@ -514,7 +587,7 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
                 "model_id": m.get("modelId"),
                 "model_name": m.get("label"),
                 "provider": pk,
-                "intelligence": float(m.get("intell", 0) or 0),
+                **_intelligence_fields(m),
                 "latency_ms": int(m.get("avg", 0) or 0),
                 "context": m.get("ctx"),
                 "score": score,
@@ -527,14 +600,15 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
         "profile": profile["name"],
         "mode": mode,
         "estimated_tokens": estimate_tokens(messages),
-        "candidates_up": len([m for m in models if m.get("status") == "up"]),
+        "candidates_up": len(_verified_up_models(models)),
+        "candidates_routable": len(_routable_models(models)),
         "candidates_evaluated": len(candidates),
         "top_score": best_score,
         "model_id": best.get("modelId"),
         "model_name": best.get("label"),
         "provider": best.get("providerKey"),
         "provider_tier": PROVIDER_TIER.get(best.get("providerKey"), 1),
-        "intelligence": float(best.get("intell", 0) or 0),
+        **_intelligence_fields(best),
         "latency_ms": int(best.get("avg", 0) or 0),
         "context": ctx_raw,
         "context_tokens": ctx_num,
@@ -551,7 +625,13 @@ def select_model(models: list, mode: str, messages: list) -> Tuple[Optional[str]
 def _explain_selection(m: dict, profile: dict, est_tok: int) -> str:
     parts = []
     if profile["name"] == "Smart":
-        parts.append(f"Highest intelligence ({(m.get('intell') or 0)*100:.0f}%)")
+        intelligence = _observed_intelligence(m)
+        if intelligence is None:
+            parts.append("No measured intelligence score; selected on live route, context, and health")
+        elif m.get("intelligence_provenance") == "arena_sidecar":
+            parts.append(f"Highest fresh Arena score ({intelligence * 100:.0f}%)")
+        else:
+            parts.append(f"Highest catalogue intelligence score ({intelligence * 100:.0f}%)")
     elif profile["name"] == "Fast":
         parts.append(f"Fastest latency ({int(m.get('avg') or 0)}ms)")
     elif profile["name"] == "1M+ Ctx":
@@ -921,12 +1001,13 @@ async def profiles_preview():
 async def god_status():
     """Full system status with top models per profile."""
     models = await get_models()
-    up = [m for m in models if m.get("status") == "up"]
+    up = _verified_up_models(models)
+    routable = _routable_models(models)
 
-    top_intell = sorted(up, key=lambda m: float(m.get("intell", 0) or 0), reverse=True)[:15]
-    top_fast = sorted(up, key=lambda m: float(m.get("avg", 99999) or 99999))[:15]
-    large_ctx = [m for m in up if parse_context_window(m.get("ctx", "")) >= 1_000_000]
-    high_ctx_256k = [m for m in up if parse_context_window(m.get("ctx", "")) >= 256_000]
+    top_intell = sorted(routable, key=lambda m: float(m.get("intell", 0) or 0), reverse=True)[:15]
+    top_fast = sorted(routable, key=lambda m: float(m.get("avg", 99999) or 99999))[:15]
+    large_ctx = [m for m in routable if parse_context_window(m.get("ctx", "")) >= 1_000_000]
+    high_ctx_256k = [m for m in routable if parse_context_window(m.get("ctx", "")) >= 256_000]
 
     # Profile previews
     profile_best = {}
@@ -951,7 +1032,8 @@ async def god_status():
         "summary": {
             "total_models": len(models),
             "models_up": len(up),
-            "providers_active": len(set(m.get("providerKey") for m in up)),
+            "models_routable": len(routable),
+            "providers_routable": len(set(m.get("providerKey") for m in routable)),
             "large_context_1m": len(large_ctx),
             "high_context_256k": len(high_ctx_256k),
             "profiles_ready": len(profile_best),
@@ -978,8 +1060,16 @@ async def god_status():
 @app.get("/health")
 async def health():
     models = await get_models()
-    up = sum(1 for m in models if m.get("status") == "up")
-    return {"status": "ok", "models_up": up, "total": len(models), "proxy_version": "v3"}
+    up = len(_verified_up_models(models))
+    routable = len(_routable_models(models))
+    return {
+        "status": "ok" if routable else "degraded",
+        "models_up": up,
+        "models_routable": routable,
+        "catalogue_only": bool(routable and not up),
+        "total": len(models),
+        "proxy_version": "v3.1",
+    }
 
 
 @app.post("/god/refresh")
@@ -1002,11 +1092,13 @@ async def refresh_discovery():
     added_providers = new_providers - old_providers
     removed_providers = old_providers - new_providers
 
-    up = sum(1 for m in models if m.get("status") == "up")
+    up = len(_verified_up_models(models))
+    routable = len(_routable_models(models))
     return JSONResponse({
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "total_models": len(models),
         "models_up": up,
+        "models_routable": routable,
         "added_models": sorted(added_models)[:50],
         "removed_models": sorted(removed_models)[:50],
         "added_providers": sorted(added_providers),

@@ -45,6 +45,7 @@ MODEL_LICENSE_OVERRIDES: dict[str, str] = {
     "baseten:zai-org/GLM-5": "permissive",
     "baseten:zai-org/GLM-5.1": "permissive",
     "baseten:zai-org/GLM-5.2": "permissive",
+    "mistral:labs-leanstral-1-5-1": "permissive",
     "nvidia:deepseek-ai/deepseek-v4-flash": "permissive",
     "nvidia:deepseek-ai/deepseek-v4-pro": "permissive",
     "nvidia:minimaxai/minimax-m2.7": "restricted",

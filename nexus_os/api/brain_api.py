@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -262,8 +263,8 @@ BRAIN_TOKEN_FILE = _Path.home() / ".nexus_pi" / "state" / ".brain_api_token"
 
 def get_brain_api_token() -> str:
     """Shared secret: NEXUS_BRAIN_TOKEN env, else an auto-generated local
-    token file readable by local clients (TUI, dashboard). Non-loopback
-    binds must set the env token explicitly (enforced by the daemon)."""
+    token file readable by local clients (TUI, dashboard). Every launch path
+    separately enforces the explicit unsafe opt-in for non-loopback binds."""
     env = os.environ.get("NEXUS_BRAIN_TOKEN")
     if env:
         return env
@@ -278,7 +279,31 @@ def get_brain_api_token() -> str:
 
 
 def _token_valid(supplied: Optional[str]) -> bool:
-    return bool(supplied) and _hmac.compare_digest(supplied, get_brain_api_token())
+    if not supplied:
+        return False
+    try:
+        return _hmac.compare_digest(supplied, get_brain_api_token())
+    except TypeError:
+        # compare_digest rejects non-ASCII str values. Invalid credentials must
+        # fail closed instead of surfacing an internal error.
+        return False
+
+
+def _websocket_supplied_token(websocket: WebSocket) -> Optional[str]:
+    supplied = websocket.headers.get("x-api-key")
+    if supplied:
+        return supplied
+
+    authorization = websocket.headers.get("authorization", "")
+    scheme, separator, credential = authorization.partition(" ")
+    if separator and scheme.casefold() == "bearer" and credential.strip():
+        return credential.strip()
+
+    return None
+
+
+def _websocket_token_valid(websocket: WebSocket) -> bool:
+    return _token_valid(_websocket_supplied_token(websocket))
 
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
@@ -1169,6 +1194,10 @@ async def stress_report(report: StressReportRequest, api_key: str = Depends(veri
 
 @brain_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    if not _websocket_token_valid(websocket):
+        await websocket.close(code=1008, reason="valid API key required")
+        return
+
     conn_id = await ws_manager.connect(websocket)
     await ws_manager.send_to(conn_id, {
         "type": "connected",
@@ -1229,6 +1258,19 @@ async def websocket_endpoint(websocket: WebSocket):
         ws_manager.disconnect(conn_id)
 
 
+# NEXUS SAGE is a separately authenticated northbound client.  Its router is
+# intentionally limited to observation and proposal jobs; it does not inherit
+# the broader Brain token or expose live execution.
+from nexus_os.sage_gateway.routes import router as sage_router
+from fastapi.exceptions import RequestValidationError
+from nexus_os.sage_gateway.security import (
+    SageBodyLimitMiddleware,
+    sage_request_validation_handler,
+)
+
+brain_app.add_middleware(SageBodyLimitMiddleware)
+brain_app.add_exception_handler(RequestValidationError, sage_request_validation_handler)
+brain_app.include_router(sage_router)
 # Native Sentinel routes share the Brain API authentication contract.
 from nexus_os.sentinel.api import router as sentinel_router
 
@@ -1239,7 +1281,36 @@ brain_app.include_router(
 
 # ── Server Entry Point ─────────────────────────────────────────────────────────
 
-def run_brain_api(host: str = "0.0.0.0", port: int = 7352):
+_UNSAFE_NON_LOOPBACK_BIND_ENV = "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND"
+
+
+def _is_loopback_bind_host(host: str) -> bool:
+    normalized = host.strip().casefold()
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+def validate_brain_bind(host: str) -> None:
+    if _is_loopback_bind_host(host):
+        return
+    if os.environ.get(_UNSAFE_NON_LOOPBACK_BIND_ENV) != "1":
+        raise RuntimeError(
+            f"Refusing non-loopback Brain API bind {host!r}; "
+            f"set {_UNSAFE_NON_LOOPBACK_BIND_ENV}=1 only for an explicitly "
+            "secured deployment"
+        )
+    logger.warning(
+        "Unsafe non-loopback Brain API bind explicitly enabled for %s",
+        host,
+    )
+
+
+def run_brain_api(host: str = "127.0.0.1", port: int = 7352):
+    validate_brain_bind(host)
     import uvicorn
     uvicorn.run(brain_app, host=host, port=port)
 
@@ -1247,7 +1318,7 @@ def run_brain_api(host: str = "0.0.0.0", port: int = 7352):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="NEXUS Brain API Server")
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=7352)
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()

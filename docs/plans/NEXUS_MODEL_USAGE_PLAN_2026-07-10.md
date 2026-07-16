@@ -168,9 +168,9 @@ DONE
 **Root cause**: Python Relay `/v1/models` returned only hardcoded `["minimax-m3:cloud", "minimax-m2.7", *OLLAMA_CLOUD_MODELS]`. `OLLAMA_CLOUD_MODELS` only contained 3 entries.
 **Fix**: Inject `baseUrl` for `opencode` and `kilocode` in `config/models.registry.json`; regenerate artifacts; update `/v1/models` and `/api/models` to consume dynamic `ALL_ACTIVE_CLOUD_MODELS`.
 
-### Cloud Health Check Bug (P0, antiGRAV-11 L8208)
+### Cloud Health Check Bug (historical P0, antiGRAV-11 L8208)
 **Bug**: `model_relay.py:_check_health()` POSTs to local Ollama:11434 for ALL model names. Cloud-only models like `minimax-m3:cloud` always return 404.
-**Fix pending**: Must use provider-specific health check endpoints.
+**Current status (2026-07-12)**: provider-aware classification now avoids Ollama probes for cloud models and records `sidecar:*` or `unprobed_default` provenance. Focused health tests cover cloud/no-Ollama, local-Ollama, and sidecar states. Direct provider probes remain a separate rate-limited reliability task.
 
 ### NIM Rate Limit Cascade (FIXED, antiGRAV-11 L6045)
 **Root cause**: MiniMax-M3 on NIM has slow KV-cache warm-up (38s first, 60s+ subsequent). 8 RPM budget burned.
@@ -187,8 +187,9 @@ Registry v3 features (per antiGRAV-11 L6063-6104):
 ## 10. Action Items (Synthesized)
 
 ### P0 — Immediate
-1. **Apply DPO judge fix** — `gen_guard_dpo_pairs.py` still references `intern-s2-preview`; replace with `deepseek-v4-pro` (NIM)
-2. **Fix cloud health check** — `_check_health` POSTs to local Ollama for cloud models (always 404)
+1. **Re-ground the DPO judge claim** — locate the canonical generator before changing a historic `intern-s2-preview` reference; preserve the InternAI fallback policy unless live code proves otherwise.
+2. **Consume benchmark provenance** — route from `arena_ingest` sidecar evidence with source/date/coverage, not an inherited placeholder score.
+3. **Prove NIM retry behavior** — model/provider-scoped 429, Retry-After, cancellation, and bounded tool-call fixtures.
 3. **Adopt llama-server router mode** — replaces Ollama reinstall blocker
 4. **Apply registry v3 to all CLIs** — opencode, kilo, cline, hermes, mimo all need to consume v3 schema
 
@@ -230,3 +231,50 @@ Registry v3 features (per antiGRAV-11 L6063-6104):
 - `NEXUS_MILESTONES_2026-H2.md` — M0-M6 roadmap
 - `docs/coordination/ARCHIVIST_MODELS_API_DIGEST_2026-06-20.md` — model inventory
 - `docs/policies/GND-001_24h_deep_grounding.md` — full-coverage reading policy
+
+---
+
+## 13. 2026-07-12 living model-stack delta
+
+The static tiers above remain the intended 8GB architecture. This section
+records the live routing contract so a candidate catalogue cannot be mistaken
+for a deployed, healthy, or benchmarked model.
+
+### Verified cloud and client surface
+
+| Surface | Current evidence | Interpretation |
+|---------|------------------|----------------|
+| Node ModelRelay 7350 | 236 catalogue rows, 134 projected OpenAI-compatible model ids | discovery and client visibility are live |
+| NVIDIA lane | GLM-5.2 at 1M and MiniMax-M3 at 1M are visible with non-estimated scores | visibility does not imply a fresh successful generation; route through provider-scoped cooldown policy |
+| Mistral Leanstral | visible as `labs-leanstral-1-5-1`, `intell: null`, `isEstimatedScore: true` | correct no-data representation; it must not inherit a 45% score |
+| God Mode 7357 | scores known intelligence separately from catalogue fallback | unknown models can be used only as an explicit fallback, never presented as benchmark-ranked |
+| Ubuntu Hermes | authenticated WSL gateway has a managed ModelRelay provider and 134 projected models | GLM-5.2 and Leanstral reach the active Hermes estate |
+
+### Score and freshness contract
+
+1. A model score is a capability observation, not a default. Unknown data is
+   `null` with `no_data`/estimated provenance.
+2. Provider health is separate: `up`, `pending`, `rate_limited`, `noauth`, and
+   `down` must not change a benchmark value.
+3. The source/date/coverage/freshness of Arena or other benchmark data must
+   travel with the model card. The existing `arena_ingest` sidecar is the next
+   integration target; it must not silently overwrite the committed registry.
+4. Route selection may use a catalogue-only fallback only when no measured
+   candidate qualifies. Its rationale must state that benchmark intelligence is
+   unknown.
+5. NIM retries remain model/provider scoped, bounded, cooldown-aware, and
+   cancelable. A 429 on one offer cannot disable the entire NVIDIA lane.
+
+### Next model-stack execution order
+
+1. Read the Arena sidecar in Bridge/God Mode and add a fixture that proves
+   stale or no-data observations never raise a route score.
+2. Extend the provider scanner snapshot with canonical identity aliases,
+   endpoint/version timestamps, free-offer metadata, and quarantine state.
+3. Add NIM tool-call and sub-agent stress fixtures using a local fake upstream;
+   never burn real quota merely to prove retries.
+4. Make the 7356/7357 surfaces show score provenance, source freshness, and
+   verified-vs-catalogue health separately.
+5. Treat all 8GB local stack activation as a measured wrapper decision: one
+   rotatable T2 model, guard budget intact, no unattended local download or
+   replacement of a working serving path.

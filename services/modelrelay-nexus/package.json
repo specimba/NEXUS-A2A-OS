@@ -1,0 +1,24 @@
+{
+  "name": "@nexus/modelrelay-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pinned and governed NEXUS runtime for modelrelay 1.18.0.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "patch-package --error-on-fail",
+    "patch:apply-reviewed": "patch-package --error-on-fail && node src/verify-runtime.mjs",
+    "test": "node --test --test-isolation=none --test-reporter=spec test/*.test.mjs",
+    "verify": "node src/verify-runtime.mjs",
+    "shadow": "node src/cli.mjs --port 17350 --bind 127.0.0.1 --config test/fixtures/shadow-config.json",
+    "verify:shadow-failover": "node scripts/verify-shadow-failover.mjs"
+  },
+  "dependencies": {
+    "modelrelay": "1.18.0"
+  },
+  "devDependencies": {
+    "patch-package": "8.0.1"
+  }
+}

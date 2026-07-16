@@ -1,4 +1,4 @@
-# Phase 1 job card — Guard DPO safety pairs with intern-s2 Oracle Judge
+# Phase 1 job card — Guard DPO safety pairs with NVIDIA DeepSeek V4 Pro label author
 # Roadmap: docs/roadmaps/FINETUNE_MERGE_ROADMAP.md
 job:
   id: phase1-guard-dpo-v1
@@ -8,10 +8,12 @@ job:
     phase-2 SAMM merge.
   generator: scripts/finetune/gen_guard_dpo_pairs.py
   judge:
-    model: intern-s2-preview
-    provider: internai            # keyRef internai in config/models.registry.json
-    rpm_limit: 30                 # paced via SlidingWindowRPMTracker
-    quota_note: 90M tokens/month operator grant — 1000 pairs << 1% of it
+    model: deepseek-ai/deepseek-v4-pro
+    provider: nvidia              # keyRef nvidia in config/models.registry.json
+    rpm_limit: 4                  # serial NIM constraint for this exact offer
+    min_start_interval_s: 15
+    rate_limit_cooldown_floor_s: 75
+    quota_note: bounded two-attempt label author; no parallel fan-out or tool calls
   dataset:
     output: datasets/finetune/guard_dpo_v1.jsonl   # untracked
     smoke_sample: jobs/finetune/samples/guard_dpo_smoke.jsonl  # committed
@@ -29,3 +31,4 @@ job:
       inside the generator; judge outputs failing the check are retried
       once then template-fallback)
     - no raw provider keys anywhere in outputs
+    - committed smoke sample retains historical Intern-S2 provenance; do not relabel it

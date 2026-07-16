@@ -91,12 +91,16 @@ def _policy_from_name(name: str) -> TemperaturePolicy:
 
 
 def _live_catalogue_ids() -> set[str]:
-    """Best-effort live ModelRelay/GodMode IDs; empty set if relays down."""
+    """Return only fresh observed live IDs; empty set when none are proven."""
     try:
         from nexus_os.gmr.telemetry import TelemetryIngest
 
         cache = TelemetryIngest().fetch()
-        return {name for name in cache if name != "godmode_summary"}
+        return {
+            name
+            for name, telemetry in cache.items()
+            if name != "godmode_summary" and telemetry.is_available
+        }
     except Exception:
         return set()
 
@@ -112,7 +116,10 @@ def resolve_execute_model(
     frontier IDs present in the live catalogue.
     """
     if not catalogue:
-        return requested, "live catalogue empty; using decision model as-is"
+        return (
+            "nexus-resilient",
+            "no fresh observed canonical route; delegated to nexus-resilient",
+        )
     if requested in catalogue:
         return requested, None
     # Case-insensitive exact

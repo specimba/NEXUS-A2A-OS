@@ -1,25 +1,31 @@
 """
 FunctionGemma Router — Intent Classifier + Governance Router
 ==============================================================
-Uses local FunctionGemma (300 MB) via Ollama to classify user intents
-into GOVERNANCE / EXECUTION / ADMIN / BLOCKED categories, then routes
+Uses a locally configured FunctionGemma-compatible model via Ollama to classify
+user intents into GOVERNANCE / EXECUTION / ADMIN / BLOCKED categories, then routes
 to the MCP governance server or ChimeraRouter inference.
+
+Its artifact size, runtime memory, and task fitness are admission evidence, not
+assumptions made by this module.
 
 Architecture:
     User → FunctionGemma (intent) → MCP governance (if governance intent)
                                   → ChimeraRouterV2 + Ollama (if execution)
                                   → BLOCKED (if nonsense/low confidence)
 
-Metrics vs Zapier:
-    25x faster (~80ms vs 500-2000ms), $0 cost, immutable VAP audit
+This adapter is intentionally fail-closed: malformed model output, an unknown
+intent, or confidence below the classifier contract cannot cause a governed
+or execution action.
 """
 
-import os, json, requests, logging
+import os, json, math, requests, logging
 from typing import Optional
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1:49152")
 OLLAMA_URL = f"http://{OLLAMA_HOST}/api/generate"
 MODEL = os.environ.get("FUNCTIONGEMMA_MODEL", "functiongemma:latest")
+VALID_INTENTS = frozenset({"GOVERNANCE", "EXECUTION", "ADMIN", "BLOCKED"})
+MINIMUM_CONFIDENCE = 0.85
 
 logger = logging.getLogger("nexus.functiongemma")
 
@@ -57,15 +63,27 @@ class FunctionGemmaRouter:
             raw = data.get("response", "{}").strip()
             raw = raw.replace("```json", "").replace("```", "").strip()
             result = json.loads(raw)
-            intent = result.get("intent", "BLOCKED")
+            if not isinstance(result, dict):
+                raise ValueError("classifier response must be a JSON object")
+            intent = str(result.get("intent", "BLOCKED")).upper()
             confidence = float(result.get("confidence", 0.0))
             reasoning = result.get("reasoning", "")
+            if intent not in VALID_INTENTS:
+                raise ValueError("classifier returned an unknown intent")
+            if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+                raise ValueError("classifier confidence must be within [0, 1]")
             self._healthy = True
+            if confidence < MINIMUM_CONFIDENCE:
+                return {
+                    "intent": "BLOCKED",
+                    "confidence": confidence,
+                    "reasoning": "below_admission_threshold",
+                }
             return {"intent": intent, "confidence": confidence, "reasoning": reasoning}
-        except Exception as e:
-            logger.warning(f"FunctionGemma classify failed: {e}")
+        except Exception as exc:
+            logger.warning("FunctionGemma classify failed: %s", type(exc).__name__)
             self._healthy = False
-            return {"intent": "BLOCKED", "confidence": 0.0, "reasoning": f"classification_error: {e}"}
+            return {"intent": "BLOCKED", "confidence": 0.0, "reasoning": "classification_error"}
 
     def route(self, user_query: str, user_id: str = "anonymous",
               mcp_engine=None, chimera_router=None) -> dict:
@@ -73,7 +91,7 @@ class FunctionGemmaRouter:
         intent = classification["intent"]
         confidence = classification["confidence"]
 
-        if confidence < 0.5:
+        if intent not in VALID_INTENTS or confidence < MINIMUM_CONFIDENCE:
             intent = "BLOCKED"
 
         result = {

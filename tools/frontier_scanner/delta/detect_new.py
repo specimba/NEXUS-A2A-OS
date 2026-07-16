@@ -26,6 +26,9 @@ class DeltaReport:
     snapshot_age_seconds: float = 0.0
     reason: str = ""
     baseline_established: bool = False
+    # Source metadata travels only with newly-visible IDs. It is review input,
+    # never a routing, health, or benchmark assertion.
+    new_metadata: dict[str, dict] = field(default_factory=dict)
 
     def to_json(self) -> dict:
         return {
@@ -38,6 +41,7 @@ class DeltaReport:
             "snapshot_age_seconds": self.snapshot_age_seconds,
             "reason": self.reason,
             "baseline_established": self.baseline_established,
+            "new_metadata": self.new_metadata,
         }
 
 
@@ -56,6 +60,11 @@ def load_catalog(path: Path) -> ProviderCatalog | None:
         error=payload.get("error"),
         status=payload.get("status", "unknown"),
         raw_count=payload.get("raw_count", 0),
+        model_metadata=(
+            payload.get("model_metadata", {})
+            if isinstance(payload.get("model_metadata"), dict)
+            else {}
+        ),
     )
 
 
@@ -70,6 +79,11 @@ def diff_catalogs(prev: ProviderCatalog, current: ProviderCatalog) -> DeltaRepor
         stable_ids=sorted(cur_ids & prev_ids),
         baseline_age_seconds=max(0.0, time.time() - prev.fetched_at),
         snapshot_age_seconds=max(0.0, time.time() - current.fetched_at),
+        new_metadata={
+            model_id: dict(current.model_metadata.get(model_id, {}))
+            for model_id in sorted(cur_ids - prev_ids)
+            if isinstance(current.model_metadata.get(model_id), dict)
+        },
     )
 
 
@@ -102,6 +116,11 @@ def run_delta_pass(
                 new_ids=sorted(set(snapshot_cat.model_ids)),
                 reason=f"baseline_established:{baseline.status if baseline else 'missing'}",
                 baseline_established=True,
+                new_metadata={
+                    model_id: dict(snapshot_cat.model_metadata.get(model_id, {}))
+                    for model_id in sorted(set(snapshot_cat.model_ids))
+                    if isinstance(snapshot_cat.model_metadata.get(model_id), dict)
+                },
             )
             if snapshot_healthy:
                 _promote_baseline(snapshot_cat, baseline_path)

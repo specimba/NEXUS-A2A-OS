@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""
+NEXUS Local OCR Client
+========================
+Sends a local image file to the PaddleOCR service on port 7360
+and prints the extracted text.
+
+Usage:
+    python scripts/ocr/ocr_client.py <image_path> [--mode fast|struct|vl]
+    python scripts/ocr/ocr_client.py C:\path\to\screenshot.png
+    python scripts/ocr/ocr_client.py C:\path\to\screenshot.png --mode struct
+"""
+
+import argparse
+import base64
+import json
+import sys
+import urllib.request
+from pathlib import Path
+
+OCR_SERVICE = "http://127.0.0.1:7360"
+
+
+def ocr_image(image_path: str, mode: str = "fast") -> dict:
+    """Send image to OCR service and return result."""
+    img_bytes = Path(image_path).read_bytes()
+    b64 = base64.b64encode(img_bytes).decode()
+    payload = json.dumps({"image": b64, "mode": mode}).encode()
+
+    req = urllib.request.Request(
+        f"{OCR_SERVICE}/ocr",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        return json.loads(resp.read().decode())
+
+
+def main():
+    parser = argparse.ArgumentParser(description="NEXUS Local OCR Client")
+    parser.add_argument("image", help="Path to image file")
+    parser.add_argument("--mode", default="fast", choices=["fast", "struct", "vl"])
+    args = parser.parse_args()
+
+    if not Path(args.image).exists():
+        print(f"ERROR: file not found: {args.image}")
+        sys.exit(1)
+
+    print(f"OCR-ing {args.image} (mode={args.mode})...")
+    try:
+        result = ocr_image(args.image, args.mode)
+    except Exception as e:
+        print(f"ERROR: {e}")
+        sys.exit(2)
+
+    if result.get("status") != "ok":
+        print(f"ERROR: {result.get('error', 'unknown')}")
+        sys.exit(3)
+
+    # Output
+    r = result["result"]
+    print(f"\n=== OCR RESULT (elapsed={result['elapsed_s']}s, lines={r['line_count']}) ===\n")
+    print(r.get("full_text", "(no text)"))
+    print(f"\n=== JSON ===")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

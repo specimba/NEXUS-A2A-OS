@@ -68,3 +68,76 @@ class TestMasterDaemonStopNoOp:
         daemon = NEXUSMasterDaemon()
         await daemon.stop()
         assert daemon.running is False
+
+
+class TestMasterDaemonBrainBinding:
+    @pytest.mark.asyncio
+    async def test_non_loopback_bind_requires_explicit_unsafe_opt_in(
+        self,
+        monkeypatch,
+    ):
+        import uvicorn
+
+        daemon = NEXUSMasterDaemon()
+        config_called = False
+
+        def fake_config(*args, **kwargs):
+            nonlocal config_called
+            config_called = True
+            raise AssertionError("Uvicorn config created for rejected bind")
+
+        monkeypatch.setenv("NEXUS_BRAIN_BIND", "0.0.0.0")
+        monkeypatch.setenv("NEXUS_BRAIN_TOKEN", "configured-token")
+        monkeypatch.delenv(
+            "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND",
+            raising=False,
+        )
+        monkeypatch.setattr(uvicorn, "Config", fake_config)
+
+        task = await daemon._start_brain_api()
+
+        assert task is None
+        assert config_called is False
+        assert "brain_api_server" not in daemon.services
+
+    @pytest.mark.asyncio
+    async def test_explicit_unsafe_opt_in_allows_non_loopback_bind(
+        self,
+        monkeypatch,
+    ):
+        import uvicorn
+
+        daemon = NEXUSMasterDaemon()
+        config_calls = []
+        serve_called = False
+
+        class FakeServer:
+            def __init__(self, config):
+                self.config = config
+                self.should_exit = False
+
+            async def serve(self):
+                nonlocal serve_called
+                serve_called = True
+
+        def fake_config(app, **kwargs):
+            config_calls.append((app, kwargs))
+            return object()
+
+        monkeypatch.setenv("NEXUS_BRAIN_BIND", "0.0.0.0")
+        monkeypatch.setenv(
+            "NEXUS_UNSAFE_ALLOW_NON_LOOPBACK_BRAIN_BIND",
+            "1",
+        )
+        monkeypatch.setattr(uvicorn, "Config", fake_config)
+        monkeypatch.setattr(uvicorn, "Server", FakeServer)
+
+        task = await daemon._start_brain_api()
+        assert task is not None
+        await task
+
+        assert config_calls
+        assert config_calls[0][1]["host"] == "0.0.0.0"
+        assert config_calls[0][1]["port"] == 7352
+        assert serve_called is True
+        assert "brain_api_server" in daemon.services

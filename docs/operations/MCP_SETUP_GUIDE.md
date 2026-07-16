@@ -117,12 +117,36 @@ Lightweight config optimized for code editing:
 
 ### For Cline
 
-Cline uses Claude Desktop's config. Once Claude is set up, Cline will inherit the MCP servers.
+Cline does not inherit Claude Desktop's MCP configuration. Keep the governed
+project entry in [`.cline/mcp.json`](../../.cline/mcp.json). It is a
+repo-local MCP contract, exposing only the proposal-governed MCP surface on
+`http://127.0.0.1:7354/sse`; it does not redirect Cline inference traffic to
+ModelRelay on 7350 and contains no credential or auto-approval setting.
 
-**To force reload**:
+For its Cline target, `nexusctl model-sync --only cline` reports that repo-local
+tool contract only.
+It never reads or writes Cline's user provider configuration and therefore
+cannot claim that inference is wired. Per Cline's
+[current configuration guidance](https://docs.cline.bot/getting-started/config),
+global provider settings live under `~/.cline/data/settings/`, while `.cline/`
+is the shareable project scope.
+
+For a user-owned ModelRelay inference setup, configure Cline through its own
+Settings/Auth UI: select **OpenAI Compatible**, enter the loopback base URL
+`http://127.0.0.1:7350/v1`, provide a user-owned bearer/API key, and choose a
+model ID from `/v1/models` only when its relay health is observed. If 7356
+reports `rate_limited`, select the relay's configured fallback rather than
+repeatedly retrying that route. This follows Cline's
+[OpenAI-compatible provider requirements](https://docs.cline.bot/provider-config/openai-compatible).
+Do not put that bearer in this repository, an MCP file, or a VS Code settings
+projection.
+
+**To verify or reload**:
 ```powershell
-# Inside VS Code with Cline extension:
-# Restart VS Code, Cline will re-initialize
+# Cline CLI: use the official MCP command family without starting an agent task.
+cline mcp
+
+# IDE extension: reopen the Cline MCP Servers panel after editing the file.
 ```
 
 ---

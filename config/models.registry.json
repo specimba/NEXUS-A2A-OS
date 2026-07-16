@@ -1107,6 +1107,37 @@
   },
   "models": [
     {
+      "id": "labs-leanstral-1-5-1",
+      "provider": "mistral",
+      "aliases": [
+        "labs-leanstral-1-5",
+        "leanstral",
+        "mistralai/Leanstral-1.5-119B-A6B"
+      ],
+      "context": 262144,
+      "maxOutput": null,
+      "free": true,
+      "tier": null,
+      "capabilities": {
+        "thinking": true,
+        "tools": true,
+        "vision": true
+      },
+      "roles": [
+        "code",
+        "reasoning"
+      ],
+      "lanes": [
+        "specialist"
+      ],
+      "status": "active",
+      "notes": "Mistral Labs dated API route discovered live 2026-07-11. Model card capacity is 256K tokens; Mistral recommends <=200K for serving. Open-weight model ID: mistralai/Leanstral-1.5-119B-A6B.",
+      "outputLicense": {
+        "class": "permissive",
+        "basis": "Apache-2.0 model card"
+      }
+    },
+    {
       "id": "zai-org/GLM-5.2",
       "provider": "baseten",
       "aliases": [
@@ -2086,7 +2117,7 @@
       "aliases": [
         "glm-5.2"
       ],
-      "context": 202752,
+      "context": 1048576,
       "maxOutput": 8192,
       "free": true,
       "tier": 96,
@@ -2224,7 +2255,7 @@
         "eval"
       ],
       "status": "active",
-      "notes": "35B-A3B scientific reasoner; Oracle Judge for guard DPO pairs (fine-tune phase 1)"
+      "notes": "35B-A3B scientific reasoner with judge/teacher eligibility. Historical guard-DPO smoke samples retain its provenance; the active phase-1 generator uses NVIDIA DeepSeek V4 Pro."
     },
     {
       "id": "intern-latest",

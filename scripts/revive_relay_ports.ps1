@@ -11,7 +11,9 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-$ModelRelayJs = "$env:APPDATA\npm\node_modules\modelrelay\bin\modelrelay.js"
+$ModelRelayRuntime = "$NexusRoot\scripts\modelrelay_runtime.ps1"
+$Pwsh       = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $Pwsh) { $Pwsh = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
 $Node        = (Get-Command node -ErrorAction SilentlyContinue).Source
 $Python      = "$NexusRoot\.venv\Scripts\python.exe"
 
@@ -50,11 +52,8 @@ function Start-IfDead {
 
 # --- 7350: Node ModelRelay primary -------------------------------------------------
 $launch7350 = {
-    if (-not $Node -or -not (Test-Path $ModelRelayJs)) { Write-Error "node/modelrelay missing"; return }
-    Start-Process -NoNewWindow -FilePath $Node `
-        -ArgumentList "$ModelRelayJs","--port","7350","--config",$RelayConfig `
-        -RedirectStandardOutput "$NexusRoot\logs\modelrelay_7350.out.log" `
-        -RedirectStandardError  "$NexusRoot\logs\modelrelay_7350.err.log"
+    if (-not $Pwsh -or -not (Test-Path $ModelRelayRuntime)) { Write-Error 'repo ModelRelay runtime missing'; return }
+    Start-Process -WindowStyle Hidden -FilePath $Pwsh -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ModelRelayRuntime,'-Port','7350','-ConfigPath',$RelayConfig,'-Bind','0.0.0.0') -RedirectStandardOutput "$NexusRoot\logs\modelrelay_7350.out.log" -RedirectStandardError "$NexusRoot\logs\modelrelay_7350.err.log"
 }
 
 # --- 7355: Python ModelRelay fallback (Windows .venv, crash-restart loop) ----------

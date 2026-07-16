@@ -177,6 +177,21 @@ class _GovernanceRestWrapper:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_audits (
+                audit_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                agent_id   TEXT NOT NULL,
+                operation  TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                context    TEXT NOT NULL DEFAULT '{}',
+                outcome    TEXT NOT NULL DEFAULT 'success',
+                trace_id   TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
         self.conn.commit()
 
     def propose_skill(
@@ -344,6 +359,35 @@ class _GovernanceRestWrapper:
         )
         self.conn.commit()
 
+    def log_token_audit(
+        self,
+        agent_id: str,
+        operation: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        context: Optional[Dict[str, Any]] = None,
+        outcome: str = "success",
+        trace_id: str = "",
+    ) -> None:
+        """Append-only token audit write. INSERT only — no UPDATE/DELETE."""
+        self.conn.execute(
+            """
+            INSERT INTO token_audits
+                (agent_id, operation, input_tokens, output_tokens, context, outcome, trace_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                agent_id,
+                operation,
+                input_tokens,
+                output_tokens,
+                json.dumps(context or {}, sort_keys=True),
+                outcome,
+                trace_id,
+            ),
+        )
+        self.conn.commit()
+
     @staticmethod
     def _proposal_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
         data = dict(row)
@@ -385,7 +429,7 @@ class BridgeServer:
         self.governance = _GovernanceRestWrapper(db_path, governor=self.governor)
 
 
-    # â”€â”€ Token Guard Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ———————————————————————————————————————————— Token Guard Helpers ————————————————————————————————————————————
 
     def _parse_input_tokens(self, headers, payload) -> int:
         """Extract input token count. Header > payload > fallback(0)."""
@@ -403,7 +447,7 @@ class BridgeServer:
         return 0
 
     def _track_tokens(self, agent_id, project_id, operation, input_tokens, output_tokens):
-        """Track tokens via TokenGuard. Non-blocking â€” never breaks requests."""
+        """Track tokens via TokenGuard. Non-blocking — never breaks requests."""
         if input_tokens <= 0 and output_tokens <= 0:
             return None
         try:
@@ -677,19 +721,32 @@ class BridgeServer:
 
             exec_result = self.executor.execute(task_id, description, context)
 
+            task_status = "completed" if exec_result.success else "failed"
             self.governance.record_task_result(
                 task_id=task_id,
                 agent_id=req.agent_id or "unknown",
-                status="completed" if exec_result.success else "failed",
+                status=task_status,
                 error=exec_result.error or "",
                 lane="implementation",
                 output=exec_result.output or "",
             )
 
+            # Persistent VAP audit for task submission
+            self.governance.log_vap(
+                "task_submit",
+                {
+                    "task_id": task_id,
+                    "agent_id": req.agent_id or "unknown",
+                    "status": task_status,
+                    "trace_id": req.trace_id,
+                    "output_preview": str(exec_result.output or "")[:200],
+                },
+            )
+
             duration = (time.perf_counter() - start) * 1000
             return 200, jsonrpc_result({
                 "task_id": task_id,
-                "status": "completed" if exec_result.success else "failed",
+                "status": task_status,
                 "output": exec_result.output,
                 "error": exec_result.error,
                 "duration_ms": round(duration, 2),
@@ -722,8 +779,18 @@ class BridgeServer:
             result = self.governance.get_task_result(task_id)
 
             if result is None:
+                # Log status query miss to VAP
+                self.governance.log_vap(
+                    "status_query_miss",
+                    {"task_id": task_id, "agent_id": req.agent_id, "trace_id": req.trace_id},
+                )
                 return 404, jsonrpc_error(-32602, f"Task not found: {task_id}")
 
+            # Log status query hit to VAP
+            self.governance.log_vap(
+                "status_query",
+                {"task_id": task_id, "agent_id": req.agent_id, "trace_id": req.trace_id},
+            )
             return 200, jsonrpc_result(result, req.trace_id)
         except (AuthError, ForbiddenError, ParseError, HeldError) as e:
             return e.http_status, jsonrpc_error(e.code, e.message, data=e.hold_ticket if isinstance(e, HeldError) else None)
@@ -798,18 +865,30 @@ class BridgeServer:
 
         exec_result = self.executor.execute(task_id, description, context)
 
+        task_status = "completed" if exec_result.success else "failed"
         self.governance.record_task_result(
             task_id=task_id,
             agent_id=req.agent_id or "unknown",
-            status="completed" if exec_result.success else "failed",
+            status=task_status,
             error=exec_result.error or "",
             lane="implementation",
             output=exec_result.output or "",
         )
 
+        # Persistent VAP audit for dispatch-path submission
+        self.governance.log_vap(
+            "task_submit",
+            {
+                "task_id": task_id,
+                "agent_id": req.agent_id or "unknown",
+                "status": task_status,
+                "trace_id": req.trace_id,
+            },
+        )
+
         return {
             "task_id": task_id,
-            "status": "completed" if exec_result.success else "failed",
+            "status": task_status,
             "output": exec_result.output,
             "error": exec_result.error,
         }

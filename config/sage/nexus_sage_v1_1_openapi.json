@@ -1,0 +1,962 @@
+{
+  "components": {
+    "schemas": {
+      "EvidenceSearchParameters": {
+        "additionalProperties": false,
+        "properties": {
+          "max_results": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "query": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "enum": [
+                "grounding",
+                "audit",
+                "continuity",
+                "archivist"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "EvidenceSearchParameters",
+        "type": "object"
+      },
+      "EvidenceSearchSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/EvidenceSearchParameters"
+          },
+          "source_msg_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Msg Id"
+          },
+          "workflow_type": {
+            "const": "evidence_search",
+            "title": "Workflow Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "workflow_type",
+          "parameters"
+        ],
+        "title": "EvidenceSearchSubmission",
+        "type": "object"
+      },
+      "GroundingAuditParameters": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "enum": [
+                "NEXUS_MANIFEST.md",
+                "01_PROJECT_STATE.md",
+                "knowledge.md",
+                "AGENTS.md"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Files",
+            "type": "array"
+          },
+          "verify_hashes": {
+            "default": true,
+            "title": "Verify Hashes",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "GroundingAuditParameters",
+        "type": "object"
+      },
+      "GroundingAuditSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/GroundingAuditParameters"
+          },
+          "source_msg_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Msg Id"
+          },
+          "workflow_type": {
+            "const": "grounding_audit",
+            "title": "Workflow Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "workflow_type",
+          "parameters"
+        ],
+        "title": "GroundingAuditSubmission",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ModelHealthSnapshotParameters": {
+        "additionalProperties": false,
+        "properties": {
+          "include_unverified": {
+            "default": true,
+            "title": "Include Unverified",
+            "type": "boolean"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "title": "ModelHealthSnapshotParameters",
+        "type": "object"
+      },
+      "ModelHealthSnapshotSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ModelHealthSnapshotParameters"
+          },
+          "source_msg_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Msg Id"
+          },
+          "workflow_type": {
+            "const": "model_health_snapshot",
+            "title": "Workflow Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "workflow_type",
+          "parameters"
+        ],
+        "title": "ModelHealthSnapshotSubmission",
+        "type": "object"
+      },
+      "ParallelAuditProposalParameters": {
+        "additionalProperties": false,
+        "properties": {
+          "domains": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Domains",
+            "type": "array"
+          },
+          "max_agents": {
+            "default": 3,
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Max Agents",
+            "type": "integer"
+          },
+          "objective": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Objective",
+            "type": "string"
+          }
+        },
+        "required": [
+          "objective",
+          "domains"
+        ],
+        "title": "ParallelAuditProposalParameters",
+        "type": "object"
+      },
+      "ParallelAuditProposalSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ParallelAuditProposalParameters"
+          },
+          "source_msg_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Msg Id"
+          },
+          "workflow_type": {
+            "const": "parallel_audit_proposal",
+            "title": "Workflow Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "workflow_type",
+          "parameters"
+        ],
+        "title": "ParallelAuditProposalSubmission",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "SageBearerAuth": {
+        "bearerFormat": "opaque",
+        "description": "Operator-provisioned NEXUS SAGE credential",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "NEXUS SAGE is an external reasoning client. It may observe bounded evidence and submit proposal-only jobs; HERMES retains claim, execution, retry, and closure authority. Replace the reserved server only after operator approval of the public HTTPS ingress.",
+    "summary": "Sense, propose, and witness through the NEXUS Brain governance plane.",
+    "title": "NEXUS SAGE Governed Actions API",
+    "version": "1.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/sage/v1/capabilities": {
+      "get": {
+        "description": "Return the Sense/Propose/Witness boundary and explicitly denied powers.",
+        "operationId": "sage_capabilities_api_sage_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "arbitrary_program_execution": {
+                      "type": "boolean"
+                    },
+                    "mode": {
+                      "enum": [
+                        "observe_only",
+                        "proposal_write"
+                      ],
+                      "type": "string"
+                    },
+                    "proposal_writes_enabled": {
+                      "type": "boolean"
+                    },
+                    "raw_memory_export": {
+                      "type": "boolean"
+                    },
+                    "schema": {
+                      "type": "string"
+                    },
+                    "self_approval": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "mode",
+                    "proposal_writes_enabled",
+                    "arbitrary_program_execution",
+                    "raw_memory_export",
+                    "self_approval"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Read governed SAGE capabilities",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    },
+    "/api/sage/v1/grounding": {
+      "get": {
+        "description": "Return allowlisted file names, sizes, timestamps, and hashes without file bodies or absolute paths.",
+        "operationId": "sage_grounding_manifest_api_sage_v1_grounding_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "content_included": {
+                      "type": "boolean"
+                    },
+                    "files": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "available": {
+                            "type": "boolean"
+                          },
+                          "bytes": {
+                            "type": "integer"
+                          },
+                          "modified_at": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sha256": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "available"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "generated_at": {
+                      "type": "string"
+                    },
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "generated_at",
+                    "content_included",
+                    "files"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Read grounding metadata",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    },
+    "/api/sage/v1/health": {
+      "get": {
+        "description": "Confirm the separately authenticated Brain-plane ingress is available. This operation does not grant execution authority.",
+        "operationId": "sage_health_api_sage_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "execution_allowed": {
+                      "type": "boolean"
+                    },
+                    "mode": {
+                      "enum": [
+                        "observe_only",
+                        "proposal_write"
+                      ],
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "plane": {
+                      "enum": [
+                        "brain-governance"
+                      ],
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "service",
+                    "plane",
+                    "mode",
+                    "execution_allowed"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Check SAGE ingress health",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    },
+    "/api/sage/v1/jobs": {
+      "post": {
+        "description": "Create an idempotent proposal receipt in pending_review state. This operation cannot execute, approve, retry, or close work.",
+        "operationId": "submit_sage_job_api_sage_v1_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "Submit exactly one allowlisted proposal workflow. Match parameters to workflow_type and do not mix fields between workflows: grounding_audit requires files and optionally accepts verify_hashes; evidence_search requires query and optionally accepts sources and max_results; model_health_snapshot optionally accepts providers and include_unverified; parallel_audit_proposal requires objective and domains and optionally accepts max_agents. The server rejects mismatched or extra fields.",
+                "properties": {
+                  "idempotency_key": {
+                    "description": "Caller-generated stable key. Reuse only when replaying the exact same proposal payload.",
+                    "maxLength": 128,
+                    "minLength": 8,
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "additionalProperties": false,
+                    "description": "Workflow-specific parameters. grounding_audit: files (required), verify_hashes. evidence_search: query (required), sources, max_results. model_health_snapshot: providers, include_unverified. parallel_audit_proposal: objective and domains (required), max_agents.",
+                    "properties": {
+                      "domains": {
+                        "description": "Required only for parallel_audit_proposal.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 8,
+                        "minItems": 1,
+                        "type": "array"
+                      },
+                      "files": {
+                        "description": "Required only for grounding_audit.",
+                        "items": {
+                          "enum": [
+                            "NEXUS_MANIFEST.md",
+                            "01_PROJECT_STATE.md",
+                            "knowledge.md",
+                            "AGENTS.md"
+                          ],
+                          "type": "string"
+                        },
+                        "maxItems": 4,
+                        "minItems": 1,
+                        "type": "array"
+                      },
+                      "include_unverified": {
+                        "default": true,
+                        "description": "Optional for model_health_snapshot.",
+                        "type": "boolean"
+                      },
+                      "max_agents": {
+                        "default": 3,
+                        "description": "Optional for parallel_audit_proposal.",
+                        "maximum": 4,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "max_results": {
+                        "default": 10,
+                        "description": "Optional for evidence_search.",
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "objective": {
+                        "description": "Required only for parallel_audit_proposal.",
+                        "maxLength": 4000,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "providers": {
+                        "description": "Optional for model_health_snapshot.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 20,
+                        "type": "array"
+                      },
+                      "query": {
+                        "description": "Required only for evidence_search.",
+                        "maxLength": 500,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "sources": {
+                        "description": "Optional for evidence_search.",
+                        "items": {
+                          "enum": [
+                            "grounding",
+                            "audit",
+                            "continuity",
+                            "archivist"
+                          ],
+                          "type": "string"
+                        },
+                        "maxItems": 4,
+                        "type": "array"
+                      },
+                      "verify_hashes": {
+                        "default": true,
+                        "description": "Optional for grounding_audit.",
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source_msg_id": {
+                    "description": "Optional external correlation identifier; omit when unavailable.",
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "workflow_type": {
+                    "description": "The allowlisted proposal workflow whose parameter rules apply.",
+                    "enum": [
+                      "grounding_audit",
+                      "evidence_search",
+                      "model_health_snapshot",
+                      "parallel_audit_proposal"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "idempotency_key",
+                  "workflow_type",
+                  "parameters"
+                ],
+                "title": "Governed SAGE proposal job",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "approval_state": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "execution_allowed": {
+                      "type": "boolean"
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "proposal_only": {
+                      "type": "boolean"
+                    },
+                    "receipt_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "workflow_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "receipt_id",
+                    "job_id",
+                    "workflow_type",
+                    "status",
+                    "proposal_only",
+                    "execution_allowed",
+                    "approval_state",
+                    "created_at",
+                    "updated_at",
+                    "expires_at"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Submit a governed proposal job",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    },
+    "/api/sage/v1/jobs/{job_id}": {
+      "get": {
+        "description": "Return a receipt owned by the authenticated SAGE principal without raw execution state.",
+        "operationId": "get_sage_job_api_sage_v1_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "execution_allowed": {
+                      "type": "boolean"
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "workflow_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "job_id",
+                    "workflow_type",
+                    "status",
+                    "execution_allowed"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Read a proposal job receipt",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    },
+    "/api/sage/v1/model-cards": {
+      "get": {
+        "description": "Return the canonical Model Arena projection without provider errors, credentials, or routing secrets.",
+        "operationId": "sage_model_cards_api_sage_v1_model_cards_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "generated_at": {
+                      "type": "string"
+                    },
+                    "models": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "model_id": {
+                            "type": "string"
+                          },
+                          "provider_key": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "projection_schema_version": {
+                      "type": "string"
+                    },
+                    "returned": {
+                      "type": "integer"
+                    },
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "models",
+                    "returned"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SageBearerAuth": []
+          }
+        ],
+        "summary": "Read sanitized model evidence",
+        "tags": [
+          "nexus-sage"
+        ],
+        "x-nexus-authority": "sense-propose-witness",
+        "x-nexus-execution-allowed": false
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Replace only after the governed HTTPS ingress is approved",
+      "url": "https://sage-gateway.invalid"
+    }
+  ],
+  "x-nexus-contract": "sage-governed-actions-v1.1",
+  "x-nexus-server-requires-operator-replacement": true
+}

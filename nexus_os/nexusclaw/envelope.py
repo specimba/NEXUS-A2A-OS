@@ -47,6 +47,19 @@ class ResultStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class ApprovalState(str, Enum):
+    """Approval lifecycle state for a NexusClaw task envelope.
+
+    Only APPROVED envelopes are eligible for live execution; PENDING, HELD,
+    and REJECTED envelopes are refused by the governed live path.
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    HELD = "held"
+    REJECTED = "rejected"
+
+
 def _enum_value(value: str | Enum) -> str:
     return value.value if isinstance(value, Enum) else str(value)
 
@@ -69,6 +82,16 @@ def _as_status(value: str | ResultStatus) -> ResultStatus:
     except ValueError as exc:
         allowed = ", ".join(status.value for status in ResultStatus)
         raise ValueError(f"status must be one of: {allowed}") from exc
+
+
+def _as_approval(value: str | ApprovalState) -> ApprovalState:
+    if isinstance(value, ApprovalState):
+        return value
+    try:
+        return ApprovalState(str(value).lower())
+    except ValueError as exc:
+        allowed = ", ".join(state.value for state in ApprovalState)
+        raise ValueError(f"approval_state must be one of: {allowed}") from exc
 
 
 def _validate_string_list(name: str, values: list[str]) -> None:
@@ -107,6 +130,8 @@ class NexusClawTaskEnvelope:
     lane: str
     intent: str
     risk_level: RiskLevel | str
+    approval_state: ApprovalState | str = ApprovalState.PENDING
+    human_approved: bool = False
     required_capabilities: list[str] = field(default_factory=list)
     resource_budget: dict[str, Any] = field(default_factory=dict)
     egress_policy: dict[str, Any] = field(default_factory=dict)
@@ -114,6 +139,7 @@ class NexusClawTaskEnvelope:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "risk_level", _as_risk(self.risk_level))
+        object.__setattr__(self, "approval_state", _as_approval(self.approval_state))
         self.validate()
 
     @classmethod
@@ -128,6 +154,8 @@ class NexusClawTaskEnvelope:
             lane=str(payload["lane"]),
             intent=str(payload["intent"]),
             risk_level=payload["risk_level"],
+            approval_state=payload.get("approval_state", ApprovalState.PENDING.value),
+            human_approved=bool(payload.get("human_approved", False)),
             required_capabilities=_read_string_list(payload, "required_capabilities"),
             resource_budget=_read_mapping(payload, "resource_budget"),
             egress_policy=_read_mapping(payload, "egress_policy"),
@@ -143,6 +171,8 @@ class NexusClawTaskEnvelope:
             raise ValueError(f"lane must be one of: {', '.join(sorted(_ALLOWED_V1_LANES))}")
         if not self.intent.strip():
             raise ValueError("intent must be non-empty")
+        if not isinstance(self.human_approved, bool):
+            raise ValueError("human_approved must be a boolean")
 
         _validate_string_list("required_capabilities", self.required_capabilities)
         _validate_mapping("resource_budget", self.resource_budget)
@@ -178,6 +208,8 @@ class NexusClawTaskEnvelope:
             "lane": self.lane,
             "intent": self.intent,
             "risk_level": self.risk_level.value,
+            "approval_state": _enum_value(self.approval_state),
+            "human_approved": self.human_approved,
             "required_capabilities": list(self.required_capabilities),
             "resource_budget": dict(self.resource_budget),
             "egress_policy": dict(self.egress_policy),

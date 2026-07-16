@@ -6,7 +6,7 @@ import hashlib
 import os
 import time
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from .models import GroundingEvent, GroundingLifecycle
 from .papers import build_paper_card
@@ -17,6 +17,8 @@ EXCLUDED_PARTS = {
     ".git",
     ".nexus_pi",
     ".kilo",
+    ".pytest_cache",
+    ".ruff_cache",
     ".nexus-worktrees",
     ".venv",
     "backups",
@@ -29,9 +31,12 @@ EXCLUDED_PARTS = {
     "node_modules",
     ".next",
     "vendor",
+    "tests_tmp",
+    "unsloth_compiled_cache",
 }
 SENSITIVE_NAMES = {".env", "cookies", "login data", "web data"}
 SENSITIVE_SUFFIXES = {".key", ".pem", ".pfx", ".p12"}
+_PRIOR_STATE_UNSET = object()
 
 
 def default_source_roots() -> dict[str, Path]:
@@ -82,9 +87,13 @@ def default_source_roots() -> dict[str, Path]:
     return roots
 
 
+def is_excluded_part(part: str) -> bool:
+    lowered = str(part).casefold()
+    return lowered in EXCLUDED_PARTS or lowered.startswith("pytest-cache-files-")
+
+
 def is_sensitive_or_excluded(path: Path) -> bool:
-    lowered_parts = {part.casefold() for part in path.parts}
-    if lowered_parts & EXCLUDED_PARTS:
+    if any(is_excluded_part(part) for part in path.parts):
         return True
     if path.name.casefold() in SENSITIVE_NAMES:
         return True
@@ -112,6 +121,63 @@ def content_hash(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def iter_source_files(
+    root: Path,
+    *,
+    excluded_roots: Iterable[Path] = (),
+    scan_errors: list[str] | None = None,
+) -> Iterable[Path]:
+    """Yield eligible files without descending into excluded/unsafe trees.
+
+    ``Path.rglob`` cannot prune before descent, so a nominally incremental
+    scan still walked node_modules, worktrees, denied pytest caches, and nested
+    source roots.  This scandir walk rejects those directories first, does not
+    follow symlinks/reparse points, and contains per-directory failures.
+    """
+    root = Path(root)
+
+    def key(path: Path) -> str:
+        return os.path.normcase(os.path.abspath(os.fspath(path)))
+
+    excluded_keys = {key(Path(path)) for path in excluded_roots}
+    stack = [root]
+    while stack:
+        directory = stack.pop()
+        try:
+            with os.scandir(directory) as iterator:
+                entries = sorted(iterator, key=lambda entry: entry.name.casefold())
+        except OSError:
+            if scan_errors is not None:
+                scan_errors.append(str(directory))
+            continue
+        child_directories: list[Path] = []
+        for entry in entries:
+            if is_excluded_part(entry.name):
+                continue
+            path = Path(entry.path)
+            if key(path) in excluded_keys:
+                continue
+            try:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    child_directories.append(path)
+                    continue
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+            except OSError:
+                if scan_errors is not None:
+                    scan_errors.append(str(path))
+                continue
+            try:
+                policy_path = path.relative_to(root)
+            except ValueError:
+                policy_path = Path(path.name)
+            if not is_sensitive_or_excluded(policy_path):
+                yield path
+        stack.extend(reversed(child_directories))
 
 
 class GroundingService:
@@ -166,8 +232,9 @@ class GroundingService:
     def _stable_stat(self, path: Path, delay_seconds: float) -> os.stat_result | None:
         try:
             first = path.stat()
-            if delay_seconds:
-                time.sleep(delay_seconds)
+            if delay_seconds <= 0:
+                return first
+            time.sleep(delay_seconds)
             second = path.stat()
         except (FileNotFoundError, OSError):
             return None
@@ -193,6 +260,8 @@ class GroundingService:
         path: Path,
         *,
         stability_delay_seconds: float = 2.0,
+        prior_state: dict[str, Any] | None | object = _PRIOR_STATE_UNSET,
+        known_file: bool = False,
     ) -> GroundingEvent | None:
         """Ingest without re-checking KAIJU. Internal only — callers must have
         already passed the write gate (e.g. reconcile checks once per batch)."""
@@ -202,12 +271,14 @@ class GroundingService:
             policy_path = path.relative_to(root) if root else Path(path.name)
         except ValueError:
             policy_path = Path(path.name)
-        if not path.is_file() or is_sensitive_or_excluded(policy_path):
+        if (not known_file and not path.is_file()) or is_sensitive_or_excluded(policy_path):
             return None
         stat = self._stable_stat(path, stability_delay_seconds)
         if stat is None:
             return None
-        prior = self.store.file_state(path)
+        prior = (
+            self.store.file_state(path) if prior_state is _PRIOR_STATE_UNSET else prior_state
+        )
         if prior and prior["size"] == stat.st_size and prior["mtime_ns"] == stat.st_mtime_ns:
             return None
 
@@ -286,22 +357,56 @@ class GroundingService:
         discovered = 0
         ingested = 0
         skipped_roots: list[str] = []
+        scan_errors: list[str] = []
         cards: list[dict[str, object]] = []
+        snapshotter = getattr(self.store, "file_state_snapshot", None)
+        prior_states = snapshotter() if callable(snapshotter) else None
+        resolved_roots: dict[str, Path] = {}
+        for source_id, root in self.roots.items():
+            try:
+                resolved_roots[source_id] = root.resolve(strict=False)
+            except OSError:
+                resolved_roots[source_id] = root.absolute()
         for source_id, root in self.roots.items():
             if not root.exists():
                 skipped_roots.append(str(root))
                 continue
-            for path in root.rglob("*"):
-                if not path.is_file():
+            resolved_root = resolved_roots[source_id]
+            nested_roots = []
+            for other_id, other_root in resolved_roots.items():
+                if other_id == source_id or other_root == resolved_root:
                     continue
+                try:
+                    if other_root.is_relative_to(resolved_root):
+                        nested_roots.append(other_root)
+                except (OSError, ValueError):
+                    continue
+            for path in iter_source_files(
+                root,
+                excluded_roots=nested_roots,
+                scan_errors=scan_errors,
+            ):
                 discovered += 1
                 event = self._ingest_path_authorized(
                     source_id,
                     path,
                     stability_delay_seconds=stability_delay_seconds,
+                    known_file=True,
+                    prior_state=(
+                        prior_states.get(str(path))
+                        if prior_states is not None
+                        else _PRIOR_STATE_UNSET
+                    ),
                 )
                 if event:
                     ingested += 1
+                    if prior_states is not None:
+                        prior_states[str(path)] = {
+                            "size": event.size,
+                            "mtime_ns": event.mtime_ns,
+                            "content_hash": event.content_hash,
+                            "last_event_id": event.event_id,
+                        }
                     if event.source_kind == "paper":
                         cards.append(build_paper_card(path, event_id=event.event_id))
                 if max_files and discovered >= max_files:
@@ -316,6 +421,7 @@ class GroundingService:
             "ingested": ingested,
             "proposal": str(proposal) if proposal else None,
             "skipped_roots": skipped_roots,
+            "scan_errors": len(set(scan_errors)),
             "store": self.store.status(),
         }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Multi-lane A2A collaboration cycle on authenticated CDP Chrome.
- * Sends role prompts, waits for token/growth, collects evidence, writes ledger + report.
+ * Sends role prompts and proves assistant-side response evidence before recording a result.
  *
  * Usage:
  *   node multi_lane_a2a_cycle.mjs --port 9224 --phase 1
@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { appendJsonlEvent, sha256Text, snapshotSearch, verifyCycleEvidence } from "./a2a_cycle_evidence.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "../..");
@@ -25,6 +26,22 @@ const REPORT_DIR =
     ? "C:\\Users\\speci.000\\Downloads\\NEXUSlogs\\private_team_20260709_grok45_scratch"
     : "/mnt/c/Users/speci.000/Downloads/NEXUSlogs/private_team_20260709_grok45_scratch";
 
+const LANE_REGISTRY = path.join(REPO, "nexus_os", "nexusclaw", "browser_lane_registry.json");
+const REGISTRY_ALIASES = {
+  chatgpt: "chatgpt_gpt55",
+  deepseek: "deepseek_expert",
+  gemini: "gemini_app",
+  qwen_deep: "qwen_deep_research",
+  glm52: "glm_5_2",
+  apodex: "apodex_discover",
+};
+let sessionEventsPath = null;
+let sessionId = null;
+let nextEvidenceCycle = 1;
+
+function registryLaneId(lane) {
+  return REGISTRY_ALIASES[lane.id] || lane.id;
+}
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   if (i === -1) return fallback;
@@ -158,10 +175,9 @@ function runNode(scriptRel, args, timeoutMs = 180000) {
 }
 
 function appendLedger(row) {
+  if (!sessionEventsPath) return "events_path_uninitialized";
   try {
-    fs.mkdirSync(path.dirname(ledger), { recursive: true });
-    fs.appendFileSync(ledger, JSON.stringify(row) + "\n", "utf8");
-    return true;
+    return appendJsonlEvent(sessionEventsPath, row);
   } catch (e) {
     return String(e.message || e);
   }
@@ -236,6 +252,7 @@ function sendPrompt(required, promptFile) {
 
 async function runLane(lane) {
   const started = new Date().toISOString();
+  const evidenceCycle = nextEvidenceCycle++;
   const pages = await listPages();
   const present = pagePresent(pages, lane.required);
   const entry = {
@@ -246,6 +263,7 @@ async function runLane(lane) {
     present,
     started,
     send: null,
+    evidence_cycle: evidenceCycle,
     wait: null,
     attempts: 0,
   };
@@ -273,6 +291,19 @@ async function runLane(lane) {
       entry.status = "DRY_RUN";
       break;
     }
+    const promptText = fs.readFileSync(path.join(PROMPT_DIR, lane.prompt), "utf8");
+    const beforeSearch = await searchPage(lane.required, [lane.token, "HANDOFF"]);
+    const before = snapshotSearch(beforeSearch.json);
+    const sentAt = new Date().toISOString();
+    const sendOffset = appendJsonlEvent(sessionEventsPath, {
+      type: "SEND_PING",
+      cycle: evidenceCycle,
+      lane: registryLaneId(lane),
+      ts: sentAt,
+      cdp_target_id: before.cdpTargetId,
+      url: before.url,
+      prompt_sha256: sha256Text(promptText),
+    });
     const sendRes = sendPrompt(lane.required, lane.prompt);
     entry.send = {
       exitCode: sendRes.exitCode,
@@ -280,28 +311,74 @@ async function runLane(lane) {
       landed: sendRes.json?.send?.landed,
       ok: sendRes.json?.send?.ok,
     };
-    // Wait for token in page (model may still be generating; token in user msg also matches for "landed")
-    // Prefer waiting for model reply: poll until last1500 contains token after "Thought" or second occurrence.
+    // A token can appear in the user prompt, so it is only a pacing signal.
+    // The evidence gate below requires an assistant-side tail delta.
     const wait = await waitForToken(lane.required, lane.token, maxWaitSec);
-    entry.wait = { ok: wait.ok, hits: wait.search?.result?.hits, snippet: (wait.search?.result?.last1500 || "").slice(-700) };
-    // For success: message landed OR token visible (user msg has token at top of prompt)
+    const waitSnapshot = snapshotSearch(wait.search);
+    entry.wait = {
+      token_visible: wait.ok,
+      hits: wait.search?.result?.hits,
+      assistant_tail_sha256: waitSnapshot.tailHash,
+      assistant_len: waitSnapshot.textLength,
+    };
     if (entry.send.ok || entry.send.landed || wait.ok) {
-      // re-search to see if reply expanded
+      // Re-search after a bounded settling interval; a send/token heuristic
+      // cannot substitute for the persisted evidence gate.
       await new Promise((r) => setTimeout(r, 8000));
       const again = await searchPage(lane.required, [lane.token, "HANDOFF"]);
+      const after = snapshotSearch(again.json);
+      let artifactProof = {};
+      if (lane.success_mode === "preview_not_chat") {
+        const preview = probePreview(lane);
+        artifactProof = preview.json || { status: "PREVIEW_PROBE_FAILED", success: false };
+      }
+      const respondedAt = new Date().toISOString();
+      const tailGrew = after.tailHash !== before.tailHash
+        && after.textLength > before.textLength;
+      const waitStatus = tailGrew ? "RESPONSE_READY" : "RESPONSE_UNPROVEN";
+      const waitOffset = appendJsonlEvent(sessionEventsPath, {
+        type: "WAIT_RESULT",
+        cycle: evidenceCycle,
+        lane: registryLaneId(lane),
+        ts: respondedAt,
+        wait: { status: waitStatus },
+        cdp_target_id: after.cdpTargetId || before.cdpTargetId,
+        tail_growth: Math.max(0, after.textLength - before.textLength),
+      });
       entry.collect = {
         hits: again.json?.result?.hits,
-        last1500: (again.json?.result?.last1500 || "").slice(-1200),
-        len: again.json?.result?.len,
+        assistant_len: after.textLength,
+        assistant_tail_sha256: after.tailHash,
+        tail_growth: Math.max(0, after.textLength - before.textLength),
       };
-      // Heuristic: success if body grew and contains HANDOFF or long reply after token
-      const body = again.json?.result?.last1500 || "";
-      const hasHandoff = /##\s*HANDOFF|HANDOFF/i.test(body);
-      const hasToken = body.includes(lane.token);
-      entry.status = hasToken ? (hasHandoff || body.length > 200 ? "REPLY_COLLECTED" : "TOKEN_PRESENT") : "SEND_UNCERTAIN";
-      success = entry.status === "REPLY_COLLECTED" || entry.status === "TOKEN_PRESENT";
+      if (tailGrew) {
+        const gated = verifyLaneEvidence({
+          lane,
+          cycle: evidenceCycle,
+          promptText,
+          before,
+          after,
+          sentAt,
+          respondedAt,
+          sendOffset,
+          waitOffset,
+          artifactProof,
+        });
+        entry.evidence = gated.evidence;
+        entry.verification = gated.verification;
+        entry.status = gated.verification.verdict === "VERIFIED"
+          ? "VERIFIED"
+          : "UNPROVEN_EVIDENCE";
+      } else {
+        entry.verification = {
+          verdict: "UNPROVEN",
+          failures: ["no_assistant_tail_delta", "no_assistant_tail_growth"],
+        };
+        entry.status = "UNPROVEN_EVIDENCE";
+      }
+      success = entry.status === "VERIFIED";
       if (!success && attempt < lane.retries) {
-        // GLM-style patience: wait and retry send
+        // Bounded patience; a failed gate is not a success claim.
         await new Promise((r) => setTimeout(r, 5000 * attempt));
       }
     } else if (attempt < lane.retries) {
@@ -339,6 +416,10 @@ async function main() {
   const lanes =
     phase === "2" ? PHASE2 : phase === "all" ? [...PHASE1, ...PHASE2] : PHASE1;
 
+  fs.mkdirSync(REPORT_DIR, { recursive: true });
+  sessionId = `NEXUS_A2A_C1_${Date.now()}`;
+  sessionEventsPath = path.join(REPORT_DIR, `${sessionId}.events.jsonl`);
+
   appendLedger({
     ts: startedAt,
     kind: "a2a_cycle_start",
@@ -366,18 +447,18 @@ async function main() {
     browser: version?.Browser,
     startedAt,
     finishedAt,
-    ledger,
+    events_path: sessionEventsPath,
+    requested_legacy_ledger: ledger,
     counts: {
       total: results.length,
-      collected: results.filter((r) => r.status === "REPLY_COLLECTED").length,
-      token_present: results.filter((r) => r.status === "TOKEN_PRESENT").length,
+      verified: results.filter((r) => r.status === "VERIFIED").length,
+      unproven: results.filter((r) => r.status === "UNPROVEN_EVIDENCE").length,
       absent: results.filter((r) => r.status === "LANE_ABSENT").length,
-      failed: results.filter((r) => r.status === "SEND_FAILED" || r.status === "SEND_UNCERTAIN").length,
+      failed: results.filter((r) => r.status === "SEND_FAILED").length,
     },
     results,
   };
 
-  fs.mkdirSync(REPORT_DIR, { recursive: true });
   const reportPath = path.join(REPORT_DIR, `NEXUS_A2A_C1_phase${phase}_${Date.now()}.json`);
   fs.writeFileSync(reportPath, JSON.stringify(summary, null, 2), "utf8");
   summary.report_path = reportPath;
@@ -401,3 +482,56 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+function probePreview(lane) {
+  return runNode(
+    "tools/browser_ai_supervisor/qwen_preview_success_probe.mjs",
+    ["--port", String(port), "--required", lane.required],
+    60000,
+  );
+}
+
+function verifyLaneEvidence({
+  lane,
+  cycle,
+  promptText,
+  before,
+  after,
+  sentAt,
+  respondedAt,
+  sendOffset,
+  waitOffset,
+  artifactProof,
+}) {
+  const elapsedSec = Math.max(
+    0,
+    (Date.parse(respondedAt) - Date.parse(sentAt)) / 1000,
+  );
+  const evidence = {
+    schema: 1,
+    session_id: sessionId,
+    cycle,
+    lane: registryLaneId(lane),
+    agent_id: lane.id,
+    cdp_target_id: after.cdpTargetId || before.cdpTargetId,
+    url: after.url || before.url,
+    prompt_sha256: sha256Text(promptText),
+    tail_before_sha256: before.tailHash,
+    tail_after_sha256: after.tailHash,
+    tail_growth: Math.max(0, after.textLength - before.textLength),
+    send_ts: sentAt,
+    response_ts: respondedAt,
+    elapsed_sec: elapsedSec,
+    wait_status: "RESPONSE_READY",
+    send_offset: sendOffset,
+    wait_offset: waitOffset,
+    success_mode: lane.success_mode || "chat_response",
+    artifact_proof: artifactProof || {},
+  };
+  const verification = verifyCycleEvidence({
+    evidence,
+    eventsPath: sessionEventsPath,
+    registryPath: LANE_REGISTRY,
+    tailExcerpt: after.tail,
+  });
+  return { evidence, verification };
+}

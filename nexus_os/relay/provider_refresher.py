@@ -83,6 +83,41 @@ def _key_for(prov: dict) -> str:
     return get_secret(env_name, provider=ref)
 
 
+def _listed_model_ids(payload: Any) -> List[str]:
+    """Extract model identifiers from common provider catalogue shapes.
+
+    Providers legitimately return data arrays, models arrays, or a top-level
+    list. A malformed listing is empty evidence, never an exception that
+    aborts the refresh loop or a signal to suspend models.
+    """
+    if isinstance(payload, list):
+        rows = payload
+    elif isinstance(payload, dict):
+        rows = payload.get("data")
+        if not isinstance(rows, list):
+            rows = payload.get("models", [])
+    else:
+        rows = []
+    if not isinstance(rows, list):
+        return []
+    ids: List[str] = []
+    for row in rows:
+        if isinstance(row, str):
+            model_id = row
+        elif isinstance(row, dict):
+            model_id = row.get("id") or row.get("modelId") or row.get("model") or row.get("name")
+        else:
+            continue
+        if isinstance(model_id, str) and model_id.strip():
+            ids.append(model_id.strip())
+    return list(dict.fromkeys(ids))
+
+
+def _registry_models(registry: dict) -> List[dict]:
+    models = registry.get("models", []) if isinstance(registry, dict) else []
+    return [model for model in models if isinstance(model, dict)] if isinstance(models, list) else []
+
+
 class ProviderRefresher:
     """Registry-driven liveness prober with a persistent health sidecar."""
 
@@ -97,9 +132,14 @@ class ProviderRefresher:
 
     def _load_sidecar(self) -> dict:
         try:
-            return json.loads(self.sidecar_path.read_text(encoding="utf-8"))
+            payload = json.loads(self.sidecar_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {"models": {}, "providers": {}}
+        if not isinstance(payload, dict):
+            return {"models": {}, "providers": {}}
+        payload["models"] = payload.get("models") if isinstance(payload.get("models"), dict) else {}
+        payload["providers"] = payload.get("providers") if isinstance(payload.get("providers"), dict) else {}
+        return payload
 
     def _save_sidecar(self) -> None:
         if not self.persist:
@@ -112,8 +152,9 @@ class ProviderRefresher:
     # ── Probing ────────────────────────────────────────────────────
 
     def probe_provider(self, slug: str, *, chat_probe_absentees: bool = True) -> ProbeResult:
-        prov = self.registry["providers"].get(slug)
-        if prov is None:
+        providers = self.registry.get("providers", {}) if isinstance(self.registry, dict) else {}
+        prov = providers.get(slug) if isinstance(providers, dict) else None
+        if not isinstance(prov, dict):
             return ProbeResult(provider=slug, reachable=False, error="not in registry")
         base = (prov.get("baseUrl") or "").rstrip("/")
         if not base:
@@ -133,17 +174,17 @@ class ProviderRefresher:
             resp = requests.get(f"{base}{prov.get('modelsPath', '/models')}", headers=headers, timeout=PROBE_TIMEOUT_S)
             if not resp.ok:
                 return ProbeResult(provider=slug, reachable=False, error=f"HTTP {resp.status_code}")
-            data = resp.json()
-            items = data.get("data", data if isinstance(data, list) else [])
-            listed = [m.get("id", "") for m in items if isinstance(m, dict)]
-        except (requests.RequestException, ValueError) as exc:
+            listed = _listed_model_ids(resp.json())
+        except (requests.RequestException, ValueError, TypeError, AttributeError) as exc:
             return ProbeResult(provider=slug, reachable=False, error=f"{exc.__class__.__name__}: {exc}")
 
         # Only registry-ACTIVE models count as expectations; suspended/
         # deprecated entries are already flagged in the registry itself.
         registered = [
-            m["id"] for m in self.registry["models"]
-            if m["provider"] == slug and m["status"] == "active"
+            str(model.get("id")) for model in _registry_models(self.registry)
+            if model.get("id")
+            and model.get("provider") == slug
+            and model.get("status", "active") == "active"
         ]
         listed_set = set(listed)
         # A renamed model surviving under a registered alias is alive,
@@ -306,7 +347,7 @@ class ProviderRefresher:
             entry: Dict[str, Any] = {
                 "reachable": r.reachable,
                 "error": r.error,
-                "registered": len([m for m in self.registry["models"] if m["provider"] == r.provider]),
+                "registered": len([m for m in _registry_models(self.registry) if m.get("provider") == r.provider]),
                 "listed": len(r.listed_models),
                 "missing_from_listing": r.missing_from_listing,
                 "chat_confirmed_despite_missing": r.chat_confirmed,
@@ -323,10 +364,17 @@ class ProviderRefresher:
 
     def refresh_all(self, *, only: Optional[str] = None, chat_probe: bool = True) -> List[ProbeResult]:
         results = []
-        for slug, prov in self.registry["providers"].items():
+        providers = self.registry.get("providers", {}) if isinstance(self.registry, dict) else {}
+        if not isinstance(providers, dict):
+            logger.warning("Provider refresh skipped: registry providers is not an object")
+            return results
+        for slug, prov in providers.items():
+            if not isinstance(slug, str) or not isinstance(prov, dict):
+                logger.warning("Provider refresh skipped malformed provider entry: %r", slug)
+                continue
             if only and slug != only:
                 continue
-            if prov["status"] in ("deprecated",):
+            if str(prov.get("status", "active")).lower() == "deprecated":
                 continue
             results.append(self.probe_provider(slug, chat_probe_absentees=chat_probe))
         return results

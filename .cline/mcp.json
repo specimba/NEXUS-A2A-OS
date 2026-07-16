@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "nexus-governed-bridge": {
+      "type": "sse",
+      "url": "http://127.0.0.1:7354/sse",
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

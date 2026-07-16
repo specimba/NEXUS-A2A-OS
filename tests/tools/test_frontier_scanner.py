@@ -17,6 +17,7 @@ import pytest
 from tools.frontier_scanner.signals.catalog_puller import (
     ProviderCatalog,
     _extract_ids,
+    pull_provider_catalog,
 )
 from tools.frontier_scanner.delta.detect_new import (
     DeltaReport,
@@ -57,6 +58,105 @@ def test_extract_ids_empty_payload():
     assert _extract_ids(None, {"data_path": "data.id"}) == []
 
 
+def test_catalog_pull_uses_secret_resolver_and_keeps_bounded_metadata(monkeypatch):
+    from tools.frontier_scanner.signals import catalog_puller
+
+    class FakeResponse:
+        def read(self):
+            return json.dumps({
+                "data": [{
+                    "id": "z-ai/glm-5.2",
+                    "name": "GLM 5.2",
+                    "context_length": 1_048_576,
+                    "supported_parameters": ["tools", "reasoning"],
+                    "architecture": {"never": "persisted"},
+                    "pricing": {"prompt": "0", "completion": "0"},
+                }]
+            }).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    seen = {}
+
+    def fake_secret(name, *, provider=None, default=""):
+        seen["secret"] = (name, provider, default)
+        return "vault-only-token"
+
+    def fake_open(request, timeout):
+        seen["url"] = request.full_url
+        seen["auth"] = request.get_header("Authorization")
+        seen["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(catalog_puller, "get_secret", fake_secret)
+    monkeypatch.setattr(catalog_puller.urllib.request, "urlopen", fake_open)
+    profile = {
+        "models_url": "https://catalog.example/v1/models",
+        "auth_env": "NVIDIA_API_KEY",
+        "key_ref": "nvidia",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+        "timeout_seconds": 12,
+        "data_path": "data.id",
+    }
+
+    catalog = pull_provider_catalog("nvidia", profile)
+
+    assert catalog.status == "ok"
+    assert catalog.model_ids == ["z-ai/glm-5.2"]
+    assert seen["secret"] == ("NVIDIA_API_KEY", "nvidia", "")
+    assert seen["auth"] == "Bearer vault-only-token"
+    metadata = catalog.model_metadata["z-ai/glm-5.2"]
+    assert metadata["context_tokens"] == 1_048_576
+    assert metadata["supported_parameters"] == ["tools", "reasoning"]
+    assert metadata["free_hint"] == "zero_catalog_pricing"
+    assert "architecture" not in metadata
+
+
+def test_openrouter_catalog_is_explicitly_public_but_other_profiles_fail_closed_without_key(monkeypatch):
+    from tools.frontier_scanner.signals import catalog_puller
+
+    calls = []
+
+    class FakeResponse:
+        def read(self):
+            return b'{"data": []}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(catalog_puller, "get_secret", lambda *_args, **_kwargs: "")
+    monkeypatch.setattr(
+        catalog_puller.urllib.request,
+        "urlopen",
+        lambda request, timeout: calls.append((request.full_url, timeout)) or FakeResponse(),
+    )
+    public = pull_provider_catalog("openrouter", {
+        "models_url": "https://openrouter.example/models",
+        "auth_env": "OPENROUTER_API_KEY",
+        "requires_auth": False,
+        "timeout_seconds": 10,
+        "data_path": "data.id",
+    })
+    protected = pull_provider_catalog("nvidia", {
+        "models_url": "https://nvidia.example/models",
+        "auth_env": "NVIDIA_API_KEY",
+        "timeout_seconds": 10,
+        "data_path": "data.id",
+    })
+
+    assert public.status == "ok"
+    assert protected.status == "no_key"
+    assert calls == [("https://openrouter.example/models", 10)]
+
+
 # Delta detection tests
 
 def _cat(model_ids, fetched_at=0.0):
@@ -86,6 +186,14 @@ def test_diff_one_new():
     assert delta.new_ids == ["c-new"]
     assert delta.disappeared_ids == []
     assert delta.stable_ids == ["a", "b"]
+
+
+def test_diff_carries_metadata_only_for_new_ids():
+    previous = _cat(["a"], fetched_at=10.0)
+    current = _cat(["a", "new"], fetched_at=20.0)
+    current.model_metadata = {"a": {"ignored": True}, "new": {"context_tokens": 128_000}}
+    delta = diff_catalogs(previous, current)
+    assert delta.new_metadata == {"new": {"context_tokens": 128_000}}
 
 
 def test_diff_one_disappeared():

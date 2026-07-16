@@ -7,11 +7,14 @@ param(
 
 $Root = "C:\Users\speci.000\Documents\NEXUS"
 $NodeExe = (Get-Command node -ErrorAction SilentlyContinue).Source
-$ModelRelay = "$env:APPDATA\npm\node_modules\modelrelay\bin\modelrelay.js"
+$Pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $Pwsh) { $Pwsh = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
+$ModelRelayRuntime = "$Root\scripts\modelrelay_runtime.ps1"
 $Python = "$Root\.venv\Scripts\python.exe"
 
 if (-not $NodeExe) { Write-Error "node not found"; exit 1 }
-if (-not (Test-Path $ModelRelay)) { Write-Error "modelrelay not found"; exit 1 }
+if (-not $Pwsh) { Write-Error "PowerShell not found"; exit 1 }
+if (-not (Test-Path $ModelRelayRuntime)) { Write-Error "repo ModelRelay runtime missing"; exit 1 }
 
 $windows = @()
 
@@ -33,9 +36,16 @@ function Start-Window {
     Write-Host "[STARTED] $Title on $Port"
 }
 
-# 7350 — Node ModelRelay
+# 7350 — repo-owned governed ModelRelay
 if (-not $No7350) {
-    Start-Window -Title 'NEXUS-ModelRelay-7350' -FilePath $NodeExe -Args "$ModelRelay --port 7350 --config $env:USERPROFILE\.modelrelay.json" -Port 7350
+    $relayHealthy = $false
+    try { $relayHealthy = (Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:7350/' -TimeoutSec 2 -ErrorAction Stop).StatusCode -lt 400 } catch {}
+    if ($relayHealthy) {
+        Write-Host '[OK] NEXUS-ModelRelay-7350 already running'
+    } else {
+        Start-Process -FilePath $Pwsh -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ModelRelayRuntime,'-Port','7350','-ConfigPath',"$env:USERPROFILE\.modelrelay.json",'-Bind','0.0.0.0')
+        Write-Host '[STARTED] governed ModelRelay on 7350'
+    }
 }
 
 # 7355 — Python Relay

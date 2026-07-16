@@ -29,7 +29,7 @@ const targetTop = workTop + Math.floor((workHeight - targetH) / 2);
 function broken(bounds) {
   if (!bounds) return true;
   const { left = 0, top = 0, width = 0, height = 0, windowState } = bounds;
-  if (windowState === "minimized") return true;
+  if (windowState === "minimized") return false;
   if (height < 200 || width < 400) return true;
   if (left < -500 || top < -500) return true;
   if (width <= 2 || height <= 2) return true;

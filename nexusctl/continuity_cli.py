@@ -16,6 +16,7 @@ from nexus_os.continuity.records import (
     classify_progress,
     default_ledger_path,
     legacy_state_refs,
+    prepare_record,
     read_records,
     records_since,
     stable_fingerprint,
@@ -79,7 +80,8 @@ def run_continuity(args: Any) -> tuple[int, dict[str, Any]]:
             completed_at=None,
             memory_routes=("TASK", "META"),
         )
-        path = append_record(record, ledger, origin=getattr(args, "origin", None))
+        record = prepare_record(record, origin=getattr(args, "origin", None))
+        path = append_record(record, ledger)
         return 0, {"status": "ok", "command": "continuity open", "ledger": str(path), "record": record.to_dict()}
 
     if command == "close":
@@ -120,7 +122,8 @@ def run_continuity(args: Any) -> tuple[int, dict[str, Any]]:
             evidence_grade=evidence_grade,
             proof_path=getattr(args, "proof_path", None),
         )
-        path = append_record(record, ledger, origin=getattr(args, "origin", None))
+        record = prepare_record(record, origin=getattr(args, "origin", None))
+        path = append_record(record, ledger)
         return 0, {"status": "ok", "command": "continuity close", "ledger": str(path), "record": record.to_dict()}
 
     if command == "resume-plan":
@@ -140,5 +143,15 @@ def run_continuity(args: Any) -> tuple[int, dict[str, Any]]:
         }
         return 0 if latest else 2, payload
 
+    if command == "repair":
+        from nexus_os.continuity.continuity_repair import repair_ledger
+        ledger_path = Path(args.ledger) if args.ledger else default_ledger_path()
+        output_path = Path(args.output) if args.output else None
+        report = repair_ledger(ledger_path, output_path)
+        status = "ok" if report.get("dropped", 0) == 0 and report.get("error") is None else "degraded"
+        payload = {"status": status, "command": "continuity repair", "report": report}
+        return 0 if status == "ok" else 2, payload
+
     return 2, {"status": "blocked", "error": f"unknown continuity command: {command}"}
+
 

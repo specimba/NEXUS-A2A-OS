@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "generated_at": "2026-07-14T12:00:00+00:00",
+  "models": {
+    "zai-org/GLM-5.2": {
+      "key": "zai-org/GLM-5.2",
+      "arena_score": 0.91,
+      "confidence": "high",
+      "no_data": false,
+      "sources": {
+        "lmarena_elo": {
+          "normalized": 0.91,
+          "trust_tier": "tier1",
+          "fetched_at": "2026-07-14T12:00:00+00:00",
+          "stale": false,
+          "external_id": "GLM 5.2"
+        },
+        "lmarena_code_elo": {
+          "normalized": 0.89,
+          "trust_tier": "tier1",
+          "fetched_at": "2026-07-14T12:00:00+00:00",
+          "stale": false,
+          "external_id": "GLM 5.2 Coding"
+        },
+        "openrouter_usage": {
+          "normalized": 1.0,
+          "trust_tier": "usage",
+          "fetched_at": "2026-07-14T12:00:00+00:00",
+          "stale": false,
+          "external_id": "must-not-leak"
+        }
+      }
+    },
+    "MiniMaxAI/MiniMax-M3": {
+      "key": "MiniMaxAI/MiniMax-M3",
+      "arena_score": 0.99,
+      "confidence": "high",
+      "no_data": false,
+      "sources": {
+        "openrouter_usage": {
+          "normalized": 1.0,
+          "trust_tier": "usage",
+          "fetched_at": "2026-07-14T12:00:00+00:00",
+          "stale": false,
+          "external_id": "usage-is-not-a-score"
+        }
+      }
+    }
+  }
+}

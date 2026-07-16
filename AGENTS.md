@@ -11,7 +11,9 @@ Nexus OS is a governed, agent operating system. Every agent working in this repo
 - Model Arena is an evidence tool; it reports model performance and must not delete, fine-tune, or promote models automatically.
 
 ## Source Of Truth
-- Read `01_PROJECT_STATE.md` first for the current canonical state.
+- Read `NEXUS_MANIFEST.md` (repo root) for living vision: **governed multi-agent OS, not a 1T frontier LLM race**; paid single-account traces are trainable under operator authority.
+- Read `docs/governance/NEXUS_OS_VISION_MANIFEST_2026.md` §11 (2026-07-11 amendment) for full doctrine.
+- Read `01_PROJECT_STATE.md` for the current canonical engineering state.
 - Read `knowledge.md` for a quick project overview, commands, and conventions.
 - Prefer filesystem state, tests, git history, and canonical docs over chat memory.
 - Read current files before making claims or edits.
@@ -37,6 +39,14 @@ Nexus OS is a governed, agent operating system. Every agent working in this repo
 - Do not delete local models or archives without an inventory, backup, and rollback path.
 - Do not expose Ollama, private weights, DoppelGround raw sessions, or core TWAVE internals to external teams.
 - Before ending a session or transferring work, validate the last cycle with `nexusctl cycle-check` when available. Use `nexusctl handoff` to generate a cold-handoff package for agent transfers.
+
+## A800 / Intern-Discovery Workspace HARD RULE (A800-HR-001)
+- **Consciousness point:** On Intern-Discovery notebooks, **PROJECT % is a hard capacity gate** — not optional housekeeping. `DISK` free does **not** mean `/home/mw/project` can accept downloads.
+- **Read** `docs/governance/A800_WORKSPACE_QUOTA_HARD_RULE.md` before any A800 data gravity, Hub pull, or multi-notebook CDP automation.
+- **Project ≥ 80%:** no large multi-pack pulls. **≥ 90%:** stop downloads; cleanup only. **≥ 100%:** cleanup/admin only — do not retry Hub packs.
+- **One live `Notebook-python3-*` only.** Extra kernels are an incident (thrash + partial downloads + quota climb).
+- Prefer small on-disk jewels + CUDA train over filling Project with multi‑hundred‑MB packs. GPU time renew ≠ Project expand.
+- Drivers: keep phase gaps short; never report “working” while parked on 启动页.
 
 ## Governance Gates
 - No "done" claim without verifiable evidence: test output, diff, file path, or explicit reviewed artifact.

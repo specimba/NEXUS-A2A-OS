@@ -12,6 +12,10 @@ from tools.frontier_scanner.signals.catalog_puller import (
     pull_all_catalogs,
     catalog_summary_text,
 )
+from tools.frontier_scanner.signals.omniroute_catalog import (
+    OmniRouteCatalogError,
+    build_source_card_bundle,
+)
 from tools.frontier_scanner.delta.detect_new import (
     run_delta_pass,
     delta_summary_text,
@@ -42,7 +46,12 @@ def cmd_delta(args) -> int:
             new_ids.append((name, mid, r))
     if args.emit_json:
         out = [
-            {"provider": p, "model_id": m, "reason": r.reason}
+            {
+                "provider": p,
+                "model_id": m,
+                "reason": r.reason,
+                "source_metadata": r.new_metadata.get(m, {}),
+            }
             for (p, m, r) in new_ids
         ]
         Path(args.emit_json).write_text(json.dumps(out, indent=2, sort_keys=True), encoding="utf-8")
@@ -95,6 +104,42 @@ def cmd_show(args) -> int:
     return 0
 
 
+def cmd_omniroute_intel(args) -> int:
+    """Emit candidate-only source cards from an explicitly pinned local snapshot."""
+    if not args.enable_omniroute_intel:
+        print(
+            "OmniRoute catalogue intelligence is disabled by default; "
+            "pass --enable-omniroute-intel explicitly",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        bundle = build_source_card_bundle(
+            source_root=Path(args.source_root),
+            expected_version=args.expected_version,
+            expected_commit=args.expected_commit,
+            provenance_manifest=(
+                Path(args.provenance_manifest) if args.provenance_manifest else None
+            ),
+            enabled=True,
+        )
+    except (OmniRouteCatalogError, OSError) as exc:
+        print(f"OmniRoute catalogue intelligence rejected: {exc}", file=sys.stderr)
+        return 2
+    rendered = json.dumps(bundle, indent=2, sort_keys=True)
+    if args.emit_json:
+        output_path = Path(args.emit_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered + "\n", encoding="utf-8")
+        print(
+            f"-- emitted {bundle['summary']['provider_candidate_count']} "
+            f"quarantined source-card candidates to {output_path}"
+        )
+    else:
+        print(rendered)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="NEXUS Frontier Scanner orchestrator.")
     p.add_argument(
@@ -127,6 +172,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp_show = sub.add_parser("show-watchlist", help="List watchlist entries.")
     sp_show.set_defaults(func=cmd_show)
+
+    sp_omni = sub.add_parser(
+        "omniroute-intel",
+        help="Opt-in local OmniRoute source snapshot -> quarantined source cards.",
+    )
+    sp_omni.add_argument("--source-root", required=True)
+    sp_omni.add_argument("--expected-version", required=True)
+    sp_omni.add_argument("--expected-commit", required=True)
+    sp_omni.add_argument("--provenance-manifest", default=None)
+    sp_omni.add_argument("--emit-json", default=None)
+    sp_omni.add_argument(
+        "--enable-omniroute-intel",
+        action="store_true",
+        help="Explicit safety latch; adapter remains disabled without this flag.",
+    )
+    sp_omni.set_defaults(func=cmd_omniroute_intel)
 
     return p
 
