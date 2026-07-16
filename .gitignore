@@ -108,6 +108,38 @@ server.log
 .gemini/
 .playwright-mcp/
 
+# Binary tool binaries (large, platform-specific, not source)
+_tools/
+
+# Generated video outputs (large media files)
+Nexus_News_Video_Outputs/
+
+# Fusion pack archives (distribution builds)
+fusion-pack/
+
+# Dolt internal database files (versioned data engine state, not source)
+wl-commons/.dolt/
+
+# Vendor vulnerability intel (raw fetched data, not source)
+vendor/vuln_intel/
+
+# Large data interchange formats (training/eval datasets, logs)
+*.jsonl
+*.parquet
+*.arrow
+*.feather
+
+# Pickle serialized objects (ML model weights, vector stores)
+*.pkl
+*.joblib
+
+# Binary executables and shared libraries
+*.exe
+*.dll
+*.so
+*.dylib
+*.wasm
+
 # NEXUS-specific generated artifacts
 nexus_os.egg-info/
 nexus_os_untracked_backup/
